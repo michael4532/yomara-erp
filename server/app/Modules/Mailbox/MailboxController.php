@@ -609,6 +609,12 @@ class MailboxController extends Controller
                 return ['provider' => $known[$domain], 'oauth' => true];
             }
         }
+        // messageries grand public connues : réglages IMAP directs (avant la recherche DNS, qui renverrait Google ou Microsoft)
+        if (isset($presets[$domain])) {
+            $p = $presets[$domain];
+
+            return ['provider' => 'imap', 'settings' => ['imap_host' => $p[0], 'imap_port' => 993, 'imap_security' => 'ssl', 'smtp_host' => $p[1], 'smtp_port' => $p[2] ?? 465, 'smtp_security' => $p[3] ?? 'ssl']];
+        }
         $mx = [];
         if (function_exists('dns_get_record')) {
             $mx = array_map(fn ($x) => mb_strtolower($x['target'] ?? ''), (array) (@dns_get_record($domain, DNS_MX) ?: []));
@@ -620,11 +626,6 @@ class MailboxController extends Controller
             if (str_ends_with($h, 'google.com') || str_ends_with($h, 'googlemail.com')) {
                 return ['provider' => 'google', 'oauth' => OAuth::enabled('google'), 'hint' => 'Ce domaine est hébergé sur Google Workspace.'];
             }
-        }
-        if (isset($presets[$domain])) {
-            $p = $presets[$domain];
-
-            return ['provider' => 'imap', 'settings' => ['imap_host' => $p[0], 'imap_port' => 993, 'imap_security' => 'ssl', 'smtp_host' => $p[1], 'smtp_port' => $p[2] ?? 465, 'smtp_security' => $p[3] ?? 'ssl']];
         }
 
         // hébergement mutualisé (cPanel, Plesk…) : mail.domaine sur les ports sécurisés

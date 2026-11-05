@@ -8,6 +8,7 @@
 - CRM (comme Odoo) : « Créer le devis » depuis une opportunité rattache le contact existant (même e-mail, téléphone ou nom) au lieu de créer un doublon ; sinon il crée un prospect (et non plus un client), avec l'origine, le commercial et l'interlocuteur de l'opportunité.
 - Boîte mail : un contact créé depuis un e-mail est un prospect.
 - Liste : filtres Prospection, Potentiel, Commercial et Origine ; statut de prospection affiché ; « Nouveau prospect » depuis l'onglet Prospects.
+- Boîte mail : quand la connexion Google ou Microsoft est désactivée, une adresse Gmail, Outlook ou Hotmail reçoit bien ses réglages IMAP (au lieu d'une proposition de connexion Google).
 - Applications : configuration du paquet Microsoft Store (MSIX, signé par Microsoft) ; le workflow GitHub le produit quand l'identité du Partner Center est renseignée.
 
 ## 0.99.26 — liens des logiciels et code source public
