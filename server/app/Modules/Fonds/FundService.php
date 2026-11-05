@@ -50,6 +50,7 @@ class FundService
             'remind_days' => (int) ($s['remind_days'] ?? 3),
             'email' => (bool) ($s['email'] ?? true),
             'departments' => $this->departments($c, (array) ($s['departments'] ?? [])),
+            'form' => FundForm::settings($c),
         ];
     }
 
@@ -134,16 +135,41 @@ class FundService
         return DB::transaction(function () use ($c, $u, $r, $d, $lines) {
             $creating = ! $r;
             $r ??= new FundRequest(['company_id' => $c->id, 'requester_id' => $u->id, 'status' => 'draft']);
-            foreach (['title', 'department', 'to_department', 'priority', 'needed_by', 'purpose', 'project_id'] as $k) {
+            foreach (['title', 'department', 'to_department', 'priority', 'needed_by', 'purpose', 'project_id',
+                'motive', 'motive_other', 'requester_function', 'project_label', 'beneficiary', 'beneficiary_structure', 'payment_method', 'payment_other',
+                'attachments_other', 'remarks'] as $k) {
                 if (array_key_exists($k, $d)) {
                     $r->{$k} = is_string($d[$k]) ? (trim($d[$k]) ?: null) : $d[$k];
+                }
+            }
+            if (array_key_exists('attachments', $d)) {
+                $r->attachments = array_values(array_unique(array_filter(array_map(fn ($x) => trim((string) $x), (array) $d['attachments'])))) ?: null;
+            }
+            if (array_key_exists('discount_mode', $d)) {
+                $r->discount_mode = $d['discount_mode'] === 'amount' ? 'amount' : 'percent';
+            }
+            if (array_key_exists('discount_value', $d)) {
+                $r->discount_value = max(0, (float) $d['discount_value']);
+            }
+            if (array_key_exists('taxes', $d)) {
+                $r->taxes = array_values(array_map(fn ($t) => ['label' => Str::limit(trim((string) ($t['label'] ?? 'Taxe')), 60, '') ?: 'Taxe', 'rate' => max(0, min(100, (float) ($t['rate'] ?? 0))),
+                    'base' => ($t['base'] ?? 'net') === 'gross' ? 'gross' : 'net'], array_filter((array) $d['taxes'], fn ($t) => (float) ($t['rate'] ?? 0) > 0))) ?: null;
+            }
+            if ($creating) {
+                // taux par défaut du formulaire (modifiables sur chaque appel)
+                $form = FundForm::settings($c);
+                if (! array_key_exists('discount_value', $d) && $form['default_discount'] !== null) {
+                    $r->discount_value = (float) $form['default_discount'];
+                }
+                if (! array_key_exists('taxes', $d) && $form['default_vat'] !== null && (float) $form['default_vat'] > 0) {
+                    $r->taxes = [['label' => 'TVA', 'rate' => (float) $form['default_vat'], 'base' => 'net']];
                 }
             }
             if (array_key_exists('approver_id', $d)) {
                 $r->approver_id = $d['approver_id'] ? (int) $d['approver_id'] : null;
             }
             $this->assert((bool) $r->title, 'Donnez un titre à la demande.');
-            if (! in_array($r->priority, ['normal', 'urgent'], true)) {
+            if (! in_array($r->priority, ['normal', 'urgent', 'very_urgent'], true)) {
                 $r->priority = 'normal';
             }
             $r->save();
@@ -180,9 +206,14 @@ class FundService
     protected function totals(FundRequest $r): void
     {
         $lines = FundLine::where('request_id', $r->id)->get();
+        // total demandé = total à décaisser (remise et taxes du formulaire) ; l'accordé suit les mêmes règles sur les montants accordés
+        $gross = (float) $lines->sum('amount');
+        $a = FundForm::compute($gross, (string) $r->discount_mode, (float) $r->discount_value, (array) ($r->taxes ?? []));
+        $approved = FundForm::compute((float) $lines->sum(fn ($l) => $l->approved_amount ?? 0), (string) $r->discount_mode, (float) $r->discount_value, (array) ($r->taxes ?? []), $gross);
         $r->forceFill([
-            'total_requested' => round($lines->sum('amount'), 2),
-            'total_approved' => round($lines->sum(fn ($l) => $l->approved_amount ?? 0), 2),
+            'total_gross' => $a['gross'], 'total_discount' => $a['discount'], 'total_taxes' => $a['taxes_total'],
+            'total_requested' => $a['total'],
+            'total_approved' => $lines->contains(fn ($l) => $l->approved_amount !== null) ? $approved['total'] : 0,
             'total_provided' => round($lines->sum('provided_amount'), 2),
         ])->save();
     }
@@ -216,7 +247,7 @@ class FundService
         $this->assert($approver && $approver->is_active, 'Responsable introuvable.');
         $this->assert($approver->id !== $r->requester_id || $u->hasPermission('fonds.manage'), 'Vous ne pouvez pas approuver votre propre demande : choisissez un autre responsable.');
         $first = $r->status === 'draft';
-        $r->number ??= Sequence::next($c->id, 'fonds.request', 'AF');
+        $r->number ??= Sequence::next($c->id, 'fonds.request', FundForm::settings($c)['prefix'] ?: 'AF');
         $r->forceFill(['status' => 'submitted', 'submitted_at' => $first ? now() : $r->submitted_at, 'reminded_at' => null])->save();
         if ($first) {
             $this->event($r, $u->id, 'submitted', null, ['approver' => $approver->name]);
@@ -462,40 +493,22 @@ class FundService
 
     public function pdf(Company $c, FundRequest $r): string
     {
-        $e = fn ($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-        $m = fn ($v) => $e($this->money((float) $v, $c));
-        $q = fn ($v) => $e(rtrim(rtrim(number_format((float) $v, 3, ',', ' '), '0'), ','));
-        $users = User::whereIn('id', array_filter([$r->requester_id, $r->approver_id, $r->provider_id]))->pluck('name', 'id');
-        $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8');
-        $pdf->SetCreator('Yomara ERP');
-        $pdf->SetTitle('Appel de fonds '.($r->number ?? ''));
-        $pdf->setPrintHeader(false);
-        $pdf->setFooterFont(['dejavusans', '', 7]);
-        $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 18);
-        $pdf->AddPage();
-        $pdf->SetFont('dejavusans', '', 9);
-        $decided = in_array($r->status, ['approved', 'partial', 'provided', 'closed'], true);
-        $html = '<table><tr><td width="58%"><b style="font-size:13pt">'.$e($c->name).'</b><br><span style="color:#666">'.$e(trim(($c->address ?? '').' '.($c->city ?? '').' '.($c->phone ?? ''))).'</span></td>'
-            .'<td width="42%" align="right"><b style="font-size:16pt;color:#1f6feb">APPEL DE FONDS</b><br><b>'.$e($r->number ?? 'Brouillon').'</b><br>'.$e(($r->submitted_at ?? $r->created_at)?->format('d/m/Y')).'</td></tr></table><br>'
-            .'<table cellpadding="5" style="border:0.3px solid #cfd6e4"><tr bgcolor="#f2f5fa"><td width="50%"><span style="color:#666">Service demandeur</span><br><b>'.$e($r->department ?: '—').'</b><br>'.$e($users[$r->requester_id] ?? '').'</td>'
-            .'<td width="50%"><span style="color:#666">Adressé à</span><br><b>'.$e($r->to_department ?: 'Direction').'</b><br>'.$e($users[$r->approver_id] ?? '').'</td></tr>'
-            .'<tr><td colspan="2"><span style="color:#666">Objet</span><br><b style="font-size:11pt">'.$e($r->title).'</b>'.($r->priority === 'urgent' ? ' <b style="color:#c0392b">— URGENT</b>' : '')
-            .($r->needed_by ? '<br>Pour le : <b>'.$e($r->needed_by->format('d/m/Y')).'</b>' : '').($r->purpose ? '<br><br>'.nl2br($e($r->purpose)) : '').'</td></tr></table><br><br>';
-        $html .= '<table cellpadding="5" border="0.3"><tr bgcolor="#1f2a44" color="#ffffff" style="font-weight:bold"><td width="'.($decided ? '34' : '46').'%">Besoin</td><td width="12%">Nature</td><td width="9%" align="right">Qté</td><td width="'.($decided ? '13' : '15').'%" align="right">Prix unitaire</td><td width="'.($decided ? '14' : '18').'%" align="right">Montant</td>'
-            .($decided ? '<td width="18%" align="right">Accordé</td>' : '').'</tr>';
-        foreach (FundLine::where('request_id', $r->id)->orderBy('sort')->get() as $l) {
-            $html .= '<tr><td>'.$e($l->description).($l->note ? '<br><span style="color:#777;font-size:7.5pt">'.$e($l->note).'</span>' : '').'</td><td>'.$e(self::TYPES[$l->type] ?? '').'</td><td align="right">'.$q($l->quantity).'</td><td align="right">'.$m($l->unit_amount).'</td><td align="right">'.$m($l->amount).'</td>'
-                .($decided ? '<td align="right">'.$m($l->approved_amount).'</td>' : '').'</tr>';
-        }
-        $html .= '<tr bgcolor="#f2f5fa" style="font-weight:bold"><td colspan="4" align="right">TOTAL</td><td align="right">'.$m($r->total_requested).'</td>'.($decided ? '<td align="right">'.$m($r->total_approved).'</td>' : '').'</tr></table>';
-        if ($r->decision_note) {
-            $html .= '<p><b>Décision :</b> '.nl2br($e($r->decision_note)).'</p>';
-        }
-        $html .= '<br><br><table cellpadding="6"><tr><td width="33%" style="border-top:0.3px solid #999">Le demandeur<br><br><br></td><td width="34%" style="border-top:0.3px solid #999">Le responsable (accord)<br><br><br></td><td width="33%" style="border-top:0.3px solid #999">Mise à disposition<br><br><br></td></tr></table>';
-        $pdf->writeHTML($html, true, false, true, false, '');
+        return FundForm::pdf($c, $r, $this);
+    }
 
-        return $pdf->Output('', 'S');
+    /** Cadre réservé à la comptabilité : budget disponible, conformité des pièces, observation. */
+    public function accounting(Company $c, User $u, FundRequest $r, array $d): FundRequest
+    {
+        $this->assert($u->hasPermission('fonds.manage') || $u->hasPermission('fonds.provide') || $this->isApprover($u, $r), 'Réservé à la comptabilité et aux responsables.');
+        $r->forceFill([
+            'budget_available' => array_key_exists('budget_available', $d) ? $d['budget_available'] : $r->budget_available,
+            'documents_compliant' => array_key_exists('documents_compliant', $d) ? $d['documents_compliant'] : $r->documents_compliant,
+            'accounting_note' => array_key_exists('accounting_note', $d) ? (trim((string) $d['accounting_note']) ?: null) : $r->accounting_note,
+        ])->save();
+        $this->event($r, $u->id, 'comment', 'Comptabilité : budget '.($r->budget_available === null ? 'non vérifié' : ($r->budget_available ? 'disponible' : 'indisponible'))
+            .', pièces '.($r->documents_compliant === null ? 'non vérifiées' : ($r->documents_compliant ? 'conformes' : 'non conformes')).($r->accounting_note ? ' — '.$r->accounting_note : '').'.');
+
+        return $r->fresh('lines');
     }
 
     public function money(float $v, Company $c): string
@@ -516,6 +529,11 @@ class FundService
             'provider_id' => $r->provider_id, 'provider' => $names[$r->provider_id] ?? null, 'provider_department' => $r->provider_department,
             'priority' => $r->priority, 'needed_by' => $r->needed_by?->toDateString(), 'purpose' => $r->purpose, 'status' => $r->status, 'status_label' => self::STATUSES[$r->status] ?? $r->status,
             'total_requested' => $r->total_requested, 'total_approved' => $r->total_approved, 'total_provided' => $r->total_provided, 'decision_note' => $r->decision_note,
+            'motive' => $r->motive, 'motive_other' => $r->motive_other, 'requester_function' => $r->requester_function, 'project_label' => $r->project_label,
+            'beneficiary' => $r->beneficiary, 'beneficiary_structure' => $r->beneficiary_structure, 'payment_method' => $r->payment_method, 'payment_other' => $r->payment_other,
+            'attachments' => $r->attachments ?? [], 'attachments_other' => $r->attachments_other, 'discount_mode' => $r->discount_mode ?: 'percent', 'discount_value' => (float) $r->discount_value,
+            'taxes' => $r->taxes ?? [], 'total_gross' => $r->total_gross, 'total_discount' => $r->total_discount, 'total_taxes' => $r->total_taxes,
+            'budget_available' => $r->budget_available, 'documents_compliant' => $r->documents_compliant, 'accounting_note' => $r->accounting_note, 'remarks' => $r->remarks,
             'submitted_at' => $r->submitted_at, 'decided_at' => $r->decided_at, 'provided_at' => $r->provided_at, 'closed_at' => $r->closed_at, 'created_at' => $r->created_at,
             'late' => $r->needed_by && $r->needed_by->lt(now()->startOfDay()) && ! in_array($r->status, ['closed', 'rejected', 'cancelled', 'provided'], true),
             'kinds' => FundLine::where('request_id', $r->id)->distinct()->pluck('type')->all(),
@@ -527,6 +545,7 @@ class FundService
                 'provide' => in_array($r->status, ['approved', 'partial'], true) && $this->isProvider($u, $r),
                 'confirm' => in_array($r->status, ['provided', 'partial'], true) && ($r->requester_id === $u->id || $u->hasPermission('fonds.manage')),
                 'cancel' => in_array($r->status, ['draft', 'submitted', 'question', 'approved'], true) && $r->total_provided <= 0 && ($r->requester_id === $u->id || $u->hasPermission('fonds.manage')),
+                'accounting' => ! in_array($r->status, ['draft', 'cancelled'], true) && ($u->hasPermission('fonds.manage') || $u->hasPermission('fonds.provide') || $this->isApprover($u, $r)),
             ],
         ];
         if ($full) {

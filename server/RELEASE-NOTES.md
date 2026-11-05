@@ -1,5 +1,16 @@
 # Notes de version
 
+## 0.99.28 — formulaire d'appel de fonds personnalisable
+- Appels de fonds : formulaire complet, sur le modèle du « Formulaire de demande d'appel de fonds » papier :
+  - motif (fournisseur, salaires, mission, charges courantes, impôts, avance, investissement, autre) ;
+  - émetteur et bénéficiaire (fonction, projet / activité, bénéficiaire, structure) ;
+  - remise en pourcentage ou en montant, TVA et autres taxes calculées sur le net ou sur le brut, total à décaisser ; le montant accordé suit les mêmes règles ;
+  - modalités de paiement, niveau d'urgence (normal, urgent, très urgent) et pièces jointes ;
+  - cadre réservé à la comptabilité (budget disponible, vérification des pièces, observation), rempli par la comptabilité ou le responsable ;
+  - remarques / suggestions.
+- PDF du formulaire refait : logo centré entre deux filets (ou à gauche), bandeaux de couleur, cases cochées, tableau des dépenses avec remise et taxes, visas remplis d'après le circuit (demandeur, responsable, bénéficiaire), pied de page légal sur chaque page. Disponible aussi pour un brouillon.
+- Nouvel onglet « Modèle du formulaire » : chaque société règle son logo (celui de la société, un logo propre au formulaire ou aucun ; position et taille), ses trois couleurs, le titre, le préfixe des numéros (ex. NSI-AF-2026-00001), les rubriques affichées, les listes de motifs, de modes de paiement, de pièces jointes et de visas, la remise et la TVA proposées par défaut, des taxes types, et le pied de page (adresses, téléphone, e-mail, site, RCCM, CC, mentions). Bouton « Aperçu PDF » avec des données d'exemple.
+
 ## 0.99.27 — fiches contacts façon Dolibarr et Odoo
 - Prospects (comme Dolibarr) : statut de prospection (Jamais contacté, À contacter, Contact en cours, Contacté, Ne pas contacter) et potentiel (Faible, Moyen, Élevé). Un appel, un rendez-vous ou une visite marqué « fait » fait passer un prospect pas encore contacté à « Contact en cours ». Il devient toujours client à sa première facture validée.
 - Code automatique à la création : C2611-0001 pour un client ou un prospect, F2611-0001 pour un fournisseur ; le code est gardé quand le prospect devient client. Recherche par code.

@@ -76,10 +76,15 @@ class FondsController extends Controller
     {
         return $r->validate([
             'title' => ($creating ? 'required' : 'sometimes').'|string|max:200', 'department' => 'nullable|string|max:120', 'to_department' => 'nullable|string|max:120',
-            'approver_id' => 'nullable|integer', 'priority' => 'nullable|in:normal,urgent', 'needed_by' => 'nullable|date', 'purpose' => 'nullable|string|max:5000', 'project_id' => 'nullable|string|max:40',
+            'approver_id' => 'nullable|integer', 'priority' => 'nullable|in:normal,urgent,very_urgent', 'needed_by' => 'nullable|date', 'purpose' => 'nullable|string|max:5000', 'project_id' => 'nullable|string|max:40',
             'lines' => ($creating ? 'required' : 'sometimes').'|array|max:100', 'lines.*.id' => 'nullable|integer', 'lines.*.type' => 'nullable|in:funds,equipment,service',
             'lines.*.description' => 'nullable|string|max:255', 'lines.*.quantity' => 'nullable|numeric|min:0', 'lines.*.unit_amount' => 'nullable|numeric|min:0',
             'lines.*.note' => 'nullable|string|max:255', 'lines.*.product_id' => 'nullable|string|max:40',
+            'motive' => 'nullable|string|max:60', 'motive_other' => 'nullable|string|max:120', 'requester_function' => 'nullable|string|max:120', 'project_label' => 'nullable|string|max:160',
+            'beneficiary' => 'nullable|string|max:160', 'beneficiary_structure' => 'nullable|string|max:160', 'payment_method' => 'nullable|string|max:60', 'payment_other' => 'nullable|string|max:120',
+            'attachments' => 'nullable|array|max:20', 'attachments.*' => 'string|max:60', 'attachments_other' => 'nullable|string|max:120',
+            'discount_mode' => 'nullable|in:percent,amount', 'discount_value' => 'nullable|numeric|min:0', 'remarks' => 'nullable|string|max:5000',
+            'taxes' => 'nullable|array|max:10', 'taxes.*.label' => 'nullable|string|max:60', 'taxes.*.rate' => 'nullable|numeric|min:0|max:100', 'taxes.*.base' => 'nullable|in:net,gross',
         ]);
     }
 
@@ -88,7 +93,8 @@ class FondsController extends Controller
         $c = app('tenant');
         $u = $r->user();
         $req = $this->find($r, $id);
-        $v = $r->validate(['body' => 'nullable|string|max:5000', 'note' => 'nullable|string|max:5000', 'lines' => 'nullable|array', 'items' => 'nullable|array',
+        $v = $r->validate(['budget_available' => 'nullable|boolean', 'documents_compliant' => 'nullable|boolean', 'accounting_note' => 'nullable|string|max:2000',
+            'body' => 'nullable|string|max:5000', 'note' => 'nullable|string|max:5000', 'lines' => 'nullable|array', 'items' => 'nullable|array',
             'provider_id' => 'nullable|integer', 'provider_department' => 'nullable|string|max:120', 'method' => 'nullable|string|max:20', 'date' => 'nullable|date',
             'reference' => 'nullable|string|max:100', 'source_account_id' => 'nullable|string|max:40', 'dest_account_id' => 'nullable|string|max:40']);
 
@@ -102,6 +108,7 @@ class FondsController extends Controller
             'confirm' => $this->svc->confirm($c, $u, $req, $v['note'] ?? null),
             'cancel' => $this->svc->cancel($c, $u, $req, $v['note'] ?? null),
             'comment' => $this->svc->comment($c, $u, $req, (string) ($v['body'] ?? '')),
+            'accounting' => $this->svc->accounting($c, $u, $req, array_intersect_key($r->all(), array_flip(['budget_available', 'documents_compliant', 'accounting_note']))),
         }, $u, true)]);
     }
 
@@ -126,5 +133,29 @@ class FondsController extends Controller
             'email' => 'nullable|boolean', 'departments' => 'nullable|array|max:100', 'departments.*' => 'string|max:120']);
 
         return ['data' => $this->svc->saveSettings(app('tenant'), $v)];
+    }
+
+    /** Modèle du formulaire (logo, couleurs, titre, numérotation, listes, visas, pied de page, taux). */
+    public function saveForm(Request $r)
+    {
+        return ['data' => FundForm::save(app('tenant'), $r->validate(FundForm::rules()))];
+    }
+
+    public function uploadLogo(Request $r)
+    {
+        $r->validate(['logo' => 'required|file|mimes:png,jpg,jpeg|max:2048']);
+
+        return ['data' => FundForm::saveLogo(app('tenant'), $r->file('logo'))];
+    }
+
+    public function deleteLogo()
+    {
+        return ['data' => FundForm::deleteLogo(app('tenant'))];
+    }
+
+    /** Aperçu PDF du modèle (données d'exemple) pour régler la mise en page. */
+    public function preview(Request $r)
+    {
+        return response(FundForm::preview(app('tenant'), $r->user(), $this->svc), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="apercu-appel-de-fonds.pdf"']);
     }
 }

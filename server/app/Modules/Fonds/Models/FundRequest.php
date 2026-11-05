@@ -16,7 +16,9 @@ class FundRequest extends Model
     protected function casts(): array
     {
         return ['needed_by' => 'date:Y-m-d', 'total_requested' => 'float', 'total_approved' => 'float', 'total_provided' => 'float',
-            'submitted_at' => 'datetime', 'decided_at' => 'datetime', 'provided_at' => 'datetime', 'closed_at' => 'datetime', 'reminded_at' => 'datetime'];
+            'submitted_at' => 'datetime', 'decided_at' => 'datetime', 'provided_at' => 'datetime', 'closed_at' => 'datetime', 'reminded_at' => 'datetime',
+            'attachments' => 'array', 'taxes' => 'array', 'discount_value' => 'float', 'total_gross' => 'float', 'total_discount' => 'float', 'total_taxes' => 'float',
+            'budget_available' => 'boolean', 'documents_compliant' => 'boolean'];
     }
 
     public function lines()
