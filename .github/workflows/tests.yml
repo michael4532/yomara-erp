@@ -22,7 +22,8 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, gd, intl
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - run: cp .env.example .env && php artisan key:generate
+      # .env minimal : les tests prennent leurs réglages dans phpunit.xml
+      - run: printf 'APP_NAME="Yomara ERP"\nAPP_KEY=\nMAIL_FROM_ADDRESS=ci@example.com\n' > .env && php artisan key:generate
       - run: php artisan test
 
   app:

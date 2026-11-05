@@ -85,6 +85,11 @@ jobs:
       # CocoaPods comme sur le Mac de développement (Swift Package Manager : conflit firebase / google_sign_in)
       - run: flutter config --no-enable-swift-package-manager
       - run: flutter pub get
+      # Sans certificat Apple : signature locale (ad hoc) au lieu de l'équipe de développement du projet
+      - name: Signature ad hoc (sans certificat)
+        if: env.HAS_CERT != 'true'
+        run: |
+          sed -i '' -e 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "-";/g' -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' -e 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
       - run: flutter build macos --release
       - name: Certificat Apple (si fourni)
         if: env.HAS_CERT == 'true'
