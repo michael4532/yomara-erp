@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.29 — puces de filtre lisibles dans les logiciels, accueil du site
+- Logiciels Windows, Mac, Linux et applications : les puces de filtre non sélectionnées (Commandes, Boîte de réception, listes…) s'affichaient vides ; leur texte est de nouveau visible. Applications en version 1.0.1.
+- Site : titre de l'accueil fixe (plus de texte qui défile), bouton « Télécharger » à côté de « Créer mon entreprise », bouton WhatsApp à gauche (la discussion reste à droite).
+
 ## 0.99.28 — formulaire d'appel de fonds personnalisable
 - Appels de fonds : formulaire complet, sur le modèle du « Formulaire de demande d'appel de fonds » papier :
   - motif (fournisseur, salaires, mission, charges courantes, impôts, avance, investissement, autre) ;

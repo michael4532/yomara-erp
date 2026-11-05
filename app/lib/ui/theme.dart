@@ -147,12 +147,14 @@ ThemeData buildTheme(Brightness brightness) {
       shape: const StadiumBorder(),
       side: WidgetStateBorderSide.resolveWith((st) => BorderSide(color: st.contains(WidgetState.selected) ? scheme.primary.withValues(alpha: .55) : (dark ? Colors.white24 : YColors.line))),
       color: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? scheme.primary.withValues(alpha: dark ? .24 : .10) : (dark ? const Color(0xFF162238) : Colors.white)),
-      labelStyle: WidgetStateTextStyle.resolveWith((st) => TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 13,
-            fontWeight: st.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w600,
-            color: st.contains(WidgetState.selected) ? scheme.primary : (dark ? Colors.white : YColors.inkSoft),
-          )),
+      // Style simple + couleur selon l'état (méthode prévue par Flutter) : un WidgetStateTextStyle laissait les puces
+      // non sélectionnées sans texte dans les logiciels de bureau (rendu Impeller)
+      labelStyle: TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: WidgetStateColor.resolveWith((st) => st.contains(WidgetState.selected) ? scheme.primary : (dark ? Colors.white : YColors.inkSoft)),
+      ),
       secondaryLabelStyle: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: scheme.primary),
       iconTheme: IconThemeData(size: 16, color: dark ? Colors.white70 : YColors.muted),
       showCheckmark: false,
