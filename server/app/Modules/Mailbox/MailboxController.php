@@ -389,7 +389,7 @@ class MailboxController extends Controller
                 return $m->partner_id;
             }
             $p = $m->from_email ? \App\Modules\Core\Models\Partner::whereRaw('lower(email) = ?', [mb_strtolower($m->from_email)])->first() : null;
-            $p ??= \App\Modules\Core\Models\Partner::create(['name' => mb_substr($m->from_name ?: $m->from_email, 0, 160), 'type' => 'customer', 'email' => $m->from_email,
+            $p ??= \App\Modules\Core\Models\Partner::create(['name' => mb_substr($m->from_name ?: $m->from_email, 0, 160), 'type' => 'prospect', 'email' => $m->from_email,
                 'notes' => 'Contact créé depuis un e-mail']);
             $m->forceFill(['partner_id' => $p->id])->saveQuietly();
 

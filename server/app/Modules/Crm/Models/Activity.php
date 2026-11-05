@@ -59,5 +59,12 @@ class Activity extends Model
                 $a->done_at = null;
             }
         });
+        // Prospect (comme Dolibarr) : la première action faite le passe à « Contact en cours »
+        static::saved(function (self $a) {
+            if ($a->done && ($a->wasRecentlyCreated || $a->wasChanged('done'))) {
+                $pid = $a->partner_id ?: ($a->lead_id ? Lead::whereKey($a->lead_id)->value('partner_id') : null);
+                \App\Modules\Core\Models\Partner::markContacted($pid);
+            }
+        });
     }
 }

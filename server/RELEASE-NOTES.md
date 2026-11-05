@@ -1,5 +1,15 @@
 # Notes de version
 
+## 0.99.27 — fiches contacts façon Dolibarr et Odoo
+- Prospects (comme Dolibarr) : statut de prospection (Jamais contacté, À contacter, Contact en cours, Contacté, Ne pas contacter) et potentiel (Faible, Moyen, Élevé). Un appel, un rendez-vous ou une visite marqué « fait » fait passer un prospect pas encore contacté à « Contact en cours ». Il devient toujours client à sa première facture validée.
+- Code automatique à la création : C2611-0001 pour un client ou un prospect, F2611-0001 pour un fournisseur ; le code est gardé quand le prospect devient client. Recherche par code.
+- Fiche : Entreprise ou Particulier, site web, interlocuteurs (nom, fonction, téléphone, e-mail), origine du contact et commercial attribué (vous par défaut).
+- Doublons (comme Dolibarr et Odoo) : avant d'enregistrer, la fiche signale un contact au même nom, e-mail, téléphone ou n° contribuable ; « Utiliser » la fiche existante ou « Créer quand même ». Fonctionne hors ligne.
+- CRM (comme Odoo) : « Créer le devis » depuis une opportunité rattache le contact existant (même e-mail, téléphone ou nom) au lieu de créer un doublon ; sinon il crée un prospect (et non plus un client), avec l'origine, le commercial et l'interlocuteur de l'opportunité.
+- Boîte mail : un contact créé depuis un e-mail est un prospect.
+- Liste : filtres Prospection, Potentiel, Commercial et Origine ; statut de prospection affiché ; « Nouveau prospect » depuis l'onglet Prospects.
+- Applications : configuration du paquet Microsoft Store (MSIX, signé par Microsoft) ; le workflow GitHub le produit quand l'identité du Partner Center est renseignée.
+
 ## 0.99.26 — liens des logiciels et code source public
 - Administration › Boutique › Liens des logiciels : pour chaque plateforme, la fiche de boutique (Microsoft Store, Mac App Store, Google Play, App Store) et le fichier direct (.exe, .dmg, AppImage, APK). Bouton « Liens officiels des boutiques » qui remplit les fiches Yomara ERP, envoi des fichiers sur le serveur depuis l'administration (morceaux de 4 Mo, adaptés aux hébergements mutualisés), version des logiciels affichée, compteur de téléchargements par plateforme.
 - Page « Télécharger » : le bouton principal mène à la boutique quand elle existe (installation et mises à jour automatiques), avec le fichier direct en second (« ou le fichier APK ») ; lien vers le dépôt du code source.

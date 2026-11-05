@@ -13,6 +13,7 @@ import '../widgets/filter_bar.dart';
 import 'crm_extras.dart';
 import 'document_editor.dart';
 import 'documents_screen.dart';
+import 'partners_screen.dart' show findDuplicatePartners;
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
@@ -1029,16 +1030,29 @@ class _LeadFormState extends State<_LeadForm> {
       var partnerId = lead['partner_id'] as String?;
       var partnerName = LocalDb.get('partners', partnerId)?['name'] as String?;
       if (partnerId == null) {
+        // Comme Odoo : on rattache la fiche existante (même e-mail, téléphone ou nom) au lieu de créer un doublon ;
+        // sinon la fiche est créée en prospect, et devient client à sa première facture validée (comme Dolibarr).
         partnerName = '${lead['company_name'] ?? lead['contact_name'] ?? lead['title']}';
-        final p = await sync.save('partners', {
-          'type': 'customer',
-          'is_company': lead['company_name'] != null,
-          'name': partnerName,
-          'phone': lead['phone'],
-          'email': lead['email'],
-          'city': lead['city'],
-        });
-        partnerId = p['id'] as String;
+        final existing = findDuplicatePartners({'name': partnerName, 'email': lead['email'], 'phone': lead['phone']}).where((p) => p['type'] != 'supplier').firstOrNull;
+        if (existing != null) {
+          partnerId = existing['id'] as String;
+          partnerName = '${existing['name']}';
+        } else {
+          final company = '${lead['company_name'] ?? ''}'.trim().isNotEmpty;
+          final p = await sync.save('partners', {
+            'type': 'prospect',
+            'prospect_status': 'in_progress',
+            'is_company': company,
+            'name': partnerName,
+            'phone': lead['phone'],
+            'email': lead['email'],
+            'city': lead['city'],
+            if (leadSources.containsKey(lead['source'])) 'source': lead['source'],
+            'salesperson_id': lead['owner_id'],
+            if (company && '${lead['contact_name'] ?? ''}'.trim().isNotEmpty) 'contacts': [{'name': lead['contact_name'], 'phone': lead['phone'], 'email': lead['email']}],
+          });
+          partnerId = p['id'] as String;
+        }
       }
       final tax = toDouble(s.companySettings['tax_rate'] ?? 18);
       final line = {'id': newId(), 'description': '${lead['title']}', 'quantity': 1.0, 'unit_price': toDouble(lead['expected_revenue']), 'discount_percent': 0.0, 'tax_rate': tax};

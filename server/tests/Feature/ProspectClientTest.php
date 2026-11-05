@@ -39,4 +39,39 @@ class ProspectClientTest extends TestCase
         $validateInvoice();
         $this->assertSame('customer', $type());
     }
+
+    public function test_prospection_fields_codes_and_first_contact(): void
+    {
+        [, , $token] = $this->makeCompany('Négoce Prospection');
+        $api = $this->api($token);
+        $api->getJson('/api/sync/pull?cursor=0')->assertOk();
+        $push = fn (array $m) => $api->postJson('/api/sync/push', ['mutations' => array_map(fn ($x) => $x + ['id' => $this->uuid(), 'op' => 'upsert'], $m)])->assertOk()->json('results');
+        $p1 = $this->uuid();
+        $p2 = $this->uuid();
+        $sup = $this->uuid();
+        $r = $push([
+            ['entity' => 'partners', 'record_id' => $p1, 'data' => ['name' => 'Clinique du Plateau', 'type' => 'prospect', 'prospect_level' => 'high', 'source' => 'event',
+                'website' => 'clinique.ci', 'contacts' => [['name' => 'Awa Koné', 'role' => 'Directrice', 'phone' => '0707070707']]]],
+            ['entity' => 'partners', 'record_id' => $p2, 'data' => ['name' => 'Boutique Treichville', 'type' => 'customer']],
+            ['entity' => 'partners', 'record_id' => $sup, 'data' => ['name' => 'Grossiste', 'type' => 'supplier']],
+        ]);
+        $ym = now()->format('ym');
+        $this->assertSame('C'.$ym.'-0001', $r[0]['record']['code']);
+        $this->assertSame('C'.$ym.'-0002', $r[1]['record']['code']);
+        $this->assertSame('F'.$ym.'-0001', $r[2]['record']['code']);
+        $this->assertSame('never', $r[0]['record']['prospect_status']);
+        $this->assertSame('Directrice', $r[0]['record']['contacts'][0]['role']);
+        $this->assertNull($r[1]['record']['prospect_status']);
+
+        // statut invalide refusé
+        $bad = $push([['entity' => 'partners', 'record_id' => $p1, 'data' => ['name' => 'Clinique du Plateau', 'prospect_status' => 'xx']]]);
+        $this->assertNotSame('applied', $bad[0]['status']);
+
+        // un appel fait → « Contact en cours »
+        $status = fn () => \Illuminate\Support\Facades\DB::table('partners')->where('id', $p1)->value('prospect_status');
+        $push([['entity' => 'crm_activities', 'record_id' => $this->uuid(), 'data' => ['partner_id' => $p1, 'type' => 'call', 'subject' => 'Premier appel', 'done' => false]]]);
+        $this->assertSame('never', $status());
+        $push([['entity' => 'crm_activities', 'record_id' => $this->uuid(), 'data' => ['partner_id' => $p1, 'type' => 'call', 'subject' => 'Appel', 'done' => true]]]);
+        $this->assertSame('in_progress', $status());
+    }
 }

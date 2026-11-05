@@ -13,11 +13,47 @@ import '../widgets/filter_bar.dart';
 import 'portal_screen.dart';
 import 'fidelite_screen.dart' show LoyaltyBadge;
 import 'ged_screen.dart' show LinkedDocuments;
+import 'crm_screen.dart' show leadSources, crmUsers;
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
 /// Prospect : devient client tout seul dès sa première facture (ou ticket de caisse) validée.
 const partnerTypes = {'prospect': 'Prospect', 'customer': 'Client', 'supplier': 'Fournisseur', 'both': 'Client & fournisseur'};
+
+/// Suivi des prospects (comme Dolibarr) : passe à « Contact en cours » dès qu'un appel ou un rendez-vous est fait.
+const prospectStatuses = {'never': 'Jamais contacté', 'to_contact': 'À contacter', 'in_progress': 'Contact en cours', 'contacted': 'Contacté', 'do_not_contact': 'Ne pas contacter'};
+const prospectLevels = {'none': 'Aucun', 'low': 'Faible', 'medium': 'Moyen', 'high': 'Élevé'};
+
+Color prospectStatusColor(String? s) => switch (s) {
+      'to_contact' => const Color(0xFFD97706),
+      'in_progress' => YColors.blue,
+      'contacted' => YColors.success,
+      'do_not_contact' => YColors.danger,
+      _ => const Color(0xFF64748B),
+    };
+
+String _normName(String? v) => (v ?? '').toLowerCase().replaceAll(RegExp(r'[^a-z0-9àâäçéèêëîïôöùûüÿœ]+'), ' ').trim();
+String _normPhone(String? v) {
+  final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+  return d.length > 8 ? d.substring(d.length - 8) : d;
+}
+
+/// Contacts qui ressemblent à celui qu'on enregistre (même nom, e-mail, téléphone ou n° contribuable), comme les
+/// alertes de doublons de Dolibarr et d'Odoo. Fonctionne hors ligne (base locale).
+List<Map<String, dynamic>> findDuplicatePartners(Map<String, dynamic> d, {String? exceptId}) {
+  final name = _normName(d['name'] as String?);
+  final email = '${d['email'] ?? ''}'.trim().toLowerCase();
+  final phone = _normPhone(d['phone'] as String?);
+  final tax = '${d['tax_id'] ?? ''}'.replaceAll(' ', '').toUpperCase();
+  return LocalDb.all('partners').where((p) {
+    if (p['id'] == exceptId) return false;
+    if (name.length >= 3 && _normName(p['name'] as String?) == name) return true;
+    if (email.isNotEmpty && '${p['email'] ?? ''}'.trim().toLowerCase() == email) return true;
+    if (phone.length >= 8 && _normPhone(p['phone'] as String?) == phone) return true;
+    if (tax.length >= 4 && '${p['tax_id'] ?? ''}'.replaceAll(' ', '').toUpperCase() == tax) return true;
+    return false;
+  }).toList();
+}
 
 class PartnersScreen extends StatefulWidget {
   const PartnersScreen({super.key});
@@ -34,6 +70,15 @@ class _PartnersScreenState extends State<PartnersScreen> {
   static const _types = {'': 'Tous', 'prospect': 'Prospects', 'customer': 'Clients', 'supplier': 'Fournisseurs'};
 
   @override
+  void initState() {
+    super.initState();
+    // commerciaux (filtre « Commercial ») : liste mise en cache pour le hors ligne
+    crmUsers(context.read<Session>()).then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final canEdit = context.watch<Session>().can('core.contacts.manage');
     return Column(children: [
@@ -47,7 +92,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
               label: Text(tr('Portail client')),
             ),
           if (canEdit)
-            FilledButton.icon(onPressed: () => editPartner(context), icon: const Icon(Icons.add), label: Text(tr('Nouveau contact'))),
+            FilledButton.icon(onPressed: () => editPartner(context, null, _type.isEmpty ? 'customer' : _type), icon: const Icon(Icons.add), label: Text(tr(_type == 'prospect' ? 'Nouveau prospect' : 'Nouveau contact'))),
         ],
       ),
       Expanded(
@@ -69,8 +114,13 @@ class _PartnersScreenState extends State<PartnersScreen> {
 
             final lists = {for (final l in LocalDb.all('pl_lists')) '${l['id']}': '${l['name']}'};
             final base = all.where((p) {
-              if (_q.isNotEmpty && !'${p['name']} ${p['email'] ?? ''} ${p['phone'] ?? ''}'.toLowerCase().contains(_q)) return false;
+              if (_q.isNotEmpty && !'${p['name']} ${p['email'] ?? ''} ${p['phone'] ?? ''} ${p['code'] ?? ''}'.toLowerCase().contains(_q)) return false;
               final city = _f['city'], bal = _f['balance'], curF = _f['currency'], pl = _f['price_list'], st = _f['state'];
+              final ps = _f['prospect_status'], lv = _f['prospect_level'], sp = _f['salesperson'], src = _f['source'];
+              if (ps != null && (p['type'] != 'prospect' || '${p['prospect_status'] ?? 'never'}' != ps)) return false;
+              if (lv != null && '${p['prospect_level'] ?? ''}' != lv) return false;
+              if (sp != null && '${p['salesperson_id'] ?? ''}' != sp) return false;
+              if (src != null && '${p['source'] ?? ''}' != src) return false;
               if (city != null && '${p['city'] ?? ''}' != city) return false;
               if (bal != null && (bal == 'owed') != owed.containsKey(p['id'])) return false;
               if (curF != null && '${p['currency'] ?? ''}' != curF) return false;
@@ -103,6 +153,11 @@ class _PartnersScreenState extends State<PartnersScreen> {
                 statusCounts: {for (final k in _types.keys) k: base.where((p) => typeOk(p, k)).length},
                 filters: [
                   FilterSpec('city', 'Ville', filterOptions(all, 'city'), icon: Icons.location_city_outlined),
+                  if (all.any((p) => p['type'] == 'prospect')) const FilterSpec('prospect_status', 'Prospection', prospectStatuses, icon: Icons.person_search_outlined),
+                  if (all.any((p) => p['prospect_level'] != null)) const FilterSpec('prospect_level', 'Potentiel', prospectLevels, icon: Icons.trending_up_rounded),
+                  if (all.any((p) => p['salesperson_id'] != null))
+                    FilterSpec('salesperson', 'Commercial', {for (final p in all) if (p['salesperson_id'] != null) '${p['salesperson_id']}': _userName(p['salesperson_id'])}, icon: Icons.badge_outlined),
+                  if (all.any((p) => leadSources.containsKey(p['source']))) FilterSpec('source', 'Origine', {for (final p in all) if (leadSources.containsKey(p['source'])) '${p['source']}': leadSources[p['source']]!}, icon: Icons.campaign_outlined),
                   const FilterSpec('balance', 'Solde', {'owed': 'Avec solde dû', 'clear': 'Sans solde'}, icon: Icons.account_balance_wallet_outlined),
                   FilterSpec('currency', 'Devise', filterOptions(all, 'currency', label: (p) => currencyNames[p['currency']] ?? '${p['currency']}'), icon: Icons.currency_exchange),
                   if (lists.isNotEmpty) FilterSpec('price_list', 'Liste de prix', filterOptions(all.where((p) => lists.containsKey('${p['price_list_id']}')), 'price_list_id', label: (p) => lists['${p['price_list_id']}']!), icon: Icons.price_change_outlined),
@@ -135,7 +190,9 @@ class _PartnersScreenState extends State<PartnersScreen> {
                     ]),
                   ),
                 ]),
-                StatusChip(partnerTypes[p['type']] ?? 'Client', color: typeColor(p['type'] as String?)),
+                p['type'] == 'prospect'
+                    ? StatusChip(prospectStatuses[p['prospect_status'] ?? 'never'] ?? 'Prospect', color: prospectStatusColor(p['prospect_status'] as String? ?? 'never'))
+                    : StatusChip(partnerTypes[p['type']] ?? 'Client', color: typeColor(p['type'] as String?)),
                 Text(tr('${p['phone'] ?? ''}'), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
                 Text(tr('${p['city'] ?? ''}')),
                 Text(tr(owed[p['id']] == null ? '—' : money(owed[p['id']], cur)), style: TextStyle(fontWeight: owed[p['id']] == null ? null : FontWeight.w600, color: owed[p['id']] == null ? hint : null, fontFeatures: const [FontFeature.tabularFigures()])),
@@ -146,7 +203,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(tr('${p['name']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text(tr([partnerTypes[p['type']], p['phone']].where((e) => e != null && '$e'.isNotEmpty).join(' · ')),
+                    Text(tr([partnerTypes[p['type']], if (p['type'] == 'prospect') prospectStatuses[p['prospect_status'] ?? 'never'], p['phone']].where((e) => e != null && '$e'.isNotEmpty).join(' · ')),
                         style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
                     CustomFieldsView(entity: 'partners', values: p['custom'] as Map<String, dynamic>?, listOnly: true),
                   ]),
@@ -160,6 +217,14 @@ class _PartnersScreenState extends State<PartnersScreen> {
       ),
     ]);
   }
+}
+
+String _userName(dynamic id) {
+  for (final u in (LocalDb.state().get('crm_users') as List? ?? const [])) {
+    final m = asMap(u);
+    if ('${m['id']}' == '$id') return '${m['name']}';
+  }
+  return 'Utilisateur $id';
 }
 
 class _PendingDot extends StatelessWidget {
@@ -196,6 +261,13 @@ class _PartnerFormState extends State<_PartnerForm> {
   String? _term;
   String? _supplierTerm;
   late final Map<String, dynamic> _custom = asMap(widget.partner?['custom']);
+  bool _isCompany = true;
+  String? _prospectStatus;
+  String? _prospectLevel;
+  String? _source;
+  int? _salesperson;
+  List<Map<String, dynamic>> _users = [];
+  final List<Map<String, TextEditingController>> _people = [];
 
   @override
   void initState() {
@@ -207,7 +279,29 @@ class _PartnerFormState extends State<_PartnerForm> {
     _paused = p['dunning_paused'] == true;
     _term = p['payment_term_id'] as String?;
     _supplierTerm = p['supplier_payment_term_id'] as String?;
-    _c = {for (final f in ['name', 'phone', 'email', 'address', 'city', 'tax_id', 'notes']) f: TextEditingController(text: '${p[f] ?? ''}')};
+    _c = {for (final f in ['name', 'phone', 'email', 'address', 'city', 'tax_id', 'website', 'notes']) f: TextEditingController(text: '${p[f] ?? ''}')};
+    _isCompany = p['is_company'] != false;
+    _prospectStatus = p['prospect_status'] as String?;
+    _prospectLevel = p['prospect_level'] as String?;
+    _source = leadSources.containsKey(p['source']) ? p['source'] as String : null;
+    _salesperson = (p['salesperson_id'] as num?)?.toInt() ?? (widget.partner == null && widget.defaultType != 'supplier' ? (context.read<Session>().user['id'] as num?)?.toInt() : null);
+    for (final c in (p['contacts'] as List? ?? const [])) {
+      _addPerson(asMap(c));
+    }
+    crmUsers(context.read<Session>()).then((u) {
+      if (mounted) setState(() => _users = u);
+    }).catchError((_) {});
+  }
+
+  void _addPerson([Map<String, dynamic> c = const {}]) =>
+      _people.add({for (final f in ['name', 'role', 'phone', 'email']) f: TextEditingController(text: '${c[f] ?? ''}')});
+
+  @override
+  void dispose() {
+    for (final c in [..._c.values, for (final p in _people) ...p.values]) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _save() async {
@@ -218,6 +312,15 @@ class _PartnerFormState extends State<_PartnerForm> {
     final data = <String, dynamic>{
       if (widget.partner != null) 'id': widget.partner!['id'],
       'type': _type,
+      'is_company': _isCompany,
+      'prospect_status': _type == 'prospect' ? (_prospectStatus ?? 'never') : _prospectStatus,
+      'prospect_level': _type == 'supplier' ? null : _prospectLevel,
+      'source': _source,
+      'salesperson_id': _type == 'supplier' ? null : _salesperson,
+      'contacts': [
+        for (final p in _people)
+          if (p['name']!.text.trim().isNotEmpty) {for (final e in p.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim()},
+      ],
       if (champs) 'custom': _custom,
       for (final e in _c.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),
       if (context.read<Session>().hasModule('devises')) 'currency': _currency,
@@ -226,8 +329,78 @@ class _PartnerFormState extends State<_PartnerForm> {
       if (ptAvailable()) 'payment_term_id': _type == 'supplier' ? null : _term,
       if (ptAvailable()) 'supplier_payment_term_id': (_type == 'supplier' || _type == 'both') ? _supplierTerm : null,
     };
+    // Doublons (comme Dolibarr et Odoo) : avant de créer, ou si le nom, l'e-mail ou le téléphone change
+    final before = widget.partner ?? const {};
+    final changed = widget.partner == null || ['name', 'email', 'phone', 'tax_id'].any((f) => '${before[f] ?? ''}' != '${data[f] ?? ''}');
+    if (changed) {
+      final dups = findDuplicatePartners(data, exceptId: widget.partner?['id'] as String?);
+      if (dups.isNotEmpty) {
+        final pick = await _askDuplicate(dups);
+        if (!mounted || pick == null) return;
+        if (pick.isNotEmpty) {
+          Navigator.pop(context, LocalDb.get('partners', pick));
+          return;
+        }
+      }
+    }
+    if (!mounted) return;
     final saved = await context.read<SyncEngine>().save('partners', data);
     if (mounted) Navigator.pop(context, saved);
+  }
+
+  /// null = annuler, '' = créer quand même, sinon l'id de la fiche existante à garder.
+  Future<String?> _askDuplicate(List<Map<String, dynamic>> dups) => showDialog<String>(
+        context: context,
+        builder: (dc) => AlertDialog(
+          title: Text(tr(dups.length == 1 ? 'Ce contact existe peut-être déjà' : '${dups.length} contacts ressemblent à celui-ci')),
+          content: SizedBox(
+            width: 460,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              for (final d in dups.take(5))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: InitialsAvatar('${d['name']}', size: 34),
+                  title: Text(tr('${d['name']}')),
+                  subtitle: Text(tr([partnerTypes[d['type']], d['code'], d['phone'], d['email']].where((e) => e != null && '$e'.isNotEmpty).join(' · '))),
+                  trailing: widget.partner == null ? TextButton(onPressed: () => Navigator.pop(dc, '${d['id']}'), child: Text(tr('Utiliser'))) : null,
+                ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Revenir à la fiche'))),
+            FilledButton.tonal(onPressed: () => Navigator.pop(dc, ''), child: Text(tr(widget.partner == null ? 'Créer quand même' : 'Enregistrer quand même'))),
+          ],
+        ),
+      );
+
+  Widget _personRow(int i) {
+    final p = _people[i];
+    final narrow = MediaQuery.sizeOf(context).width < 600;
+    Widget f(String k, String label, {TextInputType? kb}) => TextField(controller: p[k], keyboardType: kb, decoration: InputDecoration(isDense: true, labelText: tr(label)));
+    final fields = [f('name', 'Nom'), f('role', 'Fonction'), f('phone', 'Téléphone', kb: TextInputType.phone), f('email', 'E-mail', kb: TextInputType.emailAddress)];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: narrow
+              ? Column(children: [
+                  Row(children: [Expanded(child: fields[0]), const SizedBox(width: 8), Expanded(child: fields[1])]),
+                  const SizedBox(height: 8),
+                  Row(children: [Expanded(child: fields[2]), const SizedBox(width: 8), Expanded(child: fields[3])]),
+                ])
+              : Row(children: [for (var j = 0; j < 4; j++) ...[if (j > 0) const SizedBox(width: 8), Expanded(child: fields[j])]]),
+        ),
+        IconButton(
+          tooltip: tr('Retirer'),
+          onPressed: () => setState(() {
+            for (final c in _people.removeAt(i).values) {
+              c.dispose();
+            }
+          }),
+          icon: const Icon(Icons.close_rounded, size: 20),
+        ),
+      ]),
+    );
   }
 
   Future<void> _delete() async {
@@ -259,7 +432,29 @@ class _PartnerFormState extends State<_PartnerForm> {
               Expanded(child: Text(tr('Devient client automatiquement dès sa première facture validée.'), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor))),
             ]),
           ),
-        Field(label: tr('Nom ou raison sociale'), child: TextFormField(controller: _c['name'], autofocus: true, validator: (v) => (v ?? '').trim().isEmpty ? 'Obligatoire' : null)),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(children: [
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(value: true, icon: const Icon(Icons.apartment_rounded, size: 18), label: Text(tr('Entreprise'))),
+                ButtonSegment(value: false, icon: const Icon(Icons.person_outline_rounded, size: 18), label: Text(tr('Particulier'))),
+              ],
+              selected: {_isCompany},
+              showSelectedIcon: false,
+              onSelectionChanged: (v) => setState(() => _isCompany = v.first),
+            ),
+            const Spacer(),
+            if ('${widget.partner?['code'] ?? ''}'.isNotEmpty)
+              Text(tr('Code ${widget.partner!['code']}'), style: TextStyle(color: Theme.of(context).hintColor, fontWeight: FontWeight.w600, fontSize: 12.5))
+            else if (widget.partner == null)
+              Text(tr('Code attribué automatiquement'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+          ]),
+        ),
+        Field(
+          label: tr(_isCompany ? 'Raison sociale' : 'Nom et prénom'),
+          child: TextFormField(controller: _c['name'], autofocus: widget.partner == null, validator: (v) => (v ?? '').trim().isEmpty ? 'Obligatoire' : null),
+        ),
         Row(children: [
           Expanded(child: Field(label: tr('Téléphone'), child: TextFormField(controller: _c['phone'], keyboardType: TextInputType.phone))),
           const SizedBox(width: 12),
@@ -271,6 +466,75 @@ class _PartnerFormState extends State<_PartnerForm> {
           const SizedBox(width: 12),
           Expanded(child: Field(label: tr('N° contribuable (NCC)'), child: TextFormField(controller: _c['tax_id']))),
         ]),
+        if (_isCompany) ...[
+          Field(label: tr('Site web'), child: TextFormField(controller: _c['website'], keyboardType: TextInputType.url, decoration: const InputDecoration(hintText: 'www.exemple.ci'))),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Row(children: [
+              Expanded(child: Text(tr('Interlocuteurs'), style: const TextStyle(fontWeight: FontWeight.w600))),
+              TextButton.icon(onPressed: () => setState(() => _addPerson()), icon: const Icon(Icons.person_add_alt_1_outlined, size: 18), label: Text(tr('Ajouter'))),
+            ]),
+          ),
+          if (_people.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(tr('Les personnes à joindre dans l\'entreprise : gérant, comptable, acheteur…'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5)),
+            ),
+          for (var i = 0; i < _people.length; i++) _personRow(i),
+        ],
+        if (_type != 'supplier') ...[
+          if (_type == 'prospect')
+            Row(children: [
+              Expanded(
+                child: Field(
+                  label: tr('Prospection'),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _prospectStatus ?? 'never',
+                    isExpanded: true,
+                    items: [for (final e in prospectStatuses.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value), overflow: TextOverflow.ellipsis))],
+                    onChanged: (v) => setState(() => _prospectStatus = v),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Field(
+                  label: tr('Potentiel'),
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _prospectLevel,
+                    isExpanded: true,
+                    items: [DropdownMenuItem(value: null, child: Text(tr('Non évalué'))), for (final e in prospectLevels.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
+                    onChanged: (v) => setState(() => _prospectLevel = v),
+                  ),
+                ),
+              ),
+            ]),
+          Row(children: [
+            Expanded(
+              child: Field(
+                label: tr('Origine'),
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _source,
+                  isExpanded: true,
+                  items: [DropdownMenuItem(value: null, child: Text(tr('Non précisée'))), for (final e in leadSources.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value), overflow: TextOverflow.ellipsis))],
+                  onChanged: (v) => setState(() => _source = v),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Field(
+                label: tr('Commercial'),
+                child: DropdownButtonFormField<int?>(
+                  initialValue: _users.any((u) => u['id'] == _salesperson) ? _salesperson : null,
+                  isExpanded: true,
+                  items: [DropdownMenuItem(value: null, child: Text(tr('Personne'))), for (final u in _users) DropdownMenuItem(value: (u['id'] as num).toInt(), child: Text(tr('${u['name']}'), overflow: TextOverflow.ellipsis))],
+                  onChanged: (v) => setState(() => _salesperson = v),
+                ),
+              ),
+            ),
+          ]),
+        ],
         if (context.read<Session>().hasModule('devises'))
           Field(
             label: tr('Devise de facturation'),
