@@ -58,12 +58,11 @@ jobs:
         run: |
           $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
           & $st sign /f cert.pfx /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "dist\Yomara-ERP-Setup-v$env:APP_VERSION-x64.exe"
-      - name: Paquet Microsoft Store (MSIX, si l'identité est renseignée)
-        if: vars.MSIX_IDENTITY_NAME != ''
+      - name: Paquet Microsoft Store (MSIX, identité dans pubspec.yaml › msix_config)
         shell: pwsh
         run: |
           $mv = "$env:APP_VERSION.0"
-          dart run msix:create --store --build-windows false --version $mv --identity-name "${{ vars.MSIX_IDENTITY_NAME }}" --publisher "${{ vars.MSIX_PUBLISHER }}" --output-path dist --output-name "Yomara-ERP-$env:APP_VERSION-store"
+          dart run msix:create --store --build-windows false --version $mv --output-path dist --output-name "Yomara-ERP-$env:APP_VERSION-store"
       - name: Sommes de contrôle
         shell: pwsh
         run: Get-ChildItem dist | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii "dist\SHA256SUMS-windows-v$env:APP_VERSION.txt"

@@ -141,11 +141,12 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # Paquet MSIX pour le Microsoft Store (signé par Microsoft à la publication : pas de certificat à acheter).
-# L'identité vient de Partner Center › Gestion des produits › Identité du produit ; le workflow
-# « Applications » la passe en ligne de commande (variables MSIX_IDENTITY_NAME et MSIX_PUBLISHER du dépôt).
+# Identité : Partner Center › Yomara ERP (9P92L2X189ZD) › Identité du produit.
 msix_config:
   display_name: Yomara ERP
-  publisher_display_name: Yomara Technologies
+  publisher_display_name: Michael TANON
+  identity_name: MichaelTANON.YomaraERP
+  publisher: CN=F661BEF7-6CC6-4776-95FB-016A471D2D93
   msix_version: 1.0.0.0
   logo_path: assets/brand/mark.png
   languages: fr-FR, en-US

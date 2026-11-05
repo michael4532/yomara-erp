@@ -20,7 +20,7 @@ return [
         'android_store' => env('ERP_STORE_PLAY', 'https://play.google.com/store/apps/details?id=com.yomaratechnologies.yomara_erp'),
         'ios' => env('ERP_STORE_APPLE', 'https://apps.apple.com/app/id6831012647'),
         'mac_store' => env('ERP_STORE_MAC', 'https://apps.apple.com/app/id6831012647'),
-        'windows_store' => env('ERP_STORE_MICROSOFT'),
+        'windows_store' => env('ERP_STORE_MICROSOFT', 'https://apps.microsoft.com/detail/9P92L2X189ZD'),
     ],
     // Dépôt public du code source (édition libre AGPL), utilisé si l'administration n'en indique pas
     'source_repository' => env('ERP_SOURCE_REPOSITORY'),
