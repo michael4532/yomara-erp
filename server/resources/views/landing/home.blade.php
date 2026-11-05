@@ -22,7 +22,6 @@
 <style>
 /* Titre : la fin de la phrase change toute seule */
 .hero h1 .rot{display:inline-block;color:var(--gold);min-height:1em}
-.hero h1 .rot:after{content:"";display:inline-block;width:.06em;height:.82em;margin-left:.06em;background:var(--gold);vertical-align:-.06em;animation:caret 1s steps(1) infinite}
 @keyframes caret{50%{opacity:0}}
 /* Fond du haut : halos lents */
 .hero:before{content:"";position:absolute;width:640px;height:640px;left:-260px;bottom:-200px;background:radial-gradient(closest-side,rgba(46,107,230,.30),transparent 70%);pointer-events:none;animation:drift 16s ease-in-out infinite alternate}
@@ -85,12 +84,12 @@
 <section class="hero on-dark">
   <div class="wrap">
     <div class="hero-top">
-      <h1>Toute votre entreprise. <span class="rot" id="rot" data-words='@json($words)'>Même sans connexion.</span></h1>
+      <h1>Toute votre entreprise. <span class="rot">Dans un seul logiciel.</span></h1>
       <div class="hero-side">
         <p>Ventes, caisse, stock, comptabilité, paie, clients et messagerie dans un seul logiciel, pensé pour les entreprises d'Afrique de l'Ouest.</p>
         <div class="hero-cta">
           <a class="btn btn-gold" href="/inscription">Créer mon entreprise</a>
-          <a class="btn btn-ghost" href="#visite">Voir le logiciel</a>
+          <a class="btn btn-ghost" href="/telecharger">Télécharger</a>
         </div>
       </div>
     </div>

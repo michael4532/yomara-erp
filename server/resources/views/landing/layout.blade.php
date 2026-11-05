@@ -87,6 +87,7 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);margin-top:44px;padding-
 @media (max-width:520px){footer .cols{grid-template-columns:1fr}footer a{overflow-wrap:anywhere}}
 /* WhatsApp + live chat */
 .fab{position:fixed;right:20px;bottom:20px;z-index:80;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+.fab-left{right:auto;left:20px;align-items:flex-start}
 .fab-btn{width:58px;height:58px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center;box-shadow:0 14px 30px -10px rgba(10,22,51,.5);transition:transform .2s;position:relative}
 .fab-btn:hover{transform:scale(1.07)}
 .fab-wa{background:#25D366;color:#fff}
@@ -202,9 +203,12 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);margin-top:44px;padding-
   </div>
 </footer>
 @php $wa = $contact['whatsapp'] ? preg_replace('/\D+/', '', $contact['whatsapp']) : null; @endphp
+@if($wa)<div class="fab fab-left">
+@if($wa)<a class="fab-btn fab-wa" href="https://wa.me/{{ $wa }}?text={{ rawurlencode('Bonjour, je souhaite des informations sur '.$appName.'.') }}" target="_blank" rel="noopener" aria-label="Nous écrire sur WhatsApp"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.8.4 3.5 3.5 0 0 0-1.1 2.6 6 6 0 0 0 1.3 3.2 13.8 13.8 0 0 0 5.3 4.7c2 .9 2.8.9 3.8.8.6-.1 1.8-.8 2.1-1.5s.3-1.3.2-1.5-.3-.2-.6-.3ZM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8Zm0-21.6a11.8 11.8 0 0 0-10.1 17.8L.2 24l6.1-1.6A11.8 11.8 0 1 0 12 .2Z"/></svg></a>@endif
+</div>@endif
 <div class="fab">
   @if($chatEnabled ?? true)<div class="fab-hint" id="fabHint" hidden>Une question ? On vous répond ici.</div>@endif
-  @if($wa)<a class="fab-btn fab-wa" href="https://wa.me/{{ $wa }}?text={{ rawurlencode('Bonjour, je souhaite des informations sur '.$appName.'.') }}" target="_blank" rel="noopener" aria-label="Nous écrire sur WhatsApp"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.8.4 3.5 3.5 0 0 0-1.1 2.6 6 6 0 0 0 1.3 3.2 13.8 13.8 0 0 0 5.3 4.7c2 .9 2.8.9 3.8.8.6-.1 1.8-.8 2.1-1.5s.3-1.3.2-1.5-.3-.2-.6-.3ZM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8Zm0-21.6a11.8 11.8 0 0 0-10.1 17.8L.2 24l6.1-1.6A11.8 11.8 0 1 0 12 .2Z"/></svg></a>@endif
+
   @if($chatEnabled ?? true)<button class="fab-btn fab-chat" id="lcOpen" aria-label="Discuter en direct avec nous" aria-expanded="false"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm3 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg><span class="badge" id="lcBadge">0</span></button>@endif
 </div>
 @if($chatEnabled ?? true)
