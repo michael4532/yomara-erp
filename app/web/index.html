@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Yomara ERP">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="yomara_erp">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Yomara ERP</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body style="margin:0;background:#0B1B3A;">
+  <style>
+    #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff;
+      background:radial-gradient(circle at 85% 0%,rgba(46,107,230,.28),transparent 45%),radial-gradient(circle at 0% 100%,rgba(255,197,49,.18),transparent 45%),linear-gradient(135deg,#0B1B3A,#12306B 55%,#0B1B3A);transition:opacity .45s ease}
+    #splash .logo{position:relative;width:112px;height:112px;display:flex;align-items:center;justify-content:center}
+    #splash .ring{position:absolute;inset:4px;border-radius:50%;border:4px solid transparent;border-top-color:#FFC531;border-right-color:#4F8BFF;animation:ysp 2.4s linear infinite}
+    #splash .tile{width:70px;height:70px;border-radius:20px;background:#FFC531;color:#0B1B3A;font-weight:900;font-size:38px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(255,197,49,.45);animation:ypl 1.4s ease-in-out infinite alternate}
+    #splash .name{margin-top:26px;font-size:26px;font-weight:800;letter-spacing:-.3px}
+    #splash .sub{margin-top:10px;color:#9FB0D6;font-size:13.5px;text-align:center;padding:0 24px}
+    #splash .bar{margin-top:28px;width:min(384px,80vw);height:8px;border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden}
+    #splash .fill{height:100%;width:4%;background:linear-gradient(90deg,#FFC531,#FFA62B,#4F8BFF);border-radius:8px;transition:width .4s ease}
+    #splash .step{margin-top:12px;width:min(384px,80vw);display:flex;justify-content:space-between;font-size:13px;font-weight:600}
+    #splash .step span:last-child{color:#9FB0D6;font-weight:400}
+    #splash .foot{position:absolute;bottom:22px;color:#7084B0;font-size:12px}
+    @keyframes ysp{to{transform:rotate(360deg)}}
+    @keyframes ypl{from{transform:scale(.94)}to{transform:scale(1.04)}}
+  </style>
+  <div id="splash">
+    <div class="logo"><div class="ring"></div><div class="tile"><img src="icons/Icon-192.png" alt="" style="width:100%;height:100%;display:block;border-radius:inherit"></div></div>
+    <div class="name">Yomara <span style="color:#FFC531">ERP</span></div>
+    <div class="sub">Patientez pendant que nous configurons votre interface…</div>
+    <div class="bar"><div class="fill" id="splash-fill"></div></div>
+    <div class="step"><span id="splash-step">Chargement de l'application…</span><span id="splash-pct">4 %</span></div>
+    <div class="foot">Vos données restent disponibles même sans connexion.</div>
+  </div>
+  <script>
+    (function () {
+      var p = 4, steps = ['Chargement de l\'application…', 'Préparation du moteur d\'affichage…', 'Ouverture de votre espace…'];
+      var t = setInterval(function () {
+        p = Math.min(30, p + (30 - p) * 0.06 + 0.2);
+        var f = document.getElementById('splash-fill'); if (!f) return clearInterval(t);
+        f.style.width = p + '%';
+        document.getElementById('splash-pct').textContent = Math.round(p) + ' %';
+        document.getElementById('splash-step').textContent = steps[p < 14 ? 0 : (p < 24 ? 1 : 2)];
+      }, 120);
+      window.addEventListener('flutter-first-frame', function () {
+        clearInterval(t);
+        var s = document.getElementById('splash'); if (!s) return;
+        s.style.opacity = '0'; setTimeout(function () { s.remove(); }, 460);
+      });
+    })();
+  </script>
+  <script>
+    // Hébergements mutualisés : le fichier .wasm est parfois servi sans le bon type MIME ; on le charge autrement.
+    (function () {
+      var W = window.WebAssembly; if (!W) return;
+      var buf = function (src) { return Promise.resolve(src).then(function (r) { return r.arrayBuffer(); }); };
+      W.compileStreaming = function (src) { return buf(src).then(function (b) { return W.compile(b); }); };
+      W.instantiateStreaming = function (src, imports) { return buf(src).then(function (b) { return W.instantiate(b, imports); }); };
+    })();
+  </script>
+  <!-- pdf.js servi par le serveur Yomara (aperçus et éditeur PDF), sans dépendre d'un CDN -->
+  <script>window.dartPdfJsBaseUrl = new URL('pdfjs/', document.baseURI).href;</script>
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Chargement anormalement long : proposer d'actualiser plutôt qu'un écran figé
+    setTimeout(function () {
+      var s = document.getElementById('splash'); if (!s || window.__yFirstFrame) return;
+      var d = document.createElement('div');
+      d.style.cssText = 'margin-top:22px;text-align:center;font-size:14px;color:#C9D3EA;max-width:320px;line-height:1.5';
+      d.innerHTML = 'Le chargement prend plus de temps que prévu.<br><a href="" style="display:inline-block;margin-top:12px;background:#FFC531;color:#0B1B3A;padding:9px 18px;border-radius:999px;font-weight:700;text-decoration:none">Actualiser la page</a>';
+      s.appendChild(d);
+    }, 25000);
+    window.addEventListener('flutter-first-frame', function () { window.__yFirstFrame = true; });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('offline-sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

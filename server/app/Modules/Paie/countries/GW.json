@@ -1,0 +1,82 @@
+{
+  "code": "GW",
+  "name": "Guinée-Bissau",
+  "currency": "XOF",
+  "as_of": "2025-01",
+  "confidence": "low",
+  "sources": [
+    "https://www.globalexpansion.com/hubfs/Countrypedia%20PDFs/In%20use/Guinea%20-%20Bissau%20-%20Global%20Employer%20Guide.pdf",
+    "https://www.playroll.com/payroll/guinea-bissau",
+    "https://afrotools.com/fr/guinea-bissau/gw-paye",
+    "https://www.rivermate.com/guides/guinea-bissau/taxes",
+    "https://www.mirandalawfirm.com/download/499/684b63aada3bf9dd693583a10fd8cf9c/ln_gb_jun2015_pt.pdf",
+    "https://wageindicator.org/ai/work/minimum-wage/countries/guinea-bissau/"
+  ],
+  "smig": 50000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": null,
+  "contributions": [
+    {
+      "code": "inss",
+      "label": "INSS (Instituto Nacional de Segurança Social)",
+      "employee_rate": 8,
+      "employer_rate": 14,
+      "ceiling": null
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "ip",
+    "label": "Impôt professionnel",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": null,
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 500000,
+        "rate": 1
+      },
+      {
+        "up_to": 1000000,
+        "rate": 6
+      },
+      {
+        "up_to": 2500000,
+        "rate": 8
+      },
+      {
+        "up_to": 3600000,
+        "rate": 10
+      },
+      {
+        "up_to": 4806000,
+        "rate": 12
+      },
+      {
+        "up_to": 9000000,
+        "rate": 14
+      },
+      {
+        "up_to": 13200000,
+        "rate": 16
+      },
+      {
+        "up_to": 18000000,
+        "rate": 18
+      },
+      {
+        "up_to": null,
+        "rate": 20
+      }
+    ],
+    "family": {
+      "method": "none"
+    }
+  },
+  "employee_taxes": [],
+  "employer_taxes": [],
+  "notes": "Données partielles : les sources publiques divergent sur le barème de l'impôt professionnel (barème annuel 1 à 20 % retenu ; une autre source donne un barème mensuel 0 à 30 %). SMIG non confirmé. Faites valider le profil par votre conseil avant la première paie.",
+  "social_body": "INSS"
+}

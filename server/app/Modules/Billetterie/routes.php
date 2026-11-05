@@ -1,0 +1,20 @@
+<?php
+
+use App\Modules\Billetterie\BilletterieController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('perm:billetterie.scan,billetterie.manage')->group(function () {
+    Route::post('scan', [BilletterieController::class, 'scan']);
+    Route::get('lookup', [BilletterieController::class, 'lookup']);
+});
+Route::middleware('perm:billetterie.scan,billetterie.sell,billetterie.manage,evenements.manage')->group(function () {
+    Route::get('events/{id}/stats', [BilletterieController::class, 'stats'])->whereUuid('id');
+    Route::get('events/{id}/analytics', [BilletterieController::class, 'analytics'])->whereUuid('id');
+});
+Route::middleware('perm:billetterie.sell,billetterie.manage')->group(function () {
+    Route::post('orders/{id}/resend', [BilletterieController::class, 'resend'])->whereUuid('id');
+});
+Route::middleware('perm:billetterie.manage')->group(function () {
+    Route::post('bookings/{id}/badges', [BilletterieController::class, 'badges'])->whereUuid('id');
+    Route::post('events/{id}/feedback-request', [BilletterieController::class, 'requestFeedback'])->whereUuid('id');
+});

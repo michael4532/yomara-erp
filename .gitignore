@@ -1,0 +1,43 @@
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+key.properties
+local.properties
+google-services.json
+GoogleService-Info.plist
+
+# Serveur
+/server/vendor/
+/server/node_modules/
+/server/public/app/
+/server/public/scan/
+/server/public/downloads/
+/server/public/uploads/*
+!/server/public/uploads/.gitkeep
+/server/database/*.sqlite
+/server/.phpunit.result.cache
+/server/.phpunit.cache/
+
+# Application
+/app/build/
+/app/.dart_tool/
+/app/.flutter-plugins
+/app/.flutter-plugins-dependencies
+/app/.idea/
+*.iml
+/app/ios/Pods/
+/app/macos/Pods/
+/app/**/Flutter/ephemeral/
+/app/**/flutter/ephemeral/
+/app/ios/Flutter/Generated.xcconfig
+/app/ios/Flutter/flutter_export_environment.sh
+/app/dist/
+
+.DS_Store
+Thumbs.db

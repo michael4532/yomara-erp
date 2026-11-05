@@ -1,0 +1,146 @@
+{
+  "code": "GA",
+  "name": "Gabon",
+  "currency": "XAF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.cleiss.fr/docs/cotisations/gabon.html",
+    "https://www.gabonreview.com/cnss-le-doublement-de-la-part-salariale-garantira-t-elle-la-survie-du-modele-social-au-prix-du-pouvoir-dachat/",
+    "https://taxsummaries.pwc.com/gabon/individual/taxes-on-personal-income",
+    "https://taxsummaries.pwc.com/gabon/individual/deductions",
+    "https://taxsummaries.pwc.com/gabon/individual/other-taxes",
+    "https://support.payspace.com/portal/en/kb/articles/gabon-increase-in-national-housing-fund-fnh-contribution-rate",
+    "https://www.gabonreview.com/logement-3-de-plus-sur-la-fiche-de-paie-un-flou-sur-qui-paiera-vraiment/",
+    "https://www.kreston.com/wp-content/uploads/2026/02/Exco-Afrique-FEAG-Livret-Fiscal-2026-Gabon-v-diaporama-FR-V3.pdf"
+  ],
+  "smig": 150000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 2,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS Pensions vieillesse, invalidité, décès",
+      "employee_rate": 5,
+      "employer_rate": 11,
+      "ceiling": 1500000
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS Prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 5,
+      "ceiling": 1500000
+    },
+    {
+      "code": "cnss_at",
+      "label": "CNSS Accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 2,
+      "ceiling": 1500000
+    },
+    {
+      "code": "cnamgs",
+      "label": "CNAMGS Assurance maladie",
+      "employee_rate": 2,
+      "employer_rate": 4.1,
+      "ceiling": 2500000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "irpp",
+    "label": "IRPP",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 20,
+      "cap": 10000000
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 1500000,
+        "rate": 0
+      },
+      {
+        "up_to": 1920000,
+        "rate": 5
+      },
+      {
+        "up_to": 2700000,
+        "rate": 10
+      },
+      {
+        "up_to": 3600000,
+        "rate": 15
+      },
+      {
+        "up_to": 5160000,
+        "rate": 20
+      },
+      {
+        "up_to": 7500000,
+        "rate": 25
+      },
+      {
+        "up_to": 11000000,
+        "rate": 30
+      },
+      {
+        "up_to": null,
+        "rate": 35
+      }
+    ],
+    "family": {
+      "method": "quotient",
+      "parts": {
+        "single": 1,
+        "married": 2,
+        "per_child": 0.5,
+        "max": 5
+      }
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "tcs",
+      "label": "Taxe complémentaire sur les salaires (TCS)",
+      "base": "net_social",
+      "period": "monthly",
+      "brackets": [
+        {
+          "up_to": 150000,
+          "rate": 0
+        },
+        {
+          "up_to": null,
+          "rate": 5
+        }
+      ]
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "fnh",
+      "label": "Fonds national de l'habitat (FNH)",
+      "base": "social",
+      "rate": 3,
+      "ceiling": 1500000
+    },
+    {
+      "code": "cfp",
+      "label": "Contribution à la formation professionnelle (CFP)",
+      "base": "gross",
+      "rate": 0.5
+    }
+  ],
+  "notes": "Taux CNSS en vigueur depuis le 1er janvier 2026 (part salariale retraite portée à 5 %). IRPP au quotient familial (barème annuel par part) après cotisations CNSS et CNAMGS et abattement de 20 % plafonné à 10 000 000 F. TCS 5 % de la fraction mensuelle au-delà de 150 000 F (déduction préalable des cotisations à confirmer). Prime d'ancienneté selon la convention collective.",
+  "social_body": "CNSS / CNAMGS"
+}

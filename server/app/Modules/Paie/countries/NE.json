@@ -1,0 +1,117 @@
+{
+  "code": "NE",
+  "name": "Niger",
+  "currency": "XOF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.cleiss.fr/docs/cotisations/niger.html",
+    "https://dsr.mercans.com/?p=896",
+    "https://support.payspace.com/portal/en/kb/articles/niger-finance-law-2025",
+    "https://rivermate.com/guides/niger/taxes",
+    "https://www.wakatsera.com/niger-le-smig-fixe-a-42-000-fcfa/"
+  ],
+  "smig": 42000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": null,
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS - Vieillesse, invalidité, survivants",
+      "employee_rate": 5.25,
+      "employer_rate": 6.25,
+      "ceiling": 500000
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS - Prestations familiales et maternité",
+      "employee_rate": 0,
+      "employer_rate": 8.4,
+      "ceiling": 500000
+    },
+    {
+      "code": "cnss_atmp",
+      "label": "CNSS - Accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 1.75,
+      "ceiling": 500000
+    },
+    {
+      "code": "anpe",
+      "label": "ANPE (Agence nationale pour la promotion de l'emploi)",
+      "employee_rate": 0,
+      "employer_rate": 1,
+      "ceiling": 500000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "its",
+    "label": "ITS",
+    "period": "monthly",
+    "deduct_social": true,
+    "professional": null,
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 25000,
+        "rate": 1
+      },
+      {
+        "up_to": 50000,
+        "rate": 2
+      },
+      {
+        "up_to": 100000,
+        "rate": 6
+      },
+      {
+        "up_to": 150000,
+        "rate": 13
+      },
+      {
+        "up_to": 300000,
+        "rate": 25
+      },
+      {
+        "up_to": 400000,
+        "rate": 30
+      },
+      {
+        "up_to": 700000,
+        "rate": 32
+      },
+      {
+        "up_to": 1000000,
+        "rate": 34
+      },
+      {
+        "up_to": null,
+        "rate": 35
+      }
+    ],
+    "family": {
+      "method": "none"
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "fssp",
+      "label": "Contribution au fonds de solidarité",
+      "base": "net",
+      "rate": 1,
+      "period": "monthly"
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "ta",
+      "label": "Taxe d'apprentissage",
+      "base": "gross",
+      "rate": 3
+    }
+  ],
+  "notes": "ITS au barème mensuel (9 tranches) après cotisation CNSS, sans abattement forfaitaire. Réductions pour charges de famille non trouvées : à ajouter si votre conseil les confirme. Contribution de solidarité de 1 % du net (source unique, à confirmer). Taxe d'apprentissage 3 % depuis 2025. SMIG 42 000 F depuis janvier 2026.",
+  "social_body": "CNSS"
+}

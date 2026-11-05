@@ -1,0 +1,42 @@
+{
+  "code": "CI",
+  "name": "Côte d'Ivoire",
+  "currency": "XOF",
+  "as_of": "2026-09",
+  "confidence": "high",
+  "social_body": "CNPS",
+  "sources": [
+    "https://taxsummaries.pwc.com/ivory-coast/individual/taxes-on-personal-income",
+    "https://www.cleiss.fr/docs/cotisations/cotedivoire.html",
+    "https://servicepublic.gouv.ci/accueil/detaildemarcheparticulier/1/189/14",
+    "https://payspace.com/blog/ivory-coast-its-reform"
+  ],
+  "smig": 75000,
+  "days_basis": 30,
+  "transport_exempt": 30000,
+  "seniority": {"start_years": 2, "first_rate": 2, "per_year": 1, "max": 25},
+  "contributions": [
+    {"code": "retraite", "label": "CNPS retraite", "employee_rate": 6.3, "employer_rate": 7.7, "ceiling": 3375000},
+    {"code": "pf", "label": "Prestations familiales", "employee_rate": 0, "employer_rate": 5, "ceiling": 70000},
+    {"code": "maternite", "label": "Assurance maternité", "employee_rate": 0, "employer_rate": 0.75, "ceiling": 70000},
+    {"code": "at", "label": "Accidents du travail", "employee_rate": 0, "employer_rate": 2, "ceiling": 70000}
+  ],
+  "fixed": [
+    {"code": "cmu", "label": "CMU", "employee_amount": 500, "employer_amount": 500, "per": "person", "max_children": 6}
+  ],
+  "income_tax": {
+    "code": "its", "label": "ITS", "period": "monthly", "deduct_social": false, "professional": null, "fixed_abatement": 0,
+    "brackets": [
+      {"up_to": 75000, "rate": 0}, {"up_to": 240000, "rate": 16}, {"up_to": 800000, "rate": 21},
+      {"up_to": 2400000, "rate": 24}, {"up_to": 8000000, "rate": 28}, {"up_to": null, "rate": 32}
+    ],
+    "family": {"method": "per_half_part", "amount": 5500, "parts": {"single": 1, "married": 2, "single_parent": 1.5, "per_child": 0.5, "max": 5}}
+  },
+  "employee_taxes": [],
+  "employer_taxes": [
+    {"code": "contribution", "label": "Contribution employeur", "base": "taxable", "rate": 1.2, "expat_rate": 10.4},
+    {"code": "fdfp_ta", "label": "FDFP taxe d'apprentissage", "base": "taxable", "rate": 0.4},
+    {"code": "fdfp_fpc", "label": "FDFP formation continue", "base": "taxable", "rate": 1.2}
+  ],
+  "notes": "Barème ITS de la réforme 2024 (100 % du brut imposable). RICF 5 500 F par demi-part au-delà de 1. Taux accidents du travail de 2 à 5 % selon l'activité. CMU : 1 000 F par personne (salarié, conjoint, 6 enfants), moitié employeur. Moteur ivoirien dédié utilisé par défaut ; ce profil sert de référence."
+}

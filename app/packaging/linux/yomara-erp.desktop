@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Yomara ERP
+GenericName=Logiciel de gestion
+GenericName[en]=Business management software
+Comment=Ventes, caisse, stock, comptabilité, paie et CRM, même sans connexion
+Comment[en]=Sales, point of sale, inventory, accounting, payroll and CRM, even offline
+Exec=yomara-erp %U
+Icon=yomara-erp
+Terminal=false
+Categories=Office;Finance;
+Keywords=ERP;facture;caisse;stock;comptabilité;paie;
+StartupWMClass=yomara_erp

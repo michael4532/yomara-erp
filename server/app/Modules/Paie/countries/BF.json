@@ -1,0 +1,129 @@
+{
+  "code": "BF",
+  "name": "Burkina Faso",
+  "currency": "XOF",
+  "as_of": "2026-02",
+  "confidence": "medium",
+  "sources": [
+    "https://africarrieres.com/burkina-faso/fr/guide/droit-du-travail/securite-sociale",
+    "https://dsr.mercans.com/payroll-dossiers/burkina-faso/",
+    "https://support.payspace.com/portal/en/kb/articles/burkina-faso-increase-in-smig-amount",
+    "https://burkina24.com/?p=211569",
+    "https://dgi.bf/wp-content/uploads/2023/10/CODE-GENERAL-DES-IMPOTS-A-JOUR-LOI-DE-FINANCE-2021.pdf"
+  ],
+  "smig": 45000,
+  "days_basis": 30,
+  "transport_exempt": 30000,
+  "seniority": {
+    "start_years": 5,
+    "first_rate": 5,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS vieillesse, invalidité, décès",
+      "employee_rate": 5.5,
+      "employer_rate": 8.5,
+      "ceiling": 800000
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 6,
+      "ceiling": 800000
+    },
+    {
+      "code": "cnss_rp",
+      "label": "CNSS risques professionnels",
+      "employee_rate": 0,
+      "employer_rate": 1.5,
+      "ceiling": 800000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "iuts",
+    "label": "IUTS",
+    "period": "monthly",
+    "deduct_social": true,
+    "professional": {
+      "rate": 25,
+      "cap": null
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 30000,
+        "rate": 0
+      },
+      {
+        "up_to": 50000,
+        "rate": 12.1
+      },
+      {
+        "up_to": 80000,
+        "rate": 13.9
+      },
+      {
+        "up_to": 120000,
+        "rate": 15.7
+      },
+      {
+        "up_to": 170000,
+        "rate": 18.4
+      },
+      {
+        "up_to": 250000,
+        "rate": 21.7
+      },
+      {
+        "up_to": null,
+        "rate": 25
+      }
+    ],
+    "family": {
+      "method": "reduction",
+      "by": "dependants",
+      "reductions": [
+        {
+          "from": 1,
+          "rate": 8
+        },
+        {
+          "from": 2,
+          "rate": 10
+        },
+        {
+          "from": 3,
+          "rate": 12
+        },
+        {
+          "from": 4,
+          "rate": 14
+        }
+      ]
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "fsp",
+      "label": "Fonds de soutien patriotique",
+      "base": "net",
+      "rate": 1,
+      "period": "monthly"
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "tpa",
+      "label": "TPA (Taxe patronale et d'apprentissage)",
+      "base": "gross",
+      "rate": 3
+    }
+  ],
+  "notes": "IUTS au barème mensuel après cotisations et abattement forfaitaire (25 % non-cadres, 20 % cadres — à ajuster) ; réduction de 8 à 14 % selon les personnes à charge. Indemnités exonérées : logement 75 000 F, transport 30 000 F, fonction 50 000 F. Assurance maladie universelle (2,5 % + 2,5 %) à ajouter si elle est prélevée dans votre secteur. Contribution au fonds de soutien patriotique de 1 % du net depuis 2024. Prime d'ancienneté à confirmer selon la convention.",
+  "social_body": "CNSS"
+}

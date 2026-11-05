@@ -1,0 +1,145 @@
+{
+  "code": "CG",
+  "name": "Congo",
+  "currency": "XAF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.cleiss.fr/docs/cotisations/congo.html",
+    "https://dsr.mercans.com/?p=889",
+    "https://sgg.cg/JO/2026/congo-jo-2026-3-4.pdf",
+    "https://congopaie.com/blog/abattement-its-conjoint-enfants-congo",
+    "https://prisme242.com/categorie/fiscalite/impot-traitements-salaires-congo-2026",
+    "https://support.payspace.com/portal/en/kb/articles/republic-of-congo-draft-finance-law-2026",
+    "https://support.payspace.com/portal/en/kb/articles/republic-of-congo-finance-law-2025",
+    "https://www.finances.gouv.cg/fr/download/file/fid/10536"
+  ],
+  "smig": 70400,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 2,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS Pensions vieillesse, invalidité, décès",
+      "employee_rate": 4,
+      "employer_rate": 8,
+      "ceiling": 1200000
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS Prestations familiales (y c. maternité)",
+      "employee_rate": 0,
+      "employer_rate": 10.03,
+      "ceiling": 600000
+    },
+    {
+      "code": "cnss_at",
+      "label": "CNSS Accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 2.25,
+      "ceiling": 600000
+    },
+    {
+      "code": "camu",
+      "label": "CAMU Assurance maladie universelle (RAMU)",
+      "employee_rate": 2.27,
+      "employer_rate": 4.55,
+      "ceiling": 600000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "its",
+    "label": "ITS",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 20,
+      "cap": null
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 615000,
+        "rate": 0,
+        "fixed": 1200
+      },
+      {
+        "up_to": 1500000,
+        "rate": 10
+      },
+      {
+        "up_to": 3500000,
+        "rate": 15
+      },
+      {
+        "up_to": 5000000,
+        "rate": 20
+      },
+      {
+        "up_to": null,
+        "rate": 30
+      }
+    ],
+    "family": {
+      "method": "quotient",
+      "parts": {
+        "single": 1,
+        "married": 2,
+        "per_child": 0.5,
+        "max": 6.5
+      }
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "camu_solidarite",
+      "label": "Contribution de solidarité CAMU",
+      "base": "net_social",
+      "period": "monthly",
+      "brackets": [
+        {
+          "up_to": 500000,
+          "rate": 0
+        },
+        {
+          "up_to": null,
+          "rate": 0.5
+        }
+      ]
+    },
+    {
+      "code": "tol",
+      "label": "Taxe sur l'occupation des locaux (TOL)",
+      "base": "gross",
+      "amount": 5000,
+      "period": "monthly"
+    },
+    {
+      "code": "taxe_dept",
+      "label": "Taxe départementale",
+      "base": "gross",
+      "amount": 2000,
+      "months": [
+        1
+      ],
+      "period": "monthly"
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "tus",
+      "label": "Taxe unique sur les salaires (TUS)",
+      "base": "gross",
+      "rate": 7.5
+    }
+  ],
+  "notes": "Depuis le 1er janvier 2026 (loi n° 42-2025), l'ITS remplace l'IRPP sur les salaires : brut moins la cotisation retraite salariale, abattement de 20 %, quotient familial (6,5 parts au plus), 1 200 F forfaitaires pour la première tranche. TUS 7,5 % (inclut fonds de l'habitat et ONEMO). Cotisation CAMU et contribution de solidarité à confirmer selon votre situation. TOL de 5 000 F à Brazzaville et Pointe-Noire (moins ailleurs) ; taxe départementale retenue en janvier.",
+  "social_body": "CNSS / CAMU"
+}

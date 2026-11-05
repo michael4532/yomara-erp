@@ -1,0 +1,117 @@
+{
+  "code": "BJ",
+  "name": "Bénin",
+  "currency": "XOF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://afrotools.com/blog/benin-employer-payroll-compliance-2026/",
+    "https://dsr.mercans.com/payroll-dossiers/benin/",
+    "https://beninwebtv.bj/benin-la-cstb-denonce-une-reduction-de-salaire-induite-par-le-nouveau-cgi/",
+    "https://lanouvelletribune.info/2022/01/benin-60000-fcfa-desormais-considere-comme-bas-salaire-et-exonere-dimpots/",
+    "https://beninwebtv.bj/benin-le-smig-passe-a-52-000f-lappel-du-gouvernement-au-prive/",
+    "https://fr.allafrica.com/stories/202212100183.html"
+  ],
+  "smig": 52000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": null,
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS - Pensions (vieillesse)",
+      "employee_rate": 3.6,
+      "employer_rate": 6.4,
+      "ceiling": null
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS - Prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 9,
+      "ceiling": null
+    },
+    {
+      "code": "cnss_rp",
+      "label": "CNSS - Risques professionnels",
+      "employee_rate": 0,
+      "employer_rate": 1,
+      "ceiling": null
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "its",
+    "label": "ITS",
+    "period": "monthly",
+    "deduct_social": true,
+    "professional": null,
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 60000,
+        "rate": 0
+      },
+      {
+        "up_to": 150000,
+        "rate": 10
+      },
+      {
+        "up_to": 250000,
+        "rate": 15
+      },
+      {
+        "up_to": 500000,
+        "rate": 19
+      },
+      {
+        "up_to": null,
+        "rate": 30
+      }
+    ],
+    "family": {
+      "method": "none"
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "ortb_mars",
+      "label": "Redevance ORTB (mars)",
+      "base": "gross",
+      "amount": 1000,
+      "months": [
+        3
+      ],
+      "period": "monthly"
+    },
+    {
+      "code": "ortb_juin",
+      "label": "Redevance ORTB (juin)",
+      "base": "tax_base",
+      "table": [
+        {
+          "up_to": 60000,
+          "amount": 0
+        },
+        {
+          "up_to": null,
+          "amount": 3000
+        }
+      ],
+      "months": [
+        6
+      ],
+      "period": "monthly"
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "vps",
+      "label": "Versement patronal sur salaires (VPS)",
+      "base": "taxable",
+      "rate": 4
+    }
+  ],
+  "notes": "ITS au barème mensuel après cotisation CNSS ; pas de réduction pour charges de famille depuis le code général des impôts de 2022. Taux accidents du travail de 1 à 4 % selon l'activité. VPS 4 % à la charge de l'employeur (2 % pour l'enseignement privé). Redevance ORTB retenue en mars et juin. Prime d'ancienneté selon la convention collective (à paramétrer).",
+  "social_body": "CNSS"
+}

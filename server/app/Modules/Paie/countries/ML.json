@@ -1,0 +1,126 @@
+{
+  "code": "ML",
+  "name": "Mali",
+  "currency": "XOF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.dgi.gouv.ml/CGI/",
+    "https://africarrieres.com/mali/fr/guide/employeur-entreprise/employer-taxes",
+    "https://dsr.mercans.com/?p=895",
+    "https://afrotools.com/fr/mali/calculateur-salaire-net"
+  ],
+  "smig": 40000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 3,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "inps_retraite",
+      "label": "INPS assurance vieillesse, invalidité, décès",
+      "employee_rate": 3.6,
+      "employer_rate": 5.4,
+      "ceiling": null
+    },
+    {
+      "code": "inps_pf",
+      "label": "INPS prestations familiales et maternité",
+      "employee_rate": 0,
+      "employer_rate": 8,
+      "ceiling": null
+    },
+    {
+      "code": "inps_at",
+      "label": "INPS accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 2,
+      "ceiling": null
+    },
+    {
+      "code": "amo",
+      "label": "AMO (Assurance maladie obligatoire, CANAM)",
+      "employee_rate": 3.06,
+      "employer_rate": 3.5,
+      "ceiling": null
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "its",
+    "label": "ITS",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": null,
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 330000,
+        "rate": 0
+      },
+      {
+        "up_to": 578400,
+        "rate": 5
+      },
+      {
+        "up_to": 1176400,
+        "rate": 12
+      },
+      {
+        "up_to": 1789733,
+        "rate": 18
+      },
+      {
+        "up_to": 2384195,
+        "rate": 26
+      },
+      {
+        "up_to": 3494130,
+        "rate": 31
+      },
+      {
+        "up_to": null,
+        "rate": 37
+      }
+    ],
+    "family": {
+      "method": "reduction",
+      "married_rate": 10,
+      "per_child_rate": 2.5,
+      "max_children": 10
+    }
+  },
+  "employee_taxes": [],
+  "employer_taxes": [
+    {
+      "code": "cfe",
+      "label": "Contribution forfaitaire à la charge des employeurs (CFE)",
+      "base": "gross",
+      "rate": 3.5
+    },
+    {
+      "code": "tl",
+      "label": "Taxe-logement",
+      "base": "gross",
+      "rate": 1
+    },
+    {
+      "code": "tfp",
+      "label": "Taxe de formation professionnelle (TFP)",
+      "base": "gross",
+      "rate": 2
+    },
+    {
+      "code": "tej",
+      "label": "Taxe emploi jeunes (ANPE)",
+      "base": "gross",
+      "rate": 1
+    }
+  ],
+  "notes": "ITS au barème annuel du code général des impôts (art. 10 et 11) après cotisations INPS et AMO ; réduction pour charges de famille : marié 10 %, +2,5 % par enfant (10 enfants au plus). Le barème a pu être modifié par une loi de finances récente : faites-le confirmer. Taxes patronales : CFE 3,5 %, taxe logement 1 %, formation professionnelle 2 %, emploi des jeunes 1 % (taux à confirmer).",
+  "social_body": "INPS / CANAM"
+}

@@ -1,0 +1,101 @@
+<?php
+
+use App\Modules\Flotte\FlotteHooks as H;
+
+$staff = 'flotte.view|flotte.manage|flotte.approve';
+$vehicle = ['key' => 'vehicle_id', 'label' => 'Véhicule', 'type' => 'ref', 'resource' => 'vehicles', 'required' => true, 'list' => true, 'half' => true, 'filter' => true];
+
+return [
+    'hooks' => H::class,
+    'resources' => [
+        'vehicles' => [
+            'table' => 'fl_vehicles', 'label' => 'Véhicule', 'plural' => 'Véhicules', 'icon' => 'directions_car',
+            'view' => 'flotte.request|'.$staff, 'manage' => 'flotte.manage', 'order' => 'title asc', 'search' => ['title', 'plate', 'brand', 'model'],
+            'fields' => [
+                ['key' => 'title', 'label' => 'Nom', 'required' => true, 'list' => true, 'hint' => 'Ex. Hilux commerciale'],
+                ['key' => 'plate', 'label' => 'Immatriculation', 'list' => true, 'half' => true],
+                ['key' => 'kind', 'label' => 'Type', 'type' => 'select', 'default' => 'car', 'list' => true, 'half' => true, 'filter' => true, 'options' => H::KINDS],
+                ['key' => 'brand', 'label' => 'Marque', 'half' => true],
+                ['key' => 'model', 'label' => 'Modèle', 'half' => true],
+                ['key' => 'fuel', 'label' => 'Carburant', 'type' => 'select', 'default' => 'diesel', 'half' => true, 'options' => H::FUELS],
+                ['key' => 'seats', 'label' => 'Places', 'type' => 'number', 'half' => true],
+                ['key' => 'status', 'label' => 'État', 'type' => 'select', 'default' => 'available', 'list' => true, 'half' => true, 'filter' => true, 'options' => H::VEHICLE_STATUSES],
+                ['key' => 'odometer', 'label' => 'Kilométrage', 'type' => 'number', 'default' => 0, 'list' => true, 'half' => true],
+                ['key' => 'driver_id', 'label' => 'Chauffeur attitré', 'type' => 'user', 'half' => true],
+                ['key' => 'insurance_until', 'label' => 'Assurance jusqu\'au', 'type' => 'date', 'half' => true],
+                ['key' => 'inspection_until', 'label' => 'Visite technique jusqu\'au', 'type' => 'date', 'half' => true],
+                ['key' => 'next_service_km', 'label' => 'Prochaine vidange (km)', 'type' => 'number', 'half' => true],
+                ['key' => 'next_service_date', 'label' => 'Prochain entretien', 'type' => 'date', 'half' => true],
+                ['key' => 'alerts', 'label' => 'À surveiller', 'type' => 'text', 'computed' => true, 'list' => true],
+                ['key' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
+            ],
+        ],
+        'trips' => [
+            'table' => 'fl_trips', 'label' => 'Sortie', 'plural' => 'Demandes & sorties', 'icon' => 'route',
+            'view' => 'flotte.request|'.$staff, 'manage' => 'flotte.request|flotte.manage', 'delete' => 'flotte.manage',
+            'order' => 'planned_start desc,id desc', 'date_field' => 'planned_start', 'search' => ['title', 'number', 'destination', 'passengers'],
+            'scope' => fn ($q, $u) => $u->hasPermission('flotte.manage') || $u->hasPermission('flotte.approve') || $u->hasPermission('flotte.view')
+                ? $q : $q->where(fn ($w) => $w->where('requester_id', $u->id)->orWhere('driver_id', $u->id)),
+            'hint' => 'Demande → approuvée → sortie (heure et compteur) → retour (compteur, carburant, compte rendu).',
+            'fields' => [
+                ['key' => 'title', 'label' => 'Motif de la sortie', 'required' => true, 'list' => true, 'hint' => 'Ex. Visite clients zone Yopougon'],
+                ['key' => 'number', 'label' => 'N°', 'readonly' => true],
+                ['key' => 'purpose', 'label' => 'Type', 'type' => 'select', 'default' => 'customer', 'half' => true, 'filter' => true, 'options' => H::PURPOSES],
+                ['key' => 'status', 'label' => 'Statut', 'type' => 'select', 'default' => 'requested', 'readonly' => true, 'list' => true, 'half' => true, 'filter' => true, 'options' => H::TRIP_STATUSES],
+                ['key' => 'vehicle_id', 'label' => 'Véhicule', 'type' => 'ref', 'resource' => 'vehicles', 'list' => true, 'half' => true, 'filter' => true, 'hint' => 'Peut être attribué par le parc'],
+                ['key' => 'requester_id', 'label' => 'Demandeur', 'type' => 'user', 'default' => '@me', 'list' => true, 'half' => true, 'filter' => true],
+                ['key' => 'driver_id', 'label' => 'Conducteur', 'type' => 'user', 'half' => true],
+                ['key' => 'passengers', 'label' => 'Accompagnants', 'half' => true, 'hint' => 'Ex. commercial, technicien'],
+                ['key' => 'destination', 'label' => 'Destination', 'list' => true, 'half' => true],
+                ['key' => 'partner_id', 'label' => 'Client visité', 'type' => 'partner', 'half' => true],
+                ['key' => 'planned_start', 'label' => 'Départ prévu', 'type' => 'datetime', 'required' => true, 'list' => true, 'half' => true],
+                ['key' => 'planned_end', 'label' => 'Retour prévu', 'type' => 'datetime', 'required' => true, 'half' => true],
+                ['key' => 'out_at', 'label' => 'Sorti à', 'type' => 'datetime', 'readonly' => true, 'half' => true],
+                ['key' => 'out_km', 'label' => 'Compteur au départ', 'type' => 'number', 'readonly' => true, 'half' => true],
+                ['key' => 'back_at', 'label' => 'Rentré à', 'type' => 'datetime', 'readonly' => true, 'half' => true],
+                ['key' => 'back_km', 'label' => 'Compteur au retour', 'type' => 'number', 'readonly' => true, 'half' => true],
+                ['key' => 'distance', 'label' => 'Km', 'type' => 'number', 'computed' => true, 'list' => true],
+                ['key' => 'fuel_spent', 'label' => 'Carburant', 'type' => 'money', 'computed' => true, 'list' => true],
+                ['key' => 'notes', 'label' => 'Précisions', 'type' => 'textarea'],
+                ['key' => 'decision_note', 'label' => 'Réponse du parc', 'readonly' => true],
+                ['key' => 'report', 'label' => 'Compte rendu au retour', 'type' => 'textarea', 'readonly' => true],
+            ],
+        ],
+        'fuel' => [
+            'table' => 'fl_fuel', 'label' => 'Plein', 'plural' => 'Carburant', 'icon' => 'local_gas_station',
+            'view' => $staff, 'manage' => 'flotte.manage|flotte.request', 'delete' => 'flotte.manage', 'order' => 'date desc,id desc', 'date_field' => 'date', 'search' => ['station', 'title'],
+            'title_field' => 'station',
+            'fields' => [
+                $vehicle,
+                ['key' => 'date', 'label' => 'Date', 'type' => 'date', 'required' => true, 'default' => '@today', 'list' => true, 'half' => true],
+                ['key' => 'amount', 'label' => 'Montant', 'type' => 'money', 'required' => true, 'list' => true, 'half' => true],
+                ['key' => 'liters', 'label' => 'Litres', 'type' => 'number', 'list' => true, 'half' => true],
+                ['key' => 'odometer', 'label' => 'Compteur', 'type' => 'number', 'list' => true, 'half' => true],
+                ['key' => 'consumption', 'label' => 'Conso (L/100)', 'type' => 'text', 'computed' => true, 'list' => true],
+                ['key' => 'driver_id', 'label' => 'Conducteur', 'type' => 'user', 'default' => '@me', 'list' => true, 'half' => true, 'filter' => true],
+                ['key' => 'trip_id', 'label' => 'Sortie', 'type' => 'ref', 'resource' => 'trips', 'half' => true],
+                ['key' => 'station', 'label' => 'Station', 'half' => true],
+                ['key' => 'payment', 'label' => 'Paiement', 'type' => 'select', 'default' => 'cash', 'half' => true, 'filter' => true, 'options' => H::PAYMENTS],
+                ['key' => 'full_tank', 'label' => 'Plein complet', 'type' => 'bool', 'default' => true, 'half' => true],
+                ['key' => 'receipt_url', 'label' => 'Reçu (lien ou photo)', 'type' => 'url'],
+            ],
+        ],
+        'costs' => [
+            'table' => 'fl_costs', 'label' => 'Frais', 'plural' => 'Entretien & frais', 'icon' => 'build',
+            'view' => $staff, 'manage' => 'flotte.manage', 'order' => 'date desc,id desc', 'date_field' => 'date', 'search' => ['title', 'garage', 'notes'],
+            'hint' => 'Une assurance, une visite technique ou une vidange saisie ici met à jour les échéances du véhicule.',
+            'fields' => [
+                ['key' => 'title', 'label' => 'Libellé', 'required' => true, 'list' => true],
+                $vehicle,
+                ['key' => 'kind', 'label' => 'Nature', 'type' => 'select', 'default' => 'service', 'list' => true, 'half' => true, 'filter' => true, 'options' => H::COST_KINDS],
+                ['key' => 'date', 'label' => 'Date', 'type' => 'date', 'required' => true, 'default' => '@today', 'list' => true, 'half' => true],
+                ['key' => 'amount', 'label' => 'Montant', 'type' => 'money', 'list' => true, 'half' => true],
+                ['key' => 'odometer', 'label' => 'Compteur', 'type' => 'number', 'half' => true],
+                ['key' => 'garage', 'label' => 'Garage / prestataire', 'half' => true],
+                ['key' => 'next_date', 'label' => 'Prochaine échéance', 'type' => 'date', 'half' => true, 'hint' => 'Fin d\'assurance, prochaine visite…'],
+                ['key' => 'next_km', 'label' => 'Prochain entretien (km)', 'type' => 'number', 'half' => true],
+                ['key' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
+            ],
+        ],
+    ],
+];

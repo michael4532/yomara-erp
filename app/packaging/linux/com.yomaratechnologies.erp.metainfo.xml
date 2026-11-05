@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.yomaratechnologies.erp</id>
+  <name>Yomara ERP</name>
+  <summary>Logiciel de gestion complet, même sans connexion</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <developer id="com.yomaratechnologies"><name>Yomara Technologies</name></developer>
+  <url type="homepage">https://erp.yomaratechnologies.com</url>
+  <description><p>Ventes, caisse, stock, comptabilité SYSCOHADA, paie, CRM et messagerie dans un seul logiciel, pour les entreprises d'Afrique de l'Ouest.</p></description>
+  <launchable type="desktop-id">yomara-erp.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+</component>

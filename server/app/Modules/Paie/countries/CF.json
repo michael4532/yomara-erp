@@ -1,0 +1,87 @@
+{
+  "code": "CF",
+  "name": "République centrafricaine",
+  "currency": "XAF",
+  "as_of": "2023-05",
+  "confidence": "low",
+  "sources": [
+    "https://finances.gouv.cf/sites/default/files/2023-05/CGI RCA 2017 mise %C3%A0 jour 2023.pdf",
+    "https://www.ssa.gov/policy/docs/progdesc/ssptw/2018-2019/africa/central-african-republic.html",
+    "https://rivermate.com/guides/central-african-republic/taxes",
+    "https://wageindicator.org/fr-cf/droit-du-travail/travail-et-salaires",
+    "https://africarrieres.com/central-african-republic/fr/guide/employeur-entreprise/employer-taxes"
+  ],
+  "smig": 35000,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 2,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS - Vieillesse, invalidité, décès",
+      "employee_rate": 3,
+      "employer_rate": 4,
+      "ceiling": 600000
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS - Prestations familiales et maternité",
+      "employee_rate": 0,
+      "employer_rate": 12,
+      "ceiling": 600000
+    },
+    {
+      "code": "cnss_at",
+      "label": "CNSS - Accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 3,
+      "ceiling": 600000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "irpp",
+    "label": "IRPP",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 30,
+      "cap": null
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 378000,
+        "rate": 0
+      },
+      {
+        "up_to": 1680000,
+        "rate": 8
+      },
+      {
+        "up_to": 3360000,
+        "rate": 15
+      },
+      {
+        "up_to": 5040000,
+        "rate": 28
+      },
+      {
+        "up_to": null,
+        "rate": 40
+      }
+    ],
+    "family": {
+      "method": "none"
+    }
+  },
+  "employee_taxes": [],
+  "employer_taxes": [],
+  "notes": "Code général des impôts 2017 mis à jour 2023 (art. 86) : abattement de 30 % pour frais professionnels après cotisations, pas de quotient familial. Lois de finances 2024-2026 non vérifiées ; contribution au développement social (CDS) non paramétrée faute de taux. Prime d'ancienneté non vérifiée.",
+  "social_body": "CNSS"
+}

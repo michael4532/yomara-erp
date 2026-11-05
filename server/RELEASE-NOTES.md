@@ -1,0 +1,168 @@
+# Notes de version
+
+## 0.99.26 — liens des logiciels et code source public
+- Administration › Boutique › Liens des logiciels : pour chaque plateforme, la fiche de boutique (Microsoft Store, Mac App Store, Google Play, App Store) et le fichier direct (.exe, .dmg, AppImage, APK). Bouton « Liens officiels des boutiques » qui remplit les fiches Yomara ERP, envoi des fichiers sur le serveur depuis l'administration (morceaux de 4 Mo, adaptés aux hébergements mutualisés), version des logiciels affichée, compteur de téléchargements par plateforme.
+- Page « Télécharger » : le bouton principal mène à la boutique quand elle existe (installation et mises à jour automatiques), avec le fichier direct en second (« ou le fichier APK ») ; lien vers le dépôt du code source.
+- Code source (AGPL) : lien vers le dépôt public (GitHub) sur la page « Code source » et la page « Télécharger ».
+
+## 0.99.25 — prospects → clients automatiques
+- Contacts : nouveau type « Prospect ». Un prospect reste prospect avec des devis, proformas ou commandes ; dès qu'une facture (ou un ticket de caisse) validée lui est attribuée, il devient client automatiquement, comme dans Dolibarr. Onglet « Prospects » et compteur dans Clients & fournisseurs ; les prospects apparaissent dans les listes de clients (devis, factures, CRM…) mais plus dans celles des fournisseurs.
+- Marketing : ciblage des prospects seuls dans les envois aux contacts.
+- Web : le bouton « Nouvelle interface » restait affiché et ne faisait que recharger (il comparait la version de l'ERP à celle des stores, 1.0.0) ; il n'apparaît plus que lorsque le serveur est réellement plus récent que l'interface, et jamais en boucle.
+
+## 0.99.24 — audit de sécurité (5 novembre 2026), applications 1.0.0 build 2
+- Serveur :
+  - synchronisation : un refus (droits insuffisants, conflit) ne renvoie plus la fiche demandée à qui n'a pas le droit de la voir — un compte Caisse ne peut plus lire une fiche salarié (salaire, CNPS, compte de paiement) en tentant de la modifier ; le rejeu d'une modification et un identifiant déjà utilisé par une autre société sont refusés proprement ;
+  - accès en ligne aux fiches : mêmes règles de visibilité par personne que la synchronisation (ses notes de frais, ses pointages, ses feuilles de temps…) ;
+  - pages publiques marketing (/f/…) et e-mails : un lien du type « {{prenom}}javascript:… » est refusé ; seules les variables de lien de la plateforme ({{lien_desinscription}}, {{lien_app}}…) sont acceptées seules ;
+  - changement de son propre e-mail : mot de passe actuel exigé ; son propre mot de passe se change seulement par « Mon compte » ; identifiants du compte démo des stores verrouillés partout ;
+  - clés d'API : plus d'accès aux moyens de paiement, canaux d'envoi, boîtes mail, licences, achats de modules, compte, ni modification de la société ;
+  - pièces jointes des demandes internes : extension déduite du contenu.
+- Applications :
+  - poste partagé (caisse, accueil) : chaque utilisateur a son propre espace hors ligne (données, saisies en attente, e-mails, tableaux de bord, justificatifs) — plus de données ni d'envois d'un collègue après un changement de compte ;
+  - liens des e-mails, messages et fiches : seuls les liens web, e-mail, téléphone et SMS s'ouvrent (plus de fichiers locaux, chemins réseau ou protocoles d'applications Windows) ;
+  - connexion à un serveur en http:// sur internet refusée (mot de passe en clair) ; le http reste possible sur le réseau local ;
+  - Windows et Linux : données locales déplacées hors du dossier Documents (souvent synchronisé avec OneDrive), automatiquement ;
+  - Android : données exclues des sauvegardes en ligne ; Mac : https obligatoire hors réseau local, écran client autorisé ;
+  - déconnexion (même session expirée) : les notifications du compte précédent ne s'affichent plus sur l'appareil ;
+  - codes d'accès Yomeet tirés au hasard de façon sûre.
+
+## 0.99.23 — compte démo pour les stores, applications mobiles 1.0.0
+- Administration › Sociétés › « Compte démo stores » : crée en un clic le compte que demandent Apple et Google pour tester l'application :
+  - société à part (« Yomara Démo ») avec la formule la plus complète, tous ses modules et des données d'exemple (articles, stock, clients, factures, devis, salariés, opportunités) ;
+  - utilisateur administrateur de cette société seulement, sans aucun accès à l'administration de la plateforme ;
+  - e-mail et mot de passe affichés avec un bouton Copier, plus le texte à coller dans App Store Connect (« Informations de connexion ») et la Play Console (« Accès aux applications ») ;
+  - « Nouveau mot de passe » réactive le compte (utile si la relecture a testé « Supprimer mon compte »), « Désactiver » et « Supprimer » ;
+  - le mot de passe ne peut pas être changé depuis l'application, et la société n'entre pas dans le chiffre d'affaires de la plateforme.
+- Applications mobiles : première version publique 1.0.0 (build 1) ; nom affiché « Yomara ERP » sur iPhone ; projet iOS prêt pour l'archivage Xcode (réglages CocoaPods chargés dans Debug et Release, cible iOS 15 pour toutes les dépendances).
+
+## 0.99.22 — audit de sécurité et finitions
+- Sécurité (aucune action requise après la mise à jour) :
+  - lecture de pages et de fichiers distants (veille, migration Dolibarr / Odoo / ERPNext, médias WhatsApp et service client, passerelle SMS, IA à adresse personnalisée) : adresses internes refusées, y compris cachées en IPv6, et adresse vérifiée figée pendant l'appel ;
+  - studio visuel : plus aucune lecture de fichier du serveur, seules les images publiques et les fichiers déposés sont acceptés ;
+  - webhook WhatsApp : seuls les messages au format du fournisseur configuré sont acceptés ;
+  - réglages de la société : seules les clés prévues peuvent être modifiées (les quotas et la clôture comptable ne passent plus par cette route) ;
+  - notes de frais : une dépense ne peut plus être reprise par un collègue ;
+  - fiches : liens « javascript: » ou « data: » refusés, clients, salariés, articles, dépôts et lots vérifiés comme appartenant à la société ;
+  - publicité & acquisition : journal des prospects en lecture seule, adresse secrète et clé des sources visibles des seuls gestionnaires, réponses automatiques limitées (2 par destinataire et 300 par société et par jour) ;
+  - en-têtes de sécurité sur toutes les réponses (nosniff, Referrer-Policy, HSTS en https) ; dépendances Symfony mises à jour (composer audit sans alerte).
+- Fiabilité : relances CRM réservées avant envoi (pas de double message si deux tâches planifiées se croisent), scénarios « Achat » rattachés à la bonne société, segments fiables avec SQLite et MySQL.
+- Applications (téléphone) : les indicateurs en haut des écrans (Comptabilité, Service client, Boutique en ligne, Marketing, CRM, Trésorerie, Projets…) défilent en largeur au lieu d'occuper tout l'écran ; le contenu apparaît tout de suite.
+
+## 0.99.21
+- Nouveau module « Publicité & acquisition » (palier Standard, Pack Marketing) :
+  - prospects des publicités Facebook et Instagram reçus en direct (webhook Meta) et versés dans le CRM avec la campagne, la publicité et les réponses au formulaire ;
+  - formulaires Google Ads (clé vérifiée), TikTok, LinkedIn, Zapier, Make, WordPress : une adresse de réception par source ;
+  - à l'arrivée : commercial désigné ou à tour de rôle, notification, réponse automatique WhatsApp / SMS / e-mail, liste et scénario marketing, relance automatique ; doublons rattachés à l'affaire en cours ;
+  - pages de capture (/lp/…) : titre, avantages, offre, compte à rebours, formulaire, bouton WhatsApp, visites et taux de conversion ;
+  - comptes Meta, Google Ads (connexion Google), TikTok et LinkedIn : dépenses par campagne et par jour, relevées toutes les 6 heures ; dépenses saisies pour l'affichage, la radio, les influenceurs ;
+  - résultats : dépense, prospects, coût par prospect, ventes (affaires gagnées et commandes en ligne), chiffre d'affaires, retour par campagne et par plateforme ;
+  - ventes renvoyées à Meta (API Conversions) ; Search Console ; balises Google Analytics, Tag Manager, Google Ads, Meta, TikTok, LinkedIn, Clarity sur le site et les pages de capture.
+- Réseaux sociaux :
+  - boîte de réception des commentaires et messages Facebook et Instagram : réponse publique ou privée, masquage, attribution, « traité », prospect CRM en un clic ;
+  - réponses automatiques par mot-clé (réponse publique + message privé) ;
+  - studio visuel : charte de marque (couleurs, ton, coordonnées) et visuels générés depuis le catalogue (promotion, nouveauté, annonce, avis client, liste de prix ; carré, portrait, story, paysage), ajoutés aux médias et prêts à publier ;
+  - l'IA suit la charte (ton, slogan, hashtags, mots à éviter).
+- CRM : note de chaque prospect sur 100 (chaud, tiède, froid), prospects à rappeler en premier, opportunités par campagne, origine (utm) ; relances automatiques (e-mail, SMS, WhatsApp, tâches, appels) qui s'arrêtent quand l'affaire est gagnée ou perdue.
+- Marketing : scénarios « Prospect reçu », « Achat » (montant minimum, premier achat) et « Client sans achat depuis… » ; conditions « a acheté » et « a dépensé au moins » ; segments par achats et profils RFM (meilleurs clients, fidèles, prometteurs, à risque, perdus).
+- Sites : origine des visiteurs (utm, gclid, fbclid) gardée et rattachée aux demandes de contact et aux commandes ; balises de suivi par site ; achats signalés à Meta, Google et TikTok.
+- Administration (super admin) : Réseaux sociaux › Applications › Meta : option « Messages, commentaires et prospects » (après validation par Meta), adresse du webhook et jeton de vérification. Configuration du serveur › Publicité en ligne : jeton développeur Google Ads.
+- Tâches planifiées (cron existant) : erp:acquisition (10 min), erp:crm-sequences (15 min, notes chaque matin).
+
+## 0.99.20
+- Nouveau module « Veille concurrentielle » (Marketing & communication, palier Standard, inclus dans le Pack Marketing) :
+  - fiches concurrents : offre, positionnement, réseaux, note et avis Google, part de marché, SWOT, notes sur 6 critères, fiche de combat pour les commerciaux ; votre entreprise en type « Nous » pour vous comparer ;
+  - observations du terrain avec photo (rôle Commercial : droit « remonter la veille »), alerte immédiate sur un fort impact ;
+  - relevés de prix comparés à vos articles (prix repris du catalogue), écart, évolution, indice de prix par concurrent ;
+  - publicités repérées (Meta, Google, TikTok, LinkedIn, affichage, radio…) et liens directs vers les bibliothèques publicitaires de Meta, Google et LinkedIn ;
+  - audience des réseaux sociaux et progression ;
+  - surveillance automatique de pages de sites concurrents (chaque jour ou semaine) : ce qui a été ajouté ou retiré, filtre par mots-clés, observation créée et notification ;
+  - analyse des sites : référencement sur 100, rapidité, réseaux reliés, outils détectés (Google Analytics, Tag Manager, Meta Pixel, Google Ads, TikTok, LinkedIn, Hotjar, Mailchimp, Brevo, HubSpot, Klaviyo, WhatsApp…), refaite chaque mois avec alerte si un pixel publicitaire apparaît ;
+  - mots-clés suivis dans Google Actualités et tout flux RSS (alertes Google) : mentions et revue de presse ;
+  - comparatif : carte de positionnement prix / note, tableau des notes, présence en ligne ; affaires perdues face à chaque concurrent (CRM) ;
+  - avec l'Assistant IA : fiche de combat et synthèse avec plan d'action ; résumé de la semaine chaque lundi.
+- Les concurrents et observations déjà saisis dans « Stratégie marketing & communication » sont repris à l'activation du module.
+- Tâche planifiée erp:veille (toutes les heures, via le cron existant).
+
+## 0.99.19
+- Android : textes manquants corrigés (puces de filtre vides sur certains téléphones) : rendu Skia au lieu d'Impeller, comme sur Mac.
+- Téléphone : titres courts dans la barre du haut et la barre du bas (« Ventes », « Modules »… au lieu de « Ventes d… » ou d'un libellé sur deux lignes).
+- Formules (super admin) : réglage de l'essai gratuit lisible sur téléphone (un champ par ligne), cartes des formules en colonnes égales.
+- Stores : App Bundle vérifié (Android 16 KB, cible SDK 36, versionCode tiré de pubspec) ; iPhone : descriptions d'accès aux photos et aux fichiers audio exigées par Apple ; projets Xcode prêts pour l'archive.
+
+## 0.99.18
+- Mac App Store : identifiant Mac aligné sur l'iPhone (com.yomaratechnologies.yomaraerp, achat universel), catégorie « Entreprise », déclaration de chiffrement (HTTPS seulement).
+- Versions App Store (iPhone, iPad et Mac App Store) : boutique de modules, achats, renouvellements et « Mes installations » masqués (règle d'Apple sur les achats intégrés) ; les modules achetés sur le site ou la version web fonctionnent normalement.
+- « Continuer avec Google » réservé à Android (sur iPhone, Apple exigerait aussi « Se connecter avec Apple »).
+- Projets Xcode prêts pour l'archive : équipe de signature, signature automatique « Apple Development » sur Mac (au lieu de la signature locale), exécution renforcée, droits de notifications push sur iPhone (Runner.entitlements), iOS 15 minimum pour Firebase.
+- Commande scripts/envoyer-app-store.sh (et Envoyer-sur-App-Store.command) : construit, signe et envoie la version Mac et/ou iPhone sur App Store Connect.
+- Configuration du serveur › Notifications push et connexions externes : connexion des boîtes Gmail et Outlook désactivables (les boutons disparaissent, les comptes concernés ne sont plus relevés, l'IMAP reste possible), en plus de « Se connecter avec Google ».
+- Préférences qui suivent l'utilisateur sur tous ses appareils : thème de la Boîte mail et tableau de bord choisi dans Rapports, en plus des favoris et du menu (les comptes mail, signatures et modèles étaient déjà sur le serveur).
+
+## 0.99.17
+- Prix des modules : 5 000 F/mois par défaut (palier Essentiel). Standard 10 000 F pour les modules qui coûtent à la plateforme : SMS, WhatsApp, e-mailing, site vitrine, boutique en ligne, messagerie hébergée, boîte mail, documents (GED), signature électronique, avis Google, réseaux sociaux. Premium 25 000 F : Assistant IA et visio (Yomeet). Agenda, rapports d'activité et migration restent gratuits.
+- Mise à jour : seuls les modules encore au prix d'origine changent ; un prix déjà modifié par le super admin est conservé (annuel = 10 mois, achat définitif = 24 mois).
+- Application macOS : texte brouillé corrigé sur les Mac à processeur graphique Intel/AMD (rendu Skia au lieu d'Impeller).
+- iPhone et Mac : les commandes de construction corrigent toutes seules le format du projet réenregistré par Xcode 26 (erreur CocoaPods « shellScript »).
+
+## 0.99.16
+- Notifications push sur Android et iPhone (Firebase) : chaque notification de la cloche arrive aussi sur le téléphone, même appli fermée ; la toucher ouvre l'écran concerné. À activer dans Configuration du serveur › Notifications push et connexion Google (clé JSON du compte de service Firebase). Bouton « Tester les notifications » dans Paramètres.
+- « Continuer avec Google » (facultatif) sur l'écran de connexion des téléphones : ouvre le compte qui a déjà la même adresse e-mail ; la connexion par e-mail professionnel et mot de passe reste la voie normale. Désactivable dans Configuration du serveur.
+- Commande de création du keystore Android : scripts/generer-keystore.sh (Mac/Linux) et scripts/generer-keystore.ps1 (Windows) ; configure android/key.properties et affiche les empreintes SHA-1/SHA-256 à déclarer dans Firebase.
+- iOS : identifiant de l'application aligné sur Firebase (com.yomaratechnologies.yomaraerp).
+- Applications de bureau : commandes scripts/construire-macos.sh (app signée Developer ID ou locale, .dmg, notarisation Apple automatique si configurée) et scripts/construire-linux.sh (.tar.gz et .deb). Linux : démarre aussi sur un poste sans dossier « Documents ».
+- « Personnes connectées » modernisé : bandeau en direct (sociétés, navigateur, mobile, ordinateur), recherche, filtre par société, cartes par personne avec « à l'instant / il y a X min ».
+- Réseaux sociaux : le message d'un réseau verrouillé indique où le super admin renseigne les clés (Réseaux sociaux › Comptes › Applications des réseaux).
+
+## 0.99.15
+- Google Play : page publique « Politique de confidentialité » (/confidentialite) et page « Supprimer mon compte » (/suppression-compte) avec formulaire, liens dans le bas du site et à l'inscription.
+- Application : « Supprimer mon compte » dans le menu du compte (et sur mobile en touchant son nom en haut du menu, ou dans Paramètres) : le compte est désactivé et déconnecté tout de suite ; l'administrateur peut demander la suppression de toute l'entreprise. Les demandes arrivent dans les demandes du site et par e-mail, à traiter sous 30 jours.
+- Page de retour Google : une longue adresse ne déborde plus de la carte.
+
+## 0.99.14
+- Liens courts : domaine court au choix (Configuration du serveur › Liens courts, ex. yma.ci/ab12c) ; les liens ne montrent plus l'adresse du logiciel ; codes de 5 caractères ; avec le masquage, la destination reste cachée.
+- Actualiser la page garde l'écran ouvert (l'adresse contient l'écran).
+- Bouton Support : pastille ronde placée au-dessus des boutons des écrans (plus de chevauchement).
+- Modernisés : statistiques d'un lien (grande fenêtre, en-tête, répartitions en cartes), panneau « Ma journée » (chiffres du jour, sélecteur Agenda / Tâches), panneau des notifications (filtre Toutes / Non lues, regroupées par jour).
+
+## 0.99.13
+- Avis Google : la fenêtre « Connexion à Google » attend la réponse de Google et se ferme toute seule dès que la fiche est connectée ; message clair sinon.
+- Page de retour Google : indique la société et le compte Google connectés, et le problème éventuel (accès aux API Business pas encore accordé…).
+- « Déconnecter » la fiche Google demande confirmation.
+
+## 0.99.12
+- Organigramme automatique « Par responsable » : dès qu'un employé a un responsable direct, il apparaît sous lui ; vue « Par fonction » aussi.
+- Impression de l'organigramme, téléchargement en PDF et en Word (.docx).
+- Fonctions & organigramme modernisés : bandeau avec chiffres clés, recherche, filtre par module, cartes avec équipes, arbre visuel relié.
+- Fiche utilisateur : filtre des modules (tous, ouverts, fermés, par domaine) en plus de la recherche ; même filtre dans l'édition d'une fonction.
+- Mise à jour : bandeau « Mise à jour du serveur à terminer » sur tous les écrans du super admin tant que la base n'est pas à jour ; l'interface web propose « Nouvelle interface » (recharger) dès qu'une nouvelle version est déposée.
+
+## 0.99.11
+- Fonctions & organigramme : chaque entreprise crée ses propres fonctions (Directeur commercial, Chef d'équipe…), les range sous leur supérieure, choisit leurs droits module par module, les duplique ; vue organigramme avec les personnes.
+- Nouvelle fiche utilisateur en grand : identité, mot de passe généré, fonction, intitulé du poste, responsable direct, agences, et accès aux modules cochés directement (selon la fonction, ajoutés ou masqués pour la personne).
+- Approbations : étape « Responsable hiérarchique du demandeur » (responsable direct, sinon la fonction au-dessus).
+- Avis Google : explication claire quand le bouton « Connecter » est grisé.
+- Favoris du menu (et menu réduit, groupes ouverts, épingles du tableau de bord) enregistrés sur le serveur pour chaque utilisateur : ils ne disparaissent plus à la déconnexion et suivent la personne sur tous ses appareils.
+- Rapports d'activité : le responsable direct est proposé comme destinataire par défaut.
+
+## 0.99.10
+- Vérification complète : 224 écrans (ordinateur et téléphone), 39 comptes (super admin, administrateur, 37 rôles d'employés) et les pages publiques ; aucune erreur serveur ni d'affichage.
+- Indicateurs sur toute la largeur de l'écran dans 30 modules, tableaux avec défilement au lieu de colonnes coupées, onglets plus lisibles, boutons secondaires plus nets.
+- Écrans refaits sur téléphone : notes de frais (Approuver / Refuser), billetterie, questionnaires et fiches, Ma configuration, feuilles de temps, agenda (vue jour), boîte mail, rappel d'échéance plus court.
+- Console éditeur, configuration du serveur (deux colonnes), moyens de paiement, plan de salle du restaurant, boutique en ligne modernisés.
+- Sécurité : marge, dépenses et trésorerie du tableau de bord réservées aux personnes qui ont les droits finances ou rapports.
+- Site public : bouton secondaire illisible sur fond sombre corrigé ; portail client sans débordement sur téléphone, menu complet sur ordinateur.
+
+## 0.99.9
+- Notifications de commande automatiques : accusé de réception au client (e-mail avec le détail de la commande, WhatsApp ou SMS), ticket du service client avec sa référence (SUP-…) pour suivre ses réponses, e-mails de confirmation et d'annulation, alerte de l'équipe. Réglages : Ventes › Notifications de commande.
+- WordPress / WooCommerce : connexion de la boutique en un clic (approbation sur le site, plus de clés à copier).
+- Sécurité : lien d'animateur de webinaire protégé, exports Excel/CSV sans formules piégées, fiches « mes fiches » invisibles des autres utilisateurs, limite d'agences des gestionnaires.
+
+## 0.99.8
+- Outils PDF : nouvel outil « Modifier le PDF » (corriger un texte, masquer, surligner, formes, flèches, dessin, signature, cachet, coches, date, supprimer et pivoter des pages).
+- Boîte mail : noms de dossiers lisibles (Envoyés, Brouillons, Corbeille, Spam…), création, renommage et suppression de dossiers et sous-dossiers, rangement des discussions par glisser-déposer.
+- Site public en français et en anglais (choix FR / EN, langue du navigateur) ; e-mails aux clients dans leur langue.
+- Super admin : « Ma configuration » (tout ce qu'il faut régler pour vos clients), Marketing (e-mails clients et promotions, envoi d'un code promo en un clic).
+- Mises à jour automatiques de l'édition libre (installation la nuit, sauvegarde et retour arrière) ; publication automatique des versions par la plateforme.
+- Sécurité : fichiers WhatsApp, e-mails marketing, filigrane PDF, accès au réseau interne (WooCommerce, webhooks, boîtes mail), réglages sensibles de la société, liens de suivi.
+- Licence AGPL-3.0, mentions de copyright, lien vers le code source.

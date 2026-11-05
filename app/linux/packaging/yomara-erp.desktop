@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Yomara ERP
+Comment=Gestion commerciale, stock, caisse et comptabilité
+Exec=@EXEC@
+Icon=yomara-erp
+Terminal=false
+Categories=Office;Finance;
+StartupWMClass=com.yomaratechnologies.yomara_erp

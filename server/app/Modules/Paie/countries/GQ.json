@@ -1,0 +1,77 @@
+{
+  "code": "GQ",
+  "name": "Guinée équatoriale",
+  "currency": "XAF",
+  "as_of": "2025-01",
+  "confidence": "low",
+  "sources": [
+    "https://taxsummaries.pwc.com/equatorial-guinea/individual/taxes-on-personal-income",
+    "https://taxsummaries.pwc.com/equatorial-guinea/individual/other-taxes",
+    "https://taxsummaries.pwc.com/equatorial-guinea/individual/income-determination",
+    "https://taxsummaries.pwc.com/equatorial-guinea/individual/deductions",
+    "https://rivermate.com/es/guias/guinea-ecuatorial/impuestos",
+    "https://playroll.com/minimum-wage/equatorial-guinea",
+    "https://www.globalization-partners.com/fr/globalpedia/equatorial-guinea/payroll/"
+  ],
+  "smig": 129035,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": null,
+  "contributions": [
+    {
+      "code": "inseso",
+      "label": "INSESO - Seguridad social (régime général)",
+      "employee_rate": 4.5,
+      "employer_rate": 21.5,
+      "ceiling": null
+    },
+    {
+      "code": "fpt",
+      "label": "Fondo de Protección del Trabajo (FPT / WPF)",
+      "employee_rate": 0.5,
+      "employer_rate": 1,
+      "ceiling": null
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "irpf",
+    "label": "IRPF",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 20,
+      "cap": 1000000
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 1400000,
+        "rate": 0
+      },
+      {
+        "up_to": 5000000,
+        "rate": 10
+      },
+      {
+        "up_to": 10000000,
+        "rate": 15
+      },
+      {
+        "up_to": 15000000,
+        "rate": 20
+      },
+      {
+        "up_to": null,
+        "rate": 25
+      }
+    ],
+    "family": {
+      "method": "none"
+    }
+  },
+  "employee_taxes": [],
+  "employer_taxes": [],
+  "notes": "Barème IRPF selon PwC (une autre source publie un barème plus ancien jusqu'à 35 %). Déduction de 20 % pour frais professionnels plafonnée à 1 000 000 F par an (source unique). SMIG à confirmer (129 035 F ou 117 304 F). Prime d'ancienneté à paramétrer selon la convention applicable.",
+  "social_body": "INSESO"
+}

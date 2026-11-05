@@ -1,0 +1,13 @@
+Yomara ERP pour Linux (64 bits)
+
+Installation :
+  1. Décompressez l'archive.
+  2. Dans le dossier obtenu, lancez :  ./install.sh
+  3. Ouvrez « Yomara ERP » depuis le menu des applications.
+
+Prérequis : une distribution récente avec GTK 3 (Ubuntu 22.04+, Debian 12+, Fedora 38+…).
+Sur Ubuntu/Debian, si l'application ne démarre pas :  sudo apt install libgtk-3-0
+Sans installer, vous pouvez aussi lancer directement : ./app/yomara_erp
+
+Désinstallation : ./uninstall.sh
+Aide : https://erp.yomaratechnologies.com

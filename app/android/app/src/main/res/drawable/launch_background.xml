@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Écran de lancement Yomara ERP : fond nuit, logo centré -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/yomara_night" />
+    <item>
+        <bitmap android:gravity="center" android:src="@drawable/launch_logo" />
+    </item>
+</layer-list>

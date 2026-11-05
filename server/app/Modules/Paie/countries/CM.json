@@ -1,0 +1,219 @@
+{
+  "code": "CM",
+  "name": "Cameroun",
+  "currency": "XAF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://taxsummaries.pwc.com/republic-of-cameroon/individual/other-taxes",
+    "https://taxsummaries.pwc.com/republic-of-cameroon/individual/taxes-on-personal-income",
+    "https://dsr.mercans.com/payroll-dossiers/cameroon/",
+    "https://www.businessincameroon.com/public-management/2511-14337-cameroon-introduces-local-development-tax-to-boost-municipal-infrastructure",
+    "https://blog.avocats.deloitte.fr/cameroun-les-principales-innovations-de-la-loi-de-finances-pour-2026/",
+    "https://leap.unep.org/en/countries/cm/national-legislation/decret-ndeg20240168pm-du-23-fevrier-2024-fixant-le-salaire",
+    "https://www.pwc.com/gh/en/assets/pdf/cameroon-tax-facts-and-figures-2025.pdf"
+  ],
+  "smig": 43969,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 4,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "cnps_pvid",
+      "label": "CNPS Pensions vieillesse, invalidité, décès",
+      "employee_rate": 4.2,
+      "employer_rate": 4.2,
+      "ceiling": 750000
+    },
+    {
+      "code": "cnps_pf",
+      "label": "CNPS Prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 7,
+      "ceiling": 750000
+    },
+    {
+      "code": "cnps_at",
+      "label": "CNPS Accidents du travail / maladies professionnelles",
+      "employee_rate": 0,
+      "employer_rate": 1.75,
+      "ceiling": 750000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "irpp",
+    "label": "IRPP",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 30,
+      "cap": null,
+      "base": "gross"
+    },
+    "fixed_abatement": 500000,
+    "brackets": [
+      {
+        "up_to": 2000000,
+        "rate": 10
+      },
+      {
+        "up_to": 3000000,
+        "rate": 15
+      },
+      {
+        "up_to": 5000000,
+        "rate": 25
+      },
+      {
+        "up_to": null,
+        "rate": 35
+      }
+    ],
+    "family": {
+      "method": "none"
+    },
+    "exempt_up_to": 62000
+  },
+  "employee_taxes": [
+    {
+      "code": "cac",
+      "label": "Centimes additionnels communaux (CAC)",
+      "base": "income_tax",
+      "rate": 10,
+      "period": "monthly"
+    },
+    {
+      "code": "cfc",
+      "label": "Crédit foncier (CFC) part salariale",
+      "base": "taxable",
+      "rate": 1,
+      "period": "monthly"
+    },
+    {
+      "code": "rav",
+      "label": "Redevance audiovisuelle (RAV)",
+      "base": "gross",
+      "period": "monthly",
+      "table": [
+        {
+          "up_to": 50000,
+          "amount": 0
+        },
+        {
+          "up_to": 100000,
+          "amount": 750
+        },
+        {
+          "up_to": 200000,
+          "amount": 1950
+        },
+        {
+          "up_to": 300000,
+          "amount": 3250
+        },
+        {
+          "up_to": 400000,
+          "amount": 4550
+        },
+        {
+          "up_to": 500000,
+          "amount": 5850
+        },
+        {
+          "up_to": 600000,
+          "amount": 7150
+        },
+        {
+          "up_to": 700000,
+          "amount": 8450
+        },
+        {
+          "up_to": 800000,
+          "amount": 9750
+        },
+        {
+          "up_to": 900000,
+          "amount": 11050
+        },
+        {
+          "up_to": 1000000,
+          "amount": 12350
+        },
+        {
+          "up_to": null,
+          "amount": 13000
+        }
+      ]
+    },
+    {
+      "code": "tdl",
+      "label": "Taxe de développement local (TDL)",
+      "base": "gross",
+      "period": "monthly",
+      "table": [
+        {
+          "up_to": 62000,
+          "amount": 0
+        },
+        {
+          "up_to": 75000,
+          "amount": 250
+        },
+        {
+          "up_to": 100000,
+          "amount": 500
+        },
+        {
+          "up_to": 125000,
+          "amount": 750
+        },
+        {
+          "up_to": 150000,
+          "amount": 1000
+        },
+        {
+          "up_to": 200000,
+          "amount": 1250
+        },
+        {
+          "up_to": 250000,
+          "amount": 1500
+        },
+        {
+          "up_to": 300000,
+          "amount": 2000
+        },
+        {
+          "up_to": 500000,
+          "amount": 2250
+        },
+        {
+          "up_to": null,
+          "amount": 2500
+        }
+      ]
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "cfc_pat",
+      "label": "Crédit foncier (CFC) part patronale",
+      "base": "gross",
+      "rate": 1.5
+    },
+    {
+      "code": "fne",
+      "label": "Fonds national de l'emploi (FNE)",
+      "base": "gross",
+      "rate": 1
+    }
+  ],
+  "notes": "IRPP au barème annuel : brut × 70 % (abattement de 30 %), moins la cotisation retraite salariale, moins 500 000 F ; salaires mensuels jusqu'à 62 000 F exonérés ; pas de quotient familial. CAC = 10 % de l'IRPP. Taux accidents du travail 1,75 % (2,5 % ou 5 % selon le risque). Tranches intermédiaires RAV et TDL à vérifier. Prime d'ancienneté : usage 4 % après 2 ans (selon la convention).",
+  "social_body": "CNPS"
+}

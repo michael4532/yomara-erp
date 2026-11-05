@@ -1,0 +1,199 @@
+{
+  "code": "SN",
+  "name": "Sénégal",
+  "currency": "XOF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.cleiss.fr/docs/cotisations/senegal.html",
+    "https://taxsummaries.pwc.com/Senegal/Individual/Taxes-on-personal-income",
+    "https://dsr.mercans.com/payroll-dossiers/senegal/",
+    "https://support.payspace.com/portal/en/kb/articles/senegal-increase-in-transport-allowance-and-smig",
+    "https://afrotools.com/fr/blog/guide-irpp-senegal-2026/",
+    "https://macalculatriceenligne.com/afrique/calcul-ir-senegal/"
+  ],
+  "smig": 64223,
+  "days_basis": 30,
+  "transport_exempt": 26000,
+  "seniority": {
+    "start_years": 2,
+    "first_rate": 2,
+    "per_year": 1,
+    "max": 25
+  },
+  "contributions": [
+    {
+      "code": "ipres_rg",
+      "label": "IPRES régime général",
+      "employee_rate": 5.6,
+      "employer_rate": 8.4,
+      "ceiling": 432000
+    },
+    {
+      "code": "css_pf",
+      "label": "CSS prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 7,
+      "ceiling": 63000
+    },
+    {
+      "code": "css_at",
+      "label": "CSS accidents du travail",
+      "employee_rate": 0,
+      "employer_rate": 1,
+      "ceiling": 63000
+    },
+    {
+      "code": "ipm",
+      "label": "IPM (prévoyance maladie)",
+      "employee_rate": 3,
+      "employer_rate": 3,
+      "ceiling": 250000
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "ir",
+    "label": "IR",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 30,
+      "cap": 900000
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 630000,
+        "rate": 0
+      },
+      {
+        "up_to": 1500000,
+        "rate": 20
+      },
+      {
+        "up_to": 4000000,
+        "rate": 30
+      },
+      {
+        "up_to": 8000000,
+        "rate": 35
+      },
+      {
+        "up_to": 13500000,
+        "rate": 37
+      },
+      {
+        "up_to": 50000000,
+        "rate": 40
+      },
+      {
+        "up_to": null,
+        "rate": 43
+      }
+    ],
+    "family": {
+      "method": "reduction",
+      "parts": {
+        "single": 1,
+        "married": 1.5,
+        "per_child": 0.5,
+        "max": 5
+      },
+      "reductions": [
+        {
+          "from": 1.5,
+          "rate": 10,
+          "min": 100000,
+          "max": 300000
+        },
+        {
+          "from": 2,
+          "rate": 15,
+          "min": 200000,
+          "max": 650000
+        },
+        {
+          "from": 2.5,
+          "rate": 20,
+          "min": 300000,
+          "max": 1100000
+        },
+        {
+          "from": 3,
+          "rate": 25,
+          "min": 400000,
+          "max": 1650000
+        },
+        {
+          "from": 3.5,
+          "rate": 30,
+          "min": 500000,
+          "max": 2030000
+        },
+        {
+          "from": 4,
+          "rate": 35,
+          "min": 600000,
+          "max": 2490000
+        },
+        {
+          "from": 4.5,
+          "rate": 40,
+          "min": 700000,
+          "max": 2755000
+        },
+        {
+          "from": 5,
+          "rate": 45,
+          "min": 800000,
+          "max": 3180000
+        }
+      ]
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "trimf",
+      "label": "TRIMF",
+      "base": "gross",
+      "period": "annual",
+      "table": [
+        {
+          "up_to": 599999,
+          "amount": 900
+        },
+        {
+          "up_to": 999999,
+          "amount": 3600
+        },
+        {
+          "up_to": 1999999,
+          "amount": 4800
+        },
+        {
+          "up_to": 6999999,
+          "amount": 12000
+        },
+        {
+          "up_to": 11999999,
+          "amount": 18000
+        },
+        {
+          "up_to": null,
+          "amount": 36000
+        }
+      ]
+    }
+  ],
+  "employer_taxes": [
+    {
+      "code": "cfce",
+      "label": "CFCE (Contribution forfaitaire à la charge de l'employeur)",
+      "base": "gross",
+      "rate": 3
+    }
+  ],
+  "notes": "IR au barème annuel après cotisation IPRES salariale et abattement de 30 % plafonné à 900 000 F ; réduction pour charges de famille en % de l'impôt selon les parts (minimum et maximum annuels, table à confirmer). IPRES complémentaire cadres (2,4 % / 3,6 %, plafond 1 296 000 F) à ajouter pour les cadres. Taux IPM propre à chaque institution (3 % par défaut) ; accidents du travail 1, 3 ou 5 % selon le risque. CFCE 3 % à la charge de l'employeur.",
+  "social_body": "IPRES / CSS"
+}

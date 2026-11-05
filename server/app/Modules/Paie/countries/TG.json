@@ -1,0 +1,114 @@
+{
+  "code": "TG",
+  "name": "Togo",
+  "currency": "XOF",
+  "as_of": "2026-01",
+  "confidence": "medium",
+  "sources": [
+    "https://www.cleiss.fr/docs/cotisations/togo.html",
+    "https://www.payspace.com/wp-content/uploads/2023/05/TG-PAYROLL-SOLUTION-TAX-GUIDE-SUMMARY-2024.pdf",
+    "https://support.payspace.com/portal/en/kb/articles/togo-finance-law-2026",
+    "https://dsr.mercans.com/payroll-dossiers/togo/",
+    "https://afrotools.com/blog/togo-paye-tax-2026/",
+    "https://otr.tg/index.php/en/impots/reglementations-fiscales/code-general-des-impots/599-cahier-fiscal-2025/file.html"
+  ],
+  "smig": 52500,
+  "days_basis": 30,
+  "transport_exempt": null,
+  "seniority": null,
+  "contributions": [
+    {
+      "code": "cnss_pension",
+      "label": "CNSS - Pensions (vieillesse, invalidité, décès)",
+      "employee_rate": 4,
+      "employer_rate": 12.5,
+      "ceiling": null
+    },
+    {
+      "code": "cnss_pf",
+      "label": "CNSS - Prestations familiales",
+      "employee_rate": 0,
+      "employer_rate": 3,
+      "ceiling": null
+    },
+    {
+      "code": "cnss_rp",
+      "label": "CNSS - Risques professionnels",
+      "employee_rate": 0,
+      "employer_rate": 2,
+      "ceiling": null
+    },
+    {
+      "code": "amu",
+      "label": "AMU - Assurance maladie universelle (INAM / CNSS)",
+      "employee_rate": 5,
+      "employer_rate": 5,
+      "ceiling": null
+    }
+  ],
+  "fixed": [],
+  "income_tax": {
+    "code": "irpp",
+    "label": "IRPP",
+    "period": "annual",
+    "deduct_social": true,
+    "professional": {
+      "rate": 28,
+      "cap": 2800000
+    },
+    "fixed_abatement": 0,
+    "brackets": [
+      {
+        "up_to": 900000,
+        "rate": 0
+      },
+      {
+        "up_to": 3000000,
+        "rate": 3
+      },
+      {
+        "up_to": 6000000,
+        "rate": 10
+      },
+      {
+        "up_to": 9000000,
+        "rate": 15
+      },
+      {
+        "up_to": 12000000,
+        "rate": 20
+      },
+      {
+        "up_to": 15000000,
+        "rate": 25
+      },
+      {
+        "up_to": 20000000,
+        "rate": 30
+      },
+      {
+        "up_to": null,
+        "rate": 35
+      }
+    ],
+    "family": {
+      "method": "none"
+    },
+    "dependant_abatement": {
+      "amount": 120000,
+      "max": 6
+    }
+  },
+  "employee_taxes": [
+    {
+      "code": "tcs",
+      "label": "Taxe complémentaire sur salaires (TCS)",
+      "base": "gross",
+      "amount": 125,
+      "period": "monthly"
+    }
+  ],
+  "employer_taxes": [],
+  "notes": "IRPP au barème annuel après cotisations CNSS et AMU, abattement forfaitaire de 28 % (plafond 2 800 000 F/an) et 120 000 F par personne à charge (6 au plus) ; lois de finances 2025-2026 sans changement. AMU 5 % + 5 % depuis 2024. TCS (125 F/mois) à confirmer. Prime d'ancienneté selon la convention collective (à paramétrer).",
+  "social_body": "CNSS / INAM"
+}

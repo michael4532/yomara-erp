@@ -1,0 +1,12 @@
+# Hébergement mutualisé : si le domaine pointe sur ce dossier (et non sur public/),
+# toutes les requêtes sont redirigées vers public/. Les fichiers sensibles restent inaccessibles.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(\.env|\.git|composer\.(json|lock)|artisan|storage|vendor|config|database|bootstrap|routes|resources|tests)(/|$) - [F,L]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
