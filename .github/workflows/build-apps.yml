@@ -65,7 +65,9 @@ jobs:
           dart run msix:create --store --build-windows false --version $mv --output-path dist --output-name "Yomara-ERP-$env:APP_VERSION-store"
       - name: Sommes de contrôle
         shell: pwsh
-        run: Get-ChildItem dist | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii "dist\SHA256SUMS-windows-v$env:APP_VERSION.txt"
+        run: |
+          $lines = @(Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" })
+          $lines | Out-File -Encoding ascii "dist\SHA256SUMS-windows-v$env:APP_VERSION.txt"
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: app/dist/* }
 
@@ -80,6 +82,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
+      # CocoaPods comme sur le Mac de développement (Swift Package Manager : conflit firebase / google_sign_in)
+      - run: flutter config --no-enable-swift-package-manager
       - run: flutter pub get
       - run: flutter build macos --release
       - name: Certificat Apple (si fourni)
