@@ -9,6 +9,11 @@ name: Paquet Microsoft Store (MSIX)
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (ex. 1.0.2) — vide : celle de pubspec.yaml"
+        required: false
+        default: ""
 
 jobs:
   msix:
@@ -24,8 +29,11 @@ jobs:
       - run: flutter build windows --release
       - name: Paquet MSIX pour le Microsoft Store
         shell: pwsh
+        env:
+          VERSION_DEMANDEE: ${{ github.event.inputs.version }}
         run: |
-          $v = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value
+          $v = "$env:VERSION_DEMANDEE"
+          if ($v -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { $v = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value }
           New-Item -ItemType Directory -Force dist | Out-Null
           dart run msix:create --store --build-windows false --version "$v.0" --output-path dist --output-name "Yomara-ERP-$v-store"
           Get-ChildItem dist

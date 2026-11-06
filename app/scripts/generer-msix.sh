@@ -25,18 +25,26 @@ if ! gh auth status >/dev/null 2>&1; then
   gh auth login --hostname github.com --git-protocol https --web
 fi
 
-V="$(gh api "repos/$REPO/contents/app/pubspec.yaml" -H 'Accept: application/vnd.github.raw' | grep -E '^version:' | awk '{print $2}' | cut -d+ -f1)"
+# Version : MSIX_VERSION=1.0.2 impose le numéro (même que le Mac), sinon celui de pubspec.yaml sur GitHub
+V="${MSIX_VERSION:-$(gh api "repos/$REPO/contents/app/pubspec.yaml" -H 'Accept: application/vnd.github.raw' | grep -E '^version:' | awk '{print $2}' | cut -d+ -f1)}"
 echo "Yomara ERP $V — paquet Microsoft Store ($V.0)"
 echo "Lancement de la compilation Windows sur GitHub…"
-gh workflow run msix.yml -R "$REPO" --ref main
-sleep 8
-RUN="$(gh run list -R "$REPO" -w msix.yml -L 1 --json databaseId -q '.[0].databaseId')"
+AVANT="$(gh run list -R "$REPO" -w msix.yml -L 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
+gh workflow run msix.yml -R "$REPO" --ref main -f version="$V"
+RUN=""
+for _ in $(seq 1 30); do
+  sleep 5
+  RUN="$(gh run list -R "$REPO" -w msix.yml -L 1 --json databaseId -q '.[0].databaseId')"
+  [ -n "$RUN" ] && [ "$RUN" != "$AVANT" ] && break
+done
+[ -n "$RUN" ] && [ "$RUN" != "$AVANT" ] || { echo "La compilation n'a pas démarré sur GitHub." >&2; exit 1; }
 echo "Compilation n° $RUN (environ 10 minutes) : https://github.com/$REPO/actions/runs/$RUN"
 gh run watch "$RUN" -R "$REPO" --exit-status --interval 30 >/dev/null || { echo "La compilation a échoué : voir le lien ci-dessus." >&2; exit 1; }
 
 mkdir -p "$OUT"
 gh run download "$RUN" -R "$REPO" -n msix -D "$OUT"
-F="$(ls -t "$OUT"/*.msix | head -1)"
+F="$(ls -t "$OUT"/*"$V"*.msix 2>/dev/null | head -1)"
+[ -n "$F" ] || F="$(ls -t "$OUT"/*.msix | head -1)"
 echo
 echo "Paquet prêt : $F ($(du -h "$F" | cut -f1))"
 echo "À envoyer sur partner.microsoft.com › Yomara ERP › mise à jour › Packages."
