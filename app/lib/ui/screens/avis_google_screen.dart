@@ -573,8 +573,15 @@ class _RequestsTabState extends State<_RequestsTab> {
   }
 
   Future<void> _load() async {
-    final r = await api.get('avis_google/requests');
-    if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    try {
+      final r = await api.get('avis_google/requests');
+      if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _list = []);
+        toast(context, e is ApiException ? e.message : tr('Connexion impossible : réessayez plus tard.'), error: true);
+      }
+    }
   }
 
   Future<void> _new() async {
@@ -733,8 +740,15 @@ class _PostsTabState extends State<_PostsTab> {
   }
 
   Future<void> _load() async {
-    final r = await api.get('avis_google/posts');
-    if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    try {
+      final r = await api.get('avis_google/posts');
+      if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _list = []);
+        toast(context, e is ApiException ? e.message : tr('Connexion impossible : réessayez plus tard.'), error: true);
+      }
+    }
   }
 
   Future<void> _new() async {

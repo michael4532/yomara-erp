@@ -1,5 +1,15 @@
 # Notes de version
 
+## 0.99.31 — audit : sécurité, synchronisation hors ligne, référencement
+- Synchronisation : une saisie refusée par le serveur (droits, module, contrôle) reste sur l'appareil, marquée, au lieu d'être effacée (ex. vente de caisse faite hors ligne) ; les alertes de synchro sont conservées après un redémarrage.
+- Envois hors ligne (fiches, demandes) : plus de doublon quand la réponse du serveur se perd (clé unique par envoi, reconnue par le serveur 24 h) ; serveur en maintenance (erreur 5xx) ou trop de demandes : la file attend et réessaie au lieu d'abandonner les envois.
+- Déconnexion : attend la fin d'une synchronisation en cours ; les listes d'utilisateurs, le catalogue des rapports et les préférences non envoyées de la session précédente ne passent plus dans le compte suivant ; le message n'annonce plus à tort la perte des saisies non envoyées.
+- Droits : la synchronisation hors ligne ne permet plus de supprimer ce que l'API refuse (note de frais d'un collègue, élément non visible) ; évaluations, listes d'intégration et entretiens de recrutement : suppression réservée aux responsables.
+- Support (Helpdesk) : la relève IMAP refuse les adresses du réseau interne de la plateforme (même garde que la Boîte mail).
+- Panneau latéral des formulaires : un clic à côté ne le ferme plus (la saisie n'est plus perdue) ; Mac App Store : enregistrement des exports dans Téléchargements autorisé ; App Store : plus de texte sur l'achat de modules ; Android : une version publiable n'est plus signée avec la clé de débogage par erreur.
+- Écrans Webhooks, WooCommerce, Avis Google : message d'erreur au lieu d'un chargement sans fin hors ligne ; feuilles de temps : une ligne sans date ne bloque plus l'écran.
+- Site : plan du site (sitemap.xml), robots.txt avec son adresse, lien canonique, textes alternatifs des captures de l'accueil.
+
 ## 0.99.30 — nouveau style de l'application
 - Menu latéral bleu nuit par défaut (le menu clair reste disponible dans le menu du compte) : sections « Vue d'ensemble » et « Espaces de travail », élément actif surligné avec le trait jaune, « Modules & tarifs » et « Paramètres » en bas, carte de l'utilisateur (nom, rôle) qui ouvre le compte.
 - En-têtes de page : fil d'Ariane « Espace / Écran », grand titre avec sa pastille d'icône ; la barre du haut ne répète plus le titre.

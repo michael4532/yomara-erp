@@ -136,6 +136,14 @@ class SyncController extends Controller
                 continue;
             }
 
+            // Même règle que l'API REST : on ne supprime que ce que l'utilisateur a le droit de voir
+            // (ex. évaluation de quelqu'un d'autre, note de frais d'un collègue).
+            if ($m['op'] === 'delete' && $class::query()->whereKey($m['record_id'])->exists()
+                && ! EntityController::visibleRecord($class, $m['record_id'], $user)) {
+                $results[] = $this->store($m, $company->id, $user->id, EntityWriter::REJECTED, $class, 'Suppression refusée : cet élément ne vous appartient pas.');
+                continue;
+            }
+
             $r = $m['op'] === 'delete'
                 ? $writer->delete($class, $m['record_id'], $m['base_version'] ?? null)
                 : $writer->upsert($class, $m['record_id'], $m['data'] ?? [], $m['base_version'] ?? null);

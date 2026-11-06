@@ -104,9 +104,9 @@
     <div class="stage" aria-hidden="true">
       <div class="screen">
         <div class="bar"><i></i><i></i><i></i><span>{{ preg_replace('#^https?://#', '', url('/app/')) }}</span></div>
-        <img src="/landing/tableau-de-bord.webp" alt="" width="1440" height="900" fetchpriority="high">
+        <img src="/landing/tableau-de-bord.webp" alt="Tableau de bord de Yomara ERP : chiffre d'affaires, marge, dépenses et trésorerie" width="1440" height="900" fetchpriority="high">
       </div>
-      <div class="phone"><img src="/landing/mobile.webp" alt="" width="390" height="844"></div>
+      <div class="phone"><img src="/landing/mobile.webp" alt="Yomara ERP sur téléphone" width="390" height="844"></div>
       <div class="chip-live" id="chipLive" data-notes='@json($notes)'><span class="dot"></span><span><b>Paiement Wave reçu</b><span class="t">Facture FAC-0142, 250 000 FCFA</span></span></div>
       <div class="chip-kpi"><small>Chiffre d'affaires du mois</small><b data-count="18450000" data-suffix=" F">18 450 000 F</b><i>@foreach([38,52,44,61,57,70,66,84] as $k => $h)<span style="height:{{ $h }}%;--k:{{ $k }}"></span>@endforeach</i></div>
     </div>

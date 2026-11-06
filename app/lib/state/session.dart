@@ -11,6 +11,8 @@ import '../core/prefs_sync.dart';
 import '../i18n/i18n.dart';
 import '../core/sync_engine.dart';
 import '../ui/widgets/common.dart' show currencyDecimals, decimalsFor;
+import '../ui/widgets/records.dart' show RecordSchema;
+import '../ui/screens/rapports_screen.dart' show RapportsMeta;
 import '../core/json.dart';
 
 /// État global : serveur, utilisateur connecté, société, modules activés,
@@ -318,6 +320,7 @@ class Session extends ChangeNotifier {
       // Les modifications non envoyées restent stockées localement
       try {
         await sync.sync();
+        await PrefsSync.flush();
         await FirebaseSetup.unregisterPush(api);
         await api.post('auth/logout');
       } catch (_) {}
@@ -329,6 +332,14 @@ class Session extends ChangeNotifier {
     }
     _heartbeat?.cancel();
     sync.stop();
+    // Attendre la fin d'une synchronisation en cours avant de fermer les données locales
+    for (var i = 0; i < 150 && sync.syncing; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    // Caches en mémoire de la session précédente (utilisateurs, catalogue des rapports, préférences)
+    PrefsSync.reset();
+    RecordSchema.clear();
+    RapportsMeta.reset();
     api.token = null;
     bootstrap = null;
     await LocalDb.meta.delete('token');

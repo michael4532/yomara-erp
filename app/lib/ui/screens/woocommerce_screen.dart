@@ -15,6 +15,7 @@ import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+
 /// Plateforme affichée (WooCommerce ou Shopify : mêmes écrans, mêmes données côté serveur).
 class _Pf {
   static String key = 'woocommerce';
@@ -87,11 +88,14 @@ class _WoocommerceScreenState extends State<WoocommerceScreen> {
       final d = asMap(r['data']);
       final p = d['products'] as Map?;
       if (mounted) {
-        toast(context, [
-          if (d['orders'] != null) '${d['orders']} commande(s) importée(s) ou mise(s) à jour',
-          if (p != null) '${p['created']} produit(s) créé(s), ${p['updated']} mis à jour${(p['errors'] ?? 0) > 0 ? ', ${p['errors']} en erreur' : ''}',
-          if (what == 'webhooks') 'Webhooks vérifiés',
-        ].join(' · '));
+        toast(
+          context,
+          [
+            if (d['orders'] != null) '${d['orders']} commande(s) importée(s) ou mise(s) à jour',
+            if (p != null) '${p['created']} produit(s) créé(s), ${p['updated']} mis à jour${(p['errors'] ?? 0) > 0 ? ', ${p['errors']} en erreur' : ''}',
+            if (what == 'webhooks') 'Webhooks vérifiés',
+          ].join(' · '),
+        );
       }
       await _load();
     } catch (e) {
@@ -115,125 +119,194 @@ class _WoocommerceScreenState extends State<WoocommerceScreen> {
     return DefaultTabController(
       key: ValueKey(_sel),
       length: 3,
-      child: Column(children: [
-        _header(s, stores),
-        TabBar(isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8), tabAlignment: TabAlignment.start, labelColor: _woo, indicatorColor: _woo, tabs: [
-          Tab(icon: Icon(Icons.inventory_2_outlined, size: 18), text: tr('Produits sur le site')),
-          Tab(icon: Icon(Icons.shopping_bag_outlined, size: 18), text: tr('Commandes du site')),
-          Tab(icon: Icon(Icons.history, size: 18), text: tr('Journal')),
-        ]),
-        Expanded(
-          child: TabBarView(children: [
-            _ProductsTab(store: s, onChanged: _load),
-            _OrdersTab(store: s, statuses: asMap(_meta['statuses'])),
-            _LogsTab(storeId: s['id'] as int),
-          ]),
-        ),
-      ]),
+      child: Column(
+        children: [
+          _header(s, stores),
+          TabBar(
+            isScrollable: true,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            tabAlignment: TabAlignment.start,
+            labelColor: _woo,
+            indicatorColor: _woo,
+            tabs: [
+              Tab(icon: Icon(Icons.inventory_2_outlined, size: 18), text: tr('Produits sur le site')),
+              Tab(icon: Icon(Icons.shopping_bag_outlined, size: 18), text: tr('Commandes du site')),
+              Tab(icon: Icon(Icons.history, size: 18), text: tr('Journal')),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _ProductsTab(store: s, onChanged: _load),
+                _OrdersTab(store: s, statuses: asMap(_meta['statuses'])),
+                _LogsTab(storeId: s['id'] as int),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _header(Map<String, dynamic> s, List<Map<String, dynamic>> stores) {
     final hint = Theme.of(context).hintColor;
     final err = s['status'] == 'error';
-    Widget kpi(String v, String l, [Color? c]) => Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(tr(v), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: c ?? _woo)),
-          Text(tr(l), style: TextStyle(color: hint, fontSize: 12)),
-        ]);
+    Widget kpi(String v, String l, [Color? c]) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          tr(v),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: c ?? _woo),
+        ),
+        Text(tr(l), style: TextStyle(color: hint, fontSize: 12)),
+      ],
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 14, 14),
       decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFF3EEFA), Color(0xFFFFFFFF)])),
-      child: Wrap(spacing: 26, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(color: _woo, borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.storefront, color: Colors.white),
+      child: Wrap(
+        spacing: 26,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: _woo, borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.storefront, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (stores.length > 1)
+                    DropdownButton<int>(
+                      value: _sel,
+                      underline: const SizedBox(),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1F1F1F)),
+                      items: [for (final x in stores) DropdownMenuItem(value: x['id'] as int, child: Text(tr('${x['name']}')))],
+                      onChanged: (v) => setState(() => _sel = v),
+                    )
+                  else
+                    Text(tr('${s['name']}'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  InkWell(
+                    onTap: () => safeLaunchUrl(Uri.parse('${s['url']}'), webOnlyWindowName: '_blank'),
+                    child: Text(tr('${s['url']}'.replaceFirst(RegExp('^https?://'), '')), style: TextStyle(color: _woo, fontSize: 12.5)),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            if (stores.length > 1)
-              DropdownButton<int>(
-                value: _sel,
-                underline: const SizedBox(),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1F1F1F)),
-                items: [for (final x in stores) DropdownMenuItem(value: x['id'] as int, child: Text(tr('${x['name']}')))],
-                onChanged: (v) => setState(() => _sel = v),
-              )
-            else
-              Text(tr('${s['name']}'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            InkWell(
-              onTap: () => safeLaunchUrl(Uri.parse('${s['url']}'), webOnlyWindowName: '_blank'),
-              child: Text(tr('${s['url']}'.replaceFirst(RegExp('^https?://'), '')), style: TextStyle(color: _woo, fontSize: 12.5)),
-            ),
-          ]),
-        ]),
-        kpi('${s['products_online']}', 'produits en ligne'),
-        kpi('${s['orders_30']}', 'commandes sur 30 jours'),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(err ? Icons.error_outline : (s['status'] == 'paused' ? Icons.pause_circle_outline : Icons.check_circle), size: 16, color: err ? YColors.danger : (s['status'] == 'paused' ? YColors.warning : YColors.success)),
-            const SizedBox(width: 4),
-            Text(tr(err ? 'Erreur' : (s['status'] == 'paused' ? 'En pause' : 'Synchronisé')), style: const TextStyle(fontWeight: FontWeight.w700)),
-          ]),
-          Text(tr('Commandes ${_ago(s['last_orders_sync_at'])} · stock ${_ago(s['last_products_sync_at'])}'), style: TextStyle(color: hint, fontSize: 12)),
-          Text(tr(s['webhooks'] == true ? 'Commandes reçues en direct' : 'Commandes relevées toutes les 5 min'), style: TextStyle(color: hint, fontSize: 12)),
-        ]),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          if (canManage)
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: _woo),
-              onPressed: _busy ? null : () => _sync(),
-              icon: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.sync, size: 18),
-              label: Text(tr('Synchroniser')),
-            ),
-          if (canManage) IconButton(tooltip: tr('Réglages'), onPressed: () => _settings(s), icon: const Icon(Icons.tune)),
-          if (context.read<Session>().can('ventes.manage'))
-            IconButton(tooltip: tr('Notifications de commande aux clients'), onPressed: () => showOrderNotifyDialog(context), icon: const Icon(Icons.mark_email_unread_outlined)),
-          if (canManage) IconButton(tooltip: tr('Connecter une autre boutique'), onPressed: _connect, icon: const Icon(Icons.add_business_outlined)),
-        ]),
-        if (s['error'] != null) Text(tr('${s['error']}'), style: const TextStyle(color: YColors.danger, fontSize: 12.5)),
-      ]),
+          kpi('${s['products_online']}', 'produits en ligne'),
+          kpi('${s['orders_30']}', 'commandes sur 30 jours'),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    err ? Icons.error_outline : (s['status'] == 'paused' ? Icons.pause_circle_outline : Icons.check_circle),
+                    size: 16,
+                    color: err ? YColors.danger : (s['status'] == 'paused' ? YColors.warning : YColors.success),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(tr(err ? 'Erreur' : (s['status'] == 'paused' ? 'En pause' : 'Synchronisé')), style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+              Text(tr('Commandes ${_ago(s['last_orders_sync_at'])} · stock ${_ago(s['last_products_sync_at'])}'), style: TextStyle(color: hint, fontSize: 12)),
+              Text(tr(s['webhooks'] == true ? 'Commandes reçues en direct' : 'Commandes relevées toutes les 5 min'), style: TextStyle(color: hint, fontSize: 12)),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (canManage)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: _woo),
+                  onPressed: _busy ? null : () => _sync(),
+                  icon: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.sync, size: 18),
+                  label: Text(tr('Synchroniser')),
+                ),
+              if (canManage) IconButton(tooltip: tr('Réglages'), onPressed: () => _settings(s), icon: const Icon(Icons.tune)),
+              if (context.read<Session>().can('ventes.manage'))
+                IconButton(tooltip: tr('Notifications de commande aux clients'), onPressed: () => showOrderNotifyDialog(context), icon: const Icon(Icons.mark_email_unread_outlined)),
+              if (canManage) IconButton(tooltip: tr('Connecter une autre boutique'), onPressed: _connect, icon: const Icon(Icons.add_business_outlined)),
+            ],
+          ),
+          if (s['error'] != null) Text(tr('${s['error']}'), style: const TextStyle(color: YColors.danger, fontSize: 12.5)),
+        ],
+      ),
     );
   }
 
   Widget _empty() => Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Column(children: [
-              Container(width: 72, height: 72, decoration: BoxDecoration(color: _woo, borderRadius: BorderRadius.circular(18)), child: const Icon(Icons.storefront, color: Colors.white, size: 38)),
-              const SizedBox(height: 16),
-              Text(tr('Reliez votre boutique ${_Pf.label}'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text(
-                tr('Vos produits, prix et stock sont publiés et tenus à jour sur le site depuis le logiciel. Chaque commande du site arrive ici en quelques secondes : client, commande, facture et encaissement.'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).hintColor, height: 1.5),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: Column(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: _woo, borderRadius: BorderRadius.circular(18)),
+              child: const Icon(Icons.storefront, color: Colors.white, size: 38),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr('Reliez votre boutique ${_Pf.label}'),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(
+                'Vos produits, prix et stock sont publiés et tenus à jour sur le site depuis le logiciel. Chaque commande du site arrive ici en quelques secondes : client, commande, facture et encaissement.',
               ),
-              const SizedBox(height: 20),
-              for (final t in const [
-                (Icons.sell_outlined, 'Prix et stock à jour sur le site, sans ressaisie'),
-                (Icons.bolt, 'Commandes importées en direct, client reconnu ou créé'),
-                (Icons.receipt_long_outlined, 'Facture et encaissement des commandes payées'),
-                (Icons.swap_horiz, 'Statut renvoyé au site quand vous encaissez'),
-              ])
-                ListTile(dense: true, leading: Icon(t.$1, color: _woo), title: Text(tr(t.$2))),
-              const SizedBox(height: 16),
-              if (canManage)
-                FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: _woo, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16)), onPressed: _connect, icon: const Icon(Icons.link), label: Text(tr('Connecter ma boutique')))
-              else
-                Text(tr('Demandez à un responsable de connecter la boutique.')),
-            ]),
-          ),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).hintColor, height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            for (final t in const [
+              (Icons.sell_outlined, 'Prix et stock à jour sur le site, sans ressaisie'),
+              (Icons.bolt, 'Commandes importées en direct, client reconnu ou créé'),
+              (Icons.receipt_long_outlined, 'Facture et encaissement des commandes payées'),
+              (Icons.swap_horiz, 'Statut renvoyé au site quand vous encaissez'),
+            ])
+              ListTile(
+                dense: true,
+                leading: Icon(t.$1, color: _woo),
+                title: Text(tr(t.$2)),
+              ),
+            const SizedBox(height: 16),
+            if (canManage)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: _woo, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16)),
+                onPressed: _connect,
+                icon: const Icon(Icons.link),
+                label: Text(tr('Connecter ma boutique')),
+              )
+            else
+              Text(tr('Demandez à un responsable de connecter la boutique.')),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 
   Future<void> _settings(Map<String, dynamic> s) async {
-    final changed = await showDialog<bool>(context: context, builder: (_) => _SettingsDialog(store: s, statuses: asMap(_meta['statuses']), warehouses: _meta['warehouses'] as List? ?? const []));
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _SettingsDialog(store: s, statuses: asMap(_meta['statuses']), warehouses: _meta['warehouses'] as List? ?? const []),
+    );
     if (changed == true) await _load();
   }
 }
@@ -309,32 +382,61 @@ class _ConnectDialogState extends State<_ConnectDialog> {
       content: SizedBox(
         width: 520,
         child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFF3EEFA), borderRadius: BorderRadius.circular(10)),
-              child: Text(
-                tr(_Pf.shopify
-                    ? 'Dans Shopify : Paramètres › Applications › Développer des applications › Créer une application. Accordez les accès read/write_products, read/write_orders, read/write_inventory et read_locations, installez-la, puis copiez le jeton de l\'API Admin (shpat_…) et la clé secrète de l\'API.'
-                    : 'Dans WordPress : WooCommerce › Réglages › Avancé › API REST › Ajouter une clé. Choisissez votre utilisateur administrateur, droits « Lecture/Écriture », puis copiez la clé client (ck_…) et la clé secrète (cs_…).'),
-                style: const TextStyle(height: 1.45, fontSize: 13),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFF3EEFA), borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                  tr(
+                    _Pf.shopify
+                        ? 'Dans Shopify : Paramètres › Applications › Développer des applications › Créer une application. Accordez les accès read/write_products, read/write_orders, read/write_inventory et read_locations, installez-la, puis copiez le jeton de l\'API Admin (shpat_…) et la clé secrète de l\'API.'
+                        : 'Dans WordPress : WooCommerce › Réglages › Avancé › API REST › Ajouter une clé. Choisissez votre utilisateur administrateur, droits « Lecture/Écriture », puis copiez la clé client (ck_…) et la clé secrète (cs_…).',
+                  ),
+                  style: const TextStyle(height: 1.45, fontSize: 13),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextField(controller: _url, decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Adresse de la boutique Shopify' : 'Adresse du site'), hintText: trn(_Pf.shopify ? 'maboutique.myshopify.com' : 'www.maboutique.ci'))),
-            TextField(controller: _key, decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Jeton d\'accès API Admin' : 'Clé client'), hintText: trn(_Pf.shopify ? 'shpat_…' : 'ck_…'))),
-            TextField(controller: _secret, obscureText: true, decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Clé secrète de l\'API (signature des webhooks)' : 'Clé secrète'), hintText: trn(_Pf.shopify ? 'shpss_… ou clé secrète' : 'cs_…'))),
-            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)'))),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              initialValue: _days,
-              decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
-              items: [DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))), DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))), DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours')))],
-              onChanged: (v) => _days = v ?? 7,
-            ),
-            const SizedBox(height: 8),
-            Text(tr('Le logiciel crée lui-même les webhooks de commandes sur le site.'), style: TextStyle(color: hint, fontSize: 12)),
-          ]),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _url,
+                decoration: InputDecoration(
+                  labelText: trn(_Pf.shopify ? 'Adresse de la boutique Shopify' : 'Adresse du site'),
+                  hintText: trn(_Pf.shopify ? 'maboutique.myshopify.com' : 'www.maboutique.ci'),
+                ),
+              ),
+              TextField(
+                controller: _key,
+                decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Jeton d\'accès API Admin' : 'Clé client'), hintText: trn(_Pf.shopify ? 'shpat_…' : 'ck_…')),
+              ),
+              TextField(
+                controller: _secret,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: trn(_Pf.shopify ? 'Clé secrète de l\'API (signature des webhooks)' : 'Clé secrète'),
+                  hintText: trn(_Pf.shopify ? 'shpss_… ou clé secrète' : 'cs_…'),
+                ),
+              ),
+              TextField(
+                controller: _name,
+                decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)')),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<int>(
+                initialValue: _days,
+                decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
+                items: [
+                  DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))),
+                  DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))),
+                  DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours'))),
+                ],
+                onChanged: (v) => _days = v ?? 7,
+              ),
+              const SizedBox(height: 8),
+              Text(tr('Le logiciel crée lui-même les webhooks de commandes sur le site.'), style: TextStyle(color: hint, fontSize: 12)),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -347,8 +449,11 @@ class _ConnectDialogState extends State<_ConnectDialog> {
                   setState(() => _busy = true);
                   try {
                     await context.read<Session>().api.postLong('${_Pf.key}/stores', {
-                      'url': _url.text.trim(), 'consumer_key': _key.text.trim(), 'consumer_secret': _secret.text.trim(),
-                      if (_name.text.trim().isNotEmpty) 'name': _name.text.trim(), 'import_days': _days,
+                      'url': _url.text.trim(),
+                      'consumer_key': _key.text.trim(),
+                      'consumer_secret': _secret.text.trim(),
+                      if (_name.text.trim().isNotEmpty) 'name': _name.text.trim(),
+                      'import_days': _days,
                     });
                     if (context.mounted) {
                       Navigator.pop(context, true);
@@ -367,47 +472,71 @@ class _ConnectDialogState extends State<_ConnectDialog> {
   }
 
   Widget _oneClickView(Color hint) => YAlertDialog(
-        title: Text(tr('Connecter ma boutique WooCommerce')),
-        content: SizedBox(
-          width: 520,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(tr('Indiquez l\'adresse de votre site WordPress. Une page de votre site s\'ouvre : connectez-vous en administrateur et cliquez sur « Approuver ». C\'est tout : clés, webhooks et réglages se font tout seuls.'),
-                style: const TextStyle(height: 1.45)),
-            const SizedBox(height: 12),
-            TextField(controller: _url, enabled: !_busy, decoration: InputDecoration(labelText: tr('Adresse du site'), hintText: 'www.maboutique.ci')),
-            TextField(controller: _name, enabled: !_busy, decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)'))),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              initialValue: _days,
-              decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
-              items: [DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))), DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))), DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours')))],
-              onChanged: _busy ? null : (v) => _days = v ?? 7,
+    title: Text(tr('Connecter ma boutique WooCommerce')),
+    content: SizedBox(
+      width: 520,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            tr(
+              'Indiquez l\'adresse de votre site WordPress. Une page de votre site s\'ouvre : connectez-vous en administrateur et cliquez sur « Approuver ». C\'est tout : clés, webhooks et réglages se font tout seuls.',
             ),
-            if (_busy) ...[
-              const SizedBox(height: 16),
-              Row(children: [
+            style: const TextStyle(height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _url,
+            enabled: !_busy,
+            decoration: InputDecoration(labelText: tr('Adresse du site'), hintText: 'www.maboutique.ci'),
+          ),
+          TextField(
+            controller: _name,
+            enabled: !_busy,
+            decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)')),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            initialValue: _days,
+            decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
+            items: [
+              DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))),
+              DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))),
+              DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours'))),
+            ],
+            onChanged: _busy ? null : (v) => _days = v ?? 7,
+          ),
+          if (_busy) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
                 const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                 const SizedBox(width: 10),
-                Expanded(child: Text(tr('En attente de votre approbation sur le site…'), style: TextStyle(color: hint))),
-              ]),
-            ],
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: _busy ? null : () => setState(() => _manual = true), child: Text(tr('Saisir les clés API à la main'))),
+                Expanded(
+                  child: Text(tr('En attente de votre approbation sur le site…'), style: TextStyle(color: hint)),
+                ),
+              ],
             ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: _woo),
-            onPressed: _busy ? null : _oneClick,
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: Text(tr('Autoriser sur mon site')),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(onPressed: _busy ? null : () => setState(() => _manual = true), child: Text(tr('Saisir les clés API à la main'))),
           ),
         ],
-      );
+      ),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+      FilledButton.icon(
+        style: FilledButton.styleFrom(backgroundColor: _woo),
+        onPressed: _busy ? null : _oneClick,
+        icon: const Icon(Icons.open_in_new, size: 18),
+        label: Text(tr('Autoriser sur mon site')),
+      ),
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------- produits
@@ -437,6 +566,7 @@ class _ProductsTabState extends State<_ProductsTab> {
     _debounce?.cancel();
     super.dispose();
   }
+
   final Set<String> _sel = {};
   bool _busy = false;
 
@@ -463,10 +593,18 @@ class _ProductsTabState extends State<_ProductsTab> {
     setState(() => _busy = true);
     try {
       final r = await api.postLong('${_Pf.key}/stores/$sid/products', {
-        'publish': publish, if (!all && category == null) 'product_ids': _sel.toList(), if (all) 'all_active': true, 'category_id': ?category,
+        'publish': publish,
+        if (!all && category == null) 'product_ids': _sel.toList(),
+        if (all) 'all_active': true,
+        'category_id': ?category,
       });
       final p = r['push'] as Map?;
-      if (mounted) toast(context, publish ? '${r['changed']} produit(s) ajouté(s)${p != null ? ' · ${p['created']} créé(s) sur le site' : ''}.' : '${r['changed']} produit(s) retiré(s) du site (passés en brouillon).');
+      if (mounted) {
+        toast(
+          context,
+          publish ? '${r['changed']} produit(s) ajouté(s)${p != null ? ' · ${p['created']} créé(s) sur le site' : ''}.' : '${r['changed']} produit(s) retiré(s) du site (passés en brouillon).',
+        );
+      }
       _sel.clear();
       await _load();
       widget.onChanged();
@@ -489,7 +627,11 @@ class _ProductsTabState extends State<_ProductsTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
           OutlinedButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Relier et importer les manquants'))),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: _woo), onPressed: () => Navigator.pop(c, false), child: Text(tr('Relier'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _woo),
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(tr('Relier')),
+          ),
         ],
       ),
     );
@@ -517,130 +659,188 @@ class _ProductsTabState extends State<_ProductsTab> {
     final all = _list ?? const <Map<String, dynamic>>[];
     final shown = all
         .where((p) => _f['category'] == null || '${p['category'] ?? ''}' == _f['category'])
-        .where((p) => _f['stock'] == null || switch (_f['stock']) { 'none' => p['stock'] == null, 'out' => p['stock'] != null && toDouble(p['stock']) <= 0, _ => p['stock'] != null && toDouble(p['stock']) > 0 })
-        .where((p) => _f['state'] == null || switch (_f['state']) { 'error' => p['error'] != null, 'online' => p['error'] == null && p['online'] == true, 'pending' => p['error'] == null && p['online'] != true && p['published'] == true, _ => p['error'] == null && p['online'] != true && p['published'] != true })
-        .toList();
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: FilterBar(
-          key: ValueKey(_rk),
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-          onSearch: (v) {
-            _q = v.trim();
-            _debounce?.cancel();
-            _debounce = Timer(const Duration(milliseconds: 450), _load);
-          },
-          search: _q,
-          searchHint: 'Nom ou référence',
-          statuses: const {'published': 'Sur le site', 'unpublished': 'Pas encore en ligne', 'errors': 'En erreur', '': 'Tous'},
-          status: _filter,
-          onStatus: (v) {
-            setState(() {
-              _filter = v;
-              _sel.clear();
-            });
-            _load();
-          },
-          filters: [
-            FilterSpec('category', 'Catégorie', filterOptions(all, 'category'), icon: Icons.category_outlined),
-            const FilterSpec('stock', 'Stock', {'in': 'En stock', 'out': 'Rupture', 'none': 'Stock non suivi'}, icon: Icons.inventory_outlined),
-            const FilterSpec('state', 'État sur le site', {'online': 'En ligne', 'pending': 'En attente', 'offline': 'Hors ligne', 'error': 'Erreur'}, icon: Icons.cloud_outlined),
-          ],
-          values: _f,
-          onFilter: (k, v) => setState(() => _f = {..._f, k: v}),
-          count: _list == null ? null : shown.length,
-          countLabel: 'produit',
-          onReset: () {
-            _sel.clear();
-            setState(() => (_q = '', _filter = '', _f = {}, _rk++));
-            _load();
-          },
-        ),
-      ),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-        child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          if (can) ...[
-            if (_sel.isNotEmpty && _filter != 'published')
-              FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: _woo), onPressed: _busy ? null : () => _choose(true), icon: const Icon(Icons.cloud_upload_outlined, size: 18), label: Text(tr('Mettre en ligne (${_sel.length})'))),
-            if (_sel.isNotEmpty && _filter == 'published')
-              OutlinedButton.icon(onPressed: _busy ? null : () => _choose(false), icon: const Icon(Icons.visibility_off_outlined, size: 18), label: Text(tr('Retirer du site (${_sel.length})'))),
-            PopupMenuButton<String>(
-              tooltip: tr('Plus'),
-              enabled: !_busy,
-              onSelected: (v) {
-                if (v == 'all') _choose(true, all: true);
-                if (v == 'link') _link();
-                if (v.startsWith('cat:')) _choose(true, category: v.substring(4));
+        .where(
+          (p) =>
+              _f['stock'] == null ||
+              switch (_f['stock']) {
+                'none' => p['stock'] == null,
+                'out' => p['stock'] != null && toDouble(p['stock']) <= 0,
+                _ => p['stock'] != null && toDouble(p['stock']) > 0,
               },
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'all', child: ListTile(dense: true, leading: Icon(Icons.done_all), title: Text(tr('Mettre en ligne tous les produits actifs')))),
-                PopupMenuItem(value: 'link', child: ListTile(dense: true, leading: Icon(Icons.link), title: Text(tr('Relier les produits déjà sur le site (SKU)')))),
-                if (cats.isNotEmpty) const PopupMenuDivider(),
-                for (final c in cats.take(15)) PopupMenuItem(value: 'cat:${c['id']}', child: Text(tr('Mettre en ligne : ${c['name']}'))),
+        )
+        .where(
+          (p) =>
+              _f['state'] == null ||
+              switch (_f['state']) {
+                'error' => p['error'] != null,
+                'online' => p['error'] == null && p['online'] == true,
+                'pending' => p['error'] == null && p['online'] != true && p['published'] == true,
+                _ => p['error'] == null && p['online'] != true && p['published'] != true,
+              },
+        )
+        .toList();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: FilterBar(
+            key: ValueKey(_rk),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            onSearch: (v) {
+              _q = v.trim();
+              _debounce?.cancel();
+              _debounce = Timer(const Duration(milliseconds: 450), _load);
+            },
+            search: _q,
+            searchHint: 'Nom ou référence',
+            statuses: const {'published': 'Sur le site', 'unpublished': 'Pas encore en ligne', 'errors': 'En erreur', '': 'Tous'},
+            status: _filter,
+            onStatus: (v) {
+              setState(() {
+                _filter = v;
+                _sel.clear();
+              });
+              _load();
+            },
+            filters: [
+              FilterSpec('category', 'Catégorie', filterOptions(all, 'category'), icon: Icons.category_outlined),
+              const FilterSpec('stock', 'Stock', {'in': 'En stock', 'out': 'Rupture', 'none': 'Stock non suivi'}, icon: Icons.inventory_outlined),
+              const FilterSpec('state', 'État sur le site', {'online': 'En ligne', 'pending': 'En attente', 'offline': 'Hors ligne', 'error': 'Erreur'}, icon: Icons.cloud_outlined),
+            ],
+            values: _f,
+            onFilter: (k, v) => setState(() => _f = {..._f, k: v}),
+            count: _list == null ? null : shown.length,
+            countLabel: 'produit',
+            onReset: () {
+              _sel.clear();
+              setState(() => (_q = '', _filter = '', _f = {}, _rk++));
+              _load();
+            },
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (can) ...[
+                if (_sel.isNotEmpty && _filter != 'published')
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: _woo),
+                    onPressed: _busy ? null : () => _choose(true),
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                    label: Text(tr('Mettre en ligne (${_sel.length})')),
+                  ),
+                if (_sel.isNotEmpty && _filter == 'published')
+                  OutlinedButton.icon(onPressed: _busy ? null : () => _choose(false), icon: const Icon(Icons.visibility_off_outlined, size: 18), label: Text(tr('Retirer du site (${_sel.length})'))),
+                PopupMenuButton<String>(
+                  tooltip: tr('Plus'),
+                  enabled: !_busy,
+                  onSelected: (v) {
+                    if (v == 'all') _choose(true, all: true);
+                    if (v == 'link') _link();
+                    if (v.startsWith('cat:')) _choose(true, category: v.substring(4));
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'all',
+                      child: ListTile(dense: true, leading: Icon(Icons.done_all), title: Text(tr('Mettre en ligne tous les produits actifs'))),
+                    ),
+                    PopupMenuItem(
+                      value: 'link',
+                      child: ListTile(dense: true, leading: Icon(Icons.link), title: Text(tr('Relier les produits déjà sur le site (SKU)'))),
+                    ),
+                    if (cats.isNotEmpty) const PopupMenuDivider(),
+                    for (final c in cats.take(15)) PopupMenuItem(value: 'cat:${c['id']}', child: Text(tr('Mettre en ligne : ${c['name']}'))),
+                  ],
+                  child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.more_horiz)),
+                ),
               ],
-              child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.more_horiz)),
-            ),
-          ],
-          if (_busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-        ]),
-      ),
-      Expanded(
-        child: _list == null
-            ? const Center(child: CircularProgressIndicator())
-            : _list!.isEmpty
-                ? EmptyState(icon: Icons.inventory_2_outlined, title: _filter == 'published' ? 'Aucun produit en ligne' : 'Aucun produit', message: _filter == 'published' ? 'Choisissez « Pas encore en ligne » pour sélectionner les produits à publier.' : null)
-                : shown.isEmpty
-                    ? EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucun produit ne correspond aux filtres'))
-                    : ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+              if (_busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _list == null
+              ? const Center(child: CircularProgressIndicator())
+              : _list!.isEmpty
+              ? EmptyState(
+                  icon: Icons.inventory_2_outlined,
+                  title: _filter == 'published' ? 'Aucun produit en ligne' : 'Aucun produit',
+                  message: _filter == 'published' ? 'Choisissez « Pas encore en ligne » pour sélectionner les produits à publier.' : null,
+                )
+              : shown.isEmpty
+              ? EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucun produit ne correspond aux filtres'))
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  children: [
                     Text(tr('$_total produit(s) · prix TTC publiés, stock disponible (commandes en cours déduites)'), style: TextStyle(color: hint, fontSize: 12)),
                     const SizedBox(height: 6),
                     Card(
-                      child: Column(children: [
-                        for (final p in shown)
-                          ListTile(
-                            leading: Row(mainAxisSize: MainAxisSize.min, children: [
-                              if (can) Checkbox(value: _sel.contains(p['id']), onChanged: (v) => setState(() => v == true ? _sel.add('${p['id']}') : _sel.remove(p['id']))),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: p['image'] != null
-                                    ? Image.network('${p['image']}', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _Thumb())
-                                    : const _Thumb(),
+                      child: Column(
+                        children: [
+                          for (final p in shown)
+                            ListTile(
+                              leading: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (can) Checkbox(value: _sel.contains(p['id']), onChanged: (v) => setState(() => v == true ? _sel.add('${p['id']}') : _sel.remove(p['id']))),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: p['image'] != null ? Image.network('${p['image']}', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _Thumb()) : const _Thumb(),
+                                  ),
+                                ],
                               ),
-                            ]),
-                            title: Text(tr('${p['name']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(
-                              tr([if (p['sku'] != null) 'Réf. ${p['sku']}', if (p['category'] != null) '${p['category']}', if (p['error'] != null) '${p['error']}'].join(' · ')),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: p['error'] != null ? const TextStyle(color: YColors.danger) : null,
-                            ),
-                            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(tr(money(p['price'], cur)), style: const TextStyle(fontWeight: FontWeight.w700)),
-                                Text(tr(p['stock'] == null ? 'stock non suivi' : '${p['stock']} en stock'), style: TextStyle(color: (p['stock'] ?? 1) == 0 ? YColors.danger : hint, fontSize: 12)),
-                              ]),
-                              const SizedBox(width: 12),
-                              SizedBox(
-                                width: 110,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: p['error'] != null
-                                      ? StatusChip(tr('Erreur'), color: YColors.danger)
-                                      : p['online'] == true
-                                          ? InkWell(onTap: () => safeLaunchUrl(Uri.parse('${p['remote_url']}'), webOnlyWindowName: '_blank'), child: StatusChip(p['variation'] == true ? 'Variation' : 'En ligne', color: YColors.success))
+                              title: Text(tr('${p['name']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              subtitle: Text(
+                                tr([if (p['sku'] != null) 'Réf. ${p['sku']}', if (p['category'] != null) '${p['category']}', if (p['error'] != null) '${p['error']}'].join(' · ')),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: p['error'] != null ? const TextStyle(color: YColors.danger) : null,
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(tr(money(p['price'], cur)), style: const TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(
+                                        tr(p['stock'] == null ? 'stock non suivi' : '${p['stock']} en stock'),
+                                        style: TextStyle(color: (p['stock'] ?? 1) == 0 ? YColors.danger : hint, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 12),
+                                  SizedBox(
+                                    width: 110,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: p['error'] != null
+                                          ? StatusChip(tr('Erreur'), color: YColors.danger)
+                                          : p['online'] == true
+                                          ? InkWell(
+                                              onTap: () => safeLaunchUrl(Uri.parse('${p['remote_url']}'), webOnlyWindowName: '_blank'),
+                                              child: StatusChip(p['variation'] == true ? 'Variation' : 'En ligne', color: YColors.success),
+                                            )
                                           : (p['published'] == true ? StatusChip(tr('En attente'), color: YColors.warning) : StatusChip(tr('Hors ligne'), color: YColors.muted)),
-                                ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ]),
-                          ),
-                      ]),
+                            ),
+                        ],
+                      ),
                     ),
-                  ]),
-      ),
-    ]);
+                  ],
+                ),
+        ),
+      ],
+    );
   }
 }
 
@@ -648,7 +848,12 @@ class _Thumb extends StatelessWidget {
   const _Thumb();
 
   @override
-  Widget build(BuildContext context) => Container(width: 40, height: 40, color: const Color(0xFFF1ECF8), child: Icon(Icons.image_outlined, size: 18, color: _woo));
+  Widget build(BuildContext context) => Container(
+    width: 40,
+    height: 40,
+    color: const Color(0xFFF1ECF8),
+    child: Icon(Icons.image_outlined, size: 18, color: _woo),
+  );
 }
 
 // ---------------------------------------------------------------------------- commandes
@@ -680,17 +885,25 @@ class _OrdersTabState extends State<_OrdersTab> {
   }
 
   Future<void> _load() async {
-    final r = await api.get('${_Pf.key}/stores/${widget.store['id']}/orders');
-    if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    try {
+      final r = await api.get('${_Pf.key}/stores/${widget.store['id']}/orders');
+      if (mounted) setState(() => _list = [for (final x in (r['data'] as List)) asMap(x)]);
+    } catch (e) {
+      // Hors ligne ou serveur injoignable : on arrête le chargement au lieu de tourner sans fin
+      if (mounted) {
+        setState(() => _list = []);
+        toast(context, e is ApiException ? e.message : tr('Connexion impossible : réessayez plus tard.'), error: true);
+      }
+    }
   }
 
   Color _color(String? s) => switch (s) {
-        'completed' => YColors.success,
-        'processing' => const Color(0xFF1A73E8),
-        'on-hold' => YColors.warning,
-        'cancelled' || 'refunded' || 'failed' => YColors.danger,
-        _ => YColors.muted,
-      };
+    'completed' => YColors.success,
+    'processing' => const Color(0xFF1A73E8),
+    'on-hold' => YColors.warning,
+    'cancelled' || 'refunded' || 'failed' => YColors.danger,
+    _ => YColors.muted,
+  };
 
   Future<void> _status(Map<String, dynamic> o, String st) async {
     try {
@@ -707,83 +920,111 @@ class _OrdersTabState extends State<_OrdersTab> {
     final hint = Theme.of(context).hintColor;
     final can = context.read<Session>().can('woo.manage');
     if (_list == null) return const Center(child: CircularProgressIndicator());
-    if (_list!.isEmpty) return EmptyState(icon: Icons.shopping_bag_outlined, title: tr('Aucune commande importée'), message: tr('Les nouvelles commandes du site apparaîtront ici en quelques secondes.'));
+    if (_list!.isEmpty) {
+      return EmptyState(icon: Icons.shopping_bag_outlined, title: tr('Aucune commande importée'), message: tr('Les nouvelles commandes du site apparaîtront ici en quelques secondes.'));
+    }
     final all = _list!;
     final q = _q.toLowerCase();
     final base = all
         .where((o) => q.isEmpty || '${o['number'] ?? ''} ${o['customer'] ?? ''} ${o['order']?['number'] ?? ''} ${o['invoice']?['number'] ?? ''}'.toLowerCase().contains(q))
         .where((o) => _f['payment'] == null || '${o['payment'] ?? ''}' == _f['payment'])
-        .where((o) => _f['invoice'] == null || switch (_f['invoice']) { 'paid' => o['invoice']?['payment_status'] == 'paid', 'unpaid' => o['invoice'] != null && o['invoice']['payment_status'] != 'paid', _ => o['invoice'] == null })
+        .where(
+          (o) =>
+              _f['invoice'] == null ||
+              switch (_f['invoice']) {
+                'paid' => o['invoice']?['payment_status'] == 'paid',
+                'unpaid' => o['invoice'] != null && o['invoice']['payment_status'] != 'paid',
+                _ => o['invoice'] == null,
+              },
+        )
         .where((o) => _period == null || _period!.contains(o['date']))
         .toList();
     final rows = base.where((o) => _st.isEmpty || '${o['status']}' == _st).toList();
-    final stLabels = {for (final o in all) if (o['status'] != null) '${o['status']}': '${o['status_label'] ?? widget.statuses[o['status']] ?? o['status']}'};
+    final stLabels = {
+      for (final o in all)
+        if (o['status'] != null) '${o['status']}': '${o['status_label'] ?? widget.statuses[o['status']] ?? o['status']}',
+    };
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(padding: const EdgeInsets.all(16), children: [
-        FilterBar(
-          key: ValueKey(_rk),
-          padding: const EdgeInsets.only(bottom: 10),
-          onSearch: (v) => setState(() => _q = v),
-          search: _q,
-          searchHint: 'N°, client, facture…',
-          statuses: {'': 'Toutes', ...stLabels},
-          status: _st,
-          onStatus: (v) => setState(() => _st = v),
-          statusCounts: {'': base.length, for (final k in stLabels.keys) k: base.where((o) => '${o['status']}' == k).length},
-          filters: [
-            FilterSpec('payment', 'Paiement', filterOptions(all, 'payment'), icon: Icons.payments_outlined),
-            const FilterSpec('invoice', 'Facture', {'paid': 'Facture payée', 'unpaid': 'Facture à encaisser', 'none': 'Sans facture'}, icon: Icons.receipt_long_outlined),
-          ],
-          values: _f,
-          onFilter: (k, v) => setState(() => _f = {..._f, k: v}),
-          showPeriod: true,
-          period: _period,
-          onPeriod: (p) => setState(() => _period = p),
-          count: rows.length,
-          countLabel: 'commande',
-          onReset: () => setState(() => (_q = '', _st = '', _f = {}, _period = null, _rk++)),
-        ),
-        if (rows.isEmpty) EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucune commande ne correspond aux filtres')),
-        if (rows.isNotEmpty)
-        Card(
-          child: Column(children: [
-            for (final o in rows)
-              ListTile(
-                leading: CircleAvatar(backgroundColor: _color(o['status'] as String?).withValues(alpha: .12), child: Icon(Icons.shopping_bag_outlined, color: _color(o['status'] as String?), size: 20)),
-                title: Row(children: [
-                  Text(tr('n° ${o['number']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 8),
-                  Flexible(child: Text(tr('${o['customer'] ?? ''}'), overflow: TextOverflow.ellipsis)),
-                ]),
-                subtitle: Text(
-                  tr([
-                    if (o['date'] != null) DateFormat('d MMM HH:mm', 'fr_FR').format(DateTime.parse('${o['date']}')),
-                    if (o['payment'] != null) '${o['payment']}',
-                    if (o['order'] != null) 'Commande ${o['order']['number']}${o['order']['status'] == 'cancelled' ? ' (annulée)' : ''}',
-                    if (o['invoice'] != null) 'Facture ${o['invoice']['number']}${o['invoice']['payment_status'] == 'paid' ? ' payée' : ''}',
-                  ].join(' · ')),
-                  style: TextStyle(color: hint, fontSize: 12.5),
-                ),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(tr(money(o['total'], '${o['currency'] ?? context.read<Session>().currency}')), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 10),
-                  StatusChip('${o['status_label']}', color: _color(o['status'] as String?)),
-                  PopupMenuButton<String>(
-                    onSelected: (v) => v == 'admin' ? safeLaunchUrl(Uri.parse('${o['admin_url']}'), webOnlyWindowName: '_blank') : _status(o, v),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'admin', child: Text(tr('Ouvrir dans ${_Pf.label}'))),
-                      if (can && _Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'paid', child: Text(tr('Marquer payée sur Shopify'))),
-                      if (can && _Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'completed', child: Text(tr('Clôturer sur Shopify'))),
-                      if (can && !_Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'completed', child: Text(tr('Marquer « Terminée » sur le site'))),
-                      if (can && !_Pf.shopify && o['status'] == 'on-hold') PopupMenuItem(value: 'processing', child: Text(tr('Marquer « En cours » sur le site'))),
-                    ],
-                  ),
-                ]),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          FilterBar(
+            key: ValueKey(_rk),
+            padding: const EdgeInsets.only(bottom: 10),
+            onSearch: (v) => setState(() => _q = v),
+            search: _q,
+            searchHint: 'N°, client, facture…',
+            statuses: {'': 'Toutes', ...stLabels},
+            status: _st,
+            onStatus: (v) => setState(() => _st = v),
+            statusCounts: {'': base.length, for (final k in stLabels.keys) k: base.where((o) => '${o['status']}' == k).length},
+            filters: [
+              FilterSpec('payment', 'Paiement', filterOptions(all, 'payment'), icon: Icons.payments_outlined),
+              const FilterSpec('invoice', 'Facture', {'paid': 'Facture payée', 'unpaid': 'Facture à encaisser', 'none': 'Sans facture'}, icon: Icons.receipt_long_outlined),
+            ],
+            values: _f,
+            onFilter: (k, v) => setState(() => _f = {..._f, k: v}),
+            showPeriod: true,
+            period: _period,
+            onPeriod: (p) => setState(() => _period = p),
+            count: rows.length,
+            countLabel: 'commande',
+            onReset: () => setState(() => (_q = '', _st = '', _f = {}, _period = null, _rk++)),
+          ),
+          if (rows.isEmpty) EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucune commande ne correspond aux filtres')),
+          if (rows.isNotEmpty)
+            Card(
+              child: Column(
+                children: [
+                  for (final o in rows)
+                    ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: _color(o['status'] as String?).withValues(alpha: .12),
+                        child: Icon(Icons.shopping_bag_outlined, color: _color(o['status'] as String?), size: 20),
+                      ),
+                      title: Row(
+                        children: [
+                          Text(tr('n° ${o['number']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 8),
+                          Flexible(child: Text(tr('${o['customer'] ?? ''}'), overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                      subtitle: Text(
+                        tr(
+                          [
+                            if (o['date'] != null) DateFormat('d MMM HH:mm', 'fr_FR').format(DateTime.parse('${o['date']}')),
+                            if (o['payment'] != null) '${o['payment']}',
+                            if (o['order'] != null) 'Commande ${o['order']['number']}${o['order']['status'] == 'cancelled' ? ' (annulée)' : ''}',
+                            if (o['invoice'] != null) 'Facture ${o['invoice']['number']}${o['invoice']['payment_status'] == 'paid' ? ' payée' : ''}',
+                          ].join(' · '),
+                        ),
+                        style: TextStyle(color: hint, fontSize: 12.5),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tr(money(o['total'], '${o['currency'] ?? context.read<Session>().currency}')), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 10),
+                          StatusChip('${o['status_label']}', color: _color(o['status'] as String?)),
+                          PopupMenuButton<String>(
+                            onSelected: (v) => v == 'admin' ? safeLaunchUrl(Uri.parse('${o['admin_url']}'), webOnlyWindowName: '_blank') : _status(o, v),
+                            itemBuilder: (_) => [
+                              PopupMenuItem(value: 'admin', child: Text(tr('Ouvrir dans ${_Pf.label}'))),
+                              if (can && _Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'paid', child: Text(tr('Marquer payée sur Shopify'))),
+                              if (can && _Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'completed', child: Text(tr('Clôturer sur Shopify'))),
+                              if (can && !_Pf.shopify && o['status'] != 'completed') PopupMenuItem(value: 'completed', child: Text(tr('Marquer « Terminée » sur le site'))),
+                              if (can && !_Pf.shopify && o['status'] == 'on-hold') PopupMenuItem(value: 'processing', child: Text(tr('Marquer « En cours » sur le site'))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-          ]),
-        ),
-      ]),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -826,39 +1067,50 @@ class _LogsTabState extends State<_LogsTab> {
         .where((l) => _period == null || _period!.contains(DateTime.tryParse('${l['created_at'] ?? ''}')?.toLocal()))
         .toList();
     final rows = base.where((l) => _level.isEmpty || _lv(l) == _level).toList();
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      FilterBar(
-        key: ValueKey(_rk),
-        padding: const EdgeInsets.only(bottom: 10),
-        onSearch: (v) => setState(() => _q = v),
-        search: _q,
-        searchHint: 'Rechercher dans le journal…',
-        statuses: const {'': 'Tout', 'error': 'Erreurs', 'warning': 'Avertissements', 'ok': 'Succès'},
-        status: _level,
-        onStatus: (v) => setState(() => _level = v),
-        statusCounts: {'': base.length, for (final k in ['error', 'warning', 'ok']) k: base.where((l) => _lv(l) == k).length},
-        showPeriod: true,
-        period: _period,
-        onPeriod: (p) => setState(() => _period = p),
-        count: rows.length,
-        countLabel: 'entrée',
-        onReset: () => setState(() => (_q = '', _level = '', _period = null, _rk++)),
-      ),
-      if (rows.isEmpty) EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucune entrée ne correspond aux filtres')),
-      if (rows.isNotEmpty)
-      Card(
-        child: Column(children: [
-          for (final l in rows)
-            ListTile(
-              dense: true,
-              leading: Icon(l['level'] == 'error' ? Icons.error_outline : (l['level'] == 'warning' ? Icons.warning_amber : Icons.check_circle_outline),
-                  color: l['level'] == 'error' ? YColors.danger : (l['level'] == 'warning' ? YColors.warning : YColors.success), size: 20),
-              title: Text(tr('${l['message']}')),
-              trailing: Text(tr(_ago(l['created_at'])), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        FilterBar(
+          key: ValueKey(_rk),
+          padding: const EdgeInsets.only(bottom: 10),
+          onSearch: (v) => setState(() => _q = v),
+          search: _q,
+          searchHint: 'Rechercher dans le journal…',
+          statuses: const {'': 'Tout', 'error': 'Erreurs', 'warning': 'Avertissements', 'ok': 'Succès'},
+          status: _level,
+          onStatus: (v) => setState(() => _level = v),
+          statusCounts: {
+            '': base.length,
+            for (final k in ['error', 'warning', 'ok']) k: base.where((l) => _lv(l) == k).length,
+          },
+          showPeriod: true,
+          period: _period,
+          onPeriod: (p) => setState(() => _period = p),
+          count: rows.length,
+          countLabel: 'entrée',
+          onReset: () => setState(() => (_q = '', _level = '', _period = null, _rk++)),
+        ),
+        if (rows.isEmpty) EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucune entrée ne correspond aux filtres')),
+        if (rows.isNotEmpty)
+          Card(
+            child: Column(
+              children: [
+                for (final l in rows)
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      l['level'] == 'error' ? Icons.error_outline : (l['level'] == 'warning' ? Icons.warning_amber : Icons.check_circle_outline),
+                      color: l['level'] == 'error' ? YColors.danger : (l['level'] == 'warning' ? YColors.warning : YColors.success),
+                      size: 20,
+                    ),
+                    title: Text(tr('${l['message']}')),
+                    trailing: Text(tr(_ago(l['created_at'])), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+                  ),
+              ],
             ),
-        ]),
-      ),
-    ]);
+          ),
+      ],
+    );
   }
 }
 
@@ -889,80 +1141,139 @@ class _SettingsDialogState extends State<_SettingsDialog> {
       content: SizedBox(
         width: 560,
         height: 520,
-        child: ListView(children: [
-          Text(tr('Produits'), style: TextStyle(fontWeight: FontWeight.w800)),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: s['publish_prices'] == true, onChanged: (v) => setState(() => s['publish_prices'] = v), title: Text(tr('Publier les prix du logiciel'))),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: s['publish_stock'] == true, onChanged: (v) => setState(() => s['publish_stock'] = v), title: Text(tr('Publier le stock disponible'))),
-          Row(children: [
-            Expanded(
-              child: TextFormField(
-                initialValue: '${s['stock_buffer'] ?? 0}',
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: tr('Marge de sécurité (unités retenues)')),
-                onChanged: (v) => s['stock_buffer'] = int.tryParse(v) ?? 0,
+        child: ListView(
+          children: [
+            Text(tr('Produits'), style: TextStyle(fontWeight: FontWeight.w800)),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: s['publish_prices'] == true,
+              onChanged: (v) => setState(() => s['publish_prices'] = v),
+              title: Text(tr('Publier les prix du logiciel')),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: s['publish_stock'] == true,
+              onChanged: (v) => setState(() => s['publish_stock'] = v),
+              title: Text(tr('Publier le stock disponible')),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: '${s['stock_buffer'] ?? 0}',
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: tr('Marge de sécurité (unités retenues)')),
+                    onChanged: (v) => s['stock_buffer'] = int.tryParse(v) ?? 0,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: s['warehouse_id'] as String?,
+                    decoration: InputDecoration(labelText: tr('Dépôt du stock publié')),
+                    items: [
+                      DropdownMenuItem(value: null, child: Text(tr('Tous les dépôts'))),
+                      for (final w in widget.warehouses) DropdownMenuItem(value: '${w['id']}', child: Text(tr('${w['name']}'))),
+                    ],
+                    onChanged: (v) => s['warehouse_id'] = v,
+                  ),
+                ),
+              ],
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: '${s['publish_new_as']}',
+              decoration: InputDecoration(labelText: tr('Nouveaux produits créés sur le site')),
+              items: [
+                DropdownMenuItem(value: 'publish', child: Text(tr('Publiés directement'))),
+                DropdownMenuItem(value: 'draft', child: Text(tr('En brouillon (à relire sur le site)'))),
+              ],
+              onChanged: (v) => s['publish_new_as'] = v,
+            ),
+            const SizedBox(height: 16),
+            Text(tr('Commandes'), style: TextStyle(fontWeight: FontWeight.w800)),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: s['import_orders'] == true,
+              onChanged: (v) => setState(() => s['import_orders'] = v),
+              title: Text(tr('Importer les commandes du site')),
+            ),
+            Text(tr('Statuts importés :'), style: TextStyle(color: hint, fontSize: 12.5)),
+            Wrap(
+              spacing: 6,
+              children: [
+                for (final k in const ['pending', 'processing', 'on-hold', 'completed'])
+                  FilterChip(label: Text(tr('${widget.statuses[k] ?? k}')), selected: _st.contains(k), onSelected: (v) => setState(() => v ? _st.add(k) : _st.remove(k))),
+              ],
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: s['invoice_paid'] == true,
+              onChanged: (v) => setState(() => s['invoice_paid'] = v),
+              title: Text(tr('Facturer et encaisser les commandes payées')),
+              subtitle: Text(tr('Paiement en ligne, ou commande terminée sur le site')),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: s['push_status'] == true,
+              onChanged: (v) => setState(() => s['push_status'] = v),
+              title: Text(tr('Renvoyer le statut au site')),
+              subtitle: Text(
+                tr(
+                  _Pf.shopify ? 'Commande marquée payée sur Shopify dès l\'encaissement dans le logiciel' : 'À la livraison : « Terminée » une fois encaissée ; virement : « En cours » une fois reçu',
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String?>(
-                initialValue: s['warehouse_id'] as String?,
-                decoration: InputDecoration(labelText: tr('Dépôt du stock publié')),
-                items: [DropdownMenuItem(value: null, child: Text(tr('Tous les dépôts'))), for (final w in widget.warehouses) DropdownMenuItem(value: '${w['id']}', child: Text(tr('${w['name']}')))],
-                onChanged: (v) => s['warehouse_id'] = v,
+            TextFormField(
+              initialValue: '${s['order_prefix'] ?? 'WOO'}',
+              decoration: InputDecoration(labelText: tr('Préfixe de la référence des commandes')),
+              onChanged: (v) => s['order_prefix'] = v.trim(),
+            ),
+            const SizedBox(height: 16),
+            Text(tr('Connexion'), style: TextStyle(fontWeight: FontWeight.w800)),
+            SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: _paused, onChanged: (v) => setState(() => _paused = v), title: Text(tr('Mettre la synchronisation en pause'))),
+            SelectableText(tr('Webhook : ${widget.store['webhook_url']}'), style: TextStyle(color: hint, fontSize: 12)),
+            if (widget.store['webhook_error'] != null) Text(tr('${widget.store['webhook_error']}'), style: const TextStyle(color: YColors.warning, fontSize: 12)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  try {
+                    await api.postLong('${_Pf.key}/stores/${widget.store['id']}/sync', {'what': 'webhooks'});
+                    if (context.mounted) toast(context, tr('Webhooks vérifiés.'));
+                  } catch (e) {
+                    if (context.mounted) toast(context, errorText(e), error: true);
+                  }
+                },
+                icon: const Icon(Icons.bolt, size: 18),
+                label: Text(tr('Recréer les webhooks')),
               ),
             ),
-          ]),
-          DropdownButtonFormField<String>(
-            initialValue: '${s['publish_new_as']}',
-            decoration: InputDecoration(labelText: tr('Nouveaux produits créés sur le site')),
-            items: [DropdownMenuItem(value: 'publish', child: Text(tr('Publiés directement'))), DropdownMenuItem(value: 'draft', child: Text(tr('En brouillon (à relire sur le site)')))],
-            onChanged: (v) => s['publish_new_as'] = v,
-          ),
-          const SizedBox(height: 16),
-          Text(tr('Commandes'), style: TextStyle(fontWeight: FontWeight.w800)),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: s['import_orders'] == true, onChanged: (v) => setState(() => s['import_orders'] = v), title: Text(tr('Importer les commandes du site'))),
-          Text(tr('Statuts importés :'), style: TextStyle(color: hint, fontSize: 12.5)),
-          Wrap(spacing: 6, children: [
-            for (final k in const ['pending', 'processing', 'on-hold', 'completed'])
-              FilterChip(label: Text(tr('${widget.statuses[k] ?? k}')), selected: _st.contains(k), onSelected: (v) => setState(() => v ? _st.add(k) : _st.remove(k))),
-          ]),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: s['invoice_paid'] == true, onChanged: (v) => setState(() => s['invoice_paid'] = v), title: Text(tr('Facturer et encaisser les commandes payées')), subtitle: Text(tr('Paiement en ligne, ou commande terminée sur le site'))),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: s['push_status'] == true, onChanged: (v) => setState(() => s['push_status'] = v), title: Text(tr('Renvoyer le statut au site')), subtitle: Text(tr(_Pf.shopify ? 'Commande marquée payée sur Shopify dès l\'encaissement dans le logiciel' : 'À la livraison : « Terminée » une fois encaissée ; virement : « En cours » une fois reçu'))),
-          TextFormField(initialValue: '${s['order_prefix'] ?? 'WOO'}', decoration: InputDecoration(labelText: tr('Préfixe de la référence des commandes')), onChanged: (v) => s['order_prefix'] = v.trim()),
-          const SizedBox(height: 16),
-          Text(tr('Connexion'), style: TextStyle(fontWeight: FontWeight.w800)),
-          SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: _paused, onChanged: (v) => setState(() => _paused = v), title: Text(tr('Mettre la synchronisation en pause'))),
-          SelectableText(tr('Webhook : ${widget.store['webhook_url']}'), style: TextStyle(color: hint, fontSize: 12)),
-          if (widget.store['webhook_error'] != null) Text(tr('${widget.store['webhook_error']}'), style: const TextStyle(color: YColors.warning, fontSize: 12)),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () async {
-                try {
-                  await api.postLong('${_Pf.key}/stores/${widget.store['id']}/sync', {'what': 'webhooks'});
-                  if (context.mounted) toast(context, tr('Webhooks vérifiés.'));
-                } catch (e) {
-                  if (context.mounted) toast(context, errorText(e), error: true);
-                }
-              },
-              icon: const Icon(Icons.bolt, size: 18),
-              label: Text(tr('Recréer les webhooks')),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final ok = await confirm(
+                    context,
+                    tr('Déconnecter la boutique ?'),
+                    tr('Les produits restent sur le site, mais ne seront plus mis à jour ; les commandes déjà importées restent dans les Ventes.'),
+                    ok: tr('Déconnecter'),
+                    danger: true,
+                  );
+                  if (!ok) return;
+                  await api.delete('${_Pf.key}/stores/${widget.store['id']}');
+                  if (context.mounted) Navigator.pop(context, true);
+                },
+                icon: const Icon(Icons.link_off, size: 18, color: YColors.danger),
+                label: Text(tr('Déconnecter la boutique'), style: TextStyle(color: YColors.danger)),
+              ),
             ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () async {
-                final ok = await confirm(context, tr('Déconnecter la boutique ?'), tr('Les produits restent sur le site, mais ne seront plus mis à jour ; les commandes déjà importées restent dans les Ventes.'), ok: tr('Déconnecter'), danger: true);
-                if (!ok) return;
-                await api.delete('${_Pf.key}/stores/${widget.store['id']}');
-                if (context.mounted) Navigator.pop(context, true);
-              },
-              icon: const Icon(Icons.link_off, size: 18, color: YColors.danger),
-              label: Text(tr('Déconnecter la boutique'), style: TextStyle(color: YColors.danger)),
-            ),
-          ),
-        ]),
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
@@ -970,7 +1281,10 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           style: FilledButton.styleFrom(backgroundColor: _woo),
           onPressed: () async {
             try {
-              await api.put('${_Pf.key}/stores/${widget.store['id']}', {'status': _paused ? 'paused' : 'active', 'settings': {...s, 'import_statuses': _st.toList()}});
+              await api.put('${_Pf.key}/stores/${widget.store['id']}', {
+                'status': _paused ? 'paused' : 'active',
+                'settings': {...s, 'import_statuses': _st.toList()},
+              });
               if (context.mounted) {
                 Navigator.pop(context, true);
                 toast(context, tr('Réglages enregistrés.'));

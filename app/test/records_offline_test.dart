@@ -24,7 +24,7 @@ class FakeApi extends ApiClient {
   }
 
   @override
-  Future<dynamic> post(String path, [Object? body]) async {
+  Future<dynamic> post(String path, [Object? body, Map<String, String>? headers]) async {
     _net();
     final b = body as Map<String, dynamic>?;
     calls.add('POST $path ${b?['title'] ?? b?['km'] ?? ''}');
@@ -33,14 +33,14 @@ class FakeApi extends ApiClient {
   }
 
   @override
-  Future<dynamic> put(String path, [Object? body]) async {
+  Future<dynamic> put(String path, [Object? body, Map<String, String>? headers]) async {
     _net();
     calls.add('PUT $path ${(body as Map?)?['status'] ?? ''}');
     return {'data': body};
   }
 
   @override
-  Future<dynamic> delete(String path, [Object? body]) async {
+  Future<dynamic> delete(String path, [Object? body, Map<String, String>? headers]) async {
     _net();
     calls.add('DELETE $path');
     return null;

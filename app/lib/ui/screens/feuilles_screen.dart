@@ -212,7 +212,7 @@ class _EntryTile extends StatelessWidget {
       dense: true,
       leading: Icon(ttSourceIcons[r['source']] ?? Icons.schedule, color: YColors.blue),
       title: Text(tr('${r['label']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(tr([DateFormat('EEE d MMM', I18n.dateLocale).format(DateTime.parse('${r['date']}')), ttSourceLabels[r['source']] ?? '', if ('${r['detail'] ?? ''}'.isNotEmpty) '${r['detail']}', if (r['billable'] != true) 'non facturable'].join(' · ')),
+      subtitle: Text(tr([if (DateTime.tryParse('${r['date']}') case final d?) DateFormat('EEE d MMM', I18n.dateLocale).format(d), ttSourceLabels[r['source']] ?? '', if ('${r['detail'] ?? ''}'.isNotEmpty) '${r['detail']}', if (r['billable'] != true) 'non facturable'].join(' · ')),
           maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: Text(tr(ttH(toDouble(r['hours']))), style: const TextStyle(fontWeight: FontWeight.w800)),
     );

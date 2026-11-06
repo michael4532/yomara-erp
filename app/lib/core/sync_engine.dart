@@ -24,6 +24,16 @@ class SyncIssue {
   final String status; // conflict | rejected
   final String message;
   final DateTime at;
+
+  Map<String, dynamic> toJson() => {'entity': entity, 'record_id': recordId, 'status': status, 'message': message, 'at': at.toIso8601String()};
+
+  static SyncIssue fromJson(Map m) => SyncIssue(
+    entity: '${m['entity']}',
+    recordId: '${m['record_id']}',
+    status: '${m['status']}',
+    message: '${m['message']}',
+    at: DateTime.tryParse('${m['at']}') ?? DateTime.now(),
+  );
 }
 
 /// Moteur de synchronisation hors ligne.
@@ -60,6 +70,7 @@ class SyncEngine extends ChangeNotifier {
   int get pendingCount => (LocalDb.isOpen ? LocalDb.outbox().length : 0) + RecordsOffline.queued;
 
   void start() {
+    _loadIssues();
     _timer?.cancel();
     _timer = Timer.periodic(AppConfig.syncInterval, (_) => sync());
     _connSub?.cancel();
@@ -282,8 +293,15 @@ class SyncEngine extends ChangeNotifier {
           final pending = _pendingFor(entity, recordId);
           if (pending?['_deleted'] == true) continue;
           await LocalDb.put(entity, {...record, ...?pending, if (pending != null) '_local': true});
-        } else if (status == 'applied' || record == null) {
+        } else if (status == 'applied' || result['deleted'] == true) {
           await LocalDb.remove(entity, recordId);
+        } else if (status == 'rejected') {
+          // Refusé par le serveur (droits, module, validation) : on garde la saisie sur l'appareil,
+          // marquée, au lieu de l'effacer (ex. vente de caisse faite hors ligne).
+          final local = LocalDb.get(entity, recordId);
+          if (local != null) {
+            await LocalDb.put(entity, {...local, '_local': true, '_rejected': '${result['message'] ?? 'Refusé par le serveur'}'});
+          }
         }
 
         if (status != 'applied') {
@@ -305,6 +323,7 @@ class SyncEngine extends ChangeNotifier {
           if (issues.length > 50) issues.removeLast();
         }
       }
+      await _saveIssues();
       notifyListeners();
     }
   }
@@ -366,6 +385,25 @@ class SyncEngine extends ChangeNotifier {
 
   void clearIssues() {
     issues.clear();
+    _saveIssues();
     notifyListeners();
+  }
+
+  // Les alertes de synchro survivent au redémarrage de l'application (conservées sur l'appareil).
+  void _loadIssues() {
+    if (!LocalDb.isOpen) return;
+    try {
+      final raw = LocalDb.state().get('sync_issues');
+      issues
+        ..clear()
+        ..addAll([for (final m in (raw is String ? jsonDecode(raw) as List : const [])) SyncIssue.fromJson(m as Map)]);
+    } catch (_) {}
+  }
+
+  Future<void> _saveIssues() async {
+    if (!LocalDb.isOpen) return;
+    try {
+      await LocalDb.state().put('sync_issues', jsonEncode([for (final i in issues) i.toJson()]));
+    } catch (_) {}
   }
 }

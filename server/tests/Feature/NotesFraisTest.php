@@ -78,6 +78,10 @@ class NotesFraisTest extends TestCase
         // Refus : motif obligatoire ; le salarié corrige (repasse en brouillon) puis renvoie
         $this->assertSame('rejected', $push($paulApi, [['entity' => 'nf_expenses', 'record_id' => $x2, 'data' => ['status' => 'rejected']]])[0]['status']);
         $push($paulApi, [['entity' => 'nf_expenses', 'record_id' => $x2, 'data' => ['status' => 'rejected', 'decision_note' => 'Plafond repas 15 000 F : merci de corriger']]]);
+        // Une collègue ne peut pas supprimer cette note (synchronisation hors ligne) : seulement ce qu'elle voit
+        $del = $awaApi()->postJson('/api/sync/push', ['mutations' => [['id' => $this->uuid(), 'op' => 'delete', 'entity' => 'nf_expenses', 'record_id' => $x2]]])->assertOk()->json('results.0');
+        $this->assertSame('rejected', $del['status']);
+        $this->assertTrue(\App\Modules\NotesFrais\Models\Expense::withoutGlobalScopes()->whereKey($x2)->exists());
         $this->assertStringContainsString('Plafond repas', AppNotification::withoutGlobalScopes()->where('user_id', $kofi->id)->where('title', 'Note de frais refusée')->value('body'));
         $r = $push($kofiApi, [['entity' => 'nf_expenses', 'record_id' => $x2, 'data' => ['amount' => 15000, 'description' => 'Déjeuner client (part plafonnée)']]])[0];
         $this->assertSame('draft', $r['record']['status']);

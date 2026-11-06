@@ -40,6 +40,8 @@ const _weekdays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 
 class RapportsMeta {
   static Map<String, dynamic>? _meta;
 
+  static void reset() => _meta = null;
+
   static Map<String, dynamic>? get cached {
     if (_meta != null) return _meta;
     try {

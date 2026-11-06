@@ -56,6 +56,9 @@ android {
             signingConfig = when {
                 keystorePropertiesFile.exists() -> signingConfigs.getByName("release")
                 System.getenv("YOMARA_UNSIGNED") != null -> null // signé ensuite sur le poste qui détient la clé
+                // Sans la clé Yomara, pas de version publiable signée avec la clé de débogage (impossible à mettre à jour ensuite)
+                gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) } ->
+                    throw GradleException("android/key.properties manquant : lancez scripts/generer-keystore.sh ou définissez YOMARA_UNSIGNED=1.")
                 else -> signingConfigs.getByName("debug")
             }
         }

@@ -17,6 +17,12 @@ class ImapClient
 
     public function connect(string $user, string $password): void
     {
+        // En SaaS : pas de connexion vers le réseau interne de la plateforme (même garde que la Boîte mail)
+        try {
+            \App\Modules\Mailbox\Protocol\ImapClient::guardHost($this->host);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException($e->getMessage());
+        }
         $remote = ($this->encryption === 'ssl' ? 'ssl://' : 'tcp://').$this->host.':'.$this->port;
         $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true]]);
         $s = @stream_socket_client($remote, $errno, $err, $this->timeout, STREAM_CLIENT_CONNECT, $ctx);

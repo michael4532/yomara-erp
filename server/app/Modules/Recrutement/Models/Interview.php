@@ -90,4 +90,13 @@ class Interview extends Model
                 ($app ? $app->first_name.' '.$app->last_name : 'Candidat').' — '.$this->starts_at->format('d/m/Y à H:i').($this->location ? ' · '.$this->location : ''), 'recrutement', $this->id);
         }
     }
+
+    /** Suppression (y compris par la synchronisation hors ligne) réservée aux responsables. */
+    public function beforeEntityDelete(): void
+    {
+        $user = auth()->user();
+        if ($user && ! $user->hasPermission('recrutement.manage')) {
+            throw new \DomainException('Seuls les responsables du recrutement peuvent supprimer un entretien.');
+        }
+    }
 }

@@ -11,6 +11,7 @@
 <meta property="og:title" content="{{ $appName }}">
 <meta property="og:description" content="Le logiciel de gestion complet, même sans connexion.">
 <meta property="og:image" content="{{ url('/landing/tableau-de-bord.webp') }}">
+<link rel="canonical" href="{{ url()->current() }}">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face{font-family:"Bricolage Grotesque";src:url(/fonts/bricolage.woff2) format("woff2-variations"),url(/fonts/bricolage.woff2) format("woff2");font-weight:200 800;font-display:swap}

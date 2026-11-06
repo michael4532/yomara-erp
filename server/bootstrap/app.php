@@ -25,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\SecurityHeaders::class);
         // Pas de page de connexion Laravel : un invité reçoit un 401 JSON (API) ou est renvoyé vers l'application
         $middleware->redirectGuestsTo(fn ($request) => $request->is('api/*') ? null : url('/app/'));
-        $middleware->api(append: [\App\Http\Middleware\ApiKeyScope::class, \App\Http\Middleware\SetLocale::class]);
+        $middleware->api(append: [\App\Http\Middleware\ApiKeyScope::class, \App\Http\Middleware\SetLocale::class, \App\Http\Middleware\Idempotency::class]);
         $middleware->alias([
             'installed' => \App\Http\Middleware\EnsureInstalled::class,
             'tenant' => \App\Http\Middleware\SetTenant::class,

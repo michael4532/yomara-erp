@@ -37,6 +37,18 @@ Route::middleware('weblang')->group(function () {
     Route::get('telecharger/{os}', [\App\Http\Controllers\LandingController::class, 'download'])->whereIn('os', [...array_keys(\App\Http\Controllers\LandingController::PLATFORMS), 'serveur', 'source', 'github']);
     Route::get('telecharger/{os}/fichier', [\App\Http\Controllers\LandingController::class, 'downloadFile'])->whereIn('os', ['windows', 'mac', 'linux', 'android']);
 });
+Route::get('robots.txt', fn () => response("User-agent: *\nDisallow: /api/\nDisallow: /app/\n\nSitemap: ".rtrim((string) config('app.url'), '/')."/sitemap.xml\n", 200, ['Content-Type' => 'text/plain']));
+// Plan du site pour les moteurs de recherche (pages publiques du site de présentation)
+Route::get('sitemap.xml', function () {
+    $base = rtrim((string) config('app.url'), '/');
+    $pages = ['/', '/modules', '/tarifs', '/telecharger', '/contact', '/inscription', '/confidentialite'];
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n".'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    foreach ($pages as $p) {
+        $xml .= '<url><loc>'.e($base.($p === '/' ? '/' : $p)).'</loc><changefreq>weekly</changefreq><priority>'.($p === '/' ? '1.0' : '0.7').'</priority></url>';
+    }
+
+    return response($xml.'</urlset>', 200, ['Content-Type' => 'application/xml']);
+});
 Route::get('/scan', fn () => redirect('/scan/')); // Yomara Scan : contrôle d'entrée (public/scan)
 
 // Paiement en ligne d'une facture par le client final (lien partagé par la société)

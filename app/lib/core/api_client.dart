@@ -94,15 +94,15 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => http.get(_uri(path, query), headers: _headers));
 
-  Future<dynamic> post(String path, [Object? body]) =>
-      _send(() => http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? {})));
+  Future<dynamic> post(String path, [Object? body, Map<String, String>? headers]) =>
+      _send(() => http.post(_uri(path), headers: {..._headers, ...?headers}, body: jsonEncode(body ?? {})));
 
   /// Traitement long côté serveur (import de milliers de lignes…).
   Future<dynamic> postLong(String path, [Object? body]) =>
       _send(() => http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? {})), timeout: const Duration(minutes: 10));
 
-  Future<dynamic> put(String path, [Object? body]) =>
-      _send(() => http.put(_uri(path), headers: _headers, body: jsonEncode(body ?? {})));
+  Future<dynamic> put(String path, [Object? body, Map<String, String>? headers]) =>
+      _send(() => http.put(_uri(path), headers: {..._headers, ...?headers}, body: jsonEncode(body ?? {})));
 
   /// Réponse brute (fichiers : CSV, PDF…).
   Future<List<int>> download(String path, {Map<String, dynamic>? query}) async {
@@ -136,8 +136,8 @@ class ApiClient {
     throw ApiException(msg, status: res.statusCode);
   }
 
-  Future<dynamic> delete(String path, [Object? body]) =>
-      _send(() => http.delete(_uri(path), headers: _headers, body: body == null ? null : jsonEncode(body)));
+  Future<dynamic> delete(String path, [Object? body, Map<String, String>? headers]) =>
+      _send(() => http.delete(_uri(path), headers: {..._headers, ...?headers}, body: body == null ? null : jsonEncode(body)));
 
   /// Envoi d'un fichier (formulaire multipart).
   Future<dynamic> upload(String path, String field, List<int> bytes, String filename) => _send(() async {

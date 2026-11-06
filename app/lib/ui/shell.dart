@@ -1642,7 +1642,7 @@ class _TopBar extends StatelessWidget {
                   context,
                   tr('Se déconnecter ?'),
                   pending > 0
-                      ? '$pending saisie(s) ne sont pas encore envoyées au serveur : elles seront perdues.'
+                      ? '$pending saisie(s) ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à votre prochaine connexion.'
                       : 'Vous pourrez vous reconnecter à tout moment.',
                   ok: tr('Déconnexion'),
                   danger: pending > 0,

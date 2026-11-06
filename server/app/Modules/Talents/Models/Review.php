@@ -214,4 +214,13 @@ class Review extends Model
 
         return $a;
     }
+
+    /** Suppression (y compris par la synchronisation hors ligne) réservée aux responsables. */
+    public function beforeEntityDelete(): void
+    {
+        $user = auth()->user();
+        if ($user && ! $user->hasPermission('talents.manage')) {
+            throw new \DomainException('Seuls les responsables RH peuvent supprimer une évaluation.');
+        }
+    }
 }

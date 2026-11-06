@@ -342,8 +342,8 @@ class _LicenseLocalScreenState extends State<LicenseLocalScreen> {
                 ]),
             ]),
           )),
-          const SizedBox(height: 12),
-          padded(SectionCard(
+          if (!AppConfig.purchasesHidden) const SizedBox(height: 12),
+          if (!AppConfig.purchasesHidden) padded(SectionCard(
             title: 'Ajouter des modules payants',
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               for (final (n, s) in const [
@@ -408,8 +408,8 @@ class _LicenseLocalScreenState extends State<LicenseLocalScreen> {
                       trailing: _expiry(mods[k]['expires_at']),
                     ),
                   ),
-              const Divider(height: 26),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (!AppConfig.purchasesHidden) const Divider(height: 26),
+              if (!AppConfig.purchasesHidden) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Icon(Icons.info_outline_rounded, size: 18, color: YColors.blue),
                 const SizedBox(width: 10),
                 Expanded(

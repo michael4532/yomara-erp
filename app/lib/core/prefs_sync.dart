@@ -19,6 +19,13 @@ class PrefsSync {
     _timer = Timer(const Duration(milliseconds: 1200), flush);
   }
 
+  /// Déconnexion : rien de la session précédente ne doit partir dans le compte suivant.
+  static void reset() {
+    _timer?.cancel();
+    _pending.clear();
+    sender = null;
+  }
+
   static Future<void> flush() async {
     final s = sender;
     if (s == null || _pending.isEmpty) return;

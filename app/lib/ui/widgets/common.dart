@@ -854,7 +854,7 @@ Future<T?> showSidePanel<T>(BuildContext context, {required String title, requir
   final dark = theme.brightness == Brightness.dark;
   return showGeneralDialog<T>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false, // un clic à côté ne fait pas perdre la saisie
     barrierLabel: tr('Fermer'),
     barrierColor: (dark ? Colors.black : YColors.night).withValues(alpha: .28),
     transitionDuration: const Duration(milliseconds: 260),

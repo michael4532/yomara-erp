@@ -56,15 +56,18 @@ class RecordsOffline {
     // Fiche créée hors ligne et pas encore envoyée : on modifie la demande en attente
     final local = RegExp(r'/(local-\d+)(/|$)').firstMatch(path)?.group(1);
     if (local != null) return _editQueued(local, method, path, body);
+    // Même clé pour l'envoi et ses éventuels renvois : le serveur ne crée pas deux fois la fiche
+    // si la première demande est arrivée mais que la réponse s'est perdue (délai dépassé).
+    final id = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final idem = {'Idempotency-Key': id};
     try {
       return switch (method) {
-        'POST' => await api.post(path, body),
-        'PUT' => await api.put(path, body),
-        _ => await api.delete(path, body),
+        'POST' => await api.post(path, body, idem),
+        'PUT' => await api.put(path, body, idem),
+        _ => await api.delete(path, body, idem),
       };
     } catch (e) {
       if (!_network(e) || !LocalDb.isOpen) rethrow;
-      final id = 'local-${DateTime.now().microsecondsSinceEpoch}';
       final q = await _queue();
       await q.put(id, jsonEncode({'id': id, 'method': method, 'path': path, 'body': body, 'label': label, 'at': DateTime.now().toIso8601String()}));
       await _count();
@@ -125,17 +128,19 @@ class RecordsOffline {
         final e = asMap(jsonDecode(q.get(k)!));
         final body = (e['body'] as Map?)?.cast<String, dynamic>();
         try {
+          final idem = {'Idempotency-Key': '${e['id'] ?? k}'};
           switch (e['method']) {
             case 'POST':
-              await api.post('${e['path']}', body);
+              await api.post('${e['path']}', body, idem);
             case 'PUT':
-              await api.put('${e['path']}', body);
+              await api.put('${e['path']}', body, idem);
             default:
-              await api.delete('${e['path']}', body);
+              await api.delete('${e['path']}', body, idem);
           }
           n++;
         } catch (err) {
-          if (_network(err)) break;
+          // Réseau coupé, serveur en maintenance (5xx) ou trop de demandes : on réessaiera plus tard
+          if (_network(err) || (err is ApiException && ((err.status ?? 0) >= 500 || err.status == 429))) break;
           (await _failed()).put('$k', jsonEncode({...e, 'error': err is ApiException ? err.detail : '$err'}));
         }
         await q.delete(k);
