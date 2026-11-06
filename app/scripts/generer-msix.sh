@@ -14,7 +14,7 @@
 set -euo pipefail
 REPO="${YOMARA_REPO:-michael4532/yomara-erp}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/sorties/msix"
+OUT="${MSIX_OUT:-$ROOT/sorties/msix}"
 
 command -v gh >/dev/null 2>&1 || { echo "Installez GitHub CLI : brew install gh, puis gh auth login" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "Connectez-vous d'abord : gh auth login" >&2; exit 1; }
