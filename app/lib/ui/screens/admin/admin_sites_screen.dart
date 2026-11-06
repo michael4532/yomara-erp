@@ -193,52 +193,52 @@ class _AdminSitesScreenState extends State<AdminSitesScreen> {
     ];
     final note = TextEditingController(text: '${r['admin_note'] ?? ''}');
     final disc = TextEditingController(text: '${toDouble(r['quote']?['discount_percent']).round()}');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(builder: (c, set) {
+    final ok = await showFormDialog<bool>(context, title: 'Devis — ${r['company']?['name']}', maxWidth: 728, builder: (c) => StatefulBuilder(builder: (c, set) {
         final sub = lines.fold<double>(0, (s, l) => s + toDouble(l['quantity']!.text) * toDouble(l['unit_price']!.text)) * (1 - toDouble(disc.text) / 100);
-        return YAlertDialog(
-          title: Text(tr('Devis — ${r['company']?['name']}')),
-          content: SizedBox(
-            width: 680,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                for (final (i, l) in lines.indexed)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(children: [
-                      Expanded(flex: 5, child: TextField(controller: l['description'], decoration: InputDecoration(isDense: true, labelText: tr('Désignation')))),
-                      const SizedBox(width: 8),
-                      SizedBox(width: 60, child: TextField(controller: l['quantity'], onChanged: (_) => set(() {}), keyboardType: TextInputType.number, decoration: InputDecoration(isDense: true, labelText: tr('Qté')))),
-                      const SizedBox(width: 8),
-                      SizedBox(width: 110, child: TextField(controller: l['unit_price'], onChanged: (_) => set(() {}), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: InputDecoration(isDense: true, labelText: tr('Prix HT')))),
-                      IconButton(onPressed: () => set(() => lines.removeAt(i)), icon: const Icon(Icons.close, size: 18)),
-                    ]),
-                  ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => set(() => lines.add({'description': TextEditingController(), 'quantity': TextEditingController(text: '1'), 'unit_price': TextEditingController(text: '0')})),
-                    icon: const Icon(Icons.add),
-                    label: Text(tr('Ligne')),
-                  ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              for (final (i, l) in lines.indexed)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    Expanded(flex: 5, child: TextField(controller: l['description'], decoration: InputDecoration(isDense: true, labelText: tr('Désignation')))),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 60, child: TextField(controller: l['quantity'], onChanged: (_) => set(() {}), keyboardType: TextInputType.number, decoration: InputDecoration(isDense: true, labelText: tr('Qté')))),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 110, child: TextField(controller: l['unit_price'], onChanged: (_) => set(() {}), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: InputDecoration(isDense: true, labelText: tr('Prix HT')))),
+                    IconButton(onPressed: () => set(() => lines.removeAt(i)), icon: const Icon(Icons.close, size: 18)),
+                  ]),
                 ),
-                Row(children: [
-                  SizedBox(width: 120, child: TextField(controller: disc, onChanged: (_) => set(() {}), keyboardType: TextInputType.number, decoration: InputDecoration(isDense: true, labelText: tr('Remise %')))),
-                  const Spacer(),
-                  Text(tr('Total HT : ${money(sub.roundToDouble(), cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                ]),
-                const SizedBox(height: 10),
-                TextField(controller: note, maxLines: 3, decoration: InputDecoration(labelText: tr('Note pour le client (délais, conditions…)'))),
-                const SizedBox(height: 8),
-                Text(tr('Le devis est émis dans les Ventes de la société prestataire (fiche client créée si besoin) ; le client l\'accepte depuis son ERP.'), style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12.5)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => set(() => lines.add({'description': TextEditingController(), 'quantity': TextEditingController(text: '1'), 'unit_price': TextEditingController(text: '0')})),
+                  icon: const Icon(Icons.add),
+                  label: Text(tr('Ligne')),
+                ),
+              ),
+              Row(children: [
+                SizedBox(width: 120, child: TextField(controller: disc, onChanged: (_) => set(() {}), keyboardType: TextInputType.number, decoration: InputDecoration(isDense: true, labelText: tr('Remise %')))),
+                const Spacer(),
+                Text(tr('Total HT : ${money(sub.roundToDouble(), cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ]),
+              const SizedBox(height: 10),
+              TextField(controller: note, maxLines: 3, decoration: InputDecoration(labelText: tr('Note pour le client (délais, conditions…)'))),
+              const SizedBox(height: 8),
+              Text(tr('Le devis est émis dans les Ventes de la société prestataire (fiche client créée si besoin) ; le client l\'accepte depuis son ERP.'), style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12.5)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Émettre le devis'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Émettre le devis')))],
+          ]),
         );
-      }),
-    );
+      }));
     if (ok != true) return;
     await _act('admin/sites/requests/${r['id']}/quote', {
       'lines': [for (final l in lines) if (l['description']!.text.trim().isNotEmpty) {'description': l['description']!.text.trim(), 'quantity': toDouble(l['quantity']!.text), 'unit_price': toDouble(l['unit_price']!.text)}],

@@ -808,7 +808,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
   }
 
   Future<void> _settings() async {
-    await showDialog(context: context, builder: (_) => _WaSettings(info: _info!));
+    await showFormDialog(context, title: 'Paramètres WhatsApp', maxWidth: 728, builder: (_) => _WaSettings(info: _info!));
     await _loadInfo();
   }
 }
@@ -967,126 +967,132 @@ class _WaSettingsState extends State<_WaSettings> {
   Widget build(BuildContext context) {
     final quick = [for (final q in (d['quick_replies'] as List? ?? const [])) asMap(q)];
     final templates = [for (final t in (d['templates'] as List? ?? const [])) asMap(t)];
-    return YAlertDialog(
-      title: Text(tr('Paramètres WhatsApp')),
-      content: SizedBox(
-        width: 680,
-        height: 560,
-        child: DefaultTabController(
-          length: 5,
-          child: Column(children: [
-            TabBar(isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8), tabAlignment: TabAlignment.start, tabs: [
-              Tab(text: tr('Connexion')), Tab(text: tr('Accueil & horaires')), Tab(text: tr('Réponses rapides')), Tab(text: tr('Modèles')), Tab(text: tr('Lien « Discuter »')),
-            ]),
-            Expanded(
-              child: TabBarView(children: [
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(d['provider'] == null ? Icons.link_off : Icons.check_circle, color: d['provider'] == null ? YColors.warning : YColors.success),
-                    title: Text(tr(d['provider'] == null ? 'Aucun fournisseur WhatsApp' : '${d['provider_label']}')),
-                    subtitle: Text(tr('Le fournisseur et ses clés se règlent dans Paramètres › Canaux d\'envoi.')),
-                  ),
-                  Text(tr('Adresse de réception à déclarer chez votre fournisseur :'), style: TextStyle(fontWeight: FontWeight.w700)),
-                  _copy('URL du webhook (rappel)', '${d['webhook_url']}'),
-                  if (d['verify_token'] != null) _copy('Jeton de vérification (Meta)', '${d['verify_token']}'),
-                  const SizedBox(height: 6),
-                  Text(
-                    tr('• Meta (API Cloud) : developers.facebook.com › votre application › WhatsApp › Configuration › Webhook : collez l\'URL et le jeton, abonnez « messages ». '
-                    'Renseignez aussi la clé secrète de l\'application et le WhatsApp Business Account ID dans Canaux d\'envoi.\n'
-                    '• UltraMsg : tableau de bord › Instance › Webhook URL, cochez « message received » et « message ack ».\n'
-                    '• Green API : console › Instance › Réglages › URL du webhook, activez les messages entrants et les statuts.'),
-                    style: TextStyle(fontSize: 12.5, height: 1.5),
-                  ),
-                ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _auto, onChanged: (v) => setState(() => _auto = v), title: Text(tr('Attribuer automatiquement les nouvelles conversations')),
-                      subtitle: Text(tr('À tour de rôle entre les personnes qui ont accès à WhatsApp'))),
-                  TextField(controller: _welcome, minLines: 2, maxLines: 4, decoration: InputDecoration(labelText: tr('Message d\'accueil (première conversation)'), helperText: tr('Variables : {nom}, {societe}, {horaires}'))),
-                  TextField(controller: _away, minLines: 2, maxLines: 4, decoration: InputDecoration(labelText: tr('Message d\'absence (hors horaires, une fois par 12 h)'))),
-                  const SizedBox(height: 12),
-                  Text(tr('Horaires d\'ouverture'), style: TextStyle(fontWeight: FontWeight.w700)),
-                  for (var i = 1; i <= 7; i++)
-                    Row(children: [
-                      SizedBox(width: 110, child: Text(tr(_days[i - 1]))),
-                      Switch(value: _hours['$i'] != null, onChanged: (v) => setState(() => _hours['$i'] = v ? ['08:00', '18:00'] : null)),
-                      if (_hours['$i'] != null) ...[
-                        for (final k in [0, 1])
-                          TextButton(
-                            onPressed: () async {
-                              final parts = _hours['$i']![k].split(':');
-                              final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
-                              if (t != null) setState(() => _hours['$i']![k] = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
-                            },
-                            child: Text(tr(k == 0 ? 'de ${_hours['$i']![0]}' : 'à ${_hours['$i']![1]}')),
-                          ),
-                      ] else
-                        Text(tr('Fermé'), style: TextStyle(color: Theme.of(context).hintColor)),
-                    ]),
-                ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  Text(tr('Tapez « / » dans une conversation pour les retrouver.'), style: TextStyle(color: Theme.of(context).hintColor)),
-                  for (final q in quick)
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: DefaultTabController(
+            length: 5,
+            child: Column(children: [
+              TabBar(isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8), tabAlignment: TabAlignment.start, tabs: [
+                Tab(text: tr('Connexion')), Tab(text: tr('Accueil & horaires')), Tab(text: tr('Réponses rapides')), Tab(text: tr('Modèles')), Tab(text: tr('Lien « Discuter »')),
+              ]),
+              Expanded(
+                child: TabBarView(children: [
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.bolt, color: _waGreen),
-                      title: Text(tr('/${q['shortcut']}')),
-                      subtitle: Text(tr('${q['body']}'), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () async {
-                        await api.delete('whatsapp/quick-replies/${q['id']}');
-                        await _reload();
-                      }),
-                      onTap: () => _editQuick(q),
+                      leading: Icon(d['provider'] == null ? Icons.link_off : Icons.check_circle, color: d['provider'] == null ? YColors.warning : YColors.success),
+                      title: Text(tr(d['provider'] == null ? 'Aucun fournisseur WhatsApp' : '${d['provider_label']}')),
+                      subtitle: Text(tr('Le fournisseur et ses clés se règlent dans Paramètres › Canaux d\'envoi.')),
                     ),
-                  Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: () => _editQuick(null), icon: const Icon(Icons.add), label: Text(tr('Réponse rapide')))),
-                ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  Row(children: [
-                    Expanded(child: Text(tr('Modèles validés par Meta, obligatoires pour écrire en premier ou après 24 h.'), style: TextStyle(color: Theme.of(context).hintColor))),
-                    TextButton.icon(
-                      onPressed: () async {
-                        try {
-                          final r = await api.post('whatsapp/templates/sync');
-                          await _reload();
-                          if (context.mounted) toast(context, tr('${r['count']} modèle(s) synchronisé(s).'));
-                        } catch (e) {
-                          if (context.mounted) toast(context, errorText(e), error: true);
-                        }
-                      },
-                      icon: const Icon(Icons.sync),
-                      label: Text(tr('Synchroniser')),
+                    Text(tr('Adresse de réception à déclarer chez votre fournisseur :'), style: TextStyle(fontWeight: FontWeight.w700)),
+                    _copy('URL du webhook (rappel)', '${d['webhook_url']}'),
+                    if (d['verify_token'] != null) _copy('Jeton de vérification (Meta)', '${d['verify_token']}'),
+                    const SizedBox(height: 6),
+                    Text(
+                      tr('• Meta (API Cloud) : developers.facebook.com › votre application › WhatsApp › Configuration › Webhook : collez l\'URL et le jeton, abonnez « messages ». '
+                      'Renseignez aussi la clé secrète de l\'application et le WhatsApp Business Account ID dans Canaux d\'envoi.\n'
+                      '• UltraMsg : tableau de bord › Instance › Webhook URL, cochez « message received » et « message ack ».\n'
+                      '• Green API : console › Instance › Réglages › URL du webhook, activez les messages entrants et les statuts.'),
+                      style: TextStyle(fontSize: 12.5, height: 1.5),
                     ),
                   ]),
-                  for (final t in templates)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(tr('${t['name']} · ${t['language']}')),
-                      subtitle: Text(tr('${t['body'] ?? ''}'), maxLines: 3, overflow: TextOverflow.ellipsis),
-                      trailing: StatusChip(
-                        switch ('${t['status']}') { 'APPROVED' => 'Approuvé', 'PENDING' => 'En validation', 'REJECTED' => 'Refusé', _ => '${t['status']}' },
-                        color: switch ('${t['status']}') { 'APPROVED' => YColors.success, 'REJECTED' => YColors.danger, _ => YColors.warning },
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    SwitchListTile(contentPadding: EdgeInsets.zero, value: _auto, onChanged: (v) => setState(() => _auto = v), title: Text(tr('Attribuer automatiquement les nouvelles conversations')),
+                        subtitle: Text(tr('À tour de rôle entre les personnes qui ont accès à WhatsApp'))),
+                    TextField(controller: _welcome, minLines: 2, maxLines: 4, decoration: InputDecoration(labelText: tr('Message d\'accueil (première conversation)'), helperText: tr('Variables : {nom}, {societe}, {horaires}'))),
+                    TextField(controller: _away, minLines: 2, maxLines: 4, decoration: InputDecoration(labelText: tr('Message d\'absence (hors horaires, une fois par 12 h)'))),
+                    const SizedBox(height: 12),
+                    Text(tr('Horaires d\'ouverture'), style: TextStyle(fontWeight: FontWeight.w700)),
+                    for (var i = 1; i <= 7; i++)
+                      Row(children: [
+                        SizedBox(width: 110, child: Text(tr(_days[i - 1]))),
+                        Switch(value: _hours['$i'] != null, onChanged: (v) => setState(() => _hours['$i'] = v ? ['08:00', '18:00'] : null)),
+                        if (_hours['$i'] != null) ...[
+                          for (final k in [0, 1])
+                            TextButton(
+                              onPressed: () async {
+                                final parts = _hours['$i']![k].split(':');
+                                final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
+                                if (t != null) setState(() => _hours['$i']![k] = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+                              },
+                              child: Text(tr(k == 0 ? 'de ${_hours['$i']![0]}' : 'à ${_hours['$i']![1]}')),
+                            ),
+                        ] else
+                          Text(tr('Fermé'), style: TextStyle(color: Theme.of(context).hintColor)),
+                      ]),
+                  ]),
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    Text(tr('Tapez « / » dans une conversation pour les retrouver.'), style: TextStyle(color: Theme.of(context).hintColor)),
+                    for (final q in quick)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.bolt, color: _waGreen),
+                        title: Text(tr('/${q['shortcut']}')),
+                        subtitle: Text(tr('${q['body']}'), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () async {
+                          await api.delete('whatsapp/quick-replies/${q['id']}');
+                          await _reload();
+                        }),
+                        onTap: () => _editQuick(q),
                       ),
-                    ),
-                  Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: _newTemplate, icon: const Icon(Icons.add), label: Text(tr('Proposer un modèle')))),
+                    Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: () => _editQuick(null), icon: const Icon(Icons.add), label: Text(tr('Réponse rapide')))),
+                  ]),
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    Row(children: [
+                      Expanded(child: Text(tr('Modèles validés par Meta, obligatoires pour écrire en premier ou après 24 h.'), style: TextStyle(color: Theme.of(context).hintColor))),
+                      TextButton.icon(
+                        onPressed: () async {
+                          try {
+                            final r = await api.post('whatsapp/templates/sync');
+                            await _reload();
+                            if (context.mounted) toast(context, tr('${r['count']} modèle(s) synchronisé(s).'));
+                          } catch (e) {
+                            if (context.mounted) toast(context, errorText(e), error: true);
+                          }
+                        },
+                        icon: const Icon(Icons.sync),
+                        label: Text(tr('Synchroniser')),
+                      ),
+                    ]),
+                    for (final t in templates)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(tr('${t['name']} · ${t['language']}')),
+                        subtitle: Text(tr('${t['body'] ?? ''}'), maxLines: 3, overflow: TextOverflow.ellipsis),
+                        trailing: StatusChip(
+                          switch ('${t['status']}') { 'APPROVED' => 'Approuvé', 'PENDING' => 'En validation', 'REJECTED' => 'Refusé', _ => '${t['status']}' },
+                          color: switch ('${t['status']}') { 'APPROVED' => YColors.success, 'REJECTED' => YColors.danger, _ => YColors.warning },
+                        ),
+                      ),
+                    Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: _newTemplate, icon: const Icon(Icons.add), label: Text(tr('Proposer un modèle')))),
+                  ]),
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    TextField(controller: _phone, decoration: InputDecoration(labelText: tr('Numéro WhatsApp de l\'entreprise'), hintText: '+225 07 00 00 00 00')),
+                    const SizedBox(height: 14),
+                    if (d['click_to_chat'] != null) ...[
+                      Center(child: QrBox(data: '${d['click_to_chat']}', size: 170)),
+                      const SizedBox(height: 8),
+                      _copy('Lien à mettre sur votre site, vos factures, vos réseaux', '${d['click_to_chat']}'),
+                      _copy('Bouton pour votre site (HTML)',
+                          '<a href="${d['click_to_chat']}" style="display:inline-block;background:#25D366;color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none;font-weight:700">Discuter sur WhatsApp</a>'),
+                    ] else
+                      Text(tr('Enregistrez le numéro pour obtenir le lien et le QR code « Discuter sur WhatsApp ».'), style: TextStyle(color: Theme.of(context).hintColor)),
+                  ]),
                 ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  TextField(controller: _phone, decoration: InputDecoration(labelText: tr('Numéro WhatsApp de l\'entreprise'), hintText: '+225 07 00 00 00 00')),
-                  const SizedBox(height: 14),
-                  if (d['click_to_chat'] != null) ...[
-                    Center(child: QrBox(data: '${d['click_to_chat']}', size: 170)),
-                    const SizedBox(height: 8),
-                    _copy('Lien à mettre sur votre site, vos factures, vos réseaux', '${d['click_to_chat']}'),
-                    _copy('Bouton pour votre site (HTML)',
-                        '<a href="${d['click_to_chat']}" style="display:inline-block;background:#25D366;color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none;font-weight:700">Discuter sur WhatsApp</a>'),
-                  ] else
-                    Text(tr('Enregistrez le numéro pour obtenir le lien et le QR code « Discuter sur WhatsApp ».'), style: TextStyle(color: Theme.of(context).hintColor)),
-                ]),
-              ]),
-            ),
+              ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
           ]),
         ),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))],
+      ]),
     );
   }
 

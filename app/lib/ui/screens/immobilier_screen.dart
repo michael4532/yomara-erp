@@ -315,63 +315,61 @@ class _PropertiesState extends State<_Properties> with _Loader {
     var kind = '${p?['kind'] ?? 'immeuble'}';
     var mode = p == null ? 'own' : (p['owner_id'] == null ? 'own' : 'keep');
     final kinds = asMap(_meta['property_kinds']);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(p == null ? 'Nouveau bien' : 'Modifier ${p['name']}')),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom du bien *'), hintText: tr('Résidence Les Palmiers, Villa Riviera 3…'))),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: kind,
-                  decoration: InputDecoration(labelText: tr('Type')),
-                  items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                  onChanged: (v) => kind = v ?? kind,
-                ),
+    final ok = await showFormDialog<bool>(context, title: p == null ? 'Nouveau bien' : 'Modifier ${p['name']}', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom du bien *'), hintText: tr('Résidence Les Palmiers, Villa Riviera 3…'))),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: kind,
+                decoration: InputDecoration(labelText: tr('Type')),
+                items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+                onChanged: (v) => kind = v ?? kind,
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: TextField(controller: district, decoration: InputDecoration(labelText: tr('Quartier / commune')))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: city, decoration: InputDecoration(labelText: tr('Ville')))),
+              ]),
+              const SizedBox(height: 8),
+              TextField(controller: address, decoration: InputDecoration(labelText: tr('Adresse, repère'))),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'own', label: Text(tr('Bien de la société'))),
+                  if (p?['owner_id'] != null) ButtonSegment(value: 'keep', label: Text(tr('${(p!['owner'] as Map?)?['name'] ?? 'Propriétaire'}'))),
+                  ButtonSegment(value: 'new', label: Text(tr('Nouveau propriétaire'))),
+                ],
+                selected: {mode},
+                onSelectionChanged: (v) => set(() => mode = v.first),
+              ),
+              if (mode == 'new') ...[
                 const SizedBox(height: 8),
                 Row(children: [
-                  Expanded(child: TextField(controller: district, decoration: InputDecoration(labelText: tr('Quartier / commune')))),
+                  Expanded(child: TextField(controller: ownerName, decoration: InputDecoration(labelText: tr('Propriétaire *')))),
                   const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: city, decoration: InputDecoration(labelText: tr('Ville')))),
+                  Expanded(child: TextField(controller: ownerPhone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone')))),
                 ]),
+              ],
+              if (mode != 'own') ...[
                 const SizedBox(height: 8),
-                TextField(controller: address, decoration: InputDecoration(labelText: tr('Adresse, repère'))),
-                const SizedBox(height: 12),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(value: 'own', label: Text(tr('Bien de la société'))),
-                    if (p?['owner_id'] != null) ButtonSegment(value: 'keep', label: Text(tr('${(p!['owner'] as Map?)?['name'] ?? 'Propriétaire'}'))),
-                    ButtonSegment(value: 'new', label: Text(tr('Nouveau propriétaire'))),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (v) => set(() => mode = v.first),
-                ),
-                if (mode == 'new') ...[
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: TextField(controller: ownerName, decoration: InputDecoration(labelText: tr('Propriétaire *')))),
-                    const SizedBox(width: 10),
-                    Expanded(child: TextField(controller: ownerPhone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone')))),
-                  ]),
-                ],
-                if (mode != 'own') ...[
-                  const SizedBox(height: 8),
-                  TextField(controller: fee, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Honoraires de gérance (% des loyers encaissés)'), suffixText: '%')),
-                ],
+                TextField(controller: fee, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Honoraires de gérance (% des loyers encaissés)'), suffixText: '%')),
+              ],
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true) return;
     final body = {
       'name': name.text.trim(), 'kind': kind, 'district': district.text.trim(), 'city': city.text.trim(), 'address': address.text.trim(),
@@ -398,55 +396,53 @@ class _PropertiesState extends State<_Properties> with _Loader {
     var kind = '${u?['kind'] ?? 'appartement'}';
     var status = '${u?['status'] ?? 'vacant'}';
     final kinds = asMap(_meta['unit_kinds']);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(u == null ? 'Nouveau lot — ${p['name']}' : 'Lot ${u['reference']}')),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Row(children: [
-                  Expanded(child: TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence *'), hintText: tr('A1, Porte 3, Magasin 2…')))),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: kind,
-                      decoration: InputDecoration(labelText: tr('Type')),
-                      items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                      onChanged: (v) => kind = v ?? kind,
-                    ),
+    final ok = await showFormDialog<bool>(context, title: u == null ? 'Nouveau lot — ${p['name']}' : 'Lot ${u['reference']}', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(children: [
+                Expanded(child: TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence *'), hintText: tr('A1, Porte 3, Magasin 2…')))),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: kind,
+                    decoration: InputDecoration(labelText: tr('Type')),
+                    items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+                    onChanged: (v) => kind = v ?? kind,
                   ),
-                ]),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: TextField(controller: rooms, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Pièces')))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: surface, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Surface'), suffixText: 'm²'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: floor, decoration: InputDecoration(labelText: tr('Étage')))),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: TextField(controller: rent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Loyer mensuel')))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: charges, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Charges mensuelles')))),
+              ]),
+              if (u == null || u['status'] != 'occupied') ...[
                 const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: TextField(controller: rooms, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Pièces')))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: surface, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Surface'), suffixText: 'm²'))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: floor, decoration: InputDecoration(labelText: tr('Étage')))),
-                ]),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: TextField(controller: rent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Loyer mensuel')))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: charges, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Charges mensuelles')))),
-                ]),
-                if (u == null || u['status'] != 'occupied') ...[
-                  const SizedBox(height: 8),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: status == 'works', onChanged: (v) => set(() => status = v ? 'works' : 'vacant'), title: Text(tr('En travaux (non proposé à la location)'))),
-                ],
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: status == 'works', onChanged: (v) => set(() => status = v ? 'works' : 'vacant'), title: Text(tr('En travaux (non proposé à la location)'))),
+              ],
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true) return;
     final body = {
       'property_id': p['id'], 'reference': ref.text.trim(), 'kind': kind, if (rooms.text.trim().isNotEmpty) 'rooms': int.tryParse(rooms.text.trim()),
@@ -598,7 +594,7 @@ class _PropertiesState extends State<_Properties> with _Loader {
 // ---------------------------------------------------------------------------
 
 Future<void> _newLease(BuildContext context, Map<String, dynamic> p, Map<String, dynamic> u, VoidCallback onDone) async {
-  final ok = await showDialog<bool>(context: context, builder: (_) => _LeaseDialog(property: p, unit: u));
+  final ok = await showFormDialog<bool>(context, title: 'Louer ${u['reference']} — ${p['name']}', maxWidth: 628, builder: (_) => _LeaseDialog(property: p, unit: u));
   if (ok == true) {
     onDone();
     if (context.mounted) toast(context, tr('Bail enregistré : les loyers seront appelés chaque période.'));
@@ -667,114 +663,115 @@ class _LeaseDialogState extends State<_LeaseDialog> {
       if (d != null) setState(() => start ? _start = d : _end = d);
     }
 
-    return YAlertDialog(
-      title: Text(tr('Louer ${widget.unit['reference']} — ${widget.property['name']}')),
-      content: SizedBox(
-        width: 580,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(
-                child: Autocomplete<Map<String, dynamic>>(
-                  displayStringForOption: (p) => '${p['name']}',
-                  optionsBuilder: (v) => v.text.trim().length < 2 ? const Iterable.empty() : _partners.where((p) => '${p['name']} ${p['phone'] ?? ''}'.toLowerCase().contains(v.text.trim().toLowerCase())).take(8),
-                  onSelected: (p) => setState(() => (_tenantId = '${p['id']}', _phone.text = '${p['phone'] ?? ''}')),
-                  fieldViewBuilder: (c, ctl, focus, submit) => TextField(
-                    controller: ctl,
-                    focusNode: focus,
-                    decoration: InputDecoration(labelText: tr('Locataire *'), helperText: trn(_tenantId != null ? 'Client existant' : 'Nouveau locataire (créé dans les clients)')),
-                    onChanged: (v) {
-                      _tenant.text = v;
-                      if (_tenantId != null) setState(() => _tenantId = null);
-                    },
-                  ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+              child: Autocomplete<Map<String, dynamic>>(
+                displayStringForOption: (p) => '${p['name']}',
+                optionsBuilder: (v) => v.text.trim().length < 2 ? const Iterable.empty() : _partners.where((p) => '${p['name']} ${p['phone'] ?? ''}'.toLowerCase().contains(v.text.trim().toLowerCase())).take(8),
+                onSelected: (p) => setState(() => (_tenantId = '${p['id']}', _phone.text = '${p['phone'] ?? ''}')),
+                fieldViewBuilder: (c, ctl, focus, submit) => TextField(
+                  controller: ctl,
+                  focusNode: focus,
+                  decoration: InputDecoration(labelText: tr('Locataire *'), helperText: trn(_tenantId != null ? 'Client existant' : 'Nouveau locataire (créé dans les clients)')),
+                  onChanged: (v) {
+                    _tenant.text = v;
+                    if (_tenantId != null) setState(() => _tenantId = null);
+                  },
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _phone, enabled: _tenantId == null, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone (WhatsApp)')))),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: () => pick(true), icon: const Icon(Icons.event, size: 18), label: Text(tr('Début : ${dateFr(isoDate(_start))}')))),
-              const SizedBox(width: 10),
-              Expanded(child: OutlinedButton.icon(onPressed: () => pick(false), icon: const Icon(Icons.event_busy, size: 18), label: Text(tr(_end == null ? 'Sans date de fin' : 'Fin : ${dateFr(isoDate(_end!))}')))),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: TextField(controller: _rent, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Loyer mensuel *')))),
-              const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _charges, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Charges mensuelles')))),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _months,
-                  decoration: InputDecoration(labelText: tr('Appel du loyer')),
-                  items: [DropdownMenuItem(value: 1, child: Text(tr('Chaque mois'))), DropdownMenuItem(value: 3, child: Text(tr('Chaque trimestre'))), DropdownMenuItem(value: 6, child: Text(tr('Chaque semestre'))), DropdownMenuItem(value: 12, child: Text(tr('Chaque année')))],
-                  onChanged: (v) => setState(() => _months = v ?? 1),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _dueDay,
-                  decoration: InputDecoration(labelText: tr('À payer avant le')),
-                  items: [for (final d in [1, 5, 10, 15]) DropdownMenuItem(value: d, child: Text(tr('$d du mois')))],
-                  onChanged: (v) => setState(() => _dueDay = v ?? 5),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _usage,
-                  decoration: InputDecoration(labelText: tr('Usage')),
-                  items: [DropdownMenuItem(value: 'habitation', child: Text(tr('Habitation'))), DropdownMenuItem(value: 'professionnel', child: Text(tr('Professionnel')))],
-                  onChanged: (v) => setState(() => _usage = v ?? _usage),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: TextField(controller: _deposit, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Caution')))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _advance,
-                  decoration: InputDecoration(labelText: tr('Avance (mois payés d\'avance)')),
-                  items: [for (final m in [0, 1, 2, 3, 6, 12]) DropdownMenuItem(value: m, child: Text(tr(m == 0 ? 'Aucune' : '$m mois')))],
-                  onChanged: (v) => setState(() => _advance = v ?? 0),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: TextField(controller: _revision, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Révision annuelle'), suffixText: '%', helperText: tr('à la date anniversaire')))),
-              const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _guarantor, decoration: InputDecoration(labelText: tr('Garant (facultatif)')))),
-            ]),
-            const Divider(height: 24),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _paidAtSigning,
-              onChanged: (v) => setState(() => _paidAtSigning = v),
-              title: Text(tr('Caution et avance réglées à la signature : ${money(entry, cur)}')),
-              subtitle: Text(tr('${money(toDouble(_deposit.text), cur)} de caution + ${_advance == 0 ? 'pas d\'avance' : '$_advance mois de loyer (le 1er au prorata)'}')),
             ),
-            if (_paidAtSigning)
-              DropdownButtonFormField<String>(
-                initialValue: _method,
-                decoration: InputDecoration(labelText: tr('Moyen de paiement')),
-                items: [DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))), DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))), DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement'))), DropdownMenuItem(value: 'cheque', child: Text(tr('Chèque')))],
-                onChanged: (v) => setState(() => _method = v ?? _method),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: _phone, enabled: _tenantId == null, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone (WhatsApp)')))),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => pick(true), icon: const Icon(Icons.event, size: 18), label: Text(tr('Début : ${dateFr(isoDate(_start))}')))),
+            const SizedBox(width: 10),
+            Expanded(child: OutlinedButton.icon(onPressed: () => pick(false), icon: const Icon(Icons.event_busy, size: 18), label: Text(tr(_end == null ? 'Sans date de fin' : 'Fin : ${dateFr(isoDate(_end!))}')))),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: TextField(controller: _rent, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Loyer mensuel *')))),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: _charges, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Charges mensuelles')))),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                initialValue: _months,
+                decoration: InputDecoration(labelText: tr('Appel du loyer')),
+                items: [DropdownMenuItem(value: 1, child: Text(tr('Chaque mois'))), DropdownMenuItem(value: 3, child: Text(tr('Chaque trimestre'))), DropdownMenuItem(value: 6, child: Text(tr('Chaque semestre'))), DropdownMenuItem(value: 12, child: Text(tr('Chaque année')))],
+                onChanged: (v) => setState(() => _months = v ?? 1),
               ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                initialValue: _dueDay,
+                decoration: InputDecoration(labelText: tr('À payer avant le')),
+                items: [for (final d in [1, 5, 10, 15]) DropdownMenuItem(value: d, child: Text(tr('$d du mois')))],
+                onChanged: (v) => setState(() => _dueDay = v ?? 5),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _usage,
+                decoration: InputDecoration(labelText: tr('Usage')),
+                items: [DropdownMenuItem(value: 'habitation', child: Text(tr('Habitation'))), DropdownMenuItem(value: 'professionnel', child: Text(tr('Professionnel')))],
+                onChanged: (v) => setState(() => _usage = v ?? _usage),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: TextField(controller: _deposit, keyboardType: TextInputType.number, onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: tr('Caution')))),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                initialValue: _advance,
+                decoration: InputDecoration(labelText: tr('Avance (mois payés d\'avance)')),
+                items: [for (final m in [0, 1, 2, 3, 6, 12]) DropdownMenuItem(value: m, child: Text(tr(m == 0 ? 'Aucune' : '$m mois')))],
+                onChanged: (v) => setState(() => _advance = v ?? 0),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: TextField(controller: _revision, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Révision annuelle'), suffixText: '%', helperText: tr('à la date anniversaire')))),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: _guarantor, decoration: InputDecoration(labelText: tr('Garant (facultatif)')))),
+          ]),
+          const Divider(height: 24),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _paidAtSigning,
+            onChanged: (v) => setState(() => _paidAtSigning = v),
+            title: Text(tr('Caution et avance réglées à la signature : ${money(entry, cur)}')),
+            subtitle: Text(tr('${money(toDouble(_deposit.text), cur)} de caution + ${_advance == 0 ? 'pas d\'avance' : '$_advance mois de loyer (le 1er au prorata)'}')),
+          ),
+          if (_paidAtSigning)
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: InputDecoration(labelText: tr('Moyen de paiement')),
+              items: [DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))), DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))), DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement'))), DropdownMenuItem(value: 'cheque', child: Text(tr('Chèque')))],
+              onChanged: (v) => setState(() => _method = v ?? _method),
+            ),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Annuler'))),
+            FilledButton(onPressed: _busy || (_tenantId == null && _tenant.text.trim().isEmpty) || toDouble(_rent.text) <= 0 ? null : _save, child: Text(tr('Créer le bail'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Annuler'))),
-        FilledButton(onPressed: _busy || (_tenantId == null && _tenant.text.trim().isEmpty) || toDouble(_rent.text) <= 0 ? null : _save, child: Text(tr('Créer le bail'))),
-      ],
+      ]),
     );
   }
 }
@@ -1262,60 +1259,58 @@ class _ExpensesState extends State<_Expenses> with _Loader {
     final label = TextEditingController();
     final amount = TextEditingController();
     final supplier = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(builder: (c, set) {
+    final ok = await showFormDialog<bool>(context, title: 'Nouvelle dépense', builder: (c) => StatefulBuilder(builder: (c, set) {
         final units = [for (final u in (_props.firstWhere((p) => p['id'] == prop)['units'] as List)) asMap(u)];
-        return YAlertDialog(
-          title: Text(tr('Nouvelle dépense')),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                DropdownButtonFormField<int>(
-                  initialValue: prop,
-                  decoration: InputDecoration(labelText: tr('Bien')),
-                  items: [for (final p in _props) DropdownMenuItem(value: p['id'] as int, child: Text(tr('${p['name']}')))],
-                  onChanged: (v) => set(() => (prop = v ?? prop, unit = null)),
-                ),
-                DropdownButtonFormField<int?>(
-                  initialValue: unit,
-                  decoration: InputDecoration(labelText: tr('Lot (facultatif)')),
-                  items: [DropdownMenuItem(value: null, child: Text(tr('Tout le bien'))), for (final u in units) DropdownMenuItem(value: u['id'] as int, child: Text(tr('${u['reference']}')))],
-                  onChanged: (v) => set(() => unit = v),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: cat,
-                  decoration: InputDecoration(labelText: tr('Catégorie')),
-                  items: [for (final e in _cats.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                  onChanged: (v) => set(() => cat = v ?? cat),
-                ),
-                TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé *'), hintText: tr('Réparation plomberie, taxe foncière…'))),
-                Row(children: [
-                  Expanded(child: TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant *')))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: supplier, decoration: InputDecoration(labelText: tr('Prestataire')))),
-                ]),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now().add(const Duration(days: 30)));
-                    if (d != null) set(() => date = d);
-                  },
-                  icon: const Icon(Icons.event, size: 18),
-                  label: Text(tr('Le ${dateFr(isoDate(date))}')),
-                ),
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: owner, onChanged: (v) => set(() => owner = v), title: Text(tr('À la charge du propriétaire')), subtitle: Text(tr('Déduite de son reversement'))),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              DropdownButtonFormField<int>(
+                initialValue: prop,
+                decoration: InputDecoration(labelText: tr('Bien')),
+                items: [for (final p in _props) DropdownMenuItem(value: p['id'] as int, child: Text(tr('${p['name']}')))],
+                onChanged: (v) => set(() => (prop = v ?? prop, unit = null)),
+              ),
+              DropdownButtonFormField<int?>(
+                initialValue: unit,
+                decoration: InputDecoration(labelText: tr('Lot (facultatif)')),
+                items: [DropdownMenuItem(value: null, child: Text(tr('Tout le bien'))), for (final u in units) DropdownMenuItem(value: u['id'] as int, child: Text(tr('${u['reference']}')))],
+                onChanged: (v) => set(() => unit = v),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: cat,
+                decoration: InputDecoration(labelText: tr('Catégorie')),
+                items: [for (final e in _cats.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+                onChanged: (v) => set(() => cat = v ?? cat),
+              ),
+              TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé *'), hintText: tr('Réparation plomberie, taxe foncière…'))),
+              Row(children: [
+                Expanded(child: TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant *')))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: supplier, decoration: InputDecoration(labelText: tr('Prestataire')))),
+              ]),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now().add(const Duration(days: 30)));
+                  if (d != null) set(() => date = d);
+                },
+                icon: const Icon(Icons.event, size: 18),
+                label: Text(tr('Le ${dateFr(isoDate(date))}')),
+              ),
+              SwitchListTile(contentPadding: EdgeInsets.zero, value: owner, onChanged: (v) => set(() => owner = v), title: Text(tr('À la charge du propriétaire')), subtitle: Text(tr('Déduite de son reversement'))),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
-          ],
+          ]),
         );
-      }),
-    );
+      }));
     if (ok != true) return;
     try {
       await session.api.post('immobilier/expenses', {

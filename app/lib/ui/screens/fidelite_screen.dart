@@ -549,14 +549,11 @@ Future<void> issueGiftCard(BuildContext context) async {
   var kind = 'gift';
   String? partner;
   final partners = LocalDb.all('partners').where((p) => p['type'] != 'supplier').toList()..sort((a, b) => '${a['name']}'.compareTo('${b['name']}'));
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr('Nouvelle carte cadeau')),
-        content: SizedBox(
-          width: 420,
-          child: Column(
+  final ok = await showFormDialog<bool>(context, title: 'Nouvelle carte cadeau', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SegmentedButton<String>(
@@ -611,14 +608,17 @@ Future<void> issueGiftCard(BuildContext context) async {
                 ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Émettre'))),
-        ],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Émettre'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || toDouble(amount.text) <= 0) return;
   try {
     await sync.save('gift_cards', {
@@ -731,14 +731,11 @@ class _RewardsTabState extends State<_RewardsTab> {
     var active = r?['active'] != false;
     String? product = r?['product_id'] as String?;
     final products = LocalDb.all('products').where((p) => p['active'] != false).toList()..sort((a, b) => '${a['name']}'.compareTo('${b['name']}'));
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(r == null ? 'Nouvelle récompense' : 'Récompense')),
-          content: SizedBox(
-            width: 420,
-            child: Column(
+    await showFormDialog(context, title: r == null ? 'Nouvelle récompense' : 'Récompense', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
@@ -781,37 +778,40 @@ class _RewardsTabState extends State<_RewardsTab> {
                 SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
               ],
             ),
-          ),
-          actions: [
-            if (r != null)
-              TextButton(
-                onPressed: () async {
-                  await sync.remove('lc_rewards', '${r['id']}');
-                  if (c.mounted) Navigator.pop(c);
-                },
-                child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-              ),
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty || (int.tryParse(cost.text) ?? 0) <= 0) return;
-                await sync.save('lc_rewards', {
-                  'id': r?['id'] ?? newId(),
-                  'name': name.text.trim(),
-                  'points_cost': int.parse(cost.text),
-                  'kind': kind,
-                  'amount': kind == 'amount' ? toDouble(amount.text) : 0,
-                  'product_id': kind == 'product' ? product : null,
-                  'active': active,
-                });
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Enregistrer')),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                if (r != null)
+                  TextButton(
+                    onPressed: () async {
+                      await sync.remove('lc_rewards', '${r['id']}');
+                      if (c.mounted) Navigator.pop(c);
+                    },
+                    child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                  ),
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    if (name.text.trim().isEmpty || (int.tryParse(cost.text) ?? 0) <= 0) return;
+                    await sync.save('lc_rewards', {
+                      'id': r?['id'] ?? newId(),
+                      'name': name.text.trim(),
+                      'points_cost': int.parse(cost.text),
+                      'kind': kind,
+                      'amount': kind == 'amount' ? toDouble(amount.text) : 0,
+                      'product_id': kind == 'product' ? product : null,
+                      'active': active,
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
+              ]),
             ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
   }
 }
 

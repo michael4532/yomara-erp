@@ -67,8 +67,9 @@ class _TableauxExcelScreenState extends State<TableauxExcelScreen> {
   }
 
   Future<void> _configure(Map<String, dynamic> tpl, {Map<String, dynamic>? existing}) async {
-    final res = await showDialog<Map<String, dynamic>>(
-      context: context,
+    final res = await showFormDialog<Map<String, dynamic>>(
+      context,
+      title: existing != null ? 'Modifier « ${existing['name']} »' : tpl['name'] as String,
       builder: (_) => _ConfigDialog(
         tpl: tpl,
         themes: _list('themes'),
@@ -628,100 +629,101 @@ class _ConfigDialogState extends State<_ConfigDialog> {
   Widget build(BuildContext context) {
     final theme = widget.themes.firstWhere((t) => t['key'] == _theme, orElse: () => widget.themes.first);
     final hint = Theme.of(context).hintColor;
-    return YAlertDialog(
-      title: Text(tr(widget.existing != null ? 'Modifier « ${widget.existing!['name']} »' : widget.tpl['name'] as String)),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            ClipRRect(borderRadius: BorderRadius.circular(12), child: AspectRatio(aspectRatio: 16 / 7, child: _Thumb(kind: '${widget.tpl['key']}', theme: theme, title: _title.text))),
-            const SizedBox(height: 14),
-            TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre du classeur')), onChanged: (_) => setState(() {})),
-            const SizedBox(height: 14),
-            Text(tr('Thème'), style: TextStyle(color: hint, fontSize: 12.5)),
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final t in widget.themes)
-                ChoiceChip(
-                  selected: _theme == t['key'],
-                  onSelected: (_) => setState(() => _theme = t['key'] as String),
-                  avatar: CircleAvatar(backgroundColor: _hex('${t['primary']}'), radius: 7),
-                  label: Text(tr('${t['name']}')),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(12), child: AspectRatio(aspectRatio: 16 / 7, child: _Thumb(kind: '${widget.tpl['key']}', theme: theme, title: _title.text))),
+          const SizedBox(height: 14),
+          TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre du classeur')), onChanged: (_) => setState(() {})),
+          const SizedBox(height: 14),
+          Text(tr('Thème'), style: TextStyle(color: hint, fontSize: 12.5)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final t in widget.themes)
+              ChoiceChip(
+                selected: _theme == t['key'],
+                onSelected: (_) => setState(() => _theme = t['key'] as String),
+                avatar: CircleAvatar(backgroundColor: _hex('${t['primary']}'), radius: 7),
+                label: Text(tr('${t['name']}')),
+              ),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            if (widget.tpl['period'] == true)
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  initialValue: _year,
+                  decoration: InputDecoration(labelText: tr('Exercice')),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text(tr('Année en cours'))),
+                    for (final y in widget.years) DropdownMenuItem(value: y, child: Text(tr('$y (et ${y - 1})'))),
+                  ],
+                  onChanged: (v) => setState(() => _year = v),
                 ),
-            ]),
-            const SizedBox(height: 14),
-            Row(children: [
-              if (widget.tpl['period'] == true)
-                Expanded(
-                  child: DropdownButtonFormField<int?>(
-                    initialValue: _year,
-                    decoration: InputDecoration(labelText: tr('Exercice')),
-                    items: [
-                      DropdownMenuItem(value: null, child: Text(tr('Année en cours'))),
-                      for (final y in widget.years) DropdownMenuItem(value: y, child: Text(tr('$y (et ${y - 1})'))),
-                    ],
-                    onChanged: (v) => setState(() => _year = v),
-                  ),
+              ),
+            if (widget.tpl['period'] == true && widget.branches.isNotEmpty) const SizedBox(width: 12),
+            if (widget.branches.isNotEmpty)
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _branch,
+                  decoration: InputDecoration(labelText: tr('Agence')),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text(tr('Toutes les agences'))),
+                    for (final b in widget.branches) DropdownMenuItem(value: b['id'] as String, child: Text(tr('${b['name']}'))),
+                  ],
+                  onChanged: (v) => setState(() => _branch = v),
                 ),
-              if (widget.tpl['period'] == true && widget.branches.isNotEmpty) const SizedBox(width: 12),
-              if (widget.branches.isNotEmpty)
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _branch,
-                    decoration: InputDecoration(labelText: tr('Agence')),
-                    items: [
-                      DropdownMenuItem(value: null, child: Text(tr('Toutes les agences'))),
-                      for (final b in widget.branches) DropdownMenuItem(value: b['id'] as String, child: Text(tr('${b['name']}'))),
-                    ],
-                    onChanged: (v) => setState(() => _branch = v),
-                  ),
-                ),
-            ]),
-            const SizedBox(height: 6),
+              ),
+          ]),
+          const SizedBox(height: 6),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _protect,
+            onChanged: (v) => setState(() => _protect = v),
+            title: Text(tr('Protéger la mise en page')),
+            subtitle: Text(tr('Seuls les filtres restent modifiables sur le tableau de bord')),
+          ),
+          if (widget.canManage) ...[
+            const Divider(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              value: _protect,
-              onChanged: (v) => setState(() => _protect = v),
-              title: Text(tr('Protéger la mise en page')),
-              subtitle: Text(tr('Seuls les filtres restent modifiables sur le tableau de bord')),
+              value: _save,
+              onChanged: widget.existing != null ? null : (v) => setState(() => _save = v),
+              title: Text(tr('Enregistrer dans « Mes tableaux »')),
+              subtitle: Text(tr('Pour le retrouver et le recevoir automatiquement par e-mail')),
             ),
-            if (widget.canManage) ...[
-              const Divider(),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _save,
-                onChanged: widget.existing != null ? null : (v) => setState(() => _save = v),
-                title: Text(tr('Enregistrer dans « Mes tableaux »')),
-                subtitle: Text(tr('Pour le retrouver et le recevoir automatiquement par e-mail')),
+            if (_save) ...[
+              DropdownButtonFormField<String>(
+                initialValue: _frequency,
+                decoration: InputDecoration(labelText: tr('Envoi automatique')),
+                items: [for (final e in widget.frequencies.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+                onChanged: (v) => setState(() => _frequency = v ?? 'none'),
               ),
-              if (_save) ...[
-                DropdownButtonFormField<String>(
-                  initialValue: _frequency,
-                  decoration: InputDecoration(labelText: tr('Envoi automatique')),
-                  items: [for (final e in widget.frequencies.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                  onChanged: (v) => setState(() => _frequency = v ?? 'none'),
-                ),
-                if (_frequency != 'none') ...[
-                  const SizedBox(height: 10),
-                  TextField(controller: _to, decoration: InputDecoration(labelText: tr('Destinataires'), hintText: tr('dg@societe.ci, compta@societe.ci'))),
-                  const SizedBox(height: 10),
-                  TextField(controller: _message, maxLines: 2, decoration: InputDecoration(labelText: tr('Message (facultatif)'))),
-                ],
+              if (_frequency != 'none') ...[
+                const SizedBox(height: 10),
+                TextField(controller: _to, decoration: InputDecoration(labelText: tr('Destinataires'), hintText: tr('dg@societe.ci, compta@societe.ci'))),
+                const SizedBox(height: 10),
+                TextField(controller: _message, maxLines: 2, decoration: InputDecoration(labelText: tr('Message (facultatif)'))),
               ],
             ],
+          ],
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            if (_save) OutlinedButton.icon(onPressed: () => Navigator.pop(context, {'action': 'save', 'options': _options()}), icon: const Icon(Icons.bookmark_add_outlined, size: 18), label: Text(tr('Enregistrer'))),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: _hex('${theme['primary']}')),
+              onPressed: () => Navigator.pop(context, {'action': 'download', 'options': _options()}),
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: Text(tr('Télécharger')),
+            ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        if (_save) OutlinedButton.icon(onPressed: () => Navigator.pop(context, {'action': 'save', 'options': _options()}), icon: const Icon(Icons.bookmark_add_outlined, size: 18), label: Text(tr('Enregistrer'))),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: _hex('${theme['primary']}')),
-          onPressed: () => Navigator.pop(context, {'action': 'download', 'options': _options()}),
-          icon: const Icon(Icons.download_rounded, size: 18),
-          label: Text(tr('Télécharger')),
-        ),
-      ],
+      ]),
     );
   }
 }

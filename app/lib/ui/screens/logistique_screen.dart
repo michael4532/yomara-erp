@@ -750,43 +750,46 @@ class _SettingsTab extends StatelessWidget {
     final delay = TextEditingController(text: '${z?['delay_days'] ?? 1}');
     final cities = TextEditingController(text: '${z?['cities'] ?? ''}');
     final sync = context.read<SyncEngine>();
-    await showDialog(
-      context: context,
-      builder: (c) => YAlertDialog(
-        title: Text(tr(z == null ? 'Nouvelle zone' : 'Zone')),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: name, autofocus: true, decoration: InputDecoration(labelText: tr('Nom (ex. Cocody)'))),
-          TextField(controller: cities, decoration: InputDecoration(labelText: tr('Communes / quartiers (séparés par des virgules)'))),
-          TextField(controller: fee, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Frais de livraison'))),
-          TextField(controller: delay, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai standard (jours)'))),
-        ]),
-        actions: [
-          if (z != null)
-            TextButton(
-              onPressed: () async {
-                await sync.remove('lg_zones', z['id'] as String);
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-            ),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
-            onPressed: () async {
-              if (name.text.trim().isEmpty) return;
-              await sync.save('lg_zones', {
-                'id': z?['id'] ?? newId(),
-                'name': name.text.trim(),
-                'cities': cities.text.trim().isEmpty ? null : cities.text.trim(),
-                'fee': double.tryParse(fee.text.replaceAll(RegExp(r'[\s ]'), '')) ?? 0,
-                'delay_days': int.tryParse(delay.text) ?? 1,
-              });
-              if (c.mounted) Navigator.pop(c);
-            },
-            child: Text(tr('Enregistrer')),
+    await showFormDialog(context, title: z == null ? 'Nouvelle zone' : 'Zone', builder: (c) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: name, autofocus: true, decoration: InputDecoration(labelText: tr('Nom (ex. Cocody)'))),
+            TextField(controller: cities, decoration: InputDecoration(labelText: tr('Communes / quartiers (séparés par des virgules)'))),
+            TextField(controller: fee, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Frais de livraison'))),
+            TextField(controller: delay, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai standard (jours)'))),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (z != null)
+                TextButton(
+                  onPressed: () async {
+                    await sync.remove('lg_zones', z['id'] as String);
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                ),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(
+                onPressed: () async {
+                  if (name.text.trim().isEmpty) return;
+                  await sync.save('lg_zones', {
+                    'id': z?['id'] ?? newId(),
+                    'name': name.text.trim(),
+                    'cities': cities.text.trim().isEmpty ? null : cities.text.trim(),
+                    'fee': double.tryParse(fee.text.replaceAll(RegExp(r'[\s ]'), '')) ?? 0,
+                    'delay_days': int.tryParse(delay.text) ?? 1,
+                  });
+                  if (c.mounted) Navigator.pop(c);
+                },
+                child: Text(tr('Enregistrer')),
+              ),
+            ]),
           ),
-        ],
-      ),
-    );
+        ]),
+      ));
   }
 
   Future<void> _vehicle(BuildContext context, [Map<String, dynamic>? v]) async {
@@ -796,44 +799,47 @@ class _SettingsTab extends StatelessWidget {
     var type = '${v?['type'] ?? 'moto'}';
     var active = v?['active'] != false;
     final sync = context.read<SyncEngine>();
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(v == null ? 'Nouveau véhicule' : 'Véhicule')),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: name, autofocus: true, decoration: InputDecoration(labelText: tr('Nom (ex. Moto 1)'))),
-            DropdownButtonFormField<String>(
-              initialValue: type,
-              decoration: InputDecoration(labelText: tr('Type')),
-              items: [for (final t in vehicleTypes.entries) DropdownMenuItem(value: t.key, child: Text(tr(t.value)))],
-              onChanged: (x) => set(() => type = x ?? type),
+    await showFormDialog(context, title: v == null ? 'Nouveau véhicule' : 'Véhicule', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: name, autofocus: true, decoration: InputDecoration(labelText: tr('Nom (ex. Moto 1)'))),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                decoration: InputDecoration(labelText: tr('Type')),
+                items: [for (final t in vehicleTypes.entries) DropdownMenuItem(value: t.key, child: Text(tr(t.value)))],
+                onChanged: (x) => set(() => type = x ?? type),
+              ),
+              TextField(controller: plate, decoration: InputDecoration(labelText: tr('Immatriculation'))),
+              TextField(controller: cap, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Charge maximale (kg)'))),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('En service')), value: active, onChanged: (x) => set(() => active = x)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    if (name.text.trim().isEmpty) return;
+                    await sync.save('lg_vehicles', {
+                      'id': v?['id'] ?? newId(),
+                      'name': name.text.trim(),
+                      'type': type,
+                      'plate': plate.text.trim().isEmpty ? null : plate.text.trim(),
+                      'capacity_kg': double.tryParse(cap.text) ?? 0,
+                      'active': active,
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
+              ]),
             ),
-            TextField(controller: plate, decoration: InputDecoration(labelText: tr('Immatriculation'))),
-            TextField(controller: cap, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Charge maximale (kg)'))),
-            SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('En service')), value: active, onChanged: (x) => set(() => active = x)),
           ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                await sync.save('lg_vehicles', {
-                  'id': v?['id'] ?? newId(),
-                  'name': name.text.trim(),
-                  'type': type,
-                  'plate': plate.text.trim().isEmpty ? null : plate.text.trim(),
-                  'capacity_kg': double.tryParse(cap.text) ?? 0,
-                  'active': active,
-                });
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Enregistrer')),
-            ),
-          ],
         ),
-      ),
-    );
+      ));
   }
 }
 
@@ -850,14 +856,11 @@ Future<void> editTour(BuildContext context, {Map<String, dynamic>? tour, DateTim
   var day = DateTime.tryParse('${tour?['date'] ?? ''}') ?? date ?? _today();
   var driver = (tour?['driver_id'] as num?)?.toInt();
   var vehicle = tour?['vehicle_id'] as String?;
-  await showDialog(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr(tour == null ? 'Nouvelle tournée' : 'Tournée')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+  await showFormDialog(context, title: tour == null ? 'Nouvelle tournée' : 'Tournée', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom (ex. Cocody matin)'))),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -886,38 +889,41 @@ Future<void> editTour(BuildContext context, {Map<String, dynamic>? tour, DateTim
               onChanged: (x) => set(() => vehicle = x),
             ),
           ]),
-        ),
-        actions: [
-          if (tour != null)
-            TextButton(
-              onPressed: () async {
-                await sync.remove('lg_tours', tour['id'] as String);
-                for (final d in LocalDb.all('lg_deliveries').where((d) => d['tour_id'] == tour['id'])) {
-                  await LocalDb.put('lg_deliveries', {...d, 'tour_id': null});
-                }
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-            ),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
-            onPressed: () async {
-              final id = tour?['id'] ?? newId();
-              await sync.save('lg_tours', {'id': id, 'name': name.text.trim().isEmpty ? null : name.text.trim(), 'date': _day(day), 'driver_id': driver, 'vehicle_id': vehicle});
-              // Le livreur de la tournée suit sur ses livraisons
-              if (tour != null && driver != tour['driver_id']) {
-                for (final d in LocalDb.all('lg_deliveries').where((d) => d['tour_id'] == id)) {
-                  await sync.save('lg_deliveries', {'id': d['id'], 'driver_id': driver});
-                }
-              }
-              if (c.mounted) Navigator.pop(c);
-            },
-            child: Text(tr('Enregistrer')),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (tour != null)
+                TextButton(
+                  onPressed: () async {
+                    await sync.remove('lg_tours', tour['id'] as String);
+                    for (final d in LocalDb.all('lg_deliveries').where((d) => d['tour_id'] == tour['id'])) {
+                      await LocalDb.put('lg_deliveries', {...d, 'tour_id': null});
+                    }
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                ),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(
+                onPressed: () async {
+                  final id = tour?['id'] ?? newId();
+                  await sync.save('lg_tours', {'id': id, 'name': name.text.trim().isEmpty ? null : name.text.trim(), 'date': _day(day), 'driver_id': driver, 'vehicle_id': vehicle});
+                  // Le livreur de la tournée suit sur ses livraisons
+                  if (tour != null && driver != tour['driver_id']) {
+                    for (final d in LocalDb.all('lg_deliveries').where((d) => d['tour_id'] == id)) {
+                      await sync.save('lg_deliveries', {'id': d['id'], 'driver_id': driver});
+                    }
+                  }
+                  if (c.mounted) Navigator.pop(c);
+                },
+                child: Text(tr('Enregistrer')),
+              ),
+            ]),
           ),
-        ],
+        ]),
       ),
-    ),
-  );
+    ));
 }
 
 /// Livraison : création libre ou à partir d'une commande / facture (lignes, client et reste à payer repris).

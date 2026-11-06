@@ -448,78 +448,76 @@ class _BlogTabState extends State<BlogTab> {
     List<int>? cover;
     String? coverName;
     final api = context.read<Session>().api;
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(p == null ? 'Nouvel article' : 'Modifier l\'article')),
-          content: SizedBox(
-            width: 720,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                TextField(controller: title, decoration: InputDecoration(labelText: tr('Titre'))),
-                const SizedBox(height: 10),
-                TextField(controller: excerpt, maxLines: 2, decoration: InputDecoration(labelText: tr('Résumé (affiché dans la liste et sur Google)'))),
-                const SizedBox(height: 10),
-                TextField(controller: body, minLines: 10, maxLines: 20, decoration: InputDecoration(labelText: tr('Texte'), alignLabelWithHint: true, hintText: tr('## Intertitre\n\nParagraphe avec **gras** et *italique*.\n\n- point 1\n- point 2\n\n[lien](https://…)'))),
-                const SizedBox(height: 6),
-                Text(tr('Mise en forme : ## intertitre, **gras**, *italique*, « - » pour une liste, [texte](https://adresse) pour un lien.'), style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12)),
-                const SizedBox(height: 10),
-                Row(children: [
-                  OutlinedButton.icon(
+    final saved = await showFormDialog<bool>(context, title: p == null ? 'Nouvel article' : 'Modifier l\'article', maxWidth: 768, builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              TextField(controller: title, decoration: InputDecoration(labelText: tr('Titre'))),
+              const SizedBox(height: 10),
+              TextField(controller: excerpt, maxLines: 2, decoration: InputDecoration(labelText: tr('Résumé (affiché dans la liste et sur Google)'))),
+              const SizedBox(height: 10),
+              TextField(controller: body, minLines: 10, maxLines: 20, decoration: InputDecoration(labelText: tr('Texte'), alignLabelWithHint: true, hintText: tr('## Intertitre\n\nParagraphe avec **gras** et *italique*.\n\n- point 1\n- point 2\n\n[lien](https://…)'))),
+              const SizedBox(height: 6),
+              Text(tr('Mise en forme : ## intertitre, **gras**, *italique*, « - » pour une liste, [texte](https://adresse) pour un lien.'), style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12)),
+              const SizedBox(height: 10),
+              Row(children: [
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp']);
+                    if (picked.isEmpty) return;
+                    final b = await picked.single.readAsBytes();
+                    set(() => (cover = b, coverName = picked.single.name));
+                  },
+                  icon: const Icon(Icons.image_outlined),
+                  label: Text(tr(cover != null ? coverName! : (p?['cover_url'] != null ? 'Changer l\'image' : 'Image de couverture'))),
+                ),
+                const Spacer(),
+                Text(tr('Publié')),
+                Switch(value: published, onChanged: (v) => set(() => published = v)),
+              ]),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                if (p != null)
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: YColors.danger),
                     onPressed: () async {
-                      final picked = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp']);
-                      if (picked.isEmpty) return;
-                      final b = await picked.single.readAsBytes();
-                      set(() => (cover = b, coverName = picked.single.name));
+                      if (!await confirm(c, tr('Supprimer l\'article ?'), tr('« ${p['title']} » sera retiré du site.'), ok: tr('Supprimer'), danger: true)) return;
+                      try {
+                        await api.delete('sites/posts/${p['id']}');
+                        if (c.mounted) Navigator.pop(c, true);
+                      } catch (e) {
+                        if (c.mounted) toast(c, errorText(e), error: true);
+                      }
                     },
-                    icon: const Icon(Icons.image_outlined),
-                    label: Text(tr(cover != null ? coverName! : (p?['cover_url'] != null ? 'Changer l\'image' : 'Image de couverture'))),
+                    child: Text(tr('Supprimer')),
                   ),
-                  const Spacer(),
-                  Text(tr('Publié')),
-                  Switch(value: published, onChanged: (v) => set(() => published = v)),
-                ]),
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    final fields = {'title': title.text.trim(), 'excerpt': excerpt.text.trim(), 'body': body.text, 'published': published ? '1' : '0'};
+                    final path = p == null ? 'sites/posts' : 'sites/posts/${p['id']}';
+                    try {
+                      if (cover != null) {
+                        await api.uploadForm(path, fields, 'cover', cover!, coverName ?? 'image.jpg');
+                      } else {
+                        await api.post(path, {...fields, 'published': published});
+                      }
+                      if (c.mounted) Navigator.pop(c, true);
+                    } catch (e) {
+                      if (c.mounted) toast(c, errorText(e), error: true);
+                    }
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
               ]),
             ),
-          ),
-          actions: [
-            if (p != null)
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: YColors.danger),
-                onPressed: () async {
-                  if (!await confirm(c, tr('Supprimer l\'article ?'), tr('« ${p['title']} » sera retiré du site.'), ok: tr('Supprimer'), danger: true)) return;
-                  try {
-                    await api.delete('sites/posts/${p['id']}');
-                    if (c.mounted) Navigator.pop(c, true);
-                  } catch (e) {
-                    if (c.mounted) toast(c, errorText(e), error: true);
-                  }
-                },
-                child: Text(tr('Supprimer')),
-              ),
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                final fields = {'title': title.text.trim(), 'excerpt': excerpt.text.trim(), 'body': body.text, 'published': published ? '1' : '0'};
-                final path = p == null ? 'sites/posts' : 'sites/posts/${p['id']}';
-                try {
-                  if (cover != null) {
-                    await api.uploadForm(path, fields, 'cover', cover!, coverName ?? 'image.jpg');
-                  } else {
-                    await api.post(path, {...fields, 'published': published});
-                  }
-                  if (c.mounted) Navigator.pop(c, true);
-                } catch (e) {
-                  if (c.mounted) toast(c, errorText(e), error: true);
-                }
-              },
-              child: Text(tr('Enregistrer')),
-            ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
     if (saved == true) {
       await _load();
       if (mounted) toast(context, tr('Article enregistré.'));
@@ -582,75 +580,73 @@ class _Coupons extends StatelessWidget {
     var once = c?['once_per_customer'] == true, active = c?['active'] != false;
     String? from = c?['starts_on'] != null ? '${c!['starts_on']}'.substring(0, 10) : null, to = c?['ends_on'] != null ? '${c!['ends_on']}'.substring(0, 10) : null;
     final api = context.read<Session>().api;
-    await showDialog(
-      context: context,
-      builder: (dc) => StatefulBuilder(
+    await showFormDialog(context, title: c == null ? 'Nouveau code promo' : 'Code ${c['code']}', builder: (dc) => StatefulBuilder(
         builder: (dc, set) {
           Future<void> pick(bool start) async {
             final d = await showDatePicker(context: dc, firstDate: DateTime(2024), lastDate: DateTime(2035), initialDate: DateTime.tryParse((start ? from : to) ?? '') ?? DateTime.now());
             if (d != null) set(() => start ? from = d.toIso8601String().substring(0, 10) : to = d.toIso8601String().substring(0, 10));
           }
 
-          return YAlertDialog(
-            title: Text(tr(c == null ? 'Nouveau code promo' : 'Code ${c['code']}')),
-            content: SizedBox(
-              width: 460,
-              child: SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  TextField(controller: code, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: tr('Code (ex. BIENVENUE)'))),
-                  const SizedBox(height: 10),
-                  SegmentedButton<String>(
-                    segments: [ButtonSegment(value: 'percent', label: Text('%')), ButtonSegment(value: 'amount', label: Text(tr('Montant'))), ButtonSegment(value: 'shipping', label: Text(tr('Livraison offerte')))],
-                    selected: {type},
-                    onSelectionChanged: (v) => set(() => type = v.first),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                TextField(controller: code, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: tr('Code (ex. BIENVENUE)'))),
+                const SizedBox(height: 10),
+                SegmentedButton<String>(
+                  segments: [ButtonSegment(value: 'percent', label: Text('%')), ButtonSegment(value: 'amount', label: Text(tr('Montant'))), ButtonSegment(value: 'shipping', label: Text(tr('Livraison offerte')))],
+                  selected: {type},
+                  onSelectionChanged: (v) => set(() => type = v.first),
+                ),
+                if (type != 'shipping') TextField(controller: value, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: trn(type == 'percent' ? 'Remise (%)' : 'Remise (montant TTC)'))),
+                TextField(controller: min, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Achat minimum (facultatif)'))),
+                TextField(controller: max, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Nombre maximal d\'utilisations (facultatif)'))),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: OutlinedButton(onPressed: () => pick(true), child: Text(tr(from == null ? 'Début : immédiat' : 'Du ${dateFr(from)}')))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton(onPressed: () => pick(false), child: Text(tr(to == null ? 'Fin : aucune' : 'Au ${dateFr(to)}')))),
+                ]),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Une seule fois par client')), value: once, onChanged: (v) => set(() => once = v)),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
+                TextField(controller: desc, decoration: InputDecoration(labelText: tr('Note interne (facultatif)'))),
+              ]),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                  if (c != null)
+                    TextButton(
+                      style: TextButton.styleFrom(foregroundColor: YColors.danger),
+                      onPressed: () async {
+                        await api.delete('sites/coupons/${c['id']}');
+                        if (dc.mounted) Navigator.pop(dc);
+                        await onChanged();
+                      },
+                      child: Text(tr('Supprimer')),
+                    ),
+                  TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
+                  FilledButton(
+                    onPressed: () async {
+                      try {
+                        await api.post(c == null ? 'sites/coupons' : 'sites/coupons/${c['id']}', {
+                          'code': code.text.trim(), 'type': type, 'value': toDouble(value.text), 'min_order': toDouble(min.text), 'max_uses': max.text.trim().isEmpty ? null : toDouble(max.text).round(),
+                          'starts_on': from, 'ends_on': to, 'once_per_customer': once, 'active': active, 'description': desc.text.trim(),
+                        });
+                        if (dc.mounted) Navigator.pop(dc);
+                        await onChanged();
+                      } catch (e) {
+                        if (dc.mounted) toast(dc, errorText(e), error: true);
+                      }
+                    },
+                    child: Text(tr('Enregistrer')),
                   ),
-                  if (type != 'shipping') TextField(controller: value, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: trn(type == 'percent' ? 'Remise (%)' : 'Remise (montant TTC)'))),
-                  TextField(controller: min, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Achat minimum (facultatif)'))),
-                  TextField(controller: max, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Nombre maximal d\'utilisations (facultatif)'))),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: OutlinedButton(onPressed: () => pick(true), child: Text(tr(from == null ? 'Début : immédiat' : 'Du ${dateFr(from)}')))),
-                    const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton(onPressed: () => pick(false), child: Text(tr(to == null ? 'Fin : aucune' : 'Au ${dateFr(to)}')))),
-                  ]),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Une seule fois par client')), value: once, onChanged: (v) => set(() => once = v)),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
-                  TextField(controller: desc, decoration: InputDecoration(labelText: tr('Note interne (facultatif)'))),
                 ]),
               ),
-            ),
-            actions: [
-              if (c != null)
-                TextButton(
-                  style: TextButton.styleFrom(foregroundColor: YColors.danger),
-                  onPressed: () async {
-                    await api.delete('sites/coupons/${c['id']}');
-                    if (dc.mounted) Navigator.pop(dc);
-                    await onChanged();
-                  },
-                  child: Text(tr('Supprimer')),
-                ),
-              TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
-              FilledButton(
-                onPressed: () async {
-                  try {
-                    await api.post(c == null ? 'sites/coupons' : 'sites/coupons/${c['id']}', {
-                      'code': code.text.trim(), 'type': type, 'value': toDouble(value.text), 'min_order': toDouble(min.text), 'max_uses': max.text.trim().isEmpty ? null : toDouble(max.text).round(),
-                      'starts_on': from, 'ends_on': to, 'once_per_customer': once, 'active': active, 'description': desc.text.trim(),
-                    });
-                    if (dc.mounted) Navigator.pop(dc);
-                    await onChanged();
-                  } catch (e) {
-                    if (dc.mounted) toast(dc, errorText(e), error: true);
-                  }
-                },
-                child: Text(tr('Enregistrer')),
-              ),
-            ],
+            ]),
           );
         },
-      ),
-    );
+      ));
   }
 }
 
@@ -897,9 +893,7 @@ class _ProductPagesState extends State<_ProductPages> {
     final values = [for (final v in p['attribute_values'] as List) '$v'];
     final names = {for (final r in _rows!) '${r['id']}': '${r['name']}'};
     final cur = context.read<Session>().currency;
-    await showDialog(
-      context: context,
-      builder: (dc) => StatefulBuilder(builder: (dc, set) {
+    await showFormDialog(context, title: '${p['name']}', maxWidth: 808, builder: (dc) => StatefulBuilder(builder: (dc, set) {
         final photos = [for (final ph in p['page']['photos'] as List) asMap(ph)];
         Future<bool> run(Future<dynamic> Function() f) async {
           set(() => busy = true);
@@ -954,131 +948,129 @@ class _ProductPagesState extends State<_ProductPages> {
           );
         }
 
-        return YAlertDialog(
-          title: Row(children: [
-            Expanded(child: Text(tr('${p['name']}'))),
-            IconButton(tooltip: tr('Voir la fiche sur le site'), onPressed: () => openUrl('${p['url']}'), icon: const Icon(Icons.open_in_new, size: 20)),
-          ]),
-          content: SizedBox(
-            width: 760,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Row(children: [
-                  Text(tr('Photos'), style: TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 8),
-                  Text(tr('${photos.length}/10'), style: TextStyle(color: Theme.of(dc).hintColor)),
-                  const Spacer(),
-                  if (busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                  TextButton.icon(onPressed: busy || photos.length >= 10 ? null : addPhotos, icon: const Icon(Icons.add_photo_alternate_outlined), label: Text(tr('Ajouter'))),
-                ]),
-                if (photos.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(tr('Sans photo, la fiche utilise l\'image de l\'article. Ajoutez plusieurs vues : face, dos, détail, porté…'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12.5)),
-                  ),
-                if (photos.isNotEmpty)
-                  SizedBox(
-                    height: 196,
-                    child: ListView(scrollDirection: Axis.horizontal, children: [
-                      for (final (i, ph) in photos.indexed)
-                        Container(
-                          width: 140,
-                          margin: const EdgeInsets.only(right: 10, top: 6),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                            Stack(children: [
-                              ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 120, child: Image.network('${ph['url']}', fit: BoxFit.cover, width: 140))),
-                              if (i == 0) Positioned(left: 6, top: 6, child: StatusChip(tr('Principale'), color: YColors.blue)),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Row(children: [
-                                  if (i > 0)
-                                    IconButton(
-                                      tooltip: tr('Avancer'),
-                                      visualDensity: VisualDensity.compact,
-                                      style: IconButton.styleFrom(backgroundColor: Colors.white70),
-                                      onPressed: busy ? null : () {
-                                        final order = [for (final x in photos) '${x['path']}'];
-                                        order.insert(i - 1, order.removeAt(i));
-                                        run(() => api.post('sites/shop/products/${p['id']}', {'photo_order': order}));
-                                      },
-                                      icon: const Icon(Icons.arrow_back, size: 16),
-                                    ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                Text(tr('Photos'), style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(width: 8),
+                Text(tr('${photos.length}/10'), style: TextStyle(color: Theme.of(dc).hintColor)),
+                const Spacer(),
+                if (busy) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                TextButton.icon(onPressed: busy || photos.length >= 10 ? null : addPhotos, icon: const Icon(Icons.add_photo_alternate_outlined), label: Text(tr('Ajouter'))),
+              ]),
+              if (photos.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(tr('Sans photo, la fiche utilise l\'image de l\'article. Ajoutez plusieurs vues : face, dos, détail, porté…'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12.5)),
+                ),
+              if (photos.isNotEmpty)
+                SizedBox(
+                  height: 196,
+                  child: ListView(scrollDirection: Axis.horizontal, children: [
+                    for (final (i, ph) in photos.indexed)
+                      Container(
+                        width: 140,
+                        margin: const EdgeInsets.only(right: 10, top: 6),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          Stack(children: [
+                            ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 120, child: Image.network('${ph['url']}', fit: BoxFit.cover, width: 140))),
+                            if (i == 0) Positioned(left: 6, top: 6, child: StatusChip(tr('Principale'), color: YColors.blue)),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Row(children: [
+                                if (i > 0)
                                   IconButton(
-                                    tooltip: tr('Retirer'),
+                                    tooltip: tr('Avancer'),
                                     visualDensity: VisualDensity.compact,
                                     style: IconButton.styleFrom(backgroundColor: Colors.white70),
-                                    onPressed: busy ? null : () => run(() => api.post('sites/shop/products/${p['id']}/photos/remove', {'path': ph['path']})),
-                                    icon: const Icon(Icons.close, size: 16, color: YColors.danger),
+                                    onPressed: busy ? null : () {
+                                      final order = [for (final x in photos) '${x['path']}'];
+                                      order.insert(i - 1, order.removeAt(i));
+                                      run(() => api.post('sites/shop/products/${p['id']}', {'photo_order': order}));
+                                    },
+                                    icon: const Icon(Icons.arrow_back, size: 16),
                                   ),
-                                ]),
-                              ),
-                            ]),
-                            if (values.isNotEmpty)
-                              DropdownButton<String>(
-                                isExpanded: true,
-                                isDense: true,
-                                value: values.contains(ph['tag']) ? '${ph['tag']}' : '',
-                                items: [
-                                  DropdownMenuItem(value: '', child: Text(tr('Toutes variantes'), style: TextStyle(fontSize: 12.5))),
-                                  for (final v in values) DropdownMenuItem(value: v, child: Text(tr(v), style: const TextStyle(fontSize: 12.5))),
-                                ],
-                                onChanged: busy ? null : (v) => run(() => api.post('sites/shop/products/${p['id']}', {'photo_tags': {'${ph['path']}': v ?? ''}})),
-                              ),
+                                IconButton(
+                                  tooltip: tr('Retirer'),
+                                  visualDensity: VisualDensity.compact,
+                                  style: IconButton.styleFrom(backgroundColor: Colors.white70),
+                                  onPressed: busy ? null : () => run(() => api.post('sites/shop/products/${p['id']}/photos/remove', {'path': ph['path']})),
+                                  icon: const Icon(Icons.close, size: 16, color: YColors.danger),
+                                ),
+                              ]),
+                            ),
                           ]),
-                        ),
-                    ]),
-                  ),
-                if (values.isNotEmpty)
-                  Text(tr('Étiquetez une photo avec une valeur (ex. Noir) : elle s\'affiche quand le client choisit cette variante.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
-                const Divider(height: 26),
-                Row(children: [
-                  Expanded(child: TextField(controller: badge, maxLength: 28, decoration: InputDecoration(labelText: tr('Badge (ex. Nouveau, Best-seller)'), counterText: ''))),
-                  const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: compare, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Prix barré TTC (facultatif)'), helperText: tr('Prix actuel : ${money(toDouble(p['price']), cur)}')))),
-                ]),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: desc,
-                  minLines: 6,
-                  maxLines: 14,
-                  decoration: InputDecoration(labelText: tr('Description détaillée'), alignLabelWithHint: true, hintText: tr('## Matière\n100 % coton.\n\n## Entretien\n- Lavage à 30 °C\n- Repassage doux')),
-                ),
-                const SizedBox(height: 4),
-                Text(tr('Mise en forme : ## intertitre, **gras**, « - » pour une liste. Vide : la description de l\'article est reprise.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
-                const Divider(height: 26),
-                Row(children: [
-                  Expanded(child: Text(tr('Vous aimerez aussi'), style: TextStyle(fontWeight: FontWeight.w800))),
-                  TextButton.icon(onPressed: pickRelated, icon: const Icon(Icons.playlist_add), label: Text(tr('Choisir'))),
-                ]),
-                if (related.isEmpty)
-                  Text(tr('Automatique : produits de la même catégorie.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12.5))
-                else
-                  Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final r in related) InputChip(label: Text(tr(names[r] ?? 'Produit')), onDeleted: () => set(() => related.remove(r))),
+                          if (values.isNotEmpty)
+                            DropdownButton<String>(
+                              isExpanded: true,
+                              isDense: true,
+                              value: values.contains(ph['tag']) ? '${ph['tag']}' : '',
+                              items: [
+                                DropdownMenuItem(value: '', child: Text(tr('Toutes variantes'), style: TextStyle(fontSize: 12.5))),
+                                for (final v in values) DropdownMenuItem(value: v, child: Text(tr(v), style: const TextStyle(fontSize: 12.5))),
+                              ],
+                              onChanged: busy ? null : (v) => run(() => api.post('sites/shop/products/${p['id']}', {'photo_tags': {'${ph['path']}': v ?? ''}})),
+                            ),
+                        ]),
+                      ),
                   ]),
+                ),
+              if (values.isNotEmpty)
+                Text(tr('Étiquetez une photo avec une valeur (ex. Noir) : elle s\'affiche quand le client choisit cette variante.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
+              const Divider(height: 26),
+              Row(children: [
+                Expanded(child: TextField(controller: badge, maxLength: 28, decoration: InputDecoration(labelText: tr('Badge (ex. Nouveau, Best-seller)'), counterText: ''))),
+                const SizedBox(width: 12),
+                Expanded(child: TextField(controller: compare, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Prix barré TTC (facultatif)'), helperText: tr('Prix actuel : ${money(toDouble(p['price']), cur)}')))),
+              ]),
+              const SizedBox(height: 12),
+              TextField(
+                controller: desc,
+                minLines: 6,
+                maxLines: 14,
+                decoration: InputDecoration(labelText: tr('Description détaillée'), alignLabelWithHint: true, hintText: tr('## Matière\n100 % coton.\n\n## Entretien\n- Lavage à 30 °C\n- Repassage doux')),
+              ),
+              const SizedBox(height: 4),
+              Text(tr('Mise en forme : ## intertitre, **gras**, « - » pour une liste. Vide : la description de l\'article est reprise.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
+              const Divider(height: 26),
+              Row(children: [
+                Expanded(child: Text(tr('Vous aimerez aussi'), style: TextStyle(fontWeight: FontWeight.w800))),
+                TextButton.icon(onPressed: pickRelated, icon: const Icon(Icons.playlist_add), label: Text(tr('Choisir'))),
+              ]),
+              if (related.isEmpty)
+                Text(tr('Automatique : produits de la même catégorie.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12.5))
+              else
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final r in related) InputChip(label: Text(tr(names[r] ?? 'Produit')), onDeleted: () => set(() => related.remove(r))),
+                ]),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton.icon(onPressed: () => openUrl('${p['url']}'), icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Voir la fiche sur le site'))),
+                TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Fermer'))),
+                FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          final ok = await run(() => api.post('sites/shop/products/${p['id']}', {
+                                'description': desc.text, 'badge': badge.text.trim(), 'compare_at': toDouble(compare.text), 'related': related,
+                              }));
+                          if (!ok) return;
+                          if (dc.mounted) Navigator.pop(dc);
+                          if (mounted) toast(context, tr('Fiche « ${p['name']} » enregistrée.'));
+                        },
+                  child: Text(tr('Enregistrer')),
+                ),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Fermer'))),
-            FilledButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      final ok = await run(() => api.post('sites/shop/products/${p['id']}', {
-                            'description': desc.text, 'badge': badge.text.trim(), 'compare_at': toDouble(compare.text), 'related': related,
-                          }));
-                      if (!ok) return;
-                      if (dc.mounted) Navigator.pop(dc);
-                      if (mounted) toast(context, tr('Fiche « ${p['name']} » enregistrée.'));
-                    },
-              child: Text(tr('Enregistrer')),
-            ),
-          ],
+          ]),
         );
-      }),
-    );
+      }));
     await _load();
   }
 }

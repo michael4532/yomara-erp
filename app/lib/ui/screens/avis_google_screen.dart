@@ -272,7 +272,7 @@ class _AvisGoogleScreenState extends State<AvisGoogleScreen> {
   }
 
   Future<void> _settings(Map<String, dynamic> d) async {
-    await showDialog(context: context, builder: (_) => _AvisSettings(info: d, onConnect: _connect, onFindPlace: () => _findPlace(d)));
+    await showFormDialog(context, title: 'Paramètres des avis Google', maxWidth: 668, builder: (_) => _AvisSettings(info: d, onConnect: _connect, onFindPlace: () => _findPlace(d)));
     await _load();
   }
 }
@@ -758,67 +758,67 @@ class _PostsTabState extends State<_PostsTab> {
     String? photo;
     DateTime? end;
     final loc = (widget.info['locations'] as List).first as Map;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Publier sur Google')),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                SegmentedButton<String>(
-                  segments: [ButtonSegment(value: 'STANDARD', label: Text(tr('Actualité'))), ButtonSegment(value: 'OFFER', label: Text(tr('Offre'))), ButtonSegment(value: 'EVENT', label: Text(tr('Événement')))],
-                  selected: {type},
-                  onSelectionChanged: (v) => set(() => type = v.first),
+    final ok = await showFormDialog<bool>(context, title: 'Publier sur Google', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              SegmentedButton<String>(
+                segments: [ButtonSegment(value: 'STANDARD', label: Text(tr('Actualité'))), ButtonSegment(value: 'OFFER', label: Text(tr('Offre'))), ButtonSegment(value: 'EVENT', label: Text(tr('Événement')))],
+                selected: {type},
+                onSelectionChanged: (v) => set(() => type = v.first),
+              ),
+              if (type != 'STANDARD') TextField(controller: title, maxLength: 58, decoration: InputDecoration(labelText: tr('Titre'))),
+              TextField(controller: summary, minLines: 3, maxLines: 6, maxLength: 1500, decoration: InputDecoration(labelText: tr('Texte'))),
+              if (type == 'OFFER') TextField(controller: coupon, decoration: InputDecoration(labelText: tr('Code promo (facultatif)'))),
+              if (type != 'STANDARD')
+                TextButton.icon(
+                  onPressed: () async {
+                    final d = await showDatePicker(context: c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now().add(const Duration(days: 7)));
+                    if (d != null) set(() => end = d);
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text(tr(end == null ? 'Date de fin' : 'Jusqu\'au ${DateFormat('d MMM y', 'fr_FR').format(end!)}')),
                 ),
-                if (type != 'STANDARD') TextField(controller: title, maxLength: 58, decoration: InputDecoration(labelText: tr('Titre'))),
-                TextField(controller: summary, minLines: 3, maxLines: 6, maxLength: 1500, decoration: InputDecoration(labelText: tr('Texte'))),
-                if (type == 'OFFER') TextField(controller: coupon, decoration: InputDecoration(labelText: tr('Code promo (facultatif)'))),
-                if (type != 'STANDARD')
-                  TextButton.icon(
-                    onPressed: () async {
-                      final d = await showDatePicker(context: c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now().add(const Duration(days: 7)));
-                      if (d != null) set(() => end = d);
-                    },
-                    icon: const Icon(Icons.event),
-                    label: Text(tr(end == null ? 'Date de fin' : 'Jusqu\'au ${DateFormat('d MMM y', 'fr_FR').format(end!)}')),
-                  ),
-                DropdownButtonFormField<String>(
-                  initialValue: cta,
-                  decoration: InputDecoration(labelText: tr('Bouton')),
-                  items: [
-                    DropdownMenuItem(value: 'LEARN_MORE', child: Text(tr('En savoir plus'))), DropdownMenuItem(value: 'ORDER', child: Text(tr('Commander'))), DropdownMenuItem(value: 'BOOK', child: Text(tr('Réserver'))),
-                    DropdownMenuItem(value: 'SHOP', child: Text(tr('Acheter'))), DropdownMenuItem(value: 'CALL', child: Text(tr('Appeler'))), DropdownMenuItem(value: 'SIGN_UP', child: Text(tr('S\'inscrire'))),
-                  ],
-                  onChanged: (v) => set(() => cta = v ?? 'LEARN_MORE'),
+              DropdownButtonFormField<String>(
+                initialValue: cta,
+                decoration: InputDecoration(labelText: tr('Bouton')),
+                items: [
+                  DropdownMenuItem(value: 'LEARN_MORE', child: Text(tr('En savoir plus'))), DropdownMenuItem(value: 'ORDER', child: Text(tr('Commander'))), DropdownMenuItem(value: 'BOOK', child: Text(tr('Réserver'))),
+                  DropdownMenuItem(value: 'SHOP', child: Text(tr('Acheter'))), DropdownMenuItem(value: 'CALL', child: Text(tr('Appeler'))), DropdownMenuItem(value: 'SIGN_UP', child: Text(tr('S\'inscrire'))),
+                ],
+                onChanged: (v) => set(() => cta = v ?? 'LEARN_MORE'),
+              ),
+              if (cta != 'CALL') TextField(controller: url, decoration: InputDecoration(labelText: tr('Lien du bouton'), hintText: tr('https://'))),
+              const SizedBox(height: 8),
+              Row(children: [
+                if (photo != null) Padding(padding: const EdgeInsets.only(right: 8), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(photo!, height: 60))),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final f = await FilePicker.pickFiles(type: FileType.image);
+                    if (f.isEmpty) return;
+                    try {
+                      final r = await api.upload('avis_google/media', 'file', await f.first.readAsBytes(), f.first.name);
+                      set(() => photo = '${r['url']}');
+                    } catch (e) {
+                      if (c.mounted) toast(c, errorText(e), error: true);
+                    }
+                  },
+                  icon: const Icon(Icons.image_outlined),
+                  label: Text(tr(photo == null ? 'Ajouter une photo' : 'Changer la photo')),
                 ),
-                if (cta != 'CALL') TextField(controller: url, decoration: InputDecoration(labelText: tr('Lien du bouton'), hintText: tr('https://'))),
-                const SizedBox(height: 8),
-                Row(children: [
-                  if (photo != null) Padding(padding: const EdgeInsets.only(right: 8), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(photo!, height: 60))),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final f = await FilePicker.pickFiles(type: FileType.image);
-                      if (f.isEmpty) return;
-                      try {
-                        final r = await api.upload('avis_google/media', 'file', await f.first.readAsBytes(), f.first.name);
-                        set(() => photo = '${r['url']}');
-                      } catch (e) {
-                        if (c.mounted) toast(c, errorText(e), error: true);
-                      }
-                    },
-                    icon: const Icon(Icons.image_outlined),
-                    label: Text(tr(photo == null ? 'Ajouter une photo' : 'Changer la photo')),
-                  ),
-                ]),
+              ]),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Publier'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Publier')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || summary.text.trim().isEmpty) return;
     try {
       await api.post('avis_google/posts', {
@@ -1051,101 +1051,105 @@ class _AvisSettingsState extends State<_AvisSettings> {
   Widget build(BuildContext context) {
     final api = context.read<Session>().api;
     final triggers = asMap(widget.info['triggers']);
-    return YAlertDialog(
-      title: Text(tr('Paramètres des avis Google')),
-      content: SizedBox(
-        width: 620,
-        height: 520,
-        child: DefaultTabController(
-          length: 3,
-          child: Column(children: [
-            TabBar(tabs: [Tab(text: tr('Connexion')), Tab(text: tr('Demandes d\'avis')), Tab(text: tr('Alertes'))]),
-            Expanded(
-              child: TabBarView(children: [
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(widget.info['mode'] == 'api' ? Icons.check_circle : Icons.link_off, color: widget.info['mode'] == 'api' ? YColors.success : YColors.warning),
-                    title: Text(tr(widget.info['mode'] == 'api' ? 'Fiche Google Business connectée' : (widget.info['mode'] == 'places' ? 'Mode lecture seule (API Places)' : 'Non connecté'))),
-                    subtitle: Text(tr(widget.info['connected_email'] != null ? 'Compte : ${widget.info['connected_email']}' : 'Connectez la fiche pour répondre, publier et voir les statistiques.')),
-                  ),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: _gBlue), onPressed: widget.onConnect, icon: const Icon(Icons.login), label: Text(tr(widget.info['mode'] == 'api' ? 'Reconnecter' : 'Connecter ma fiche Google'))),
-                    OutlinedButton.icon(onPressed: widget.onFindPlace, icon: const Icon(Icons.search), label: Text(tr('Ajouter un établissement (lecture seule)'))),
-                    if (widget.info['mode'] == 'api')
-                      TextButton(
-                        onPressed: () async {
-                          if (!await confirm(context, tr('Déconnecter la fiche Google ?'), tr('Les avis ne seront plus synchronisés ni les réponses envoyées tant que vous ne reconnectez pas.'), ok: 'Déconnecter', danger: true)) return;
-                          await api.delete('avis_google/connect');
-                          if (context.mounted) Navigator.pop(context);
-                        },
-                        child: Text(tr('Déconnecter'), style: TextStyle(color: YColors.danger)),
-                      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: DefaultTabController(
+            length: 3,
+            child: Column(children: [
+              TabBar(tabs: [Tab(text: tr('Connexion')), Tab(text: tr('Demandes d\'avis')), Tab(text: tr('Alertes'))]),
+              Expanded(
+                child: TabBarView(children: [
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(widget.info['mode'] == 'api' ? Icons.check_circle : Icons.link_off, color: widget.info['mode'] == 'api' ? YColors.success : YColors.warning),
+                      title: Text(tr(widget.info['mode'] == 'api' ? 'Fiche Google Business connectée' : (widget.info['mode'] == 'places' ? 'Mode lecture seule (API Places)' : 'Non connecté'))),
+                      subtitle: Text(tr(widget.info['connected_email'] != null ? 'Compte : ${widget.info['connected_email']}' : 'Connectez la fiche pour répondre, publier et voir les statistiques.')),
+                    ),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: _gBlue), onPressed: widget.onConnect, icon: const Icon(Icons.login), label: Text(tr(widget.info['mode'] == 'api' ? 'Reconnecter' : 'Connecter ma fiche Google'))),
+                      OutlinedButton.icon(onPressed: widget.onFindPlace, icon: const Icon(Icons.search), label: Text(tr('Ajouter un établissement (lecture seule)'))),
+                      if (widget.info['mode'] == 'api')
+                        TextButton(
+                          onPressed: () async {
+                            if (!await confirm(context, tr('Déconnecter la fiche Google ?'), tr('Les avis ne seront plus synchronisés ni les réponses envoyées tant que vous ne reconnectez pas.'), ok: 'Déconnecter', danger: true)) return;
+                            await api.delete('avis_google/connect');
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          child: Text(tr('Déconnecter'), style: TextStyle(color: YColors.danger)),
+                        ),
+                    ]),
+                    const SizedBox(height: 14),
+                    Text(
+                      tr('La connexion utilise l\'application Google de Boîte mail › Paramètres. Ajoutez-y l\'adresse de retour ${widget.info['redirect_uri']} et activez les API « My Business Account Management », « My Business Business Information », '
+                      '« Business Profile Performance » et « Google My Business » (l\'accès à ces API se demande à Google, réponse en quelques jours). En attendant, le mode lecture seule fonctionne avec une simple clé API Places.'),
+                      style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5, height: 1.5),
+                    ),
                   ]),
-                  const SizedBox(height: 14),
-                  Text(
-                    tr('La connexion utilise l\'application Google de Boîte mail › Paramètres. Ajoutez-y l\'adresse de retour ${widget.info['redirect_uri']} et activez les API « My Business Account Management », « My Business Business Information », '
-                    '« Business Profile Performance » et « Google My Business » (l\'accès à ces API se demande à Google, réponse en quelques jours). En attendant, le mode lecture seule fonctionne avec une simple clé API Places.'),
-                    style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5, height: 1.5),
-                  ),
-                ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: rs['enabled'] == true, onChanged: (v) => setState(() => rs['enabled'] = v), title: Text(tr('Envoyer automatiquement une demande d\'avis'))),
-                  Text(tr('Après :'), style: TextStyle(fontWeight: FontWeight.w700)),
-                  for (final t in triggers.entries)
-                    CheckboxListTile(dense: true, contentPadding: EdgeInsets.zero, value: _triggers.contains(t.key), onChanged: (v) => setState(() => v == true ? _triggers.add(t.key) : _triggers.remove(t.key)), title: Text(tr('${t.value}'))),
-                  Text(tr('Par (dans cet ordre, selon les coordonnées du client) :'), style: TextStyle(fontWeight: FontWeight.w700)),
-                  Wrap(spacing: 6, children: [
-                    for (final c in const [('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'E-mail')])
-                      FilterChip(label: Text(tr(c.$2)), selected: _channels.contains(c.$1), onSelected: (v) => setState(() => v ? _channels.add(c.$1) : _channels.remove(c.$1))),
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    SwitchListTile(contentPadding: EdgeInsets.zero, value: rs['enabled'] == true, onChanged: (v) => setState(() => rs['enabled'] = v), title: Text(tr('Envoyer automatiquement une demande d\'avis'))),
+                    Text(tr('Après :'), style: TextStyle(fontWeight: FontWeight.w700)),
+                    for (final t in triggers.entries)
+                      CheckboxListTile(dense: true, contentPadding: EdgeInsets.zero, value: _triggers.contains(t.key), onChanged: (v) => setState(() => v == true ? _triggers.add(t.key) : _triggers.remove(t.key)), title: Text(tr('${t.value}'))),
+                    Text(tr('Par (dans cet ordre, selon les coordonnées du client) :'), style: TextStyle(fontWeight: FontWeight.w700)),
+                    Wrap(spacing: 6, children: [
+                      for (final c in const [('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'E-mail')])
+                        FilterChip(label: Text(tr(c.$2)), selected: _channels.contains(c.$1), onSelected: (v) => setState(() => v ? _channels.add(c.$1) : _channels.remove(c.$1))),
+                    ]),
+                    Row(children: [
+                      Expanded(child: TextFormField(initialValue: '${rs['delay_hours']}', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai (heures)')), onChanged: (v) => rs['delay_hours'] = int.tryParse(v) ?? 2)),
+                      const SizedBox(width: 12),
+                      Expanded(child: TextFormField(initialValue: '${rs['cooldown_days']}', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Pas plus d\'une fois tous les (jours)')), onChanged: (v) => rs['cooldown_days'] = int.tryParse(v) ?? 90)),
+                    ]),
+                    TextField(controller: _msg, minLines: 3, maxLines: 5, decoration: InputDecoration(labelText: tr('Message'), helperText: tr('Variables : {nom}, {societe}, {lien} (obligatoire)'))),
+                    const SizedBox(height: 8),
+                    Text(tr('Tous les clients reçoivent la même demande, sans tri selon leur satisfaction (règle de Google). La page d\'avis propose aussi d\'écrire directement à l\'équipe.'),
+                        style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                   ]),
-                  Row(children: [
-                    Expanded(child: TextFormField(initialValue: '${rs['delay_hours']}', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai (heures)')), onChanged: (v) => rs['delay_hours'] = int.tryParse(v) ?? 2)),
-                    const SizedBox(width: 12),
-                    Expanded(child: TextFormField(initialValue: '${rs['cooldown_days']}', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Pas plus d\'une fois tous les (jours)')), onChanged: (v) => rs['cooldown_days'] = int.tryParse(v) ?? 90)),
+                  ListView(padding: const EdgeInsets.only(top: 12), children: [
+                    DropdownButtonFormField<int>(
+                      initialValue: (al['max_rating'] as num?)?.toInt() ?? 2,
+                      decoration: InputDecoration(labelText: tr('M\'alerter pour les avis jusqu\'à')),
+                      items: [DropdownMenuItem(value: 1, child: Text(tr('1 étoile'))), DropdownMenuItem(value: 2, child: Text(tr('2 étoiles'))), DropdownMenuItem(value: 3, child: Text(tr('3 étoiles')))],
+                      onChanged: (v) => al['max_rating'] = v ?? 2,
+                    ),
+                    TextField(controller: _wa, decoration: InputDecoration(labelText: tr('Aussi par WhatsApp au numéro (facultatif)'))),
+                    TextField(controller: _mail, decoration: InputDecoration(labelText: tr('Aussi par e-mail à (facultatif)'))),
+                    const SizedBox(height: 8),
+                    Text(tr('Les responsables et les personnes qui répondent aux avis reçoivent toujours une notification dans Yomara.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                   ]),
-                  TextField(controller: _msg, minLines: 3, maxLines: 5, decoration: InputDecoration(labelText: tr('Message'), helperText: tr('Variables : {nom}, {societe}, {lien} (obligatoire)'))),
-                  const SizedBox(height: 8),
-                  Text(tr('Tous les clients reçoivent la même demande, sans tri selon leur satisfaction (règle de Google). La page d\'avis propose aussi d\'écrire directement à l\'équipe.'),
-                      style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                 ]),
-                ListView(padding: const EdgeInsets.only(top: 12), children: [
-                  DropdownButtonFormField<int>(
-                    initialValue: (al['max_rating'] as num?)?.toInt() ?? 2,
-                    decoration: InputDecoration(labelText: tr('M\'alerter pour les avis jusqu\'à')),
-                    items: [DropdownMenuItem(value: 1, child: Text(tr('1 étoile'))), DropdownMenuItem(value: 2, child: Text(tr('2 étoiles'))), DropdownMenuItem(value: 3, child: Text(tr('3 étoiles')))],
-                    onChanged: (v) => al['max_rating'] = v ?? 2,
-                  ),
-                  TextField(controller: _wa, decoration: InputDecoration(labelText: tr('Aussi par WhatsApp au numéro (facultatif)'))),
-                  TextField(controller: _mail, decoration: InputDecoration(labelText: tr('Aussi par e-mail à (facultatif)'))),
-                  const SizedBox(height: 8),
-                  Text(tr('Les responsables et les personnes qui répondent aux avis reçoivent toujours une notification dans Yomara.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
-                ]),
-              ]),
+              ),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await api.put('avis_google/settings', {
+                    'requests': {...rs, 'message': _msg.text.trim(), 'triggers': _triggers.toList(), 'channels': _channels.toList()},
+                    'alerts': {...al, 'whatsapp': _wa.text.trim().isEmpty ? null : _wa.text.trim(), 'email': _mail.text.trim().isEmpty ? null : _mail.text.trim()},
+                  });
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    toast(context, tr('Paramètres enregistrés.'));
+                  }
+                } catch (e) {
+                  if (context.mounted) toast(context, errorText(e), error: true);
+                }
+              },
+              child: Text(tr('Enregistrer')),
             ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-        FilledButton(
-          onPressed: () async {
-            try {
-              await api.put('avis_google/settings', {
-                'requests': {...rs, 'message': _msg.text.trim(), 'triggers': _triggers.toList(), 'channels': _channels.toList()},
-                'alerts': {...al, 'whatsapp': _wa.text.trim().isEmpty ? null : _wa.text.trim(), 'email': _mail.text.trim().isEmpty ? null : _mail.text.trim()},
-              });
-              if (context.mounted) {
-                Navigator.pop(context);
-                toast(context, tr('Paramètres enregistrés.'));
-              }
-            } catch (e) {
-              if (context.mounted) toast(context, errorText(e), error: true);
-            }
-          },
-          child: Text(tr('Enregistrer')),
-        ),
-      ],
+      ]),
     );
   }
 }

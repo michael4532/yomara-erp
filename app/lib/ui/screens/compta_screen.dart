@@ -510,7 +510,7 @@ class _EntriesTabState extends State<_EntriesTab> {
   }
 
   Future<void> _newEntry() async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => _EntryForm(setup: widget.setup));
+    final ok = await showFormDialog<bool>(context, title: 'Saisie d\'une écriture', maxWidth: 808, builder: (_) => _EntryForm(setup: widget.setup));
     if (ok == true && mounted) setState(() => _reload++);
   }
 }
@@ -618,127 +618,128 @@ class _EntryFormState extends State<_EntryForm> {
   Widget build(BuildContext context) {
     final diff = (_debit - _credit).abs();
     final fmt = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))];
-    return YAlertDialog(
-      title: Text(tr('Saisie d\'une écriture')),
-      content: SizedBox(
-        width: 760,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Wrap(spacing: 12, runSpacing: 4, children: [
-              SizedBox(
-                width: 220,
-                child: Field(
-                  label: tr('Journal'),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Wrap(spacing: 12, runSpacing: 4, children: [
+            SizedBox(
+              width: 220,
+              child: Field(
+                label: tr('Journal'),
+                child: DropdownButtonFormField<int>(
+                  initialValue: _journal,
+                  items: [for (final j in journals) DropdownMenuItem(value: j['id'] as int, child: Text(tr('${j['code']} · ${j['name']}')))],
+                  onChanged: (v) => setState(() => _journal = v!),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 160,
+              child: Field(
+                label: tr('Date'),
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                    if (d != null) setState(() => _date = d);
+                  },
+                  child: Text(tr(dateFr(isoDate(_date)))),
+                ),
+              ),
+            ),
+            SizedBox(width: 340, child: Field(label: tr('Libellé'), child: TextField(controller: _label, autofocus: true))),
+            SizedBox(width: 180, child: Field(label: tr('Référence (facultatif)'), child: TextField(controller: _ref))),
+          ]),
+          const SizedBox(height: 4),
+          for (var i = 0; i < _lines.length; i++) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [
+                Expanded(
                   child: DropdownButtonFormField<int>(
-                    initialValue: _journal,
-                    items: [for (final j in journals) DropdownMenuItem(value: j['id'] as int, child: Text(tr('${j['code']} · ${j['name']}')))],
-                    onChanged: (v) => setState(() => _journal = v!),
+                    isExpanded: true,
+                    initialValue: _lines[i].account,
+                    hint: Text(tr('Compte')),
+                    items: [for (final a in accounts) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['code']} · ${a['name']}'), overflow: TextOverflow.ellipsis))],
+                    onChanged: (v) => setState(() => _lines[i].account = v),
                   ),
                 ),
-              ),
-              SizedBox(
-                width: 160,
-                child: Field(
-                  label: tr('Date'),
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
-                      if (d != null) setState(() => _date = d);
-                    },
-                    child: Text(tr(dateFr(isoDate(_date)))),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 120,
+                  child: TextField(
+                    controller: _lines[i].debit,
+                    inputFormatters: fmt,
+                    textAlign: TextAlign.right,
+                    decoration: InputDecoration(hintText: tr('Débit')),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
-              ),
-              SizedBox(width: 340, child: Field(label: tr('Libellé'), child: TextField(controller: _label, autofocus: true))),
-              SizedBox(width: 180, child: Field(label: tr('Référence (facultatif)'), child: TextField(controller: _ref))),
-            ]),
-            const SizedBox(height: 4),
-            for (var i = 0; i < _lines.length; i++) ...[
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 120,
+                  child: TextField(
+                    controller: _lines[i].credit,
+                    inputFormatters: fmt,
+                    textAlign: TextAlign.right,
+                    decoration: InputDecoration(hintText: tr('Crédit')),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _lines.length > 2 ? () => setState(() => _lines.removeAt(i)) : null,
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+              ]),
+            ),
+            if (_isTiers(_lines[i]))
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      isExpanded: true,
-                      initialValue: _lines[i].account,
-                      hint: Text(tr('Compte')),
-                      items: [for (final a in accounts) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['code']} · ${a['name']}'), overflow: TextOverflow.ellipsis))],
-                      onChanged: (v) => setState(() => _lines[i].account = v),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: _lines[i].debit,
-                      inputFormatters: fmt,
-                      textAlign: TextAlign.right,
-                      decoration: InputDecoration(hintText: tr('Débit')),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: _lines[i].credit,
-                      inputFormatters: fmt,
-                      textAlign: TextAlign.right,
-                      decoration: InputDecoration(hintText: tr('Crédit')),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _lines.length > 2 ? () => setState(() => _lines.removeAt(i)) : null,
-                    icon: const Icon(Icons.close, size: 18),
-                  ),
-                ]),
-              ),
-              if (_isTiers(_lines[i]))
-                Padding(
-                  padding: const EdgeInsets.only(left: 16, bottom: 10, right: 40),
-                  child: Autocomplete<Map<String, dynamic>>(
-                    key: ValueKey('tiers$i${_lines[i].account}'),
-                    initialValue: TextEditingValue(text: _lines[i].partnerName ?? ''),
-                    optionsBuilder: (v) => _partners.where((p) => '${p['name']} ${p['code'] ?? ''}'.toLowerCase().contains(v.text.toLowerCase())).take(20),
-                    displayStringForOption: (p) => '${p['name']}',
-                    onSelected: (p) => setState(() => (_lines[i].partner = '${p['id']}', _lines[i].partnerName = '${p['name']}')),
-                    fieldViewBuilder: (c, ctl, focus, _) => TextField(
-                      controller: ctl,
-                      focusNode: focus,
-                      decoration: InputDecoration(isDense: true, prefixIcon: Icon(Icons.person_outline, size: 18), labelText: tr('Compte de tiers (client ou fournisseur)')),
-                    ),
+                padding: const EdgeInsets.only(left: 16, bottom: 10, right: 40),
+                child: Autocomplete<Map<String, dynamic>>(
+                  key: ValueKey('tiers$i${_lines[i].account}'),
+                  initialValue: TextEditingValue(text: _lines[i].partnerName ?? ''),
+                  optionsBuilder: (v) => _partners.where((p) => '${p['name']} ${p['code'] ?? ''}'.toLowerCase().contains(v.text.toLowerCase())).take(20),
+                  displayStringForOption: (p) => '${p['name']}',
+                  onSelected: (p) => setState(() => (_lines[i].partner = '${p['id']}', _lines[i].partnerName = '${p['name']}')),
+                  fieldViewBuilder: (c, ctl, focus, _) => TextField(
+                    controller: ctl,
+                    focusNode: focus,
+                    decoration: InputDecoration(isDense: true, prefixIcon: Icon(Icons.person_outline, size: 18), labelText: tr('Compte de tiers (client ou fournisseur)')),
                   ),
                 ),
-            ],
-            Row(children: [
-              TextButton.icon(
-                onPressed: () => setState(() {
-                  final l = _Line();
-                  final gap = _debit - _credit;
-                  if (gap > 0) l.credit.text = '${gap.round()}';
-                  if (gap < 0) l.debit.text = '${(-gap).round()}';
-                  _lines.add(l);
-                }),
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(tr('Ligne')),
               ),
-              const Spacer(),
-              Text(tr('Débit ${_m(context, _debit)} · Crédit ${_m(context, _credit)}'), style: _num),
-              const SizedBox(width: 12),
-              _debit <= 0 && _credit <= 0
-                  ? StatusChip(tr('Montants à saisir'), color: YColors.muted)
-                  : diff < 0.005
-                      ? StatusChip(tr('Équilibrée'), color: YColors.success)
-                      : StatusChip(tr('Écart ${_m(context, diff)}'), color: YColors.danger),
-            ]),
+          ],
+          Row(children: [
+            TextButton.icon(
+              onPressed: () => setState(() {
+                final l = _Line();
+                final gap = _debit - _credit;
+                if (gap > 0) l.credit.text = '${gap.round()}';
+                if (gap < 0) l.debit.text = '${(-gap).round()}';
+                _lines.add(l);
+              }),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(tr('Ligne')),
+            ),
+            const Spacer(),
+            Text(tr('Débit ${_m(context, _debit)} · Crédit ${_m(context, _credit)}'), style: _num),
+            const SizedBox(width: 12),
+            _debit <= 0 && _credit <= 0
+                ? StatusChip(tr('Montants à saisir'), color: YColors.muted)
+                : diff < 0.005
+                    ? StatusChip(tr('Équilibrée'), color: YColors.success)
+                    : StatusChip(tr('Écart ${_m(context, diff)}'), color: YColors.danger),
+          ]),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton(onPressed: _busy || diff >= 0.005 || _debit <= 0 ? null : _save, child: Text(tr('Enregistrer'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton(onPressed: _busy || diff >= 0.005 || _debit <= 0 ? null : _save, child: Text(tr('Enregistrer'))),
-      ],
+      ]),
     );
   }
 }

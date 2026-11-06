@@ -208,7 +208,7 @@ List<Widget> tripActions(BuildContext dialog, Map<String, dynamic> row, VoidCall
         icon: const Icon(Icons.login, size: 18),
         label: Text(tr('Retour')),
         onPressed: () async {
-          final r = await showDialog<Map<String, dynamic>>(context: dialog, builder: (_) => _ReturnDialog(trip: row));
+          final r = await showFormDialog<Map<String, dynamic>>(dialog, title: 'Retour du véhicule', builder: (_) => _ReturnDialog(trip: row));
           if (r != null) act('return', r);
         },
       ),
@@ -309,46 +309,45 @@ class _ReturnDialogState extends State<_ReturnDialog> {
   bool _issue = false;
 
   @override
-  Widget build(BuildContext context) => YAlertDialog(
-        title: Text(tr('Retour du véhicule')),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: _km, autofocus: true, keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: tr('Compteur au retour (km) *'), helperText: tr('Au départ : ${number(toDouble(widget.trip['out_km']))} km'))),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: _level,
-                decoration: InputDecoration(labelText: tr('Niveau de carburant')),
-                items: [
-                  DropdownMenuItem(value: 'empty', child: Text(tr('Réserve'))),
-                  DropdownMenuItem(value: 'quarter', child: Text('1/4')),
-                  DropdownMenuItem(value: 'half', child: Text('1/2')),
-                  DropdownMenuItem(value: 'three', child: Text('3/4')),
-                  DropdownMenuItem(value: 'full', child: Text(tr('Plein'))),
-                ],
-                onChanged: (v) => setState(() => _level = v ?? 'half'),
-              ),
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(child: TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Carburant payé (montant)')))),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _liters, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Litres')))),
-              ]),
-              const SizedBox(height: 10),
-              TextField(controller: _report, minLines: 2, maxLines: 5, decoration: InputDecoration(labelText: tr('Compte rendu (clients vus, incidents…)'))),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _issue,
-                onChanged: (v) => setState(() => _issue = v == true),
-                title: Text(tr('Signaler un problème sur le véhicule')),
-                subtitle: Text(tr('Le véhicule passe « au garage » et le parc est prévenu')),
-              ),
-            ]),
-          ),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: _km, autofocus: true, keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: tr('Compteur au retour (km) *'), helperText: tr('Au départ : ${number(toDouble(widget.trip['out_km']))} km'))),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          initialValue: _level,
+          decoration: InputDecoration(labelText: tr('Niveau de carburant')),
+          items: [
+            DropdownMenuItem(value: 'empty', child: Text(tr('Réserve'))),
+            DropdownMenuItem(value: 'quarter', child: Text('1/4')),
+            DropdownMenuItem(value: 'half', child: Text('1/2')),
+            DropdownMenuItem(value: 'three', child: Text('3/4')),
+            DropdownMenuItem(value: 'full', child: Text(tr('Plein'))),
+          ],
+          onChanged: (v) => setState(() => _level = v ?? 'half'),
         ),
-        actions: [
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Carburant payé (montant)')))),
+          const SizedBox(width: 10),
+          Expanded(child: TextField(controller: _liters, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Litres')))),
+        ]),
+        const SizedBox(height: 10),
+        TextField(controller: _report, minLines: 2, maxLines: 5, decoration: InputDecoration(labelText: tr('Compte rendu (clients vus, incidents…)'))),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _issue,
+          onChanged: (v) => setState(() => _issue = v == true),
+          title: Text(tr('Signaler un problème sur le véhicule')),
+          subtitle: Text(tr('Le véhicule passe « au garage » et le parc est prévenu')),
+        ),
+      ]),
+      const SizedBox(height: 20),
+      Align(
+        alignment: Alignment.centerRight,
+        child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
           FilledButton(
             onPressed: () {
@@ -363,6 +362,8 @@ class _ReturnDialogState extends State<_ReturnDialog> {
             },
             child: Text(tr('Enregistrer le retour')),
           ),
-        ],
-      );
+        ]),
+      ),
+    ]),
+  );
 }

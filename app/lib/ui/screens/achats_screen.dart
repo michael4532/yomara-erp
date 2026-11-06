@@ -622,13 +622,10 @@ class _RequestFormState extends State<_RequestForm> {
     final q = TextEditingController(text: '1');
     final price = TextEditingController();
     String? productId;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => YAlertDialog(
-        title: Text(tr('Article')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: 'Article', builder: (c) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             Autocomplete<Map<String, dynamic>>(
               optionsBuilder: (v) => v.text.isEmpty ? const [] : products.where((p) => '${p['name']} ${p['sku'] ?? ''}'.toLowerCase().contains(v.text.toLowerCase())).take(20),
               displayStringForOption: (p) => '${p['name']}',
@@ -647,10 +644,15 @@ class _RequestFormState extends State<_RequestForm> {
               Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Prix estimé (HT)')))),
             ]),
           ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ajouter')))],
-      ),
-    );
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Ajouter'))),
+            ]),
+          ),
+        ]),
+      ));
     if (ok != true || desc.text.trim().isEmpty) return;
     setState(() => _lines.add({
           'product_id': productId,
@@ -1159,14 +1161,11 @@ class _SupplierPricesScreenState extends State<SupplierPricesScreen> {
     final minQ = TextEditingController(text: sp == null ? '1' : qty(toDouble(sp['min_qty'])));
     final lead = TextEditingController(text: '${sp?['lead_days'] ?? ''}');
     final ref = TextEditingController(text: '${sp?['supplier_ref'] ?? ''}');
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Tarif fournisseur')),
-          content: SizedBox(
-            width: 440,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    await showFormDialog(context, title: 'Tarif fournisseur', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               DropdownButtonFormField<String?>(
                 initialValue: product,
                 isExpanded: true,
@@ -1193,37 +1192,40 @@ class _SupplierPricesScreenState extends State<SupplierPricesScreen> {
               ]),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Fournisseur préféré')), value: preferred, onChanged: (v) => set(() => preferred = v)),
             ]),
-          ),
-          actions: [
-            if (sp != null)
-              TextButton(
-                onPressed: () async {
-                  await sync.remove('supplier_prices', '${sp['id']}');
-                  if (c.mounted) Navigator.pop(c);
-                },
-                child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-              ),
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                if (product == null || partner == null) return;
-                await sync.save('supplier_prices', {
-                  'id': sp?['id'] ?? newId(),
-                  'product_id': product,
-                  'partner_id': partner,
-                  'price': toDouble(price.text),
-                  'min_qty': toDouble(minQ.text) > 0 ? toDouble(minQ.text) : 1,
-                  'lead_days': int.tryParse(lead.text),
-                  'supplier_ref': ref.text.trim().isEmpty ? null : ref.text.trim(),
-                  'preferred': preferred,
-                });
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Enregistrer')),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                if (sp != null)
+                  TextButton(
+                    onPressed: () async {
+                      await sync.remove('supplier_prices', '${sp['id']}');
+                      if (c.mounted) Navigator.pop(c);
+                    },
+                    child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                  ),
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    if (product == null || partner == null) return;
+                    await sync.save('supplier_prices', {
+                      'id': sp?['id'] ?? newId(),
+                      'product_id': product,
+                      'partner_id': partner,
+                      'price': toDouble(price.text),
+                      'min_qty': toDouble(minQ.text) > 0 ? toDouble(minQ.text) : 1,
+                      'lead_days': int.tryParse(lead.text),
+                      'supplier_ref': ref.text.trim().isEmpty ? null : ref.text.trim(),
+                      'preferred': preferred,
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
+              ]),
             ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
   }
 }

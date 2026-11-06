@@ -1767,14 +1767,11 @@ Future<void> logTime(BuildContext context, {required Map<String, dynamic> projec
   var billable = entry?['billable'] != false && project['billing_mode'] != 'none';
   final h = TextEditingController(text: entry != null ? '${toDouble(entry['hours'])}' : (hours == null ? '' : hours.toStringAsFixed(2)));
   final desc = TextEditingController(text: '${entry?['description'] ?? ''}');
-  await showDialog(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr(entry == null ? 'Saisir du temps' : 'Temps passé')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+  await showFormDialog(context, title: entry == null ? 'Saisir du temps' : 'Temps passé', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(tr('${project['name']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
@@ -1808,46 +1805,49 @@ Future<void> logTime(BuildContext context, {required Map<String, dynamic> projec
             if (project['billing_mode'] != 'none')
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Facturable au client')), value: billable, onChanged: (v) => set(() => billable = v)),
           ]),
-        ),
-        actions: [
-          if (entry != null)
-            TextButton(
-              onPressed: () async {
-                await sync.remove('prj_timesheets', entry['id'] as String);
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-            ),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
-            onPressed: () async {
-              final hours = double.tryParse(h.text.replaceAll(',', '.').trim());
-              if (hours == null || hours <= 0 || hours > 24) {
-                toast(c, tr('Indiquez un nombre d\'heures entre 0 et 24.'), error: true);
-                return;
-              }
-              try {
-                await sync.save('prj_timesheets', {
-                  'id': entry?['id'] ?? newId(),
-                  'project_id': project['id'],
-                  'task_id': taskId,
-                  'user_id': entry?['user_id'] ?? session.user['id'],
-                  'date': _day(day),
-                  'hours': (hours * 100).round() / 100,
-                  'description': desc.text.trim().isEmpty ? null : desc.text.trim(),
-                  'billable': billable,
-                });
-                if (c.mounted) Navigator.pop(c);
-              } catch (e) {
-                if (c.mounted) toast(c, errorText(e), error: true);
-              }
-            },
-            child: Text(tr('Enregistrer')),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (entry != null)
+                TextButton(
+                  onPressed: () async {
+                    await sync.remove('prj_timesheets', entry['id'] as String);
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                ),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(
+                onPressed: () async {
+                  final hours = double.tryParse(h.text.replaceAll(',', '.').trim());
+                  if (hours == null || hours <= 0 || hours > 24) {
+                    toast(c, tr('Indiquez un nombre d\'heures entre 0 et 24.'), error: true);
+                    return;
+                  }
+                  try {
+                    await sync.save('prj_timesheets', {
+                      'id': entry?['id'] ?? newId(),
+                      'project_id': project['id'],
+                      'task_id': taskId,
+                      'user_id': entry?['user_id'] ?? session.user['id'],
+                      'date': _day(day),
+                      'hours': (hours * 100).round() / 100,
+                      'description': desc.text.trim().isEmpty ? null : desc.text.trim(),
+                      'billable': billable,
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  } catch (e) {
+                    if (c.mounted) toast(c, errorText(e), error: true);
+                  }
+                },
+                child: Text(tr('Enregistrer')),
+              ),
+            ]),
           ),
-        ],
+        ]),
       ),
-    ),
-  );
+    ));
 }
 
 /// Chronomètre global (une tâche à la fois), conservé sur l'appareil même après fermeture de l'application.

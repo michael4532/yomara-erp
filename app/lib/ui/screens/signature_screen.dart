@@ -697,8 +697,10 @@ Future<void> newSignatureRequest(
     return;
   }
   if (!context.mounted) return;
-  final result = await showDialog<Map<String, dynamic>>(
-    context: context,
+  final result = await showFormDialog<Map<String, dynamic>>(
+    context,
+    title: 'Demande de signature',
+    maxWidth: 728,
     builder: (_) => _NewRequestDialog(bytes: bytes, fileName: fileName, title: title, sourceType: sourceType, sourceId: sourceId, signers: signers, users: users),
   );
   if (result != null && context.mounted) await showSignatureRequest(context, '${result['id']}');
@@ -785,45 +787,46 @@ class _NewRequestDialogState extends State<_NewRequestDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return YAlertDialog(
-      title: Text(tr('Demande de signature')),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Icon(Icons.picture_as_pdf_outlined, color: YColors.danger),
-              const SizedBox(width: 8),
-              Expanded(child: Text(tr(_name ?? 'Aucun document choisi'), style: TextStyle(fontWeight: FontWeight.w600, color: _name == null ? Theme.of(context).hintColor : null))),
-              if (widget.bytes == null) OutlinedButton.icon(onPressed: _pick, icon: const Icon(Icons.upload_file), label: Text(tr(_name == null ? 'Choisir un PDF' : 'Changer'))),
-              if (_bytes != null) TextButton(onPressed: () => Printing.layoutPdf(name: _name ?? 'document.pdf', onLayout: (_) async => _bytes!), child: Text(tr('Aperçu'))),
-            ]),
-            TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre (vu par les signataires)'))),
-            TextField(controller: _message, maxLines: 2, decoration: InputDecoration(labelText: tr('Message aux signataires (facultatif)'))),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(child: Text(tr('Signataires'), style: TextStyle(fontWeight: FontWeight.w700))),
-              TextButton.icon(onPressed: () => setState(() => _rows.add(_SignerRow())), icon: const Icon(Icons.person_add_alt, size: 18), label: Text(tr('Externe'))),
-              if (widget.users.isNotEmpty)
-                TextButton.icon(onPressed: () => setState(() => _rows.add(_SignerRow(m: {'user_id': widget.users.first['id'], 'name': widget.users.first['name']}))), icon: const Icon(Icons.badge_outlined, size: 18), label: Text(tr('Utilisateur'))),
-            ]),
-            for (var i = 0; i < _rows.length; i++) _signerCard(i),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(tr('Signer dans l\'ordre de la liste')),
-              subtitle: Text(tr('Chacun reçoit son lien quand le précédent a signé.')),
-              value: _sequential,
-              onChanged: _rows.length < 2 ? null : (v) => setState(() => _sequential = v),
-            ),
-            SizedBox(width: 220, child: TextField(controller: _days, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('À signer sous (jours)')))),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.picture_as_pdf_outlined, color: YColors.danger),
+            const SizedBox(width: 8),
+            Expanded(child: Text(tr(_name ?? 'Aucun document choisi'), style: TextStyle(fontWeight: FontWeight.w600, color: _name == null ? Theme.of(context).hintColor : null))),
+            if (widget.bytes == null) OutlinedButton.icon(onPressed: _pick, icon: const Icon(Icons.upload_file), label: Text(tr(_name == null ? 'Choisir un PDF' : 'Changer'))),
+            if (_bytes != null) TextButton(onPressed: () => Printing.layoutPdf(name: _name ?? 'document.pdf', onLayout: (_) async => _bytes!), child: Text(tr('Aperçu'))),
+          ]),
+          TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre (vu par les signataires)'))),
+          TextField(controller: _message, maxLines: 2, decoration: InputDecoration(labelText: tr('Message aux signataires (facultatif)'))),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: Text(tr('Signataires'), style: TextStyle(fontWeight: FontWeight.w700))),
+            TextButton.icon(onPressed: () => setState(() => _rows.add(_SignerRow())), icon: const Icon(Icons.person_add_alt, size: 18), label: Text(tr('Externe'))),
+            if (widget.users.isNotEmpty)
+              TextButton.icon(onPressed: () => setState(() => _rows.add(_SignerRow(m: {'user_id': widget.users.first['id'], 'name': widget.users.first['name']}))), icon: const Icon(Icons.badge_outlined, size: 18), label: Text(tr('Utilisateur'))),
+          ]),
+          for (var i = 0; i < _rows.length; i++) _signerCard(i),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tr('Signer dans l\'ordre de la liste')),
+            subtitle: Text(tr('Chacun reçoit son lien quand le précédent a signé.')),
+            value: _sequential,
+            onChanged: _rows.length < 2 ? null : (v) => setState(() => _sequential = v),
+          ),
+          SizedBox(width: 220, child: TextField(controller: _days, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('À signer sous (jours)')))),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            OutlinedButton(onPressed: _busy ? null : () => _save(false), child: Text(tr('Brouillon'))),
+            FilledButton.icon(onPressed: _busy ? null : () => _save(true), icon: const Icon(Icons.send), label: Text(tr('Envoyer'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        OutlinedButton(onPressed: _busy ? null : () => _save(false), child: Text(tr('Brouillon'))),
-        FilledButton.icon(onPressed: _busy ? null : () => _save(true), icon: const Icon(Icons.send), label: Text(tr('Envoyer'))),
-      ],
+      ]),
     );
   }
 

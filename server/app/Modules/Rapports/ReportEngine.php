@@ -185,7 +185,7 @@ class ReportEngine
             $q->havingRaw($src['measures'][$h['measure']]['sql'].' '.$this->sqlOp($h['op']).' (? + 0)', [$h['value']]);
             $usedJoins = array_merge($usedJoins, $src['measures'][$h['measure']]['join'] ?? []);
         }
-        $this->joins($q, $src, $c, $usedJoins);
+        $this->joins($q, $src, $c, $usedJoins, $company->id);
 
         $dateFirst = $c['dimensions'] && isset($dims[$c['dimensions'][0]]['date']);
         $sort = $c['sort'] ?? ($dateFirst ? ['by' => $c['dimensions'][0], 'dir' => 'asc'] : ($c['dimensions'] ? ['by' => $c['measures'][0], 'dir' => 'desc'] : null));
@@ -278,7 +278,7 @@ class ReportEngine
     {
         $q = DB::table($src['from']);
         foreach ($src['inner'] ?? [] as $j) {
-            $q->join(...$j);
+            $this->tenantJoin($q, $j, $company->id, 'inner');
         }
         $q->where($src['company'], $company->id);
         ($src['where'])($q);
@@ -312,25 +312,47 @@ class ReportEngine
         return $q;
     }
 
-    private function joins(Builder $q, array $src, array $c, array $used): void
+    private function joins(Builder $q, array $src, array $c, array $used, int $companyId): void
     {
         $dims = Sources::dimensions($src);
         foreach ($c['filters'] as $f) {
             $used = array_merge($used, $dims[$f['field']]['join'] ?? []);
         }
         foreach (array_unique($used) as $alias) {
-            $this->join($q, $src, $alias);
+            $this->join($q, $src, $alias, $companyId);
         }
     }
 
-    private function join(Builder $q, array $src, string $alias): void
+    private function join(Builder $q, array $src, string $alias, int $companyId): void
     {
         $j = $src['joins'][$alias] ?? null;
         if (is_callable($j)) {
             $j($q);
         } elseif ($j) {
-            $q->leftJoin(...$j);
+            $this->tenantJoin($q, $j, $companyId, 'left');
         }
+    }
+
+    /** Tables jointes : présence d'une colonne company_id (mise en cache). */
+    private static array $companyColumn = [];
+
+    /**
+     * Jointure cloisonnée : si la table jointe porte company_id, la condition exige la même société
+     * (un identifiant étranger pointant vers une autre société ne remonte jamais ses données).
+     */
+    private function tenantJoin(Builder $q, array $j, int $companyId, string $type): void
+    {
+        [$table, $first, $op, $second] = $j;
+        $parts = preg_split('/\s+as\s+/i', trim($table));
+        $name = $parts[0];
+        $alias = $parts[1] ?? $name;
+        $scoped = self::$companyColumn[$name] ??= \Illuminate\Support\Facades\Schema::hasColumn($name, 'company_id');
+        $q->join($table, function ($join) use ($first, $op, $second, $scoped, $alias, $companyId) {
+            $join->on($first, $op, $second);
+            if ($scoped) {
+                $join->where($alias.'.company_id', '=', $companyId);
+            }
+        }, null, null, $type);
     }
 
     private function totals(Company $company, array $src, array $c, ?Carbon $from, ?Carbon $to): array
@@ -341,7 +363,7 @@ class ReportEngine
             $q->selectRaw($src['measures'][$m]['sql'].' as m_'.$m);
             $used = array_merge($used, $src['measures'][$m]['join'] ?? []);
         }
-        $this->joins($q, $src, $c, $used);
+        $this->joins($q, $src, $c, $used, $company->id);
         $r = (array) $q->first();
         $out = [];
         foreach ($c['measures'] as $m) {
@@ -481,14 +503,15 @@ class ReportEngine
     private function displayNames(array $src, array $def, array $ids): array
     {
         try {
+            $cid = app()->bound('tenant') ? (int) app('tenant')->id : 0;
             $q = DB::table($src['from']);
             foreach ($src['inner'] ?? [] as $j) {
-                $q->join(...$j);
+                $this->tenantJoin($q, $j, $cid, 'inner');
             }
             foreach ($def['join'] ?? [] as $alias) {
-                $this->join($q, $src, $alias);
+                $this->join($q, $src, $alias, $cid);
             }
-            $q->where($src['company'], app()->bound('tenant') ? app('tenant')->id : 0);
+            $q->where($src['company'], $cid);
             $map = $q->whereIn(DB::raw($def['sql']), $ids)->selectRaw($def['sql'].' as k, MAX('.$def['display'].') as l')->groupByRaw('k')->pluck('l', 'k')->all();
 
             return array_map(fn ($id) => $map[$id] ?? $id, $ids);
@@ -513,10 +536,10 @@ class ReportEngine
         }
         $q = DB::table($src['from']);
         foreach ($src['inner'] ?? [] as $j) {
-            $q->join(...$j);
+            $this->tenantJoin($q, $j, $company->id, 'inner');
         }
         foreach ($def['join'] ?? [] as $alias) {
-            $this->join($q, $src, $alias);
+            $this->join($q, $src, $alias, $company->id);
         }
         $q->where($src['company'], $company->id);
         ($src['where'])($q);

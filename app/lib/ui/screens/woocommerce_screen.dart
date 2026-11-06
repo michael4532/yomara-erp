@@ -106,7 +106,7 @@ class _WoocommerceScreenState extends State<WoocommerceScreen> {
   }
 
   Future<void> _connect() async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => const _ConnectDialog());
+    final ok = await showFormDialog<bool>(context, title: 'Connecter une boutique ${_Pf.label}', builder: (_) => const _ConnectDialog());
     if (ok == true) await _load();
   }
 
@@ -303,8 +303,9 @@ class _WoocommerceScreenState extends State<WoocommerceScreen> {
   );
 
   Future<void> _settings(Map<String, dynamic> s) async {
-    final changed = await showDialog<bool>(
-      context: context,
+    final changed = await showFormDialog<bool>(
+      context,
+      title: 'Réglages — ${s['name']}',
       builder: (_) => _SettingsDialog(store: s, statuses: asMap(_meta['statuses']), warehouses: _meta['warehouses'] as List? ?? const []),
     );
     if (changed == true) await _load();
@@ -377,97 +378,98 @@ class _ConnectDialogState extends State<_ConnectDialog> {
   Widget build(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     if (!_manual) return _oneClickView(hint);
-    return YAlertDialog(
-      title: Text(tr('Connecter une boutique ${_Pf.label}')),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFF3EEFA), borderRadius: BorderRadius.circular(10)),
-                child: Text(
-                  tr(
-                    _Pf.shopify
-                        ? 'Dans Shopify : Paramètres › Applications › Développer des applications › Créer une application. Accordez les accès read/write_products, read/write_orders, read/write_inventory et read_locations, installez-la, puis copiez le jeton de l\'API Admin (shpat_…) et la clé secrète de l\'API.'
-                        : 'Dans WordPress : WooCommerce › Réglages › Avancé › API REST › Ajouter une clé. Choisissez votre utilisateur administrateur, droits « Lecture/Écriture », puis copiez la clé client (ck_…) et la clé secrète (cs_…).',
-                  ),
-                  style: const TextStyle(height: 1.45, fontSize: 13),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFF3EEFA), borderRadius: BorderRadius.circular(10)),
+              child: Text(
+                tr(
+                  _Pf.shopify
+                      ? 'Dans Shopify : Paramètres › Applications › Développer des applications › Créer une application. Accordez les accès read/write_products, read/write_orders, read/write_inventory et read_locations, installez-la, puis copiez le jeton de l\'API Admin (shpat_…) et la clé secrète de l\'API.'
+                      : 'Dans WordPress : WooCommerce › Réglages › Avancé › API REST › Ajouter une clé. Choisissez votre utilisateur administrateur, droits « Lecture/Écriture », puis copiez la clé client (ck_…) et la clé secrète (cs_…).',
                 ),
+                style: const TextStyle(height: 1.45, fontSize: 13),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _url,
-                decoration: InputDecoration(
-                  labelText: trn(_Pf.shopify ? 'Adresse de la boutique Shopify' : 'Adresse du site'),
-                  hintText: trn(_Pf.shopify ? 'maboutique.myshopify.com' : 'www.maboutique.ci'),
-                ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _url,
+              decoration: InputDecoration(
+                labelText: trn(_Pf.shopify ? 'Adresse de la boutique Shopify' : 'Adresse du site'),
+                hintText: trn(_Pf.shopify ? 'maboutique.myshopify.com' : 'www.maboutique.ci'),
               ),
-              TextField(
-                controller: _key,
-                decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Jeton d\'accès API Admin' : 'Clé client'), hintText: trn(_Pf.shopify ? 'shpat_…' : 'ck_…')),
+            ),
+            TextField(
+              controller: _key,
+              decoration: InputDecoration(labelText: trn(_Pf.shopify ? 'Jeton d\'accès API Admin' : 'Clé client'), hintText: trn(_Pf.shopify ? 'shpat_…' : 'ck_…')),
+            ),
+            TextField(
+              controller: _secret,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: trn(_Pf.shopify ? 'Clé secrète de l\'API (signature des webhooks)' : 'Clé secrète'),
+                hintText: trn(_Pf.shopify ? 'shpss_… ou clé secrète' : 'cs_…'),
               ),
-              TextField(
-                controller: _secret,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: trn(_Pf.shopify ? 'Clé secrète de l\'API (signature des webhooks)' : 'Clé secrète'),
-                  hintText: trn(_Pf.shopify ? 'shpss_… ou clé secrète' : 'cs_…'),
-                ),
-              ),
-              TextField(
-                controller: _name,
-                decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)')),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
-                initialValue: _days,
-                decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
-                items: [
-                  DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))),
-                  DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))),
-                  DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours'))),
-                ],
-                onChanged: (v) => _days = v ?? 7,
-              ),
-              const SizedBox(height: 8),
-              Text(tr('Le logiciel crée lui-même les webhooks de commandes sur le site.'), style: TextStyle(color: hint, fontSize: 12)),
-            ],
-          ),
+            ),
+            TextField(
+              controller: _name,
+              decoration: InputDecoration(labelText: tr('Nom de la boutique (facultatif)')),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<int>(
+              initialValue: _days,
+              decoration: InputDecoration(labelText: tr('Importer les commandes existantes')),
+              items: [
+                DropdownMenuItem(value: 0, child: Text(tr('Aucune, seulement les nouvelles'))),
+                DropdownMenuItem(value: 7, child: Text(tr('Des 7 derniers jours'))),
+                DropdownMenuItem(value: 30, child: Text(tr('Des 30 derniers jours'))),
+              ],
+              onChanged: (v) => _days = v ?? 7,
+            ),
+            const SizedBox(height: 8),
+            Text(tr('Le logiciel crée lui-même les webhooks de commandes sur le site.'), style: TextStyle(color: hint, fontSize: 12)),
+          ],
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: _woo),
-          onPressed: _busy
-              ? null
-              : () async {
-                  setState(() => _busy = true);
-                  try {
-                    await context.read<Session>().api.postLong('${_Pf.key}/stores', {
-                      'url': _url.text.trim(),
-                      'consumer_key': _key.text.trim(),
-                      'consumer_secret': _secret.text.trim(),
-                      if (_name.text.trim().isNotEmpty) 'name': _name.text.trim(),
-                      'import_days': _days,
-                    });
-                    if (context.mounted) {
-                      Navigator.pop(context, true);
-                      toast(context, tr('Boutique connectée. Choisissez maintenant les produits à publier.'));
-                    }
-                  } catch (e) {
-                    if (context.mounted) toast(context, errorText(e), error: true);
-                  } finally {
-                    if (mounted) setState(() => _busy = false);
-                  }
-                },
-          child: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(tr('Connecter')),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _woo),
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      setState(() => _busy = true);
+                      try {
+                        await context.read<Session>().api.postLong('${_Pf.key}/stores', {
+                          'url': _url.text.trim(),
+                          'consumer_key': _key.text.trim(),
+                          'consumer_secret': _secret.text.trim(),
+                          if (_name.text.trim().isNotEmpty) 'name': _name.text.trim(),
+                          'import_days': _days,
+                        });
+                        if (context.mounted) {
+                          Navigator.pop(context, true);
+                          toast(context, tr('Boutique connectée. Choisissez maintenant les produits à publier.'));
+                        }
+                      } catch (e) {
+                        if (context.mounted) toast(context, errorText(e), error: true);
+                      } finally {
+                        if (mounted) setState(() => _busy = false);
+                      }
+                    },
+              child: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(tr('Connecter')),
+            ),
+          ]),
         ),
-      ],
+      ]),
     );
   }
 
@@ -1136,166 +1138,170 @@ class _SettingsDialogState extends State<_SettingsDialog> {
   Widget build(BuildContext context) {
     final api = context.read<Session>().api;
     final hint = Theme.of(context).hintColor;
-    return YAlertDialog(
-      title: Text(tr('Réglages — ${widget.store['name']}')),
-      content: SizedBox(
-        width: 560,
-        height: 520,
-        child: ListView(
-          children: [
-            Text(tr('Produits'), style: TextStyle(fontWeight: FontWeight.w800)),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: s['publish_prices'] == true,
-              onChanged: (v) => setState(() => s['publish_prices'] = v),
-              title: Text(tr('Publier les prix du logiciel')),
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: s['publish_stock'] == true,
-              onChanged: (v) => setState(() => s['publish_stock'] = v),
-              title: Text(tr('Publier le stock disponible')),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    initialValue: '${s['stock_buffer'] ?? 0}',
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(labelText: tr('Marge de sécurité (unités retenues)')),
-                    onChanged: (v) => s['stock_buffer'] = int.tryParse(v) ?? 0,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: ListView(
+            children: [
+              Text(tr('Produits'), style: TextStyle(fontWeight: FontWeight.w800)),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: s['publish_prices'] == true,
+                onChanged: (v) => setState(() => s['publish_prices'] = v),
+                title: Text(tr('Publier les prix du logiciel')),
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: s['publish_stock'] == true,
+                onChanged: (v) => setState(() => s['publish_stock'] = v),
+                title: Text(tr('Publier le stock disponible')),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: '${s['stock_buffer'] ?? 0}',
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(labelText: tr('Marge de sécurité (unités retenues)')),
+                      onChanged: (v) => s['stock_buffer'] = int.tryParse(v) ?? 0,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: s['warehouse_id'] as String?,
-                    decoration: InputDecoration(labelText: tr('Dépôt du stock publié')),
-                    items: [
-                      DropdownMenuItem(value: null, child: Text(tr('Tous les dépôts'))),
-                      for (final w in widget.warehouses) DropdownMenuItem(value: '${w['id']}', child: Text(tr('${w['name']}'))),
-                    ],
-                    onChanged: (v) => s['warehouse_id'] = v,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: s['warehouse_id'] as String?,
+                      decoration: InputDecoration(labelText: tr('Dépôt du stock publié')),
+                      items: [
+                        DropdownMenuItem(value: null, child: Text(tr('Tous les dépôts'))),
+                        for (final w in widget.warehouses) DropdownMenuItem(value: '${w['id']}', child: Text(tr('${w['name']}'))),
+                      ],
+                      onChanged: (v) => s['warehouse_id'] = v,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            DropdownButtonFormField<String>(
-              initialValue: '${s['publish_new_as']}',
-              decoration: InputDecoration(labelText: tr('Nouveaux produits créés sur le site')),
-              items: [
-                DropdownMenuItem(value: 'publish', child: Text(tr('Publiés directement'))),
-                DropdownMenuItem(value: 'draft', child: Text(tr('En brouillon (à relire sur le site)'))),
-              ],
-              onChanged: (v) => s['publish_new_as'] = v,
-            ),
-            const SizedBox(height: 16),
-            Text(tr('Commandes'), style: TextStyle(fontWeight: FontWeight.w800)),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: s['import_orders'] == true,
-              onChanged: (v) => setState(() => s['import_orders'] = v),
-              title: Text(tr('Importer les commandes du site')),
-            ),
-            Text(tr('Statuts importés :'), style: TextStyle(color: hint, fontSize: 12.5)),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final k in const ['pending', 'processing', 'on-hold', 'completed'])
-                  FilterChip(label: Text(tr('${widget.statuses[k] ?? k}')), selected: _st.contains(k), onSelected: (v) => setState(() => v ? _st.add(k) : _st.remove(k))),
-              ],
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: s['invoice_paid'] == true,
-              onChanged: (v) => setState(() => s['invoice_paid'] = v),
-              title: Text(tr('Facturer et encaisser les commandes payées')),
-              subtitle: Text(tr('Paiement en ligne, ou commande terminée sur le site')),
-            ),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: s['push_status'] == true,
-              onChanged: (v) => setState(() => s['push_status'] = v),
-              title: Text(tr('Renvoyer le statut au site')),
-              subtitle: Text(
-                tr(
-                  _Pf.shopify ? 'Commande marquée payée sur Shopify dès l\'encaissement dans le logiciel' : 'À la livraison : « Terminée » une fois encaissée ; virement : « En cours » une fois reçu',
+                ],
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: '${s['publish_new_as']}',
+                decoration: InputDecoration(labelText: tr('Nouveaux produits créés sur le site')),
+                items: [
+                  DropdownMenuItem(value: 'publish', child: Text(tr('Publiés directement'))),
+                  DropdownMenuItem(value: 'draft', child: Text(tr('En brouillon (à relire sur le site)'))),
+                ],
+                onChanged: (v) => s['publish_new_as'] = v,
+              ),
+              const SizedBox(height: 16),
+              Text(tr('Commandes'), style: TextStyle(fontWeight: FontWeight.w800)),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: s['import_orders'] == true,
+                onChanged: (v) => setState(() => s['import_orders'] = v),
+                title: Text(tr('Importer les commandes du site')),
+              ),
+              Text(tr('Statuts importés :'), style: TextStyle(color: hint, fontSize: 12.5)),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final k in const ['pending', 'processing', 'on-hold', 'completed'])
+                    FilterChip(label: Text(tr('${widget.statuses[k] ?? k}')), selected: _st.contains(k), onSelected: (v) => setState(() => v ? _st.add(k) : _st.remove(k))),
+                ],
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: s['invoice_paid'] == true,
+                onChanged: (v) => setState(() => s['invoice_paid'] = v),
+                title: Text(tr('Facturer et encaisser les commandes payées')),
+                subtitle: Text(tr('Paiement en ligne, ou commande terminée sur le site')),
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: s['push_status'] == true,
+                onChanged: (v) => setState(() => s['push_status'] = v),
+                title: Text(tr('Renvoyer le statut au site')),
+                subtitle: Text(
+                  tr(
+                    _Pf.shopify ? 'Commande marquée payée sur Shopify dès l\'encaissement dans le logiciel' : 'À la livraison : « Terminée » une fois encaissée ; virement : « En cours » une fois reçu',
+                  ),
                 ),
               ),
-            ),
-            TextFormField(
-              initialValue: '${s['order_prefix'] ?? 'WOO'}',
-              decoration: InputDecoration(labelText: tr('Préfixe de la référence des commandes')),
-              onChanged: (v) => s['order_prefix'] = v.trim(),
-            ),
-            const SizedBox(height: 16),
-            Text(tr('Connexion'), style: TextStyle(fontWeight: FontWeight.w800)),
-            SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: _paused, onChanged: (v) => setState(() => _paused = v), title: Text(tr('Mettre la synchronisation en pause'))),
-            SelectableText(tr('Webhook : ${widget.store['webhook_url']}'), style: TextStyle(color: hint, fontSize: 12)),
-            if (widget.store['webhook_error'] != null) Text(tr('${widget.store['webhook_error']}'), style: const TextStyle(color: YColors.warning, fontSize: 12)),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () async {
-                  try {
-                    await api.postLong('${_Pf.key}/stores/${widget.store['id']}/sync', {'what': 'webhooks'});
-                    if (context.mounted) toast(context, tr('Webhooks vérifiés.'));
-                  } catch (e) {
-                    if (context.mounted) toast(context, errorText(e), error: true);
+              TextFormField(
+                initialValue: '${s['order_prefix'] ?? 'WOO'}',
+                decoration: InputDecoration(labelText: tr('Préfixe de la référence des commandes')),
+                onChanged: (v) => s['order_prefix'] = v.trim(),
+              ),
+              const SizedBox(height: 16),
+              Text(tr('Connexion'), style: TextStyle(fontWeight: FontWeight.w800)),
+              SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, value: _paused, onChanged: (v) => setState(() => _paused = v), title: Text(tr('Mettre la synchronisation en pause'))),
+              SelectableText(tr('Webhook : ${widget.store['webhook_url']}'), style: TextStyle(color: hint, fontSize: 12)),
+              if (widget.store['webhook_error'] != null) Text(tr('${widget.store['webhook_error']}'), style: const TextStyle(color: YColors.warning, fontSize: 12)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      await api.postLong('${_Pf.key}/stores/${widget.store['id']}/sync', {'what': 'webhooks'});
+                      if (context.mounted) toast(context, tr('Webhooks vérifiés.'));
+                    } catch (e) {
+                      if (context.mounted) toast(context, errorText(e), error: true);
+                    }
+                  },
+                  icon: const Icon(Icons.bolt, size: 18),
+                  label: Text(tr('Recréer les webhooks')),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final ok = await confirm(
+                      context,
+                      tr('Déconnecter la boutique ?'),
+                      tr('Les produits restent sur le site, mais ne seront plus mis à jour ; les commandes déjà importées restent dans les Ventes.'),
+                      ok: tr('Déconnecter'),
+                      danger: true,
+                    );
+                    if (!ok) return;
+                    await api.delete('${_Pf.key}/stores/${widget.store['id']}');
+                    if (context.mounted) Navigator.pop(context, true);
+                  },
+                  icon: const Icon(Icons.link_off, size: 18, color: YColors.danger),
+                  label: Text(tr('Déconnecter la boutique'), style: TextStyle(color: YColors.danger)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _woo),
+              onPressed: () async {
+                try {
+                  await api.put('${_Pf.key}/stores/${widget.store['id']}', {
+                    'status': _paused ? 'paused' : 'active',
+                    'settings': {...s, 'import_statuses': _st.toList()},
+                  });
+                  if (context.mounted) {
+                    Navigator.pop(context, true);
+                    toast(context, tr('Réglages enregistrés.'));
                   }
-                },
-                icon: const Icon(Icons.bolt, size: 18),
-                label: Text(tr('Recréer les webhooks')),
-              ),
+                } catch (e) {
+                  if (context.mounted) toast(context, errorText(e), error: true);
+                }
+              },
+              child: Text(tr('Enregistrer')),
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () async {
-                  final ok = await confirm(
-                    context,
-                    tr('Déconnecter la boutique ?'),
-                    tr('Les produits restent sur le site, mais ne seront plus mis à jour ; les commandes déjà importées restent dans les Ventes.'),
-                    ok: tr('Déconnecter'),
-                    danger: true,
-                  );
-                  if (!ok) return;
-                  await api.delete('${_Pf.key}/stores/${widget.store['id']}');
-                  if (context.mounted) Navigator.pop(context, true);
-                },
-                icon: const Icon(Icons.link_off, size: 18, color: YColors.danger),
-                label: Text(tr('Déconnecter la boutique'), style: TextStyle(color: YColors.danger)),
-              ),
-            ),
-          ],
+          ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: _woo),
-          onPressed: () async {
-            try {
-              await api.put('${_Pf.key}/stores/${widget.store['id']}', {
-                'status': _paused ? 'paused' : 'active',
-                'settings': {...s, 'import_statuses': _st.toList()},
-              });
-              if (context.mounted) {
-                Navigator.pop(context, true);
-                toast(context, tr('Réglages enregistrés.'));
-              }
-            } catch (e) {
-              if (context.mounted) toast(context, errorText(e), error: true);
-            }
-          },
-          child: Text(tr('Enregistrer')),
-        ),
-      ],
+      ]),
     );
   }
 }

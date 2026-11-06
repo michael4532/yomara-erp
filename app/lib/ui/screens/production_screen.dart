@@ -352,63 +352,61 @@ class ProductionOrderScreen extends StatelessWidget {
     final minutes = TextEditingController(text: '${o['labour_minutes'] ?? 0}');
     final ctrls = {for (final c in comps) '${c['product_id']}': TextEditingController(text: qty(toDouble(c['consumed'] ?? c['planned'])))};
     var touched = false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => YAlertDialog(
-          title: Text(tr('Terminer la fabrication')),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                TextField(
-                  controller: produced,
-                  autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: tr('Quantité réellement produite'), helperText: tr('Prévue : ${qty(toDouble(o['quantity']))}')),
-                  onChanged: (_) {
-                    // Tant que l'utilisateur n'a pas corrigé les consommations, elles suivent la quantité produite.
-                    if (touched) return;
-                    final r = toDouble(produced.text) / (toDouble(o['quantity']) <= 0 ? 1 : toDouble(o['quantity']));
-                    set(() {
-                      for (final c in comps) {
-                        ctrls['${c['product_id']}']!.text = qty(double.parse((toDouble(c['planned']) * r).toStringAsFixed(3)));
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                Text(tr('Composants consommés'), style: TextStyle(fontWeight: FontWeight.w700)),
-                for (final c in comps)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(children: [
-                      Expanded(child: Text(tr('${c['description'] ?? LocalDb.get('products', c['product_id'] as String?)?['name'] ?? ''}'))),
-                      SizedBox(
-                        width: 120,
-                        child: TextField(
-                          controller: ctrls['${c['product_id']}'],
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(isDense: true, suffixText: trn('${LocalDb.get('products', c['product_id'] as String?)?['unit'] ?? ''}')),
-                          onChanged: (_) => touched = true,
-                        ),
+    final ok = await showFormDialog<bool>(context, title: 'Terminer la fabrication', builder: (d) => StatefulBuilder(
+        builder: (d, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              TextField(
+                controller: produced,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: tr('Quantité réellement produite'), helperText: tr('Prévue : ${qty(toDouble(o['quantity']))}')),
+                onChanged: (_) {
+                  // Tant que l'utilisateur n'a pas corrigé les consommations, elles suivent la quantité produite.
+                  if (touched) return;
+                  final r = toDouble(produced.text) / (toDouble(o['quantity']) <= 0 ? 1 : toDouble(o['quantity']));
+                  set(() {
+                    for (final c in comps) {
+                      ctrls['${c['product_id']}']!.text = qty(double.parse((toDouble(c['planned']) * r).toStringAsFixed(3)));
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              Text(tr('Composants consommés'), style: TextStyle(fontWeight: FontWeight.w700)),
+              for (final c in comps)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(children: [
+                    Expanded(child: Text(tr('${c['description'] ?? LocalDb.get('products', c['product_id'] as String?)?['name'] ?? ''}'))),
+                    SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: ctrls['${c['product_id']}'],
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(isDense: true, suffixText: trn('${LocalDb.get('products', c['product_id'] as String?)?['unit'] ?? ''}')),
+                        onChanged: (_) => touched = true,
                       ),
-                    ]),
-                  ),
-                const SizedBox(height: 12),
-                TextField(controller: minutes, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Temps de travail (minutes)'))),
-                const SizedBox(height: 8),
-                Text(tr('Les composants sortent du stock et le produit fini y entre à son coût de revient.'), style: TextStyle(fontSize: 12, color: Theme.of(d).hintColor)),
+                    ),
+                  ]),
+                ),
+              const SizedBox(height: 12),
+              TextField(controller: minutes, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Temps de travail (minutes)'))),
+              const SizedBox(height: 8),
+              Text(tr('Les composants sortent du stock et le produit fini y entre à son coût de revient.'), style: TextStyle(fontSize: 12, color: Theme.of(d).hintColor)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))),
+                FilledButton(style: FilledButton.styleFrom(backgroundColor: YColors.success), onPressed: () => Navigator.pop(d, true), child: Text(tr('Terminer'))),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))),
-            FilledButton(style: FilledButton.styleFrom(backgroundColor: YColors.success), onPressed: () => Navigator.pop(d, true), child: Text(tr('Terminer'))),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || toDouble(produced.text) <= 0 || !context.mounted) return;
     await _set(context, {
       'status': 'done',

@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/local_db.dart';
+import 'core/secure_store.dart';
 import 'i18n/i18n.dart';
 import 'state/session.dart';
 import 'ui/screens/boot_screen.dart';
@@ -17,7 +18,9 @@ import 'ui/theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr');
+  await SecureStore.init(); // coffre du système : jeton et clé de chiffrement des données locales
   await LocalDb.init();
+  ThemePrefs.load(LocalDb.meta.get('theme_mode'));
   // Langue : choix mémorisé sur l'appareil, sinon langue du système (français par défaut)
   final device = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
   await I18n.use((LocalDb.meta.get('lang') as String?) ?? (I18n.languages.containsKey(device) ? device : 'fr'));
@@ -42,7 +45,9 @@ class YomaraErpApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
-    return ValueListenableBuilder<String>(
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemePrefs.mode,
+      builder: (context, themeMode, _) => ValueListenableBuilder<String>(
       valueListenable: I18n.current,
       builder: (context, lang, _) => MaterialApp(
       key: ValueKey(lang),
@@ -50,7 +55,7 @@ class YomaraErpApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       locale: Locale(lang),
       supportedLocales: const [Locale('fr'), Locale('en')],
       localizationsDelegates: const [
@@ -61,6 +66,7 @@ class YomaraErpApp extends StatelessWidget {
       ],
       // Application installée, premier lancement : présentation avant la connexion (le site web a déjà sa vitrine)
       home: session.isLoggedIn ? _ShellWithBoot(preparing: session.preparing) : const _Entry(),
+      ),
       ),
     );
   }

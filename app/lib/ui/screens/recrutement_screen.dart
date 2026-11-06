@@ -481,61 +481,61 @@ Future<void> editApplication(BuildContext context) async {
   var source = 'manual';
   List<int>? cv;
   String? cvName;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => YAlertDialog(
-        title: Text(tr('Ajouter un candidat')),
-        content: SizedBox(
-          width: 480,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Row(children: [
-                Expanded(child: TextField(controller: c['first_name'], decoration: InputDecoration(labelText: tr('Prénoms *')))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: c['last_name'], decoration: InputDecoration(labelText: tr('Nom *')))),
-              ]),
-              Row(children: [
-                Expanded(child: TextField(controller: c['phone'], keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone')))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: c['email'], keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('E-mail')))),
-              ]),
-              TextField(controller: c['city'], decoration: InputDecoration(labelText: tr('Ville / commune'))),
-              DropdownButtonFormField<String?>(
-                initialValue: job,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Offre')),
-                items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Candidature spontanée'))), for (final j in jobs) DropdownMenuItem<String?>(value: '${j['id']}', child: Text(tr('${j['title']}')))],
-                onChanged: (v) => set(() => job = v),
+  final ok = await showFormDialog<bool>(context, title: 'Ajouter un candidat', builder: (d) => StatefulBuilder(
+      builder: (d, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Expanded(child: TextField(controller: c['first_name'], decoration: InputDecoration(labelText: tr('Prénoms *')))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: c['last_name'], decoration: InputDecoration(labelText: tr('Nom *')))),
+            ]),
+            Row(children: [
+              Expanded(child: TextField(controller: c['phone'], keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone')))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: c['email'], keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('E-mail')))),
+            ]),
+            TextField(controller: c['city'], decoration: InputDecoration(labelText: tr('Ville / commune'))),
+            DropdownButtonFormField<String?>(
+              initialValue: job,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Offre')),
+              items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Candidature spontanée'))), for (final j in jobs) DropdownMenuItem<String?>(value: '${j['id']}', child: Text(tr('${j['title']}')))],
+              onChanged: (v) => set(() => job = v),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: source,
+              decoration: InputDecoration(labelText: tr('Source')),
+              items: [for (final e in rcSources.entries) if (e.key != 'website') DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
+              onChanged: (v) => set(() => source = v!),
+            ),
+            TextField(controller: c['cover_letter'], maxLines: 3, decoration: InputDecoration(labelText: tr('Commentaire'))),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final f = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'odt', 'jpg', 'jpeg', 'png']);
+                  if (f.isEmpty) return;
+                  final b = await f.first.readAsBytes();
+                  set(() => (cv = b, cvName = f.first.name));
+                },
+                icon: const Icon(Icons.attach_file),
+                label: Text(tr(cvName ?? 'Joindre le CV')),
               ),
-              DropdownButtonFormField<String>(
-                initialValue: source,
-                decoration: InputDecoration(labelText: tr('Source')),
-                items: [for (final e in rcSources.entries) if (e.key != 'website') DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
-                onChanged: (v) => set(() => source = v!),
-              ),
-              TextField(controller: c['cover_letter'], maxLines: 3, decoration: InputDecoration(labelText: tr('Commentaire'))),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final f = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'odt', 'jpg', 'jpeg', 'png']);
-                    if (f.isEmpty) return;
-                    final b = await f.first.readAsBytes();
-                    set(() => (cv = b, cvName = f.first.name));
-                  },
-                  icon: const Icon(Icons.attach_file),
-                  label: Text(tr(cvName ?? 'Joindre le CV')),
-                ),
-              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
             ]),
           ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || c['first_name']!.text.trim().isEmpty || c['last_name']!.text.trim().isEmpty) return;
   final id = newId();
   String? t(String f) => c[f]!.text.trim().isEmpty ? null : c[f]!.text.trim();
@@ -561,14 +561,11 @@ Future<void> hireApplication(BuildContext context, Map<String, dynamic> a) async
   final salary = TextEditingController();
   var contract = '${job?['contract_type'] ?? 'CDI'}';
   var date = DateTime.tryParse('${a['available_from'] ?? ''}') ?? DateTime.now().add(const Duration(days: 7));
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => YAlertDialog(
-        title: Text(tr('Embaucher ${rcName(a)}')),
-        content: SizedBox(
-          width: 440,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+  final ok = await showFormDialog<bool>(context, title: 'Embaucher ${rcName(a)}', builder: (d) => StatefulBuilder(
+      builder: (d, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: title, decoration: InputDecoration(labelText: tr('Fonction'))),
             TextField(controller: dep, decoration: InputDecoration(labelText: tr('Service'))),
             DropdownButtonFormField<String>(initialValue: contract, decoration: InputDecoration(labelText: tr('Contrat')), items: [for (final e in rcContracts.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))], onChanged: (v) => set(() => contract = v!)),
@@ -585,11 +582,16 @@ Future<void> hireApplication(BuildContext context, Map<String, dynamic> a) async
             const SizedBox(height: 6),
             Text(tr('Une fiche salarié est créée avec ces informations ; complétez-la ensuite (situation familiale, CNPS, paiement).'), style: TextStyle(fontSize: 12, color: Theme.of(d).hintColor)),
           ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Embaucher')))],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Embaucher'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || !context.mounted) return;
   final sync = context.read<SyncEngine>();
   try {
@@ -762,63 +764,61 @@ Future<void> editJob(BuildContext context, [Map<String, dynamic>? j]) async {
   var status = '${j?['status'] ?? 'open'}';
   var published = j?['published'] != false;
   DateTime? closes = DateTime.tryParse('${j?['closes_at'] ?? ''}');
-  final r = await showDialog<String>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => YAlertDialog(
-        title: Text(tr(j == null ? 'Nouvelle offre d\'emploi' : '${j['title']}')),
-        content: SizedBox(
-          width: 620,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: c['title'], decoration: InputDecoration(labelText: tr('Intitulé du poste *'))),
-              Row(children: [
-                Expanded(child: TextField(controller: c['department'], decoration: InputDecoration(labelText: tr('Service')))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: c['location'], decoration: InputDecoration(labelText: tr('Lieu')))),
-              ]),
-              Row(children: [
-                Expanded(child: DropdownButtonFormField<String>(initialValue: contract, decoration: InputDecoration(labelText: tr('Contrat')), items: [for (final e in rcContracts.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))], onChanged: (v) => set(() => contract = v!))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: c['salary'], decoration: InputDecoration(labelText: tr('Salaire affiché (facultatif)')))),
-                const SizedBox(width: 8),
-                SizedBox(width: 90, child: TextField(controller: positions, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Postes')))),
-              ]),
-              TextField(controller: c['description'], maxLines: 6, minLines: 4, decoration: InputDecoration(labelText: tr('Le poste (missions, horaires…) *'))),
-              TextField(controller: c['requirements'], maxLines: 4, minLines: 2, decoration: InputDecoration(labelText: tr('Profil recherché'))),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: SegmentedButton<String>(
-                    segments: [ButtonSegment(value: 'draft', label: Text(tr('Brouillon'))), ButtonSegment(value: 'open', label: Text(tr('Ouverte'))), ButtonSegment(value: 'closed', label: Text(tr('Clôturée')))],
-                    selected: {status},
-                    onSelectionChanged: (v) => set(() => status = v.first),
-                  ),
-                ),
-              ]),
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Publier sur la page Emplois')), value: published, onChanged: (v) => set(() => published = v)),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () async {
-                    final x = await showDatePicker(context: d, initialDate: closes ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
-                    set(() => closes = x);
-                  },
-                  icon: const Icon(Icons.event),
-                  label: Text(tr(closes == null ? 'Date limite (facultative)' : 'Candidatures jusqu\'au ${dateFr(isoDate(closes!))}')),
+  final r = await showFormDialog<String>(context, title: j == null ? 'Nouvelle offre d\'emploi' : '${j['title']}', maxWidth: 668, builder: (d) => StatefulBuilder(
+      builder: (d, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: c['title'], decoration: InputDecoration(labelText: tr('Intitulé du poste *'))),
+            Row(children: [
+              Expanded(child: TextField(controller: c['department'], decoration: InputDecoration(labelText: tr('Service')))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: c['location'], decoration: InputDecoration(labelText: tr('Lieu')))),
+            ]),
+            Row(children: [
+              Expanded(child: DropdownButtonFormField<String>(initialValue: contract, decoration: InputDecoration(labelText: tr('Contrat')), items: [for (final e in rcContracts.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))], onChanged: (v) => set(() => contract = v!))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: c['salary'], decoration: InputDecoration(labelText: tr('Salaire affiché (facultatif)')))),
+              const SizedBox(width: 8),
+              SizedBox(width: 90, child: TextField(controller: positions, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Postes')))),
+            ]),
+            TextField(controller: c['description'], maxLines: 6, minLines: 4, decoration: InputDecoration(labelText: tr('Le poste (missions, horaires…) *'))),
+            TextField(controller: c['requirements'], maxLines: 4, minLines: 2, decoration: InputDecoration(labelText: tr('Profil recherché'))),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: SegmentedButton<String>(
+                  segments: [ButtonSegment(value: 'draft', label: Text(tr('Brouillon'))), ButtonSegment(value: 'open', label: Text(tr('Ouverte'))), ButtonSegment(value: 'closed', label: Text(tr('Clôturée')))],
+                  selected: {status},
+                  onSelectionChanged: (v) => set(() => status = v.first),
                 ),
               ),
             ]),
+            SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Publier sur la page Emplois')), value: published, onChanged: (v) => set(() => published = v)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final x = await showDatePicker(context: d, initialDate: closes ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
+                  set(() => closes = x);
+                },
+                icon: const Icon(Icons.event),
+                label: Text(tr(closes == null ? 'Date limite (facultative)' : 'Candidatures jusqu\'au ${dateFr(isoDate(closes!))}')),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (j != null) TextButton(onPressed: () => Navigator.pop(d, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
+              TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Annuler'))),
+              FilledButton(onPressed: () => Navigator.pop(d, 'save'), child: Text(tr('Enregistrer'))),
+            ]),
           ),
-        ),
-        actions: [
-          if (j != null) TextButton(onPressed: () => Navigator.pop(d, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(d, 'save'), child: Text(tr('Enregistrer'))),
-        ],
+        ]),
       ),
-    ),
-  );
+    ));
   try {
     if (r == 'delete') await sync.remove('rc_jobs', '${j!['id']}');
     if (r != 'save' || c['title']!.text.trim().isEmpty) return;

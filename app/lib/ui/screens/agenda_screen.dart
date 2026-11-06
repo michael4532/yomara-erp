@@ -1529,8 +1529,11 @@ String agRecurrenceLabel(Map<String, dynamic> r) {
 Future<void> editEvent(BuildContext context, {Map<String, dynamic>? event, DateTime? start}) async {
   final users = await agLoadUsers(context);
   if (!context.mounted) return;
-  await showDialog(
-    context: context,
+  await showFormDialog(
+    context,
+    title: event == null ? 'Nouvel événement' : 'Modifier l\'événement',
+    icon: Icons.event_rounded,
+    maxWidth: 680,
     builder: (_) => _EventForm(event: event, start: start, users: users),
   );
 }
@@ -2200,17 +2203,10 @@ class _EventFormState extends State<_EventForm> {
       ),
     );
 
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 900),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DialogHeader(title: Text(tr(e == null ? 'Nouvel événement' : 'Modifier l\'événement')), icon: const Icon(Icons.event_rounded), color: catColor, onClose: () => Navigator.pop(context)),
-            Flexible(child: body),
+            Expanded(child: body),
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
               decoration: BoxDecoration(
@@ -2232,9 +2228,7 @@ class _EventFormState extends State<_EventForm> {
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
   }
 }
 
@@ -2361,14 +2355,11 @@ Future<void> _editResource(BuildContext context, Map<String, dynamic>? r) async 
   final notes = TextEditingController(text: '${r?['notes'] ?? ''}');
   var kind = '${r?['kind'] ?? 'room'}';
   var active = r?['active'] != false;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => YAlertDialog(
-        title: Text(tr(r == null ? 'Nouvelle ressource' : '${r['name']}')),
-        content: SizedBox(
-          width: 420,
-          child: Column(
+  final ok = await showFormDialog<bool>(context, title: r == null ? 'Nouvelle ressource' : '${r['name']}', builder: (d) => StatefulBuilder(
+      builder: (d, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -2397,14 +2388,17 @@ Future<void> _editResource(BuildContext context, Map<String, dynamic>? r) async 
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réservable')), value: active, onChanged: (v) => set(() => active = v)),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
-        ],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))),
+              FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
   await context.read<SyncEngine>().save('ag_resources', {
     'id': r?['id'] ?? newId(),

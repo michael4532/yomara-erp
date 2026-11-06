@@ -941,88 +941,86 @@ class _ServicesTabState extends State<_ServicesTab> {
     var color = '${x?['color'] ?? palette.first}';
     final staffIds = <String>{for (final i in (x?['staff_ids'] as List? ?? const [])) '$i'};
     final staff = LocalDb.all('rdv_staff');
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(x == null ? 'Nouvelle prestation' : 'Prestation')),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom (ex. Coupe & brushing)'))),
-                TextField(controller: cat, decoration: InputDecoration(labelText: tr('Catégorie (facultatif)'))),
-                Row(children: [
-                  Expanded(child: TextField(controller: dur, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée (min)')))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: buf, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Battement après (min)')))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Prix TTC')))),
-                ]),
-                DropdownButtonFormField<String>(
-                  initialValue: location,
-                  decoration: InputDecoration(labelText: tr('Lieu')),
-                  items: [for (final e in rdvLocations.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
-                  onChanged: (v) => set(() => location = v ?? location),
-                ),
-                TextField(controller: desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description (page de réservation)'))),
-                const SizedBox(height: 10),
-                Text(tr('Assurée par'), style: TextStyle(fontWeight: FontWeight.w600)),
-                Wrap(spacing: 6, runSpacing: 6, children: [
-                  ChoiceChip(label: Text(tr('Toute l\'équipe')), selected: staffIds.isEmpty, onSelected: (_) => set(staffIds.clear)),
-                  for (final st in staff)
-                    FilterChip(label: Text(tr('${st['name']}')), selected: staffIds.contains(st['id']), onSelected: (v) => set(() => v ? staffIds.add('${st['id']}') : staffIds.remove(st['id']))),
-                ]),
-                const SizedBox(height: 10),
-                Wrap(spacing: 6, children: [
-                  for (final p in palette)
-                    InkWell(
-                      onTap: () => set(() => color = p),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(color: hexColor(p), shape: BoxShape.circle, border: Border.all(color: color == p ? YColors.night : Colors.transparent, width: 3)),
-                      ),
+    await showFormDialog(context, title: x == null ? 'Nouvelle prestation' : 'Prestation', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom (ex. Coupe & brushing)'))),
+              TextField(controller: cat, decoration: InputDecoration(labelText: tr('Catégorie (facultatif)'))),
+              Row(children: [
+                Expanded(child: TextField(controller: dur, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée (min)')))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: buf, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Battement après (min)')))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Prix TTC')))),
+              ]),
+              DropdownButtonFormField<String>(
+                initialValue: location,
+                decoration: InputDecoration(labelText: tr('Lieu')),
+                items: [for (final e in rdvLocations.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
+                onChanged: (v) => set(() => location = v ?? location),
+              ),
+              TextField(controller: desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description (page de réservation)'))),
+              const SizedBox(height: 10),
+              Text(tr('Assurée par'), style: TextStyle(fontWeight: FontWeight.w600)),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                ChoiceChip(label: Text(tr('Toute l\'équipe')), selected: staffIds.isEmpty, onSelected: (_) => set(staffIds.clear)),
+                for (final st in staff)
+                  FilterChip(label: Text(tr('${st['name']}')), selected: staffIds.contains(st['id']), onSelected: (v) => set(() => v ? staffIds.add('${st['id']}') : staffIds.remove(st['id']))),
+              ]),
+              const SizedBox(height: 10),
+              Wrap(spacing: 6, children: [
+                for (final p in palette)
+                  InkWell(
+                    onTap: () => set(() => color = p),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(color: hexColor(p), shape: BoxShape.circle, border: Border.all(color: color == p ? YColors.night : Colors.transparent, width: 3)),
                     ),
-                ]),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réservable en ligne')), value: online, onChanged: (v) => set(() => online = v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Sur confirmation')), subtitle: Text(tr('Les demandes en ligne attendent votre accord')), value: approval, onChanged: (v) => set(() => approval = v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
+                  ),
+              ]),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réservable en ligne')), value: online, onChanged: (v) => set(() => online = v)),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Sur confirmation')), subtitle: Text(tr('Les demandes en ligne attendent votre accord')), value: approval, onChanged: (v) => set(() => approval = v)),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    if (name.text.trim().isEmpty) return;
+                    try {
+                      await sync.save('rdv_services', {
+                        'id': x?['id'] ?? newId(),
+                        'name': name.text.trim(),
+                        'category': cat.text.trim().isEmpty ? null : cat.text.trim(),
+                        'description': desc.text.trim().isEmpty ? null : desc.text.trim(),
+                        'duration_minutes': int.tryParse(dur.text) ?? 30,
+                        'buffer_minutes': int.tryParse(buf.text) ?? 0,
+                        'price': toDouble(price.text),
+                        'location': location,
+                        'staff_ids': staffIds.toList(),
+                        'online': online,
+                        'requires_approval': approval,
+                        'active': active,
+                        'color': color,
+                      });
+                      if (c.mounted) Navigator.pop(c);
+                    } catch (e) {
+                      if (c.mounted) toast(c, errorText(e), error: true);
+                    }
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                try {
-                  await sync.save('rdv_services', {
-                    'id': x?['id'] ?? newId(),
-                    'name': name.text.trim(),
-                    'category': cat.text.trim().isEmpty ? null : cat.text.trim(),
-                    'description': desc.text.trim().isEmpty ? null : desc.text.trim(),
-                    'duration_minutes': int.tryParse(dur.text) ?? 30,
-                    'buffer_minutes': int.tryParse(buf.text) ?? 0,
-                    'price': toDouble(price.text),
-                    'location': location,
-                    'staff_ids': staffIds.toList(),
-                    'online': online,
-                    'requires_approval': approval,
-                    'active': active,
-                    'color': color,
-                  });
-                  if (c.mounted) Navigator.pop(c);
-                } catch (e) {
-                  if (c.mounted) toast(c, errorText(e), error: true);
-                }
-              },
-              child: Text(tr('Enregistrer')),
-            ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
   }
 }
 
@@ -1121,99 +1119,97 @@ class _StaffTab extends StatelessWidget {
       return t == null ? null : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
     }
 
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(st == null ? 'Nouveau membre' : '${st['name']}')),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom affiché')))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: title, decoration: InputDecoration(labelText: tr('Fonction (facultatif)')))),
-                ]),
-                DropdownButtonFormField<int?>(
-                  initialValue: users.any((u) => u['id'] == user) ? user : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Utilisateur lié (voit et gère son agenda)')),
-                  items: [DropdownMenuItem<int?>(value: null, child: Text(tr('— Aucun —'))), for (final u in users) DropdownMenuItem<int?>(value: u['id'] as int, child: Text(tr('${u['name']}')))],
-                  onChanged: (v) => set(() => user = v),
-                ),
-                const SizedBox(height: 12),
-                Text(tr('Horaires de la semaine'), style: TextStyle(fontWeight: FontWeight.w700)),
-                for (var d = 1; d <= 7; d++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                      SizedBox(width: 90, child: Text(tr(weekdays[d - 1]))),
-                      Expanded(
-                        child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                          if (schedule['$d']!.isEmpty) Text(tr('Fermé'), style: TextStyle(color: Theme.of(c).hintColor)),
-                          for (var k = 0; k < schedule['$d']!.length; k++)
-                            InputChip(
-                              label: Text(tr('${schedule['$d']![k][0]} – ${schedule['$d']![k][1]}')),
-                              onPressed: () async {
-                                final a = await pick(c, schedule['$d']![k][0]);
-                                if (a == null || !c.mounted) return;
-                                final b = await pick(c, schedule['$d']![k][1]);
-                                if (b == null || b.compareTo(a) <= 0) return;
-                                set(() => schedule['$d']![k] = [a, b]);
-                              },
-                              onDeleted: () => set(() => schedule['$d']!.removeAt(k)),
-                            ),
-                          IconButton(
-                            tooltip: tr('Ajouter une plage'),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => set(() => schedule['$d']!.add(schedule['$d']!.isEmpty ? ['08:00', '12:00'] : ['14:00', '18:00'])),
-                            icon: const Icon(Icons.add_circle_outline, size: 20),
+    await showFormDialog(context, title: st == null ? 'Nouveau membre' : '${st['name']}', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom affiché')))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: title, decoration: InputDecoration(labelText: tr('Fonction (facultatif)')))),
+              ]),
+              DropdownButtonFormField<int?>(
+                initialValue: users.any((u) => u['id'] == user) ? user : null,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('Utilisateur lié (voit et gère son agenda)')),
+                items: [DropdownMenuItem<int?>(value: null, child: Text(tr('— Aucun —'))), for (final u in users) DropdownMenuItem<int?>(value: u['id'] as int, child: Text(tr('${u['name']}')))],
+                onChanged: (v) => set(() => user = v),
+              ),
+              const SizedBox(height: 12),
+              Text(tr('Horaires de la semaine'), style: TextStyle(fontWeight: FontWeight.w700)),
+              for (var d = 1; d <= 7; d++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    SizedBox(width: 90, child: Text(tr(weekdays[d - 1]))),
+                    Expanded(
+                      child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                        if (schedule['$d']!.isEmpty) Text(tr('Fermé'), style: TextStyle(color: Theme.of(c).hintColor)),
+                        for (var k = 0; k < schedule['$d']!.length; k++)
+                          InputChip(
+                            label: Text(tr('${schedule['$d']![k][0]} – ${schedule['$d']![k][1]}')),
+                            onPressed: () async {
+                              final a = await pick(c, schedule['$d']![k][0]);
+                              if (a == null || !c.mounted) return;
+                              final b = await pick(c, schedule['$d']![k][1]);
+                              if (b == null || b.compareTo(a) <= 0) return;
+                              set(() => schedule['$d']![k] = [a, b]);
+                            },
+                            onDeleted: () => set(() => schedule['$d']!.removeAt(k)),
                           ),
-                        ]),
-                      ),
-                    ]),
-                  ),
-                const SizedBox(height: 8),
-                Wrap(spacing: 6, children: [
-                  for (final p in palette)
-                    InkWell(
-                      onTap: () => set(() => color = p),
-                      child: Container(width: 26, height: 26, decoration: BoxDecoration(color: hexColor(p), shape: BoxShape.circle, border: Border.all(color: color == p ? YColors.night : Colors.transparent, width: 3))),
+                        IconButton(
+                          tooltip: tr('Ajouter une plage'),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => set(() => schedule['$d']!.add(schedule['$d']!.isEmpty ? ['08:00', '12:00'] : ['14:00', '18:00'])),
+                          icon: const Icon(Icons.add_circle_outline, size: 20),
+                        ),
+                      ]),
                     ),
-                ]),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réservable en ligne')), value: online, onChanged: (v) => set(() => online = v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
+                  ]),
+                ),
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, children: [
+                for (final p in palette)
+                  InkWell(
+                    onTap: () => set(() => color = p),
+                    child: Container(width: 26, height: 26, decoration: BoxDecoration(color: hexColor(p), shape: BoxShape.circle, border: Border.all(color: color == p ? YColors.night : Colors.transparent, width: 3))),
+                  ),
+              ]),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réservable en ligne')), value: online, onChanged: (v) => set(() => online = v)),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    if (name.text.trim().isEmpty) return;
+                    try {
+                      await sync.save('rdv_staff', {
+                        'id': st?['id'] ?? newId(),
+                        'name': name.text.trim(),
+                        'title': title.text.trim().isEmpty ? null : title.text.trim(),
+                        'user_id': user,
+                        'schedule': schedule,
+                        'color': color,
+                        'online': online,
+                        'active': active,
+                      });
+                      if (c.mounted) Navigator.pop(c);
+                    } catch (e) {
+                      if (c.mounted) toast(c, errorText(e), error: true);
+                    }
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
               ]),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                try {
-                  await sync.save('rdv_staff', {
-                    'id': st?['id'] ?? newId(),
-                    'name': name.text.trim(),
-                    'title': title.text.trim().isEmpty ? null : title.text.trim(),
-                    'user_id': user,
-                    'schedule': schedule,
-                    'color': color,
-                    'online': online,
-                    'active': active,
-                  });
-                  if (c.mounted) Navigator.pop(c);
-                } catch (e) {
-                  if (c.mounted) toast(c, errorText(e), error: true);
-                }
-              },
-              child: Text(tr('Enregistrer')),
-            ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
   }
 
   Future<void> _editClosure(BuildContext context) async {
@@ -1224,14 +1220,11 @@ class _StaffTab extends StatelessWidget {
     var to = from;
     var allDay = true;
     TimeOfDay t1 = const TimeOfDay(hour: 8, minute: 0), t2 = const TimeOfDay(hour: 12, minute: 0);
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Fermeture ou absence')),
-          content: SizedBox(
-            width: 420,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    await showFormDialog(context, title: 'Fermeture ou absence', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: reason, decoration: InputDecoration(labelText: tr('Motif (ex. Fête nationale, congé)'))),
               DropdownButtonFormField<String?>(
                 initialValue: staff,
@@ -1285,23 +1278,26 @@ class _StaffTab extends StatelessWidget {
                   ),
                 ]),
             ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(
-              onPressed: () async {
-                final s = allDay ? from : DateTime(from.year, from.month, from.day, t1.hour, t1.minute);
-                final e = allDay ? DateTime(to.year, to.month, to.day + 1) : DateTime(to.year, to.month, to.day, t2.hour, t2.minute);
-                if (!e.isAfter(s)) return;
-                await sync.save('rdv_closures', {'id': newId(), 'staff_id': staff, 'starts_at': s.toUtc().toIso8601String(), 'ends_at': e.toUtc().toIso8601String(), 'reason': reason.text.trim().isEmpty ? null : reason.text.trim()});
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Enregistrer')),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(
+                  onPressed: () async {
+                    final s = allDay ? from : DateTime(from.year, from.month, from.day, t1.hour, t1.minute);
+                    final e = allDay ? DateTime(to.year, to.month, to.day + 1) : DateTime(to.year, to.month, to.day, t2.hour, t2.minute);
+                    if (!e.isAfter(s)) return;
+                    await sync.save('rdv_closures', {'id': newId(), 'staff_id': staff, 'starts_at': s.toUtc().toIso8601String(), 'ends_at': e.toUtc().toIso8601String(), 'reason': reason.text.trim().isEmpty ? null : reason.text.trim()});
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Enregistrer')),
+                ),
+              ]),
             ),
-          ],
+          ]),
         ),
-      ),
-    );
+      ));
   }
 }
 

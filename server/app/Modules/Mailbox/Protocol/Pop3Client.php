@@ -12,9 +12,9 @@ class Pop3Client
 
     public function connect(string $host, int $port = 995, string $security = 'ssl'): static
     {
-        ImapClient::guardHost($host);
-        $ctx = stream_context_create(['ssl' => ['verify_peer' => (bool) config('erp.mailbox.verify_tls', true), 'verify_peer_name' => (bool) config('erp.mailbox.verify_tls', true), 'peer_name' => $host]]);
-        $sock = @stream_socket_client(($security === 'ssl' ? 'ssl://' : 'tcp://').$host.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $ctx);
+        $target = ImapClient::guardHost($host); // IP vérifiée en SaaS ; le nom reste le peer_name TLS
+        $ctx = stream_context_create(['ssl' => ['verify_peer' => (bool) config('erp.mailbox.verify_tls', true), 'verify_peer_name' => (bool) config('erp.mailbox.verify_tls', true), 'SNI_enabled' => true, 'peer_name' => $host]]);
+        $sock = @stream_socket_client(($security === 'ssl' ? 'ssl://' : 'tcp://').$target.':'.$port, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $ctx);
         if (! $sock) {
             throw new MailProtocolException("Connexion impossible à $host:$port ($errstr).");
         }

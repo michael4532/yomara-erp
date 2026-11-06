@@ -100,84 +100,84 @@ class _GroupTabState extends State<_GroupTab> {
     String? acq = m['acquisition_date'] as String?;
     String? impDate = m['goodwill_impairment_date'] as String?;
     final foreign = m['currency'] != null && m['currency'] != _g!['currency'];
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, set) => YAlertDialog(
-          title: Text(tr(code != null ? 'Rattacher la filiale' : '${m['name']}')),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                DropdownButtonFormField<String>(
-                  initialValue: method,
-                  decoration: InputDecoration(labelText: tr('Méthode de consolidation')),
-                  items: [for (final e in methods.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                  onChanged: (v) => set(() => method = v ?? method),
-                ),
-                Text(
-                  tr(switch (method) {
-                    'ig' => 'Contrôle exclusif (en général plus de 50 % des droits de vote) : comptes repris à 100 %, part des minoritaires isolée.',
-                    'ip' => 'Contrôle conjoint : comptes repris au pourcentage d\'intérêts.',
-                    _ => 'Influence notable (20 % à 50 %) : seuls les titres sont réévalués à la quote-part des capitaux propres.',
-                  }),
-                  style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor),
-                ),
-                Row(children: [
-                  Expanded(child: TextField(controller: ctl['interest_pct'], decoration: InputDecoration(labelText: tr('% d\'intérêts')))),
-                  const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: ctl['control_pct'], decoration: InputDecoration(labelText: tr('% de contrôle')))),
-                ]),
-                TextField(controller: ctl['investment_cost'], decoration: InputDecoration(labelText: tr('Coût d\'acquisition des titres (chez la mère)'))),
-                TextField(controller: ctl['equity_at_acquisition'], decoration: InputDecoration(labelText: tr('Capitaux propres de la filiale à l\'acquisition'), helperText: tr('Sert à calculer l\'écart d\'acquisition et les réserves consolidées.'))),
+    final ok = await showFormDialog<bool>(context, title: code != null ? 'Rattacher la filiale' : '${m['name']}', builder: (dc) => StatefulBuilder(
+        builder: (dc, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: InputDecoration(labelText: tr('Méthode de consolidation')),
+                items: [for (final e in methods.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+                onChanged: (v) => set(() => method = v ?? method),
+              ),
+              Text(
+                tr(switch (method) {
+                  'ig' => 'Contrôle exclusif (en général plus de 50 % des droits de vote) : comptes repris à 100 %, part des minoritaires isolée.',
+                  'ip' => 'Contrôle conjoint : comptes repris au pourcentage d\'intérêts.',
+                  _ => 'Influence notable (20 % à 50 %) : seuls les titres sont réévalués à la quote-part des capitaux propres.',
+                }),
+                style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor),
+              ),
+              Row(children: [
+                Expanded(child: TextField(controller: ctl['interest_pct'], decoration: InputDecoration(labelText: tr('% d\'intérêts')))),
+                const SizedBox(width: 12),
+                Expanded(child: TextField(controller: ctl['control_pct'], decoration: InputDecoration(labelText: tr('% de contrôle')))),
+              ]),
+              TextField(controller: ctl['investment_cost'], decoration: InputDecoration(labelText: tr('Coût d\'acquisition des titres (chez la mère)'))),
+              TextField(controller: ctl['equity_at_acquisition'], decoration: InputDecoration(labelText: tr('Capitaux propres de la filiale à l\'acquisition'), helperText: tr('Sert à calculer l\'écart d\'acquisition et les réserves consolidées.'))),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(acq ?? '') ?? DateTime.now());
+                  if (d != null) set(() => acq = isoDate(d));
+                },
+                icon: const Icon(Icons.event, size: 18),
+                label: Text(tr(acq == null ? 'Date d\'acquisition' : 'Acquise le ${dateFr(acq)}')),
+              ),
+              if (method != 'mee') ...[
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(acq ?? '') ?? DateTime.now());
-                    if (d != null) set(() => acq = isoDate(d));
-                  },
-                  icon: const Icon(Icons.event, size: 18),
-                  label: Text(tr(acq == null ? 'Date d\'acquisition' : 'Acquise le ${dateFr(acq)}')),
-                ),
-                if (method != 'mee') ...[
-                  const SizedBox(height: 8),
-                  Text(tr('Écart d\'acquisition (coût des titres − quote-part des capitaux propres acquis)'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Expanded(child: TextField(controller: ctl['goodwill_years'], decoration: InputDecoration(labelText: tr('Amorti sur (années)'), helperText: tr('Vide : non amorti')))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: ctl['goodwill_impairment'], decoration: InputDecoration(labelText: tr('Dépréciation'), helperText: tr('Perte de valeur constatée')))),
-                  ]),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(impDate ?? '') ?? DateTime.now());
-                        if (d != null) set(() => impDate = isoDate(d));
-                      },
-                      icon: const Icon(Icons.event, size: 18),
-                      label: Text(tr(impDate == null ? 'Date de la dépréciation' : 'Dépréciation au ${dateFr(impDate)}')),
-                    ),
+                Text(tr('Écart d\'acquisition (coût des titres − quote-part des capitaux propres acquis)'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Expanded(child: TextField(controller: ctl['goodwill_years'], decoration: InputDecoration(labelText: tr('Amorti sur (années)'), helperText: tr('Vide : non amorti')))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: ctl['goodwill_impairment'], decoration: InputDecoration(labelText: tr('Dépréciation'), helperText: tr('Perte de valeur constatée')))),
+                ]),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(impDate ?? '') ?? DateTime.now());
+                      if (d != null) set(() => impDate = isoDate(d));
+                    },
+                    icon: const Icon(Icons.event, size: 18),
+                    label: Text(tr(impDate == null ? 'Date de la dépréciation' : 'Dépréciation au ${dateFr(impDate)}')),
                   ),
-                ],
-                if (foreign || code != null) ...[
-                  const SizedBox(height: 8),
-                  Text(tr('Conversion (1 ${m['currency'] ?? 'devise'} = ? ${_g!['currency']}) — laissez vide si même monnaie ou pour les cours du module Devises${m['suggested_rate'] != null && foreign ? ' (${m['suggested_rate']})' : ''}'),
-                      style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
-                  Row(children: [
-                    Expanded(child: TextField(controller: ctl['rate'], decoration: InputDecoration(labelText: tr('Cours de clôture'), helperText: tr('Bilan')))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: ctl['average_rate'], decoration: InputDecoration(labelText: tr('Cours moyen'), helperText: tr('Compte de résultat')))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: ctl['historical_rate'], decoration: InputDecoration(labelText: tr('Cours historique'), helperText: tr('Capitaux propres')))),
-                  ]),
-                ],
+                ),
+              ],
+              if (foreign || code != null) ...[
+                const SizedBox(height: 8),
+                Text(tr('Conversion (1 ${m['currency'] ?? 'devise'} = ? ${_g!['currency']}) — laissez vide si même monnaie ou pour les cours du module Devises${m['suggested_rate'] != null && foreign ? ' (${m['suggested_rate']})' : ''}'),
+                    style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
+                Row(children: [
+                  Expanded(child: TextField(controller: ctl['rate'], decoration: InputDecoration(labelText: tr('Cours de clôture'), helperText: tr('Bilan')))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: ctl['average_rate'], decoration: InputDecoration(labelText: tr('Cours moyen'), helperText: tr('Compte de résultat')))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: ctl['historical_rate'], decoration: InputDecoration(labelText: tr('Cours historique'), helperText: tr('Capitaux propres')))),
+                ]),
+              ],
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr(code != null ? 'Rattacher' : 'Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr(code != null ? 'Rattacher' : 'Enregistrer')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || !mounted) return;
     final body = <String, dynamic>{
       'method': method,
@@ -332,14 +332,11 @@ class _GroupTabState extends State<_GroupTab> {
           final basis = TextEditingController();
           final note = TextEditingController();
           String date = isoDate(DateTime.now());
-          final ok = await showDialog<bool>(
-            context: dc,
-            builder: (d2) => StatefulBuilder(
-              builder: (d2, set2) => YAlertDialog(
-                title: Text(tr(buy ? 'Achat de titres complémentaires' : 'Cession partielle de titres')),
-                content: SizedBox(
-                  width: 440,
-                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          final ok = await showFormDialog<bool>(dc, title: buy ? 'Achat de titres complémentaires' : 'Cession partielle de titres', builder: (d2) => StatefulBuilder(
+              builder: (d2, set2) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+                  Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     OutlinedButton.icon(
                       onPressed: () async {
                         final d = await showDatePicker(context: d2, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.parse(date));
@@ -360,11 +357,16 @@ class _GroupTabState extends State<_GroupTab> {
                       style: TextStyle(fontSize: 12, color: Theme.of(d2).hintColor),
                     ),
                   ]),
-                ),
-                actions: [TextButton(onPressed: () => Navigator.pop(d2, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d2, true), child: Text(tr('Enregistrer')))],
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                      TextButton(onPressed: () => Navigator.pop(d2, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d2, true), child: Text(tr('Enregistrer'))),
+                    ]),
+                  ),
+                ]),
               ),
-            ),
-          );
+            ));
           if (ok != true) return;
           final v = toDouble(pct.text.replaceAll(',', '.')).abs();
           await refresh(api.post('compta/group/members/${m['id']}/stakes', {
@@ -503,9 +505,7 @@ class _GroupTabState extends State<_GroupTab> {
     final lines = [for (var i = 0; i < 2; i++) (TextEditingController(), TextEditingController(), TextEditingController())];
     int? seller = companies.length > 1 ? companies[1]['id'] as int : null;
     int? buyer = companies.isNotEmpty ? companies[0]['id'] as int : null;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
+    final ok = await showFormDialog<bool>(context, title: switch (kind) { 'stock_margin' => 'Marge interne sur stocks', 'dividend' => 'Dividendes internes', _ => 'Écriture de consolidation' }, builder: (dc) => StatefulBuilder(
         builder: (dc, set) {
           Widget pick(String lbl, int? v, void Function(int?) on) => DropdownButtonFormField<int>(
                 initialValue: v,
@@ -514,49 +514,51 @@ class _GroupTabState extends State<_GroupTab> {
                 onChanged: (x) => set(() => on(x)),
               );
           final hint = Theme.of(dc).hintColor;
-          return YAlertDialog(
-            title: Text(tr(switch (kind) { 'stock_margin' => 'Marge interne sur stocks', 'dividend' => 'Dividendes internes', _ => 'Écriture de consolidation' })),
-            content: SizedBox(
-              width: 520,
-              child: SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  if (kind == 'stock_margin') ...[
-                    Text(tr('Marchandises achetées à une société du groupe et encore en stock à la clôture : la marge réalisée par le vendeur est annulée (variation de stocks / stock).'), style: TextStyle(fontSize: 12, color: hint)),
-                    pick('Société qui a vendu', seller, (x) => seller = x),
-                    pick('Société qui détient le stock', buyer, (x) => buyer = x),
-                    TextField(controller: amount, decoration: InputDecoration(labelText: tr('Valeur du stock chez l\'acheteur (dans sa monnaie)'))),
-                    TextField(controller: margin, decoration: InputDecoration(labelText: tr('Taux de marge du vendeur (%)'), helperText: tr('Vide : marge commerciale du vendeur sur l\'exercice'))),
-                  ],
-                  if (kind == 'dividend') ...[
-                    Text(tr('Dividendes versés entre sociétés du groupe sans tiers renseigné sur l\'écriture (sinon ils sont éliminés automatiquement) : le produit est annulé et les réserves reconstituées.'), style: TextStyle(fontSize: 12, color: hint)),
-                    pick('Société qui a versé', seller, (x) => seller = x),
-                    pick('Société qui a reçu', buyer, (x) => buyer = x),
-                    TextField(controller: amount, decoration: InputDecoration(labelText: tr('Montant reçu (monnaie de la société qui a reçu)'))),
-                  ],
-                  if (kind == 'entry') ...[
-                    Text(tr('Comptes du plan de la société mère. L\'écriture ne touche que les comptes consolidés, jamais les comptes des sociétés.'), style: TextStyle(fontSize: 12, color: hint)),
-                    for (var i = 0; i < lines.length; i++)
-                      Row(children: [
-                        SizedBox(width: 110, child: TextField(controller: lines[i].$1, decoration: InputDecoration(isDense: true, labelText: tr('Compte')))),
-                        const SizedBox(width: 8),
-                        Expanded(child: TextField(controller: lines[i].$2, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Débit')))),
-                        const SizedBox(width: 8),
-                        Expanded(child: TextField(controller: lines[i].$3, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Crédit')))),
-                      ]),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(onPressed: () => set(() => lines.add((TextEditingController(), TextEditingController(), TextEditingController()))), icon: const Icon(Icons.add, size: 18), label: Text(tr('Ligne'))),
-                    ),
-                  ],
-                  TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé (facultatif)'))),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (kind == 'stock_margin') ...[
+                  Text(tr('Marchandises achetées à une société du groupe et encore en stock à la clôture : la marge réalisée par le vendeur est annulée (variation de stocks / stock).'), style: TextStyle(fontSize: 12, color: hint)),
+                  pick('Société qui a vendu', seller, (x) => seller = x),
+                  pick('Société qui détient le stock', buyer, (x) => buyer = x),
+                  TextField(controller: amount, decoration: InputDecoration(labelText: tr('Valeur du stock chez l\'acheteur (dans sa monnaie)'))),
+                  TextField(controller: margin, decoration: InputDecoration(labelText: tr('Taux de marge du vendeur (%)'), helperText: tr('Vide : marge commerciale du vendeur sur l\'exercice'))),
+                ],
+                if (kind == 'dividend') ...[
+                  Text(tr('Dividendes versés entre sociétés du groupe sans tiers renseigné sur l\'écriture (sinon ils sont éliminés automatiquement) : le produit est annulé et les réserves reconstituées.'), style: TextStyle(fontSize: 12, color: hint)),
+                  pick('Société qui a versé', seller, (x) => seller = x),
+                  pick('Société qui a reçu', buyer, (x) => buyer = x),
+                  TextField(controller: amount, decoration: InputDecoration(labelText: tr('Montant reçu (monnaie de la société qui a reçu)'))),
+                ],
+                if (kind == 'entry') ...[
+                  Text(tr('Comptes du plan de la société mère. L\'écriture ne touche que les comptes consolidés, jamais les comptes des sociétés.'), style: TextStyle(fontSize: 12, color: hint)),
+                  for (var i = 0; i < lines.length; i++)
+                    Row(children: [
+                      SizedBox(width: 110, child: TextField(controller: lines[i].$1, decoration: InputDecoration(isDense: true, labelText: tr('Compte')))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: lines[i].$2, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Débit')))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: lines[i].$3, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Crédit')))),
+                    ]),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(onPressed: () => set(() => lines.add((TextEditingController(), TextEditingController(), TextEditingController()))), icon: const Icon(Icons.add, size: 18), label: Text(tr('Ligne'))),
+                  ),
+                ],
+                TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé (facultatif)'))),
+              ]),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                  TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
                 ]),
               ),
-            ),
-            actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer')))],
+            ]),
           );
         },
-      ),
-    );
+      ));
     if (ok != true || !mounted) return;
     await _saveAdj({
       'kind': kind,

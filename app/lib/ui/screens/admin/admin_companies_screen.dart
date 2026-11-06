@@ -258,8 +258,9 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
   }
 
   Future<void> _grant() async {
-    final r = await showDialog<Map<String, dynamic>>(
-      context: context,
+    final r = await showFormDialog<Map<String, dynamic>>(
+      context,
+      title: 'Activer manuellement',
       builder: (_) => _GrantDialog(modules: _modules.where((m) => m['is_core'] != true && m['available'] == true).toList(), plans: _plans),
     );
     if (r == null || !mounted) return;
@@ -605,75 +606,76 @@ class _GrantDialogState extends State<_GrantDialog> {
   Widget build(BuildContext context) {
     final mods = widget.modules.where((m) => _q.isEmpty || '${m['name']} ${m['category']}'.toLowerCase().contains(_q.toLowerCase())).toList();
     final ok = _type == 'module' ? _key != null : _plan != null;
-    return AlertDialog(
-      title: Text(tr('Activer manuellement')),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SegmentedButton<String>(
-              segments: [ButtonSegment(value: 'module', label: Text(tr('Un module')), icon: const Icon(Icons.extension_outlined)), ButtonSegment(value: 'plan', label: Text(tr('Une formule')), icon: const Icon(Icons.workspace_premium_outlined))],
-              selected: {_type},
-              onSelectionChanged: (v) => setState(() => _type = v.first),
-            ),
-            const SizedBox(height: 14),
-            if (_type == 'module') ...[
-              TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr('Rechercher un module'), isDense: true), onChanged: (v) => setState(() => _q = v)),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 230,
-                child: ListView(children: [
-                  for (final m in mods)
-                    ListTile(
-                      dense: true,
-                      selected: _key == m['key'],
-                      selectedTileColor: YColors.blue.withValues(alpha: .08),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      leading: Icon(_key == m['key'] ? Icons.radio_button_checked : Icons.radio_button_off, color: _key == m['key'] ? YColors.blue : null),
-                      title: Text('${m['name']}'),
-                      subtitle: Text([if (m['category'] != null) '${m['category']}', if (m['enabled'] == true) tr('déjà actif : la durée s\'ajoute')].join(' · ')),
-                      onTap: () => setState(() => _key = '${m['key']}'),
-                    ),
-                ]),
-              ),
-            ] else
-              DropdownButtonFormField<int>(
-                initialValue: _plan,
-                decoration: InputDecoration(labelText: tr('Formule')),
-                items: [for (final p in widget.plans) DropdownMenuItem(value: p['id'] as int, child: Text('${p['name']}'))],
-                onChanged: (v) => setState(() => _plan = v),
-              ),
-            const SizedBox(height: 14),
-            Text(tr('Durée'), style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final (m, l) in const [(1, '1 mois'), (3, '3 mois'), (6, '6 mois'), (12, '1 an'), (24, '2 ans'), (0, 'Sans fin')])
-                ChoiceChip(label: Text(tr(l)), selected: _months == m, onSelected: (_) => setState(() => _months = m)),
-            ]),
-            const SizedBox(height: 14),
-            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant reçu (facultatif, pour vos statistiques)'))),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SegmentedButton<String>(
+            segments: [ButtonSegment(value: 'module', label: Text(tr('Un module')), icon: const Icon(Icons.extension_outlined)), ButtonSegment(value: 'plan', label: Text(tr('Une formule')), icon: const Icon(Icons.workspace_premium_outlined))],
+            selected: {_type},
+            onSelectionChanged: (v) => setState(() => _type = v.first),
+          ),
+          const SizedBox(height: 14),
+          if (_type == 'module') ...[
+            TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr('Rechercher un module'), isDense: true), onChanged: (v) => setState(() => _q = v)),
             const SizedBox(height: 8),
-            TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note interne (ex. payé en espèces au bureau)'))),
+            SizedBox(
+              height: 230,
+              child: ListView(children: [
+                for (final m in mods)
+                  ListTile(
+                    dense: true,
+                    selected: _key == m['key'],
+                    selectedTileColor: YColors.blue.withValues(alpha: .08),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    leading: Icon(_key == m['key'] ? Icons.radio_button_checked : Icons.radio_button_off, color: _key == m['key'] ? YColors.blue : null),
+                    title: Text('${m['name']}'),
+                    subtitle: Text([if (m['category'] != null) '${m['category']}', if (m['enabled'] == true) tr('déjà actif : la durée s\'ajoute')].join(' · ')),
+                    onTap: () => setState(() => _key = '${m['key']}'),
+                  ),
+              ]),
+            ),
+          ] else
+            DropdownButtonFormField<int>(
+              initialValue: _plan,
+              decoration: InputDecoration(labelText: tr('Formule')),
+              items: [for (final p in widget.plans) DropdownMenuItem(value: p['id'] as int, child: Text('${p['name']}'))],
+              onChanged: (v) => setState(() => _plan = v),
+            ),
+          const SizedBox(height: 14),
+          Text(tr('Durée'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final (m, l) in const [(1, '1 mois'), (3, '3 mois'), (6, '6 mois'), (12, '1 an'), (24, '2 ans'), (0, 'Sans fin')])
+              ChoiceChip(label: Text(tr(l)), selected: _months == m, onSelected: (_) => setState(() => _months = m)),
+          ]),
+          const SizedBox(height: 14),
+          TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant reçu (facultatif, pour vos statistiques)'))),
+          const SizedBox(height: 8),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note interne (ex. payé en espèces au bureau)'))),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton.icon(
+              onPressed: !ok
+                  ? null
+                  : () => Navigator.pop(context, {
+                        'type': _type,
+                        if (_type == 'module') 'key': _key,
+                        if (_type == 'plan') 'plan_id': _plan,
+                        'months': _months,
+                        if (_amount.text.trim().isNotEmpty) 'amount': double.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+                        if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+                      }),
+              icon: const Icon(Icons.bolt),
+              label: Text(tr('Activer et prévenir le client')),
+            ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton.icon(
-          onPressed: !ok
-              ? null
-              : () => Navigator.pop(context, {
-                    'type': _type,
-                    if (_type == 'module') 'key': _key,
-                    if (_type == 'plan') 'plan_id': _plan,
-                    'months': _months,
-                    if (_amount.text.trim().isNotEmpty) 'amount': double.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
-                    if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-                  }),
-          icon: const Icon(Icons.bolt),
-          label: Text(tr('Activer et prévenir le client')),
-        ),
-      ],
+      ]),
     );
   }
 }

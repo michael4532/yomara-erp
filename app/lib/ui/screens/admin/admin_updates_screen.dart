@@ -43,19 +43,16 @@ class _AdminUpdatesScreenState extends State<AdminUpdatesScreen> {
 
   List<Map<String, dynamic>> _list(String k) => [for (final e in (_d?[k] as List? ?? const [])) asMap(e)];
 
-  Future<Map<String, dynamic>?> _ask({required String title, required String action}) => showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (c) {
+  Future<Map<String, dynamic>?> _ask({required String title, required String action}) => showFormDialog<Map<String, dynamic>>(context, title: title, builder: (c) {
           final notes = TextEditingController();
           var channel = 'stable';
           var mandatory = false;
           var publish = true;
           return StatefulBuilder(
-            builder: (c, set) => YAlertDialog(
-              title: Text(tr(title)),
-              content: SizedBox(
-                width: 520,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
+            builder: (c, set) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+                Column(mainAxisSize: MainAxisSize.min, children: [
                   TextField(controller: notes, maxLines: 6, decoration: InputDecoration(labelText: tr('Nouveautés (affichées aux clients)'), hintText: tr('• Nouveau module…\n• Corrections…'))),
                   const SizedBox(height: 12),
                   SegmentedButton<String>(
@@ -66,15 +63,18 @@ class _AdminUpdatesScreenState extends State<AdminUpdatesScreen> {
                   SwitchListTile(contentPadding: EdgeInsets.zero, value: mandatory, onChanged: (v) => set(() => mandatory = v), title: Text(tr('Mise à jour importante')), subtitle: Text(tr('Bouton rouge chez les clients'))),
                   SwitchListTile(contentPadding: EdgeInsets.zero, value: publish, onChanged: (v) => set(() => publish = v), title: Text(tr('Diffuser immédiatement'))),
                 ]),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(onPressed: () => Navigator.pop(c, {'notes': notes.text.trim(), 'channel': channel, 'mandatory': mandatory, 'publish': publish}), child: Text(tr(action))),
-              ],
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                    TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                    FilledButton(onPressed: () => Navigator.pop(c, {'notes': notes.text.trim(), 'channel': channel, 'mandatory': mandatory, 'publish': publish}), child: Text(tr(action))),
+                  ]),
+                ),
+              ]),
             ),
           );
-        },
-      );
+        });
 
   Future<void> _publishSelf() async {
     final o = await _ask(title: tr('Diffuser la version ${_d?['current']}'), action: 'Préparer et diffuser');

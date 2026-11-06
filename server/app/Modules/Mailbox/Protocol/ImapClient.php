@@ -22,23 +22,31 @@ class ImapClient
     /**
      * Plateforme SaaS : un serveur de messagerie saisi par un client ne peut pas viser le serveur lui-même ni le réseau
      * interne (balayage de ports). Une installation chez le client peut, elle, utiliser un serveur de son réseau local.
+     *
+     * Renvoie l'adresse à laquelle se connecter : en SaaS, l'IP vérifiée (le nom n'est pas résolu une seconde fois,
+     * contre le « DNS rebinding ») ; sinon le nom d'hôte tel quel. Le nom reste utilisé pour TLS (peer_name / SNI).
      */
-    public static function guardHost(string $host): void
+    public static function guardHost(string $host): string
     {
         if (config('erp.mode') === 'saas' && ! config('erp.mailbox.allow_private_hosts', false)) {
             try {
-                \App\Support\UrlGuard::assertPublicHost($host);
+                $ip = \App\Support\UrlGuard::publicHostIp($host);
             } catch (\DomainException $e) {
                 throw new MailProtocolException($e->getMessage());
             }
+            if ($ip !== null) {
+                return str_contains($ip, ':') ? '['.$ip.']' : $ip;
+            }
         }
+
+        return $host;
     }
 
     public function connect(string $host, int $port = 993, string $security = 'ssl'): static
     {
-        self::guardHost($host);
+        $target = self::guardHost($host);
         $ctx = stream_context_create(['ssl' => ['verify_peer' => (bool) config('erp.mailbox.verify_tls', true), 'verify_peer_name' => (bool) config('erp.mailbox.verify_tls', true), 'SNI_enabled' => true, 'peer_name' => $host]]);
-        $remote = ($security === 'ssl' ? 'ssl://' : 'tcp://').$host.':'.$port;
+        $remote = ($security === 'ssl' ? 'ssl://' : 'tcp://').$target.':'.$port;
         $sock = @stream_socket_client($remote, $errno, $errstr, $this->timeout, STREAM_CLIENT_CONNECT, $ctx);
         if (! $sock) {
             throw new MailProtocolException("Connexion impossible à $host:$port ($errstr).");

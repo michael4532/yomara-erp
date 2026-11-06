@@ -1447,9 +1447,7 @@ Future<void> editEquipment(BuildContext context, [Map<String, dynamic>? e]) asyn
   DateTime? installed = DateTime.tryParse('${e?['installed_at'] ?? ''}');
   DateTime? warranty = DateTime.tryParse('${e?['warranty_until'] ?? ''}');
   final partners = LocalDb.all('partners').where((p) => p['type'] != 'supplier').toList()..sort((a, b) => '${a['name']}'.toLowerCase().compareTo('${b['name']}'.toLowerCase()));
-  await showDialog(
-    context: context,
-    builder: (c) => StatefulBuilder(builder: (c, set) {
+  await showFormDialog(context, title: e == null ? 'Nouvel équipement' : 'Équipement', builder: (c) => StatefulBuilder(builder: (c, set) {
       final contracts = LocalDb.all('it_contracts').where((k) => k['partner_id'] == partner).toList();
       Widget date(String label, DateTime? v, void Function(DateTime?) on) => OutlinedButton.icon(
             onPressed: () async {
@@ -1459,85 +1457,85 @@ Future<void> editEquipment(BuildContext context, [Map<String, dynamic>? e]) asyn
             icon: const Icon(Icons.event, size: 18),
             label: Text(tr(v == null ? label : '$label : ${DateFormat('dd/MM/yyyy').format(v)}')),
           );
-      return YAlertDialog(
-        title: Text(tr(e == null ? 'Nouvel équipement' : 'Équipement')),
-        content: SizedBox(
-          width: 480,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String?>(
+              initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Client')),
+              items: [const DropdownMenuItem<String?>(value: null, child: Text('—')), for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
+              onChanged: (v) => set(() {
+                partner = v;
+                contract = null;
+              }),
+            ),
+            TextField(controller: f['name'], decoration: InputDecoration(labelText: tr('Nom (ex. Split salle de réunion)'))),
+            TextField(controller: f['category'], decoration: InputDecoration(labelText: tr('Catégorie (climatisation, électricité, informatique…)'))),
+            Row(children: [
+              Expanded(child: TextField(controller: f['brand'], decoration: InputDecoration(labelText: tr('Marque')))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: f['model'], decoration: InputDecoration(labelText: tr('Modèle')))),
+            ]),
+            TextField(controller: f['serial_number'], decoration: InputDecoration(labelText: tr('N° de série'))),
+            TextField(controller: f['location'], decoration: InputDecoration(labelText: tr('Emplacement (site, étage, pièce)'))),
+            if (contracts.isNotEmpty)
               DropdownButtonFormField<String?>(
-                initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
+                initialValue: contracts.any((k) => k['id'] == contract) ? contract : null,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Client')),
-                items: [const DropdownMenuItem<String?>(value: null, child: Text('—')), for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
-                onChanged: (v) => set(() {
-                  partner = v;
-                  contract = null;
-                }),
+                decoration: InputDecoration(labelText: tr('Contrat de maintenance')),
+                items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Hors contrat'))), for (final k in contracts) DropdownMenuItem<String?>(value: '${k['id']}', child: Text(tr('${k['number'] ?? ''} ${k['name']}')))],
+                onChanged: (v) => set(() => contract = v),
               ),
-              TextField(controller: f['name'], decoration: InputDecoration(labelText: tr('Nom (ex. Split salle de réunion)'))),
-              TextField(controller: f['category'], decoration: InputDecoration(labelText: tr('Catégorie (climatisation, électricité, informatique…)'))),
-              Row(children: [
-                Expanded(child: TextField(controller: f['brand'], decoration: InputDecoration(labelText: tr('Marque')))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: f['model'], decoration: InputDecoration(labelText: tr('Modèle')))),
-              ]),
-              TextField(controller: f['serial_number'], decoration: InputDecoration(labelText: tr('N° de série'))),
-              TextField(controller: f['location'], decoration: InputDecoration(labelText: tr('Emplacement (site, étage, pièce)'))),
-              if (contracts.isNotEmpty)
-                DropdownButtonFormField<String?>(
-                  initialValue: contracts.any((k) => k['id'] == contract) ? contract : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Contrat de maintenance')),
-                  items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Hors contrat'))), for (final k in contracts) DropdownMenuItem<String?>(value: '${k['id']}', child: Text(tr('${k['number'] ?? ''} ${k['name']}')))],
-                  onChanged: (v) => set(() => contract = v),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: InputDecoration(labelText: tr('État')),
+              items: [for (final x in equipmentStatuses.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
+              onChanged: (v) => set(() => status = v ?? status),
+            ),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [date('Mise en service', installed, (d) => installed = d ?? installed), date('Garantie', warranty, (d) => warranty = d ?? warranty)]),
+            TextField(controller: f['notes'], maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (e != null && context.read<Session>().can('interventions.manage'))
+                TextButton(
+                  onPressed: () async {
+                    await sync.remove('it_equipments', '${e['id']}');
+                    if (c.mounted) Navigator.pop(c);
+                  },
+                  child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
-              DropdownButtonFormField<String>(
-                initialValue: status,
-                decoration: InputDecoration(labelText: tr('État')),
-                items: [for (final x in equipmentStatuses.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
-                onChanged: (v) => set(() => status = v ?? status),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(
+                onPressed: () async {
+                  if (f['name']!.text.trim().isEmpty) return;
+                  try {
+                    await sync.save('it_equipments', {
+                      'id': e?['id'] ?? newId(),
+                      'partner_id': partner,
+                      'contract_id': contract,
+                      for (final x in f.entries) x.key: x.value.text.trim().isEmpty ? null : x.value.text.trim(),
+                      'status': status,
+                      'installed_at': installed == null ? null : isoDate(installed!),
+                      'warranty_until': warranty == null ? null : isoDate(warranty!),
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  } catch (err) {
+                    if (c.mounted) toast(c, errorText(err), error: true);
+                  }
+                },
+                child: Text(tr('Enregistrer')),
               ),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [date('Mise en service', installed, (d) => installed = d ?? installed), date('Garantie', warranty, (d) => warranty = d ?? warranty)]),
-              TextField(controller: f['notes'], maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
             ]),
           ),
-        ),
-        actions: [
-          if (e != null && context.read<Session>().can('interventions.manage'))
-            TextButton(
-              onPressed: () async {
-                await sync.remove('it_equipments', '${e['id']}');
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-            ),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
-            onPressed: () async {
-              if (f['name']!.text.trim().isEmpty) return;
-              try {
-                await sync.save('it_equipments', {
-                  'id': e?['id'] ?? newId(),
-                  'partner_id': partner,
-                  'contract_id': contract,
-                  for (final x in f.entries) x.key: x.value.text.trim().isEmpty ? null : x.value.text.trim(),
-                  'status': status,
-                  'installed_at': installed == null ? null : isoDate(installed!),
-                  'warranty_until': warranty == null ? null : isoDate(warranty!),
-                });
-                if (c.mounted) Navigator.pop(c);
-              } catch (err) {
-                if (c.mounted) toast(c, errorText(err), error: true);
-              }
-            },
-            child: Text(tr('Enregistrer')),
-          ),
-        ],
+        ]),
       );
-    }),
-  );
+    }));
 }
 
 // ======================================================================
@@ -1666,9 +1664,7 @@ Future<void> editContract(BuildContext context, [Map<String, dynamic>? k]) async
   DateTime? end = DateTime.tryParse('${k?['end_date'] ?? ''}');
   DateTime? next = DateTime.tryParse('${k?['next_visit'] ?? ''}');
   final partners = LocalDb.all('partners').where((p) => p['type'] != 'supplier').toList()..sort((a, b) => '${a['name']}'.toLowerCase().compareTo('${b['name']}'.toLowerCase()));
-  await showDialog(
-    context: context,
-    builder: (c) => StatefulBuilder(builder: (c, set) {
+  await showFormDialog(context, title: k == null ? 'Nouveau contrat de maintenance' : 'Contrat ${k['number'] ?? ''}', builder: (c) => StatefulBuilder(builder: (c, set) {
       Widget date(String label, DateTime? v, void Function(DateTime?) on) => OutlinedButton.icon(
             onPressed: () async {
               final d = await showDatePicker(context: c, initialDate: v ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
@@ -1677,108 +1673,108 @@ Future<void> editContract(BuildContext context, [Map<String, dynamic>? k]) async
             icon: const Icon(Icons.event, size: 18),
             label: Text(tr(v == null ? label : '$label : ${DateFormat('dd/MM/yyyy').format(v)}')),
           );
-      return YAlertDialog(
-        title: Text(tr(k == null ? 'Nouveau contrat de maintenance' : 'Contrat ${k['number'] ?? ''}')),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              DropdownButtonFormField<String?>(
-                initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Client')),
-                items: [for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
-                onChanged: (v) => set(() => partner = v),
-              ),
-              TextField(controller: name, decoration: InputDecoration(labelText: tr('Intitulé (ex. Maintenance climatisation siège)'))),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                date('Début', start, (d) => start = d ?? start),
-                date('Fin', end, (d) => end = d),
-                date('Prochaine visite', next, (d) => next = d),
-              ]),
-              Row(children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: freq,
-                    decoration: InputDecoration(labelText: tr('Visites préventives')),
-                    items: [for (final x in contractFrequencies.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
-                    onChanged: (v) => set(() => freq = v ?? freq),
-                  ),
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String?>(
+              initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Client')),
+              items: [for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
+              onChanged: (v) => set(() => partner = v),
+            ),
+            TextField(controller: name, decoration: InputDecoration(labelText: tr('Intitulé (ex. Maintenance climatisation siège)'))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              date('Début', start, (d) => start = d ?? start),
+              date('Fin', end, (d) => end = d),
+              date('Prochaine visite', next, (d) => next = d),
+            ]),
+            Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: freq,
+                  decoration: InputDecoration(labelText: tr('Visites préventives')),
+                  items: [for (final x in contractFrequencies.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
+                  onChanged: (v) => set(() => freq = v ?? freq),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(width: 130, child: TextField(controller: minutes, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée visite (min)')))),
-              ]),
-              DropdownButtonFormField<int?>(
-                initialValue: techs.any((u) => u['id'] == tech) ? tech : null,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Technicien attitré')),
-                items: [const DropdownMenuItem<int?>(value: null, child: Text('—')), for (final u in techs) DropdownMenuItem<int?>(value: u['id'] as int, child: Text(tr('${u['name']}')))],
-                onChanged: (v) => set(() => tech = v),
               ),
-              TextField(controller: hours, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai d\'intervention garanti (heures)'))),
-              Row(children: [
-                Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Forfait par période')))),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: billing,
-                    decoration: InputDecoration(labelText: tr('Facturation')),
-                    items: [for (final x in contractBillings.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
-                    onChanged: (v) => set(() => billing = v ?? billing),
-                  ),
+              const SizedBox(width: 8),
+              SizedBox(width: 130, child: TextField(controller: minutes, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée visite (min)')))),
+            ]),
+            DropdownButtonFormField<int?>(
+              initialValue: techs.any((u) => u['id'] == tech) ? tech : null,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Technicien attitré')),
+              items: [const DropdownMenuItem<int?>(value: null, child: Text('—')), for (final u in techs) DropdownMenuItem<int?>(value: u['id'] as int, child: Text(tr('${u['name']}')))],
+              onChanged: (v) => set(() => tech = v),
+            ),
+            TextField(controller: hours, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai d\'intervention garanti (heures)'))),
+            Row(children: [
+              Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Forfait par période')))),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: billing,
+                  decoration: InputDecoration(labelText: tr('Facturation')),
+                  items: [for (final x in contractBillings.entries) DropdownMenuItem(value: x.key, child: Text(tr(x.value)))],
+                  onChanged: (v) => set(() => billing = v ?? billing),
                 ),
-              ]),
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Main-d\'œuvre incluse')), value: labor, onChanged: (v) => set(() => labor = v)),
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Pièces incluses')), value: parts, onChanged: (v) => set(() => parts = v)),
-              DropdownButtonFormField<String>(
-                initialValue: status,
-                decoration: InputDecoration(labelText: tr('État')),
-                items: [DropdownMenuItem(value: 'active', child: Text(tr('Actif'))), DropdownMenuItem(value: 'suspended', child: Text(tr('Suspendu'))), DropdownMenuItem(value: 'ended', child: Text(tr('Terminé')))],
-                onChanged: (v) => set(() => status = v ?? status),
               ),
-              TextField(controller: notes, maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
+            ]),
+            SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Main-d\'œuvre incluse')), value: labor, onChanged: (v) => set(() => labor = v)),
+            SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Pièces incluses')), value: parts, onChanged: (v) => set(() => parts = v)),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: InputDecoration(labelText: tr('État')),
+              items: [DropdownMenuItem(value: 'active', child: Text(tr('Actif'))), DropdownMenuItem(value: 'suspended', child: Text(tr('Suspendu'))), DropdownMenuItem(value: 'ended', child: Text(tr('Terminé')))],
+              onChanged: (v) => set(() => status = v ?? status),
+            ),
+            TextField(controller: notes, maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(
+                onPressed: () async {
+                  if (partner == null || name.text.trim().isEmpty) {
+                    toast(c, tr('Client et intitulé obligatoires.'), error: true);
+                    return;
+                  }
+                  try {
+                    await sync.save('it_contracts', {
+                      'id': k?['id'] ?? newId(),
+                      'partner_id': partner,
+                      'name': name.text.trim(),
+                      'start_date': isoDate(start),
+                      'end_date': end == null ? null : isoDate(end!),
+                      'next_visit': next == null ? null : isoDate(next!),
+                      'frequency': freq,
+                      'visit_minutes': int.tryParse(minutes.text) ?? 120,
+                      'response_hours': int.tryParse(hours.text),
+                      'technician_id': tech,
+                      'price': double.tryParse(price.text.replaceAll(RegExp(r'[\s ]'), '')) ?? 0,
+                      'billing': billing,
+                      'labor_included': labor,
+                      'parts_included': parts,
+                      'status': status,
+                      'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
+                    });
+                    if (c.mounted) Navigator.pop(c);
+                  } catch (err) {
+                    if (c.mounted) toast(c, errorText(err), error: true);
+                  }
+                },
+                child: Text(tr('Enregistrer')),
+              ),
             ]),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
-            onPressed: () async {
-              if (partner == null || name.text.trim().isEmpty) {
-                toast(c, tr('Client et intitulé obligatoires.'), error: true);
-                return;
-              }
-              try {
-                await sync.save('it_contracts', {
-                  'id': k?['id'] ?? newId(),
-                  'partner_id': partner,
-                  'name': name.text.trim(),
-                  'start_date': isoDate(start),
-                  'end_date': end == null ? null : isoDate(end!),
-                  'next_visit': next == null ? null : isoDate(next!),
-                  'frequency': freq,
-                  'visit_minutes': int.tryParse(minutes.text) ?? 120,
-                  'response_hours': int.tryParse(hours.text),
-                  'technician_id': tech,
-                  'price': double.tryParse(price.text.replaceAll(RegExp(r'[\s ]'), '')) ?? 0,
-                  'billing': billing,
-                  'labor_included': labor,
-                  'parts_included': parts,
-                  'status': status,
-                  'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
-                });
-                if (c.mounted) Navigator.pop(c);
-              } catch (err) {
-                if (c.mounted) toast(c, errorText(err), error: true);
-              }
-            },
-            child: Text(tr('Enregistrer')),
-          ),
-        ],
+        ]),
       );
-    }),
-  );
+    }));
 }
 
 // ======================================================================

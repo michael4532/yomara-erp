@@ -1873,41 +1873,41 @@ Future<void> _editRental(BuildContext context, Map<String, dynamic> meta, Map? r
   final ref = TextEditingController(text: '${r?['reference'] ?? ''}');
   final notes = TextEditingController(text: '${r?['notes'] ?? ''}');
   final cur = context.read<Session>().currency;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (dc) => StatefulBuilder(
-      builder: (dc, set) => YAlertDialog(
-        title: Text(tr(r == null ? 'Nouvelle location / prestation externe' : 'Modifier ${r['number']}')),
-        content: SizedBox(
-          width: 620,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              DropdownButtonFormField<String>(initialValue: kind, decoration: InputDecoration(labelText: tr('Type')), items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))], onChanged: (v) => set(() => kind = v ?? 'equipment')),
-              TextField(controller: title, decoration: InputDecoration(labelText: tr('Objet (ex. Nacelle ciseaux 12 m, électricien intérimaire)'))),
-              _supplierPicker(partner, (v) => set(() => partner = v), label: tr('Loueur / prestataire'), name: r?['partner'] as String?),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, children: [_dateButton(dc, 'Début', start, (v) => set(() => start = v), clear: false), _dateButton(dc, 'Fin prévue', end, (v) => set(() => end = v), clear: false)]),
-              Row(children: [
-                Expanded(child: TextField(controller: rate, inputFormatters: _num, decoration: InputDecoration(labelText: tr('Tarif HT ($cur)')))),
-                const SizedBox(width: 8),
-                SizedBox(width: 140, child: DropdownButtonFormField<String>(initialValue: unit, decoration: InputDecoration(labelText: tr('par')), items: [for (final e in units.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))], onChanged: (v) => set(() => unit = v ?? 'day'))),
-                const SizedBox(width: 8),
-                SizedBox(width: 90, child: TextField(controller: qty, inputFormatters: _num, decoration: InputDecoration(labelText: trn(unit == 'hour' ? 'Heures' : 'Quantité')))),
-              ]),
-              Row(children: [
-                Expanded(child: TextField(controller: deposit, inputFormatters: _num, decoration: InputDecoration(labelText: tr('Caution versée')))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: ref, decoration: InputDecoration(labelText: tr('N° de contrat / bon')))),
-              ]),
-              TextField(controller: site, decoration: InputDecoration(labelText: tr('Chantier / lieu d\'utilisation'))),
-              TextField(controller: notes, maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
+  final ok = await showFormDialog<bool>(context, title: r == null ? 'Nouvelle location / prestation externe' : 'Modifier ${r['number']}', maxWidth: 668, builder: (dc) => StatefulBuilder(
+      builder: (dc, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            DropdownButtonFormField<String>(initialValue: kind, decoration: InputDecoration(labelText: tr('Type')), items: [for (final e in kinds.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))], onChanged: (v) => set(() => kind = v ?? 'equipment')),
+            TextField(controller: title, decoration: InputDecoration(labelText: tr('Objet (ex. Nacelle ciseaux 12 m, électricien intérimaire)'))),
+            _supplierPicker(partner, (v) => set(() => partner = v), label: tr('Loueur / prestataire'), name: r?['partner'] as String?),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, children: [_dateButton(dc, 'Début', start, (v) => set(() => start = v), clear: false), _dateButton(dc, 'Fin prévue', end, (v) => set(() => end = v), clear: false)]),
+            Row(children: [
+              Expanded(child: TextField(controller: rate, inputFormatters: _num, decoration: InputDecoration(labelText: tr('Tarif HT ($cur)')))),
+              const SizedBox(width: 8),
+              SizedBox(width: 140, child: DropdownButtonFormField<String>(initialValue: unit, decoration: InputDecoration(labelText: tr('par')), items: [for (final e in units.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))], onChanged: (v) => set(() => unit = v ?? 'day'))),
+              const SizedBox(width: 8),
+              SizedBox(width: 90, child: TextField(controller: qty, inputFormatters: _num, decoration: InputDecoration(labelText: trn(unit == 'hour' ? 'Heures' : 'Quantité')))),
+            ]),
+            Row(children: [
+              Expanded(child: TextField(controller: deposit, inputFormatters: _num, decoration: InputDecoration(labelText: tr('Caution versée')))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: ref, decoration: InputDecoration(labelText: tr('N° de contrat / bon')))),
+            ]),
+            TextField(controller: site, decoration: InputDecoration(labelText: tr('Chantier / lieu d\'utilisation'))),
+            TextField(controller: notes, maxLines: 2, decoration: InputDecoration(labelText: tr('Notes'))),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
             ]),
           ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer')))],
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || !context.mounted) return;
   final body = {'kind': kind, 'title': title.text.trim(), 'partner_id': partner, 'start_date': start, 'end_date': end, 'rate': toDouble(rate.text), 'rate_unit': unit, 'quantity': toDouble(qty.text),
     'deposit': toDouble(deposit.text), 'site': site.text.trim(), 'reference': ref.text.trim(), 'notes': notes.text.trim()};

@@ -221,14 +221,11 @@ Future<void> sendMessageDialog(
   final body = TextEditingController(text: message);
   var attach = attachment != null;
   var busy = false;
-  await showDialog(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr('Envoyer${name != null ? ' à $name' : ''}')),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+  await showFormDialog(context, title: 'Envoyer${name != null ? ' à $name' : ''}', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             SegmentedButton<String>(
               segments: [for (final ch in available) ButtonSegment(value: ch, icon: Icon(channelIcons[ch]), label: Text(tr(channelLabels[ch]!)))],
               selected: {channel},
@@ -257,47 +254,50 @@ Future<void> sendMessageDialog(
             if (attachment != null)
               CheckboxListTile(contentPadding: EdgeInsets.zero, value: attach, onChanged: (v) => set(() => attach = v == true), title: Text(tr('Joindre ${attachmentName ?? 'le document'} (PDF)'))),
             if (channel == 'sms' && attach) Text(tr('Par SMS, le document est envoyé sous forme de lien.'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
-          ])),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton.icon(
-            onPressed: busy
-                ? null
-                : () async {
-                    if (to.text.trim().isEmpty) return;
-                    set(() => busy = true);
-                    try {
-                      final fields = {
-                        'channel': channel,
-                        'to': to.text.trim(),
-                        'to_name': name,
-                        'subject': subj.text.trim(),
-                        'message': body.text.trim(),
-                        'context': contextRef,
-                        if (channel == 'email' && fromAccount != null) 'from_account_id': '$fromAccount',
-                        if (channel == 'email' && fromAccount != null && cc.text.trim().isNotEmpty) 'cc': cc.text.trim(),
-                      };
-                      if (attach && attachment != null) {
-                        await api.uploadForm('messaging/send', fields, 'attachment', await attachment(), attachmentName ?? 'document.pdf');
-                      } else {
-                        await api.post('messaging/send', fields);
-                      }
-                      if (c.mounted) {
-                        Navigator.pop(c);
-                        toast(context, channel == 'email' && fromAccount != null ? 'E-mail envoyé depuis votre boîte (copie dans « Envoyés »).' : 'Envoyé par ${channelLabels[channel]}.');
-                      }
-                    } catch (e) {
-                      if (c.mounted) toast(c, errorText(e), error: true);
-                    } finally {
-                      if (c.mounted) set(() => busy = false);
-                    }
-                  },
-            icon: const Icon(Icons.send),
-            label: Text(tr(busy ? 'Envoi…' : 'Envoyer')),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton.icon(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (to.text.trim().isEmpty) return;
+                        set(() => busy = true);
+                        try {
+                          final fields = {
+                            'channel': channel,
+                            'to': to.text.trim(),
+                            'to_name': name,
+                            'subject': subj.text.trim(),
+                            'message': body.text.trim(),
+                            'context': contextRef,
+                            if (channel == 'email' && fromAccount != null) 'from_account_id': '$fromAccount',
+                            if (channel == 'email' && fromAccount != null && cc.text.trim().isNotEmpty) 'cc': cc.text.trim(),
+                          };
+                          if (attach && attachment != null) {
+                            await api.uploadForm('messaging/send', fields, 'attachment', await attachment(), attachmentName ?? 'document.pdf');
+                          } else {
+                            await api.post('messaging/send', fields);
+                          }
+                          if (c.mounted) {
+                            Navigator.pop(c);
+                            toast(context, channel == 'email' && fromAccount != null ? 'E-mail envoyé depuis votre boîte (copie dans « Envoyés »).' : 'Envoyé par ${channelLabels[channel]}.');
+                          }
+                        } catch (e) {
+                          if (c.mounted) toast(c, errorText(e), error: true);
+                        } finally {
+                          if (c.mounted) set(() => busy = false);
+                        }
+                      },
+                icon: const Icon(Icons.send),
+                label: Text(tr(busy ? 'Envoi…' : 'Envoyer')),
+              ),
+            ]),
           ),
-        ],
+        ]),
       ),
-    ),
-  );
+    ));
 }

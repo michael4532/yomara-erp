@@ -69,7 +69,7 @@ class _CrmSequencesViewState extends State<CrmSequencesView> {
   }
 
   Future<void> _edit([Map<String, dynamic>? seq]) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => _SequenceEditor(seq: seq));
+    final ok = await showFormDialog<bool>(context, title: seq == null ? 'Nouvelle relance automatique' : 'Relance automatique', maxWidth: 688, builder: (_) => _SequenceEditor(seq: seq));
     if (ok == true) _load();
   }
 
@@ -187,66 +187,67 @@ class _SequenceEditorState extends State<_SequenceEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(tr(widget.seq == null ? 'Nouvelle relance automatique' : 'Relance automatique')),
-        content: SizedBox(
-          width: 640,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Ex. Relance prospects Facebook'))),
-              SwitchListTile(contentPadding: EdgeInsets.zero, value: _active, onChanged: (v) => setState(() => _active = v), title: Text(tr('Active'))),
-              Text(tr('Variables : {{prenom}}, {{nom}}, {{societe}}, {{entreprise}}, {{commercial}}, {{telephone_commercial}}'), style: const TextStyle(color: YColors.muted, fontSize: 12.5)),
-              for (final (i, s) in _steps.indexed)
-                Card(
-                  margin: const EdgeInsets.only(top: 10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(children: [
-                      Row(children: [
-                        CircleAvatar(radius: 13, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: '${s['channel']}',
-                            decoration: InputDecoration(labelText: tr('Action'), isDense: true),
-                            items: [for (final e in seqChannels.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
-                            onChanged: (v) => setState(() => s['channel'] = v),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          width: 120,
-                          child: DropdownButtonFormField<int>(
-                            initialValue: (s['delay_days'] as num?)?.toInt() ?? 0,
-                            decoration: InputDecoration(labelText: tr(i == 0 ? 'Après l\'inscription' : 'Après l\'étape d\'avant'), isDense: true),
-                            items: [for (final d in const [0, 1, 2, 3, 4, 5, 7, 10, 14, 21, 30]) DropdownMenuItem(value: d, child: Text(tr(d == 0 ? 'Aussitôt' : '$d jour(s)')))],
-                            onChanged: (v) => setState(() => s['delay_days'] = v),
-                          ),
-                        ),
-                        IconButton(onPressed: _steps.length > 1 ? () => setState(() => _steps.removeAt(i)) : null, icon: const Icon(Icons.delete_outline)),
-                      ]),
-                      if (s['channel'] == 'email') Padding(padding: const EdgeInsets.only(top: 8), child: TextField(controller: s['_s'] as TextEditingController, decoration: InputDecoration(labelText: tr('Objet')))),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: s['_t'] as TextEditingController,
-                        minLines: 1,
-                        maxLines: 6,
-                        decoration: InputDecoration(labelText: tr(['task', 'call'].contains(s['channel']) ? 'Tâche' : 'Message')),
-                      ),
-                    ]),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Ex. Relance prospects Facebook'))),
+        SwitchListTile(contentPadding: EdgeInsets.zero, value: _active, onChanged: (v) => setState(() => _active = v), title: Text(tr('Active'))),
+        Text(tr('Variables : {{prenom}}, {{nom}}, {{societe}}, {{entreprise}}, {{commercial}}, {{telephone_commercial}}'), style: const TextStyle(color: YColors.muted, fontSize: 12.5)),
+        for (final (i, s) in _steps.indexed)
+          Card(
+            margin: const EdgeInsets.only(top: 10),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                Row(children: [
+                  CircleAvatar(radius: 13, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: '${s['channel']}',
+                      decoration: InputDecoration(labelText: tr('Action'), isDense: true),
+                      items: [for (final e in seqChannels.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
+                      onChanged: (v) => setState(() => s['channel'] = v),
+                    ),
                   ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 120,
+                    child: DropdownButtonFormField<int>(
+                      initialValue: (s['delay_days'] as num?)?.toInt() ?? 0,
+                      decoration: InputDecoration(labelText: tr(i == 0 ? 'Après l\'inscription' : 'Après l\'étape d\'avant'), isDense: true),
+                      items: [for (final d in const [0, 1, 2, 3, 4, 5, 7, 10, 14, 21, 30]) DropdownMenuItem(value: d, child: Text(tr(d == 0 ? 'Aussitôt' : '$d jour(s)')))],
+                      onChanged: (v) => setState(() => s['delay_days'] = v),
+                    ),
+                  ),
+                  IconButton(onPressed: _steps.length > 1 ? () => setState(() => _steps.removeAt(i)) : null, icon: const Icon(Icons.delete_outline)),
+                ]),
+                if (s['channel'] == 'email') Padding(padding: const EdgeInsets.only(top: 8), child: TextField(controller: s['_s'] as TextEditingController, decoration: InputDecoration(labelText: tr('Objet')))),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: s['_t'] as TextEditingController,
+                  minLines: 1,
+                  maxLines: 6,
+                  decoration: InputDecoration(labelText: tr(['task', 'call'].contains(s['channel']) ? 'Tâche' : 'Message')),
                 ),
-              const SizedBox(height: 8),
-              Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _add('task', 2, '')), icon: const Icon(Icons.add), label: Text(tr('Ajouter une étape')))),
-            ]),
+              ]),
+            ),
           ),
-        ),
-        actions: [
+        const SizedBox(height: 8),
+        Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _add('task', 2, '')), icon: const Icon(Icons.add), label: Text(tr('Ajouter une étape')))),
+      ]),
+      const SizedBox(height: 20),
+      Align(
+        alignment: Alignment.centerRight,
+        child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
           if (widget.seq != null) TextButton(onPressed: _delete, child: Text(tr('Supprimer'), style: const TextStyle(color: YColors.danger))),
           TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
           FilledButton(onPressed: _busy ? null : _save, child: Text(tr('Enregistrer'))),
-        ],
-      );
+        ]),
+      ),
+    ]),
+  );
 }
 
 /// Relance automatique suivie par une opportunité : état, historique, lancement et arrêt.

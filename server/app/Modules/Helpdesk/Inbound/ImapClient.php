@@ -18,13 +18,14 @@ class ImapClient
     public function connect(string $user, string $password): void
     {
         // En SaaS : pas de connexion vers le réseau interne de la plateforme (même garde que la Boîte mail)
+        // (connexion à l'IP vérifiée ; le nom d'hôte reste le peer_name TLS / SNI)
         try {
-            \App\Modules\Mailbox\Protocol\ImapClient::guardHost($this->host);
+            $target = \App\Modules\Mailbox\Protocol\ImapClient::guardHost($this->host);
         } catch (\Throwable $e) {
             throw new \RuntimeException($e->getMessage());
         }
-        $remote = ($this->encryption === 'ssl' ? 'ssl://' : 'tcp://').$this->host.':'.$this->port;
-        $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true]]);
+        $remote = ($this->encryption === 'ssl' ? 'ssl://' : 'tcp://').$target.':'.$this->port;
+        $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true, 'peer_name' => $this->host]]);
         $s = @stream_socket_client($remote, $errno, $err, $this->timeout, STREAM_CLIENT_CONNECT, $ctx);
         if (! $s) {
             throw new \RuntimeException('Connexion impossible à '.$this->host.':'.$this->port.' ('.($err ?: 'délai dépassé').').');

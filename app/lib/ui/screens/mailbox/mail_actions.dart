@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme.dart';
-import '../../widgets/common.dart' show YAlertDialog;
+import '../../widgets/common.dart' show showFormDialog;
 import '../../../i18n/i18n.dart';
 import '../../../core/json.dart';
 
@@ -136,7 +136,7 @@ class MailActionsBar extends StatelessWidget {
 /// Dialogue « Planifier » depuis un e-mail : date et heure (pré-remplies), durée, type (Teams, Meet, visio Yomara,
 /// présentiel, webinaire), titre, lieu et invités (l'expéditeur et les autres destinataires).
 Future<Map<String, dynamic>?> showMeetingFromMailDialog(BuildContext context, Map<String, dynamic> m, {String initialType = 'meeting', String? start}) =>
-    showDialog<Map<String, dynamic>>(context: context, builder: (_) => _MeetingDialog(message: m, initialType: initialType, start: start));
+    showFormDialog<Map<String, dynamic>>(context, title: initialType == 'webinar' ? 'Programmer un webinaire' : 'Planifier une réunion', maxWidth: 728, builder: (_) => _MeetingDialog(message: m, initialType: initialType, start: start));
 
 class _MeetingDialog extends StatefulWidget {
   const _MeetingDialog({required this.message, required this.initialType, this.start});
@@ -202,110 +202,111 @@ class _MeetingDialogState extends State<_MeetingDialog> {
       if (_actions.contains('meeting')) ('onsite', 'Présentiel', Icons.location_on_outlined),
       if (_actions.contains('webinar')) ('webinar', 'Webinaire', Icons.podcasts_outlined),
     ];
-    return YAlertDialog(
-      title: Text(tr(_kind == 'webinar' ? 'Programmer un webinaire' : 'Planifier une réunion')),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<String>(
-                showSelectedIcon: false,
-                segments: [for (final k in kinds) ButtonSegment(value: k.$1, icon: Icon(k.$3, size: 17), label: Text(tr(k.$2)))],
-                selected: {_kind},
-                onSelectionChanged: (v) => setState(() {
-                  _kind = v.first;
-                  if (_kind == 'webinar' && _duration < 90) _duration = 90;
-                }),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: [for (final k in kinds) ButtonSegment(value: k.$1, icon: Icon(k.$3, size: 17), label: Text(tr(k.$2)))],
+              selected: {_kind},
+              onSelectionChanged: (v) => setState(() {
+                _kind = v.first;
+                if (_kind == 'webinar' && _duration < 90) _duration = 90;
+              }),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre'))),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: context, initialDate: _at, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
+                  if (d != null) setState(() => _at = DateTime(d.year, d.month, d.day, _at.hour, _at.minute));
+                },
+                icon: const Icon(Icons.calendar_month, size: 18),
+                label: Text(tr(DateFormat('EEE d MMM y', 'fr_FR').format(_at))),
               ),
             ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));
+                if (t != null) setState(() => _at = DateTime(_at.year, _at.month, _at.day, t.hour, t.minute));
+              },
+              icon: const Icon(Icons.schedule, size: 18),
+              label: Text(tr(DateFormat('HH:mm').format(_at))),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<int>(
+              value: _duration,
+              underline: const SizedBox(),
+              items: [for (final d in const [15, 30, 45, 60, 90, 120, 180]) DropdownMenuItem(value: d, child: Text(tr(d < 60 ? '$d min' : '${d ~/ 60} h${d % 60 == 0 ? '' : ' ${d % 60}'}')))],
+              onChanged: (v) => setState(() => _duration = v ?? 60),
+            ),
+          ]),
+          if (_kind == 'onsite') ...[const SizedBox(height: 10), TextField(controller: _location, decoration: InputDecoration(labelText: tr('Lieu'), hintText: tr('Nos bureaux, Plateau…')))],
+          if (_kind != 'webinar') ...[
             const SizedBox(height: 12),
-            TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre'))),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final d = await showDatePicker(context: context, initialDate: _at, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
-                    if (d != null) setState(() => _at = DateTime(d.year, d.month, d.day, _at.hour, _at.minute));
-                  },
-                  icon: const Icon(Icons.calendar_month, size: 18),
-                  label: Text(tr(DateFormat('EEE d MMM y', 'fr_FR').format(_at))),
+            Text(tr('Invités'), style: TextStyle(color: hint, fontWeight: FontWeight.w600, fontSize: 12.5)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final g in _guests)
+                InputChip(
+                  label: Text(tr((g['name'] ?? '').toString().isNotEmpty ? '${g['name']}' : '${g['email']}')),
+                  tooltip: trn('${g['email']}'),
+                  onDeleted: () => setState(() => _guests.remove(g)),
                 ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_at));
-                  if (t != null) setState(() => _at = DateTime(_at.year, _at.month, _at.day, t.hour, t.minute));
-                },
-                icon: const Icon(Icons.schedule, size: 18),
-                label: Text(tr(DateFormat('HH:mm').format(_at))),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<int>(
-                value: _duration,
-                underline: const SizedBox(),
-                items: [for (final d in const [15, 30, 45, 60, 90, 120, 180]) DropdownMenuItem(value: d, child: Text(tr(d < 60 ? '$d min' : '${d ~/ 60} h${d % 60 == 0 ? '' : ' ${d % 60}'}')))],
-                onChanged: (v) => setState(() => _duration = v ?? 60),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: _addGuest,
+                  decoration: InputDecoration(isDense: true, hintText: tr('Ajouter une adresse'), prefixIcon: Icon(Icons.person_add_alt, size: 18)),
+                  onSubmitted: (v) {
+                    final e = v.trim().toLowerCase();
+                    if (RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e)) setState(() => _guests.add({'email': e}));
+                    _addGuest.clear();
+                  },
+                ),
               ),
             ]),
-            if (_kind == 'onsite') ...[const SizedBox(height: 10), TextField(controller: _location, decoration: InputDecoration(labelText: tr('Lieu'), hintText: tr('Nos bureaux, Plateau…')))],
-            if (_kind != 'webinar') ...[
-              const SizedBox(height: 12),
-              Text(tr('Invités'), style: TextStyle(color: hint, fontWeight: FontWeight.w600, fontSize: 12.5)),
-              const SizedBox(height: 6),
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final g in _guests)
-                  InputChip(
-                    label: Text(tr((g['name'] ?? '').toString().isNotEmpty ? '${g['name']}' : '${g['email']}')),
-                    tooltip: trn('${g['email']}'),
-                    onDeleted: () => setState(() => _guests.remove(g)),
-                  ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    controller: _addGuest,
-                    decoration: InputDecoration(isDense: true, hintText: tr('Ajouter une adresse'), prefixIcon: Icon(Icons.person_add_alt, size: 18)),
-                    onSubmitted: (v) {
-                      final e = v.trim().toLowerCase();
-                      if (RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e)) setState(() => _guests.add({'email': e}));
-                      _addGuest.clear();
-                    },
-                  ),
-                ),
-              ]),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                value: _invite,
-                onChanged: (v) => setState(() => _invite = v),
-                title: Text(tr('Envoyer les invitations')),
-                subtitle: Text(tr(_kind == 'teams' || _kind == 'meet' ? 'Par ${_kind == 'teams' ? 'Outlook (lien Teams)' : 'Google (lien Meet)'} si votre compte est branché, sinon par e-mail' : 'Par e-mail, avec le fichier d\'agenda')),
-              ),
-            ] else
-              Padding(padding: const EdgeInsets.only(top: 10), child: Text(tr('Le webinaire est créé avec sa page d\'inscription à partager.'), style: TextStyle(color: hint, fontSize: 12.5))),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _invite,
+              onChanged: (v) => setState(() => _invite = v),
+              title: Text(tr('Envoyer les invitations')),
+              subtitle: Text(tr(_kind == 'teams' || _kind == 'meet' ? 'Par ${_kind == 'teams' ? 'Outlook (lien Teams)' : 'Google (lien Meet)'} si votre compte est branché, sinon par e-mail' : 'Par e-mail, avec le fichier d\'agenda')),
+            ),
+          ] else
+            Padding(padding: const EdgeInsets.only(top: 10), child: Text(tr('Le webinaire est créé avec sa page d\'inscription à partager.'), style: TextStyle(color: hint, fontSize: 12.5))),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, {
+                'type': _kind == 'webinar' ? 'webinar' : (_kind == 'visio' ? 'visio' : 'meeting'),
+                if (_kind == 'teams' || _kind == 'meet' || _kind == 'onsite') 'provider': _kind,
+                'title': _title.text.trim(),
+                'start': _at.toUtc().toIso8601String(),
+                'duration': _duration,
+                if (_kind == 'onsite' && _location.text.trim().isNotEmpty) 'location': _location.text.trim(),
+                if (_kind != 'webinar') 'guests': _guests,
+                'send_invites': _invite,
+              }),
+              icon: const Icon(Icons.event_available, size: 18),
+              label: Text(tr('Planifier')),
+            ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(context, {
-            'type': _kind == 'webinar' ? 'webinar' : (_kind == 'visio' ? 'visio' : 'meeting'),
-            if (_kind == 'teams' || _kind == 'meet' || _kind == 'onsite') 'provider': _kind,
-            'title': _title.text.trim(),
-            'start': _at.toUtc().toIso8601String(),
-            'duration': _duration,
-            if (_kind == 'onsite' && _location.text.trim().isNotEmpty) 'location': _location.text.trim(),
-            if (_kind != 'webinar') 'guests': _guests,
-            'send_invites': _invite,
-          }),
-          icon: const Icon(Icons.event_available, size: 18),
-          label: Text(tr('Planifier')),
-        ),
-      ],
+      ]),
     );
   }
 }

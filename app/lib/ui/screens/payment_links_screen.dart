@@ -73,7 +73,7 @@ class _PaymentLinksScreenState extends State<PaymentLinksScreen> {
   }
 
   Future<void> _new() async {
-    final created = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => const _NewLinkDialog());
+    final created = await showFormDialog<Map<String, dynamic>>(context, title: 'Nouveau lien de paiement', builder: (_) => const _NewLinkDialog());
     if (created == null) return;
     await _load();
     if (mounted) _share(created);
@@ -196,63 +196,64 @@ class _NewLinkDialogState extends State<_NewLinkDialog> {
   @override
   Widget build(BuildContext context) {
     final partners = LocalDb.all('partners').where((p) => p['type'] != 'supplier' && p['deleted_at'] == null).toList();
-    return YAlertDialog(
-      title: Text(tr('Nouveau lien de paiement')),
-      content: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            TextField(controller: _label, autofocus: true, decoration: InputDecoration(labelText: tr('Objet du paiement'), hintText: tr('Acompte formation, robe wax taille M, cotisation…'))),
-            TextField(controller: _desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Détails (facultatif)'))),
-            const SizedBox(height: 8),
-            SegmentedButton<bool>(
-              segments: [ButtonSegment(value: false, label: Text(tr('Montant fixe'))), ButtonSegment(value: true, label: Text(tr('Montant libre')))],
-              selected: {_free},
-              onSelectionChanged: (v) => setState(() => _free = v.first),
-            ),
-            if (!_free) TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant TTC')))
-            else TextField(controller: _min, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant minimum (facultatif)'))),
-            const SizedBox(height: 8),
-            Autocomplete<Map<String, dynamic>>(
-              displayStringForOption: (p) => '${p['name']}',
-              optionsBuilder: (v) => v.text.length < 2 ? const [] : partners.where((p) => '${p['name']}'.toLowerCase().contains(v.text.toLowerCase())).take(8),
-              onSelected: (p) => setState(() => _partner = p),
-              fieldViewBuilder: (c, ctrl, f, s) => TextField(controller: ctrl, focusNode: f, decoration: InputDecoration(labelText: tr('Client (facultatif)'), prefixIcon: Icon(Icons.person_search_outlined))),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _reusable,
-              onChanged: (v) => setState(() => _reusable = v),
-              title: Text(tr('Lien permanent')),
-              subtitle: Text(tr('Payable plusieurs fois (dons, cotisations, bio Instagram)')),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          TextField(controller: _label, autofocus: true, decoration: InputDecoration(labelText: tr('Objet du paiement'), hintText: tr('Acompte formation, robe wax taille M, cotisation…'))),
+          TextField(controller: _desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Détails (facultatif)'))),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            segments: [ButtonSegment(value: false, label: Text(tr('Montant fixe'))), ButtonSegment(value: true, label: Text(tr('Montant libre')))],
+            selected: {_free},
+            onSelectionChanged: (v) => setState(() => _free = v.first),
+          ),
+          if (!_free) TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant TTC')))
+          else TextField(controller: _min, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant minimum (facultatif)'))),
+          const SizedBox(height: 8),
+          Autocomplete<Map<String, dynamic>>(
+            displayStringForOption: (p) => '${p['name']}',
+            optionsBuilder: (v) => v.text.length < 2 ? const [] : partners.where((p) => '${p['name']}'.toLowerCase().contains(v.text.toLowerCase())).take(8),
+            onSelected: (p) => setState(() => _partner = p),
+            fieldViewBuilder: (c, ctrl, f, s) => TextField(controller: ctrl, focusNode: f, decoration: InputDecoration(labelText: tr('Client (facultatif)'), prefixIcon: Icon(Icons.person_search_outlined))),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _reusable,
+            onChanged: (v) => setState(() => _reusable = v),
+            title: Text(tr('Lien permanent')),
+            subtitle: Text(tr('Payable plusieurs fois (dons, cotisations, bio Instagram)')),
+          ),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      if (_label.text.trim().isEmpty) return;
+                      setState(() => _busy = true);
+                      try {
+                        final r = await context.read<Session>().api.post('payments/links', {
+                          'label': _label.text.trim(), if (_desc.text.trim().isNotEmpty) 'description': _desc.text.trim(),
+                          if (!_free) 'amount': num.tryParse(_amount.text.replaceAll(' ', '')), if (_free && _min.text.trim().isNotEmpty) 'min_amount': num.tryParse(_min.text.replaceAll(' ', '')),
+                          if (_partner != null) 'partner_id': _partner!['id'], 'reusable': _reusable,
+                        });
+                        if (context.mounted) Navigator.pop(context, asMap(r['data']));
+                      } catch (e) {
+                        if (context.mounted) toast(context, errorText(e), error: true);
+                      } finally {
+                        if (mounted) setState(() => _busy = false);
+                      }
+                    },
+              child: Text(tr('Créer le lien')),
             ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton(
-          onPressed: _busy
-              ? null
-              : () async {
-                  if (_label.text.trim().isEmpty) return;
-                  setState(() => _busy = true);
-                  try {
-                    final r = await context.read<Session>().api.post('payments/links', {
-                      'label': _label.text.trim(), if (_desc.text.trim().isNotEmpty) 'description': _desc.text.trim(),
-                      if (!_free) 'amount': num.tryParse(_amount.text.replaceAll(' ', '')), if (_free && _min.text.trim().isNotEmpty) 'min_amount': num.tryParse(_min.text.replaceAll(' ', '')),
-                      if (_partner != null) 'partner_id': _partner!['id'], 'reusable': _reusable,
-                    });
-                    if (context.mounted) Navigator.pop(context, asMap(r['data']));
-                  } catch (e) {
-                    if (context.mounted) toast(context, errorText(e), error: true);
-                  } finally {
-                    if (mounted) setState(() => _busy = false);
-                  }
-                },
-          child: Text(tr('Créer le lien')),
-        ),
-      ],
+      ]),
     );
   }
 }

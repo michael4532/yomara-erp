@@ -19,4 +19,7 @@ class KvStore {
   Future<void> clear() => _box.clear();
 
   Future<void> close() => _box.close();
+
+  /// Bases du navigateur dont le nom commence par [prefix] (sans effet hors navigateur).
+  static Future<void> deleteByPrefix(String prefix) async {}
 }

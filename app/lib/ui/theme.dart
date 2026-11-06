@@ -288,3 +288,22 @@ class _TabUnderlineFillPainter extends BoxPainter {
     );
   }
 }
+
+/// Apparence choisie sur cet appareil : clair, sombre ou selon le système.
+class ThemePrefs {
+  ThemePrefs._();
+
+  static final mode = ValueNotifier<ThemeMode>(ThemeMode.light);
+
+  static void load(dynamic stored) => mode.value = switch ('$stored') {
+        'dark' => ThemeMode.dark,
+        'system' => ThemeMode.system,
+        _ => ThemeMode.light,
+      };
+
+  static String get name => switch (mode.value) {
+        ThemeMode.dark => 'dark',
+        ThemeMode.system => 'system',
+        _ => 'light',
+      };
+}

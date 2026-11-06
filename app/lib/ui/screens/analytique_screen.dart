@@ -708,14 +708,11 @@ class _BudgetsTabState extends State<_BudgetsTab> {
     var copy = false;
     final pct = TextEditingController(text: '0');
     String? axis = anAxes().isNotEmpty ? '${anAxes().first['id']}' : null;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, set) => YAlertDialog(
-          title: Text(tr('Nouveau budget')),
-          content: SizedBox(
-            width: 460,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: 'Nouveau budget', builder: (dc) => StatefulBuilder(
+        builder: (dc, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'))),
               const SizedBox(height: 10),
               Row(children: [
@@ -746,11 +743,16 @@ class _BudgetsTabState extends State<_BudgetsTab> {
                 TextField(controller: pct, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Évolution (%)'), helperText: tr('Ex. 10 pour +10 %, −5 pour −5 %'))),
               ],
             ]),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Créer')))],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Créer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || !mounted) return;
     try {
       final months = (end.year - start.year) * 12 + end.month - start.month + 1;
@@ -1151,24 +1153,26 @@ class _AxesTab extends StatelessWidget {
     final code = TextEditingController(text: '${a?['code'] ?? ''}');
     var required = a?['required'] == true;
     var active = a?['active'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, set) => YAlertDialog(
-          title: Text(tr(a == null ? 'Nouvel axe' : 'Axe ${a['name']}')),
-          content: SizedBox(
-            width: 440,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: a == null ? 'Nouvel axe' : 'Axe ${a['name']}', builder: (dc) => StatefulBuilder(
+        builder: (dc, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Activité, Site, Département…'))),
               TextField(controller: code, decoration: InputDecoration(labelText: tr('Code (facultatif)'))),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Obligatoire pour les achats et notes de frais')), value: required, onChanged: (v) => set(() => required = v)),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
             ]),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer')))],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
     await context.read<SyncEngine>().save('an_axes', {
       'id': a?['id'] ?? newId(),
@@ -1185,14 +1189,11 @@ class _AxesTab extends StatelessWidget {
     final code = TextEditingController(text: '${s?['code'] ?? ''}');
     String? parent = s?['parent_id'] as String?;
     var active = s?['active'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, set) => YAlertDialog(
-          title: Text(tr(s == null ? 'Nouvelle section' : 'Section ${s['name']}')),
-          content: SizedBox(
-            width: 440,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: s == null ? 'Nouvelle section' : 'Section ${s['name']}', builder: (dc) => StatefulBuilder(
+        builder: (dc, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Boutique Plateau, Négoce, Marketing…'))),
               TextField(controller: code, decoration: InputDecoration(labelText: tr('Code (facultatif)'))),
               DropdownButtonFormField<String?>(
@@ -1206,22 +1207,25 @@ class _AxesTab extends StatelessWidget {
               ),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
             ]),
-          ),
-          actions: [
-            if (s != null && s['project_id'] == null)
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(dc, false);
-                  await context.read<SyncEngine>().remove('an_sections', '${s['id']}');
-                },
-                child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
-              ),
-            TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
-          ],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                if (s != null && s['project_id'] == null)
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.pop(dc, false);
+                      await context.read<SyncEngine>().remove('an_sections', '${s['id']}');
+                    },
+                    child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
+                  ),
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
     await context.read<SyncEngine>().save('an_sections', {
       'id': s?['id'] ?? newId(),
@@ -1240,14 +1244,11 @@ class _AxesTab extends StatelessWidget {
     var date = DateTime.now();
     var cost = true;
     Map<String, double> dist = {};
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(
-        builder: (dc, set) => YAlertDialog(
-          title: Text(tr('Saisie analytique manuelle')),
-          content: SizedBox(
-            width: 460,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: 'Saisie analytique manuelle', builder: (dc) => StatefulBuilder(
+        builder: (dc, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               Text(tr('Pour répartir un montant hors documents (loyer du siège, frais généraux…) entre plusieurs sections.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 13)),
               const SizedBox(height: 8),
               SegmentedButton<bool>(segments: [ButtonSegment(value: true, label: Text(tr('Charge'))), ButtonSegment(value: false, label: Text(tr('Produit')))], selected: {cost}, onSelectionChanged: (v) => set(() => cost = v.first)),
@@ -1268,11 +1269,16 @@ class _AxesTab extends StatelessWidget {
                 if (r != null) set(() => dist = r);
               }, icon: const Icon(Icons.pie_chart_outline), label: Text(tr(analyticSummary(dist)))),
             ]),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer')))],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || !context.mounted) return;
     try {
       final v = toDouble(amount.text.replaceAll(RegExp(r'\s'), '').replaceAll(',', '.'));

@@ -682,62 +682,62 @@ Future<void> editDocFile(BuildContext context, Map f) async {
   final folders = LocalDb.all('dc_folders').map((x) => (id: '${x['id']}', path: gedPath('${x['id']}'))).toList()..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
   final partners = LocalDb.hasEntity('partners') ? (LocalDb.all('partners')..sort((a, b) => '${a['name']}'.compareTo('${b['name']}'))) : <Map<String, dynamic>>[];
   final employees = LocalDb.hasEntity('rh_employees') ? (LocalDb.all('rh_employees')..sort((a, b) => '${a['last_name']}'.compareTo('${b['last_name']}'))) : <Map<String, dynamic>>[];
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => YAlertDialog(
-        title: Text(tr('Propriétés du document')),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), suffixText: trn(f['extension'] != null ? '.${f['extension']}' : null))),
+  final ok = await showFormDialog<bool>(context, title: 'Propriétés du document', builder: (d) => StatefulBuilder(
+      builder: (d, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), suffixText: trn(f['extension'] != null ? '.${f['extension']}' : null))),
+            DropdownButtonFormField<String?>(
+              initialValue: folders.any((x) => x.id == folder) ? folder : null,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: tr('Dossier')),
+              items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Racine'))), for (final x in folders) DropdownMenuItem<String?>(value: x.id, child: Text(tr(x.path), overflow: TextOverflow.ellipsis))],
+              onChanged: (v) => set(() => folder = v),
+            ),
+            TextField(controller: desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description'))),
+            TextField(controller: tags, decoration: InputDecoration(labelText: tr('Mots-clés (séparés par des virgules)'), hintText: tr('contrat, assurance, 2026'))),
+            if (partners.isNotEmpty)
               DropdownButtonFormField<String?>(
-                initialValue: folders.any((x) => x.id == folder) ? folder : null,
+                initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Dossier')),
-                items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Racine'))), for (final x in folders) DropdownMenuItem<String?>(value: x.id, child: Text(tr(x.path), overflow: TextOverflow.ellipsis))],
-                onChanged: (v) => set(() => folder = v),
+                decoration: InputDecoration(labelText: tr('Client / fournisseur lié')),
+                items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Aucun'))), for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
+                onChanged: (v) => set(() => partner = v),
               ),
-              TextField(controller: desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description'))),
-              TextField(controller: tags, decoration: InputDecoration(labelText: tr('Mots-clés (séparés par des virgules)'), hintText: tr('contrat, assurance, 2026'))),
-              if (partners.isNotEmpty)
-                DropdownButtonFormField<String?>(
-                  initialValue: partners.any((p) => p['id'] == partner) ? partner : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Client / fournisseur lié')),
-                  items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Aucun'))), for (final p in partners) DropdownMenuItem<String?>(value: '${p['id']}', child: Text(tr('${p['name']}'), overflow: TextOverflow.ellipsis))],
-                  onChanged: (v) => set(() => partner = v),
+            if (employees.isNotEmpty)
+              DropdownButtonFormField<String?>(
+                initialValue: employees.any((p) => p['id'] == employee) ? employee : null,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('Salarié lié')),
+                items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Aucun'))), for (final e in employees) DropdownMenuItem<String?>(value: '${e['id']}', child: Text(tr('${e['last_name'] ?? ''} ${e['first_name'] ?? ''}'), overflow: TextOverflow.ellipsis))],
+                onChanged: (v) => set(() => employee = v),
+              ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final x = await showDatePicker(context: d, initialDate: exp ?? DateTime.now().add(const Duration(days: 365)), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                    if (x != null) set(() => exp = x);
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text(tr(exp == null ? 'Date d\'échéance (contrat, assurance…)' : 'Échéance le ${dateFr(isoDate(exp!))}')),
                 ),
-              if (employees.isNotEmpty)
-                DropdownButtonFormField<String?>(
-                  initialValue: employees.any((p) => p['id'] == employee) ? employee : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Salarié lié')),
-                  items: [DropdownMenuItem<String?>(value: null, child: Text(tr('Aucun'))), for (final e in employees) DropdownMenuItem<String?>(value: '${e['id']}', child: Text(tr('${e['last_name'] ?? ''} ${e['first_name'] ?? ''}'), overflow: TextOverflow.ellipsis))],
-                  onChanged: (v) => set(() => employee = v),
-                ),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final x = await showDatePicker(context: d, initialDate: exp ?? DateTime.now().add(const Duration(days: 365)), firstDate: DateTime(2000), lastDate: DateTime(2100));
-                      if (x != null) set(() => exp = x);
-                    },
-                    icon: const Icon(Icons.event),
-                    label: Text(tr(exp == null ? 'Date d\'échéance (contrat, assurance…)' : 'Échéance le ${dateFr(isoDate(exp!))}')),
-                  ),
-                ),
-                if (exp != null) IconButton(tooltip: tr('Retirer l\'échéance'), onPressed: () => set(() => exp = null), icon: const Icon(Icons.close)),
-              ]),
+              ),
+              if (exp != null) IconButton(tooltip: tr('Retirer l\'échéance'), onPressed: () => set(() => exp = null), icon: const Icon(Icons.close)),
+            ]),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
             ]),
           ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true) return;
   await sync.save('dc_files', {
     'id': f['id'],

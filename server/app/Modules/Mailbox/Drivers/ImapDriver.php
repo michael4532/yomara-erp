@@ -315,13 +315,14 @@ class ImapDriver implements Driver
         if (! $host) {
             throw new MailProtocolException('Serveur d\'envoi (SMTP) non renseigné.');
         }
-        ImapClient::guardHost($host);
-        $t = new EsmtpTransport($host, $port, $sec === 'ssl' ? true : null);
+        // En SaaS : connexion à l'IP vérifiée (pas de seconde résolution DNS), le nom reste le peer_name TLS / SNI
+        $target = ImapClient::guardHost($host);
+        $t = new EsmtpTransport($target, $port, $sec === 'ssl' ? true : null);
         if ($sec === 'none') {
             $t->setAutoTls(false);
         }
         $verify = (bool) config('erp.mailbox.verify_tls', true);
-        $t->getStream()->setStreamOptions(['ssl' => ['verify_peer' => $verify, 'verify_peer_name' => $verify]]);
+        $t->getStream()->setStreamOptions(['ssl' => ['verify_peer' => $verify, 'verify_peer_name' => $verify, 'SNI_enabled' => true, 'peer_name' => $host]]);
         if ($a->provider === 'google') {
             $t->setAuthenticators([new XOAuth2Authenticator]);
             $t->setUsername($a->email);

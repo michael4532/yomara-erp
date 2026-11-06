@@ -387,14 +387,11 @@ Future<void> editPunch(BuildContext context, {String? employeeId, DateTime? day}
   var time = TimeOfDay.now();
   var kind = ptNextKind(emp);
   final note = TextEditingController();
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr('Saisir un pointage')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+  final ok = await showFormDialog<bool>(context, title: 'Saisir un pointage', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             DropdownButtonFormField<String>(
               initialValue: emp,
               isExpanded: true,
@@ -430,11 +427,16 @@ Future<void> editPunch(BuildContext context, {String? employeeId, DateTime? day}
             ]),
             TextField(controller: note, decoration: InputDecoration(labelText: tr('Motif *'), hintText: tr('Badge oublié, panne de la borne, mission extérieure…'))),
           ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer')))],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true) return;
   if (note.text.trim().isEmpty) {
     if (context.mounted) toast(context, tr('Indiquez le motif de la saisie.'), error: true);
@@ -801,69 +803,69 @@ class _SettingsTabState extends State<_SettingsTab> {
     final labels = asMap(_settings?['overtime_labels']);
     final rates = {for (final e in asMap(_settings?['overtime_rates']).entries) e.key: TextEditingController(text: number(e.value as num, decimals: 0))};
     var auto = _settings?['auto_overtime'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Réglages du pointage')),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                TextField(controller: weekly, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée hebdomadaire (heures)'), helperText: tr('40 h selon le Code du travail ; au-delà : heures supplémentaires'))),
-                const SizedBox(height: 14),
-                Text(tr('Majorations des heures supplémentaires (%)'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Wrap(spacing: 10, runSpacing: 10, children: [
-                  for (final r in rates.entries)
-                    SizedBox(
-                      width: 140,
-                      child: TextField(controller: r.value, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('${labels[r.key] ?? r.key}'), isDense: true, suffixText: '%')),
-                    ),
-                ]),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: auto,
-                  onChanged: (v) => set(() => auto = v),
-                  title: Text(tr('Reprendre automatiquement dans la paie')),
-                  subtitle: Text(tr('Les heures supplémentaires du mois s\'ajoutent aux bulletins à chaque calcul de la paie.')),
-                ),
-                const SizedBox(height: 8),
-                Text(tr('Jours fériés variables de l\'année'), style: TextStyle(fontWeight: FontWeight.w600)),
-                Text(tr('Les fêtes fixes et le lundi de Pâques sont déjà comptés. Ajoutez Tabaski, Ramadan, Maouloud, Ascension, Pentecôte… dès leur annonce.'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
-                for (var i = 0; i < holidays.length; i++)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(tr('${holidays[i]['label'] ?? 'Jour férié'}')),
-                    subtitle: Text(tr(dateFr(holidays[i]['date']))),
-                    trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => set(() => holidays.removeAt(i))),
+    final ok = await showFormDialog<bool>(context, title: 'Réglages du pointage', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(controller: weekly, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Durée hebdomadaire (heures)'), helperText: tr('40 h selon le Code du travail ; au-delà : heures supplémentaires'))),
+              const SizedBox(height: 14),
+              Text(tr('Majorations des heures supplémentaires (%)'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Wrap(spacing: 10, runSpacing: 10, children: [
+                for (final r in rates.entries)
+                  SizedBox(
+                    width: 140,
+                    child: TextField(controller: r.value, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('${labels[r.key] ?? r.key}'), isDense: true, suffixText: '%')),
                   ),
-                TextButton.icon(
-                  onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: ptClock(), firstDate: DateTime(2024), lastDate: DateTime(2100));
-                    if (d == null || !c.mounted) return;
-                    final l = TextEditingController();
-                    final name = await showDialog<String>(
-                      context: c,
-                      builder: (c2) => YAlertDialog(
-                        title: Text(tr('Férié du ${dateFr(isoDate(d))}')),
-                        content: TextField(controller: l, autofocus: true, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Tabaski, Korité…'))),
-                        actions: [FilledButton(onPressed: () => Navigator.pop(c2, l.text.trim()), child: Text(tr('Ajouter')))],
-                      ),
-                    );
-                    set(() => holidays.add({'date': isoDate(d), 'label': (name ?? '').isEmpty ? 'Jour férié' : name}));
-                  },
-                  icon: const Icon(Icons.add),
-                  label: Text(tr('Ajouter un jour férié')),
+              ]),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: auto,
+                onChanged: (v) => set(() => auto = v),
+                title: Text(tr('Reprendre automatiquement dans la paie')),
+                subtitle: Text(tr('Les heures supplémentaires du mois s\'ajoutent aux bulletins à chaque calcul de la paie.')),
+              ),
+              const SizedBox(height: 8),
+              Text(tr('Jours fériés variables de l\'année'), style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(tr('Les fêtes fixes et le lundi de Pâques sont déjà comptés. Ajoutez Tabaski, Ramadan, Maouloud, Ascension, Pentecôte… dès leur annonce.'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
+              for (var i = 0; i < holidays.length; i++)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr('${holidays[i]['label'] ?? 'Jour férié'}')),
+                  subtitle: Text(tr(dateFr(holidays[i]['date']))),
+                  trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => set(() => holidays.removeAt(i))),
                 ),
+              TextButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: c, initialDate: ptClock(), firstDate: DateTime(2024), lastDate: DateTime(2100));
+                  if (d == null || !c.mounted) return;
+                  final l = TextEditingController();
+                  final name = await showDialog<String>(
+                    context: c,
+                    builder: (c2) => YAlertDialog(
+                      title: Text(tr('Férié du ${dateFr(isoDate(d))}')),
+                      content: TextField(controller: l, autofocus: true, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Tabaski, Korité…'))),
+                      actions: [FilledButton(onPressed: () => Navigator.pop(c2, l.text.trim()), child: Text(tr('Ajouter')))],
+                    ),
+                  );
+                  set(() => holidays.add({'date': isoDate(d), 'label': (name ?? '').isEmpty ? 'Jour férié' : name}));
+                },
+                icon: const Icon(Icons.add),
+                label: Text(tr('Ajouter un jour férié')),
+              ),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true) return;
     try {
       await api.put('pointage/settings', {
@@ -1017,66 +1019,64 @@ Future<void> editSchedule(BuildContext context, [Map<String, dynamic>? s]) async
     return t == null ? null : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 
-  final r = await showDialog<String>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr(s == null ? 'Nouvel horaire' : 'Horaire')),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Boutique 7 h 30 – 19 h, équipe de nuit…'))),
-              const SizedBox(height: 8),
-              for (final k in days.keys)
-                Row(children: [
+  final r = await showFormDialog<String>(context, title: s == null ? 'Nouvel horaire' : 'Horaire', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: tr('Boutique 7 h 30 – 19 h, équipe de nuit…'))),
+            const SizedBox(height: 8),
+            for (final k in days.keys)
+              Row(children: [
+                SizedBox(
+                  width: 120,
+                  child: CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(tr(ptDayNames[k]!)),
+                    value: days[k] != null,
+                    onChanged: (v) => set(() => days[k] = v == true ? {'start': '08:00', 'end': '17:00', 'break': 60} : null),
+                  ),
+                ),
+                if (days[k] != null) ...[
+                  TextButton(onPressed: () async {
+                    final t = await pick(c, '${days[k]!['start']}');
+                    if (t != null) set(() => days[k]!['start'] = t);
+                  }, child: Text(tr('${days[k]!['start']}'))),
+                  const Text('›'),
+                  TextButton(onPressed: () async {
+                    final t = await pick(c, '${days[k]!['end']}');
+                    if (t != null) set(() => days[k]!['end'] = t);
+                  }, child: Text(tr('${days[k]!['end']}'))),
+                  const SizedBox(width: 8),
                   SizedBox(
-                    width: 120,
-                    child: CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: Text(tr(ptDayNames[k]!)),
-                      value: days[k] != null,
-                      onChanged: (v) => set(() => days[k] = v == true ? {'start': '08:00', 'end': '17:00', 'break': 60} : null),
+                    width: 110,
+                    child: DropdownButton<int>(
+                      isExpanded: true,
+                      value: [0, 30, 45, 60, 90, 120].contains((days[k]!['break'] as num?)?.toInt()) ? (days[k]!['break'] as num?)?.toInt() : 60,
+                      items: [for (final m in [0, 30, 45, 60, 90, 120]) DropdownMenuItem(value: m, child: Text(tr(m == 0 ? 'sans pause' : 'pause $m min')))],
+                      onChanged: (v) => set(() => days[k]!['break'] = v),
                     ),
                   ),
-                  if (days[k] != null) ...[
-                    TextButton(onPressed: () async {
-                      final t = await pick(c, '${days[k]!['start']}');
-                      if (t != null) set(() => days[k]!['start'] = t);
-                    }, child: Text(tr('${days[k]!['start']}'))),
-                    const Text('›'),
-                    TextButton(onPressed: () async {
-                      final t = await pick(c, '${days[k]!['end']}');
-                      if (t != null) set(() => days[k]!['end'] = t);
-                    }, child: Text(tr('${days[k]!['end']}'))),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 110,
-                      child: DropdownButton<int>(
-                        isExpanded: true,
-                        value: [0, 30, 45, 60, 90, 120].contains((days[k]!['break'] as num?)?.toInt()) ? (days[k]!['break'] as num?)?.toInt() : 60,
-                        items: [for (final m in [0, 30, 45, 60, 90, 120]) DropdownMenuItem(value: m, child: Text(tr(m == 0 ? 'sans pause' : 'pause $m min')))],
-                        onChanged: (v) => set(() => days[k]!['break'] = v),
-                      ),
-                    ),
-                  ] else
-                    Text(tr('Repos'), style: TextStyle(color: Theme.of(c).hintColor)),
-                ]),
-              TextField(controller: tol, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Retard toléré (minutes)'))),
-              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Horaire par défaut')), subtitle: Text(tr('Pour les salariés sans horaire choisi')), value: isDefault, onChanged: (v) => set(() => isDefault = v)),
+                ] else
+                  Text(tr('Repos'), style: TextStyle(color: Theme.of(c).hintColor)),
+              ]),
+            TextField(controller: tol, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Retard toléré (minutes)'))),
+            SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Horaire par défaut')), subtitle: Text(tr('Pour les salariés sans horaire choisi')), value: isDefault, onChanged: (v) => set(() => isDefault = v)),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (s != null && s['is_default'] != true) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
             ]),
           ),
-        ),
-        actions: [
-          if (s != null && s['is_default'] != true) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
-        ],
+        ]),
       ),
-    ),
-  );
+    ));
   if (r == 'delete') await sync.remove('pt_schedules', '${s!['id']}');
   if (r != 'save' || name.text.trim().isEmpty) return;
   await sync.save('pt_schedules', {'id': s?['id'] ?? newId(), 'name': name.text.trim(), 'days': days, 'tolerance': int.tryParse(tol.text) ?? 10, 'is_default': isDefault});

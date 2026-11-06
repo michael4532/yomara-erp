@@ -154,7 +154,7 @@ class Posting
         if (! $company || ! $company->hasModule('compta') || $p->trashed()) {
             return null;
         }
-        $doc = DB::table('trade_documents')->where('id', $p->document_id)->first(['id', 'direction', 'number', 'reference', 'partner_id', 'partner_name', 'exchange_rate', 'currency']);
+        $doc = DB::table('trade_documents')->where('id', $p->document_id)->where('company_id', $company->id)->first(['id', 'direction', 'number', 'reference', 'partner_id', 'partner_name', 'exchange_rate', 'currency']);
         $direction = $p->direction ?: ($doc->direction ?? 'sale');
 
         return $this->upsert($company, 'payment', $p->id, 'payment', function () use ($company, $p, $doc, $direction) {
@@ -163,7 +163,7 @@ class Posting
             $treasury = $map[$method] ?? $map['cash'];
             // Compte de trésorerie choisi (banque, caisse, Mobile Money) : son compte comptable
             if ($p->treasury_account_id && in_array($p->method, ['cash', 'mobile_money', 'card', 'bank_transfer', 'cheque', 'other'], true)) {
-                $treasury = DB::table('tr_accounts')->where('id', $p->treasury_account_id)->value('gl_code') ?: $treasury;
+                $treasury = DB::table('tr_accounts')->where('id', $p->treasury_account_id)->where('company_id', $company->id)->value('gl_code') ?: $treasury;
             }
             // Devise étrangère : créance soldée au cours du document, trésorerie au cours du jour, écart en 676 / 776
             $dec = \App\Modules\Core\Models\TradeDocumentLine::decimalsFor($company->currency);

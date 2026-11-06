@@ -78,17 +78,18 @@ abstract class TradeDocument extends Model
         });
     }
 
-    /** Agence déduite de l'entrepôt, de la caisse ou du document d'origine. */
+    /** Agence déduite de l'entrepôt, de la caisse ou du document d'origine (toujours dans la société en cours). */
     public function branchFallback(): ?string
     {
         $DB = \Illuminate\Support\Facades\DB::class;
-        if ($this->warehouse_id && ($b = $DB::table('warehouses')->where('id', $this->warehouse_id)->value('branch_id'))) {
+        $cid = $this->company_id ?? (app()->bound('tenant') ? app('tenant')->id : 0);
+        if ($this->warehouse_id && ($b = $DB::table('warehouses')->where('id', $this->warehouse_id)->where('company_id', $cid)->value('branch_id'))) {
             return $b;
         }
-        if ($this->pos_session_id && ($b = $DB::table('pos_sessions as s')->join('pos_registers as r', 'r.id', '=', 's.register_id')->where('s.id', $this->pos_session_id)->value('r.branch_id'))) {
+        if ($this->pos_session_id && ($b = $DB::table('pos_sessions as s')->join('pos_registers as r', 'r.id', '=', 's.register_id')->where('s.id', $this->pos_session_id)->where('s.company_id', $cid)->where('r.company_id', $cid)->value('r.branch_id'))) {
             return $b;
         }
-        if ($this->source_id && ($b = $DB::table('trade_documents')->where('id', $this->source_id)->value('branch_id'))) {
+        if ($this->source_id && ($b = $DB::table('trade_documents')->where('id', $this->source_id)->where('company_id', $cid)->value('branch_id'))) {
             return $b;
         }
 
@@ -100,24 +101,24 @@ abstract class TradeDocument extends Model
         return [
             'type' => 'required|in:'.implode(',', array_keys(static::TYPES)),
             'reference' => 'nullable|string|max:100',
-            'partner_id' => 'nullable|uuid',
+            'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')],
             'partner_name' => 'nullable|string|max:255',
             'date' => 'required|date',
             'due_date' => 'nullable|date',
             'status' => 'sometimes|in:draft,validated,cancelled',
             'currency' => 'sometimes|string|size:3',
-            'warehouse_id' => 'nullable|uuid',
-            'branch_id' => 'nullable|uuid',
-            'source_id' => 'nullable|uuid',
-            'pos_session_id' => 'nullable|uuid',
-            'rs_order_id' => 'nullable|uuid',
+            'warehouse_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('warehouses')],
+            'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')],
+            'source_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('trade_documents')],
+            'pos_session_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('pos_sessions')],
+            'rs_order_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('rs_orders')],
             'rs_bill' => 'nullable|array',
             'rs_bill.*' => 'numeric|min:0',
             'notes' => 'nullable|string',
             'terms' => 'nullable|string',
             'lines' => 'sometimes|array',
             'lines.*.id' => 'nullable|uuid',
-            'lines.*.product_id' => 'nullable|uuid',
+            'lines.*.product_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('products')],
             'lines.*.description' => 'required_with:lines|string|max:255',
             'lines.*.quantity' => 'required_with:lines|numeric',
             'lines.*.unit' => 'nullable|string|max:30',
@@ -131,7 +132,7 @@ abstract class TradeDocument extends Model
             'analytic' => 'nullable|array',
             'exchange_rate' => 'nullable|numeric|gt:0|max:1000000000',
             'project_id' => 'nullable|uuid',
-            'payment_term_id' => 'nullable|uuid',
+            'payment_term_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('payment_terms')],
         ];
     }
 

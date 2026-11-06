@@ -1,5 +1,14 @@
 # Notes de version
 
+## 0.99.32 — données protégées sur l'appareil, mode sombre, filtres sur téléphone
+- Ordinateur et téléphone : le jeton de connexion est rangé dans le coffre du système (Trousseau Mac et iPhone, Keystore Android, Gestionnaire d'identifiants Windows, trousseau Linux) et les données de la société sur l'appareil sont chiffrées (AES, clé dans ce coffre). Le passage se fait tout seul à la première ouverture : les saisies en attente d'envoi sont gardées, le reste est rechargé depuis le serveur. Sans coffre disponible, l'application fonctionne comme avant.
+- Déconnexion : case « Effacer les données de la société sur cet appareil » (cochée par défaut dans le navigateur, choix mémorisé), avec avertissement si des saisies n'ont pas encore été envoyées ; seules les données de cette personne dans cette société sont effacées.
+- Mode sombre : menu du compte › Apparence (Clair, Sombre, Selon l'appareil) ; étiquettes de statut et bandeau d'échéance lisibles en sombre.
+- Téléphone : les filtres des listes sont regroupés derrière un bouton « Filtres (n) » à côté de la recherche ; la liste commence beaucoup plus haut.
+- 74 formulaires de plus s'ouvrent dans le panneau latéral (interventions, recouvrement, consolidation, recrutement, immobilier, achats, trésorerie, analytique, pointage, logistique, fidélité, rendez-vous, boîte mail, boutique en ligne…).
+- Caisse : l'écran ne se redessine plus à chaque étape d'une synchronisation (seulement à la fin, au passage en ligne ou hors ligne). Copie hors ligne des listes consultées limitée à 400 entrées (les plus anciennes sont retirées, les recherches tapées ne sont pas gardées).
+- Serveur : les liens d'un document (client, entrepôt, agence, document d'origine, produits, session de caisse, conditions de paiement) doivent appartenir à la même société ; rapports, écritures comptables et agences limités à la société ; connexion aux serveurs de messagerie sur l'adresse vérifiée (protection contre le changement d'adresse DNS entre la vérification et la connexion).
+
 ## 0.99.31 — audit : sécurité, synchronisation hors ligne, référencement
 - Synchronisation : une saisie refusée par le serveur (droits, module, contrôle) reste sur l'appareil, marquée, au lieu d'être effacée (ex. vente de caisse faite hors ligne) ; les alertes de synchro sont conservées après un redémarrage.
 - Envois hors ligne (fiches, demandes) : plus de doublon quand la réponse du serveur se perd (clé unique par envoi, reconnue par le serveur 24 h) ; serveur en maintenance (erreur 5xx) ou trop de demandes : la file attend et réessaie au lieu d'abandonner les envois.

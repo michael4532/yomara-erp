@@ -21,7 +21,7 @@ import '../../../core/json.dart';
 import 'package:yomara_erp/core/safe_launch.dart';
 // ---------------------------------------------------------------------------- ajout d'un compte
 
-Future<void> addAccount(BuildContext context, MailStore store) => showDialog(context: context, builder: (_) => _AddAccount(store: store));
+Future<void> addAccount(BuildContext context, MailStore store) => showFormDialog(context, title: 'Ajouter un compte de messagerie', builder: (_) => _AddAccount(store: store));
 
 class _AddAccount extends StatefulWidget {
   const _AddAccount({required this.store});
@@ -194,154 +194,155 @@ class _AddAccountState extends State<_AddAccount> {
   Widget build(BuildContext context) {
     final s = widget.store;
     final oauth = _provider == 'microsoft' || _provider == 'google';
-    return YAlertDialog(
-      title: Text(tr('Ajouter un compte de messagerie')),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (_step == 0) ...[
-              Text(tr('Votre boîte reste chez votre fournisseur ; Yomara la synchronise et en garde une copie sur chaque poste pour travailler hors ligne.')),
-              const SizedBox(height: 14),
-              TextField(controller: _email, autofocus: true, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('Adresse e-mail'), prefixIcon: Icon(Icons.alternate_email)), onSubmitted: (_) => _detect()),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (_step == 0) ...[
+            Text(tr('Votre boîte reste chez votre fournisseur ; Yomara la synchronise et en garde une copie sur chaque poste pour travailler hors ligne.')),
+            const SizedBox(height: 14),
+            TextField(controller: _email, autofocus: true, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('Adresse e-mail'), prefixIcon: Icon(Icons.alternate_email)), onSubmitted: (_) => _detect()),
+            const SizedBox(height: 16),
+            Text(tr('Ou connectez directement :'), style: TextStyle(color: Theme.of(context).hintColor)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 10, runSpacing: 10, children: [
+              if (s.oauthDisabled['microsoft'] != true)
+                _ProviderButton(color: const Color(0xFF0F6CBD), icon: Icons.window, label: tr('Microsoft 365 / Outlook'), onTap: () => setState(() => (_provider = 'microsoft', _step = 1))),
+              if (s.oauthDisabled['google'] != true)
+                _ProviderButton(color: const Color(0xFFEA4335), icon: Icons.mail, label: tr('Gmail / Google Workspace'), onTap: () => setState(() => (_provider = 'google', _step = 1))),
+            ]),
+            if (s.hosted['configured'] == true) ...[
               const SizedBox(height: 16),
-              Text(tr('Ou connectez directement :'), style: TextStyle(color: Theme.of(context).hintColor)),
-              const SizedBox(height: 8),
-              Wrap(spacing: 10, runSpacing: 10, children: [
-                if (s.oauthDisabled['microsoft'] != true)
-                  _ProviderButton(color: const Color(0xFF0F6CBD), icon: Icons.window, label: tr('Microsoft 365 / Outlook'), onTap: () => setState(() => (_provider = 'microsoft', _step = 1))),
-                if (s.oauthDisabled['google'] != true)
-                  _ProviderButton(color: const Color(0xFFEA4335), icon: Icons.mail, label: tr('Gmail / Google Workspace'), onTap: () => setState(() => (_provider = 'google', _step = 1))),
-              ]),
-              if (s.hosted['configured'] == true) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: YColors.night.withValues(alpha: .04), borderRadius: BorderRadius.circular(12), border: Border.all(color: YColors.line)),
-                  child: Row(children: [
-                    const Icon(Icons.dns_outlined, color: YColors.night),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Pas de serveur de messagerie ?'), style: TextStyle(fontWeight: FontWeight.w700)),
-                        Text(tr(s.hosted['module'] == true
-                            ? 'Créez une adresse fournie par Yomara (${s.hosted['used']}/${s.hosted['max']} utilisées, ${((s.hosted['quota_mb'] as num? ?? 0) / 1024).toStringAsFixed(0)} Go chacune).'
-                            : 'Les adresses fournies par Yomara font partie du module « Messagerie hébergée » (Boutique).'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5)),
-                      ]),
-                    ),
-                    if (s.hosted['module'] == true) TextButton(onPressed: () => setState(() => (_provider = 'hosted', _step = 1)), child: Text(tr('Créer une adresse'))),
-                  ]),
-                ),
-              ],
-            ],
-            if (_step == 1 && oauth) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(backgroundColor: (_provider == 'microsoft' ? const Color(0xFF0F6CBD) : const Color(0xFFEA4335)).withValues(alpha: .12),
-                    child: Icon(_provider == 'microsoft' ? Icons.window : Icons.mail, color: _provider == 'microsoft' ? const Color(0xFF0F6CBD) : const Color(0xFFEA4335))),
-                title: Text(tr(_provider == 'microsoft' ? 'Microsoft 365 / Outlook.com' : 'Gmail / Google Workspace'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(tr(_hint ?? 'Connexion sécurisée chez ${_provider == 'microsoft' ? 'Microsoft' : 'Google'} : Yomara ne voit jamais votre mot de passe.')),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _calendar,
-                onChanged: (v) => setState(() => _calendar = v),
-                title: Text(tr('Synchroniser aussi le calendrier avec l\'Agenda')),
-                subtitle: Text(tr(_provider == 'microsoft' ? 'Dans les deux sens ; réunions Teams créées automatiquement.' : 'Dans les deux sens ; Google Meet créé automatiquement.')),
-              ),
-              if (s.oauth[_provider] != true)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: YColors.warning.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
-                  child: Text(tr(s.canManage
-                      ? 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : renseignez l\'application dans Boîte mail › Paramètres (guide pas à pas fourni).'
-                      : 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : demandez à votre administrateur.')),
-                ),
-            ],
-            if (_step == 1 && _provider == 'hosted') ...[
-              Text(tr('Votre adresse est créée sur le serveur de messagerie de Yomara : stockage sécurisé, aucune configuration, utilisable aussi sur votre téléphone.')),
-              const SizedBox(height: 12),
-              TextField(controller: _local, autofocus: true, decoration: InputDecoration(labelText: tr('Début de l\'adresse'), hintText: tr('contact, compta, awa.traore')), onChanged: (_) => setState(() {})),
-              Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr(_hostedPreview), style: const TextStyle(fontWeight: FontWeight.w700, color: YColors.blue))),
-              TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (expéditeur)'))),
-              const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .06), borderRadius: BorderRadius.circular(10)),
-                child: Text(tr('Protection anti-spam : nombre d\'envois limité par heure et par jour (plus bas pendant les 7 premiers jours), 30 destinataires maximum par message. '
-                    'Pour les envois en nombre, utilisez une campagne du module Marketing.'), style: TextStyle(fontSize: 12.5)),
-              ),
-              if (s.canManage) ...[
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: _shared, onChanged: (v) => setState(() => _shared = v), title: Text(tr('Boîte partagée (contact@, compta@…)'))),
-                if (_shared)
-                  Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final u in s.users)
-                      FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
-                  ]),
-              ],
-            ],
-            if (_step == 1 && !oauth && _provider != 'hosted') ...[
-              SegmentedButton<String>(
-                segments: [ButtonSegment(value: 'imap', label: Text(tr('IMAP (conseillé)'))), ButtonSegment(value: 'pop3', label: Text(tr('POP3')))],
-                selected: {_provider},
-                onSelectionChanged: (v) => setState(() => _provider = v.first),
-              ),
-              if (_hint != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(tr(_hint!), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5))),
-              const SizedBox(height: 8),
-              TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (expéditeur)'), hintText: tr('Société — Service commercial'))),
-              TextField(controller: _user, decoration: InputDecoration(labelText: tr('Identifiant (souvent l\'adresse complète)'))),
-              TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: tr('Mot de passe de la boîte'))),
-              const SizedBox(height: 10),
-              if (_provider == 'imap') _server('imap', 'IMAP (réception)') else _server('pop3', 'POP3 (réception)'),
-              const SizedBox(height: 6),
-              _server('smtp', 'SMTP (envoi)'),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                value: _ownSmtpLogin,
-                onChanged: (v) => setState(() => _ownSmtpLogin = v == true),
-                title: Text(tr('Le serveur d\'envoi utilise un autre identifiant')),
-                subtitle: Text(tr('Relais SMTP de votre hébergeur, SendGrid, Brevo, Mailjet…')),
-              ),
-              if (_ownSmtpLogin) ...[
-                TextField(controller: _smtpUser, decoration: InputDecoration(labelText: tr('Identifiant SMTP'))),
-                TextField(controller: _smtpPassword, obscureText: true, decoration: InputDecoration(labelText: tr('Mot de passe SMTP (ou clé API)'))),
-              ],
-              if (_provider == 'pop3')
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: _keep, onChanged: (v) => setState(() => _keep = v), title: Text(tr('Laisser une copie des messages sur le serveur'))),
-              if (s.canManage) ...[
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: _shared, onChanged: (v) => setState(() => _shared = v), title: Text(tr('Boîte partagée (contact@, compta@…)')),
-                    subtitle: Text(tr('Visible par les collègues choisis'))),
-                if (_shared)
-                  Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final u in s.users)
-                      FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
-                  ]),
-              ],
-            ],
-            if (_step == 2)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Column(children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(tr('Terminez la connexion dans la page qui vient de s\'ouvrir…'), textAlign: TextAlign.center),
-                  SizedBox(height: 6),
-                  Text(tr('Cette fenêtre se fermera toute seule.'), style: TextStyle(fontSize: 12)),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: YColors.night.withValues(alpha: .04), borderRadius: BorderRadius.circular(12), border: Border.all(color: YColors.line)),
+                child: Row(children: [
+                  const Icon(Icons.dns_outlined, color: YColors.night),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(tr('Pas de serveur de messagerie ?'), style: TextStyle(fontWeight: FontWeight.w700)),
+                      Text(tr(s.hosted['module'] == true
+                          ? 'Créez une adresse fournie par Yomara (${s.hosted['used']}/${s.hosted['max']} utilisées, ${((s.hosted['quota_mb'] as num? ?? 0) / 1024).toStringAsFixed(0)} Go chacune).'
+                          : 'Les adresses fournies par Yomara font partie du module « Messagerie hébergée » (Boutique).'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5)),
+                    ]),
+                  ),
+                  if (s.hosted['module'] == true) TextButton(onPressed: () => setState(() => (_provider = 'hosted', _step = 1)), child: Text(tr('Créer une adresse'))),
                 ]),
               ),
+            ],
+          ],
+          if (_step == 1 && oauth) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(backgroundColor: (_provider == 'microsoft' ? const Color(0xFF0F6CBD) : const Color(0xFFEA4335)).withValues(alpha: .12),
+                  child: Icon(_provider == 'microsoft' ? Icons.window : Icons.mail, color: _provider == 'microsoft' ? const Color(0xFF0F6CBD) : const Color(0xFFEA4335))),
+              title: Text(tr(_provider == 'microsoft' ? 'Microsoft 365 / Outlook.com' : 'Gmail / Google Workspace'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(tr(_hint ?? 'Connexion sécurisée chez ${_provider == 'microsoft' ? 'Microsoft' : 'Google'} : Yomara ne voit jamais votre mot de passe.')),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _calendar,
+              onChanged: (v) => setState(() => _calendar = v),
+              title: Text(tr('Synchroniser aussi le calendrier avec l\'Agenda')),
+              subtitle: Text(tr(_provider == 'microsoft' ? 'Dans les deux sens ; réunions Teams créées automatiquement.' : 'Dans les deux sens ; Google Meet créé automatiquement.')),
+            ),
+            if (s.oauth[_provider] != true)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: YColors.warning.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
+                child: Text(tr(s.canManage
+                    ? 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : renseignez l\'application dans Boîte mail › Paramètres (guide pas à pas fourni).'
+                    : 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : demandez à votre administrateur.')),
+              ),
+          ],
+          if (_step == 1 && _provider == 'hosted') ...[
+            Text(tr('Votre adresse est créée sur le serveur de messagerie de Yomara : stockage sécurisé, aucune configuration, utilisable aussi sur votre téléphone.')),
+            const SizedBox(height: 12),
+            TextField(controller: _local, autofocus: true, decoration: InputDecoration(labelText: tr('Début de l\'adresse'), hintText: tr('contact, compta, awa.traore')), onChanged: (_) => setState(() {})),
+            Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr(_hostedPreview), style: const TextStyle(fontWeight: FontWeight.w700, color: YColors.blue))),
+            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (expéditeur)'))),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .06), borderRadius: BorderRadius.circular(10)),
+              child: Text(tr('Protection anti-spam : nombre d\'envois limité par heure et par jour (plus bas pendant les 7 premiers jours), 30 destinataires maximum par message. '
+                  'Pour les envois en nombre, utilisez une campagne du module Marketing.'), style: TextStyle(fontSize: 12.5)),
+            ),
+            if (s.canManage) ...[
+              SwitchListTile(contentPadding: EdgeInsets.zero, value: _shared, onChanged: (v) => setState(() => _shared = v), title: Text(tr('Boîte partagée (contact@, compta@…)'))),
+              if (_shared)
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final u in s.users)
+                    FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
+                ]),
+            ],
+          ],
+          if (_step == 1 && !oauth && _provider != 'hosted') ...[
+            SegmentedButton<String>(
+              segments: [ButtonSegment(value: 'imap', label: Text(tr('IMAP (conseillé)'))), ButtonSegment(value: 'pop3', label: Text(tr('POP3')))],
+              selected: {_provider},
+              onSelectionChanged: (v) => setState(() => _provider = v.first),
+            ),
+            if (_hint != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(tr(_hint!), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5))),
+            const SizedBox(height: 8),
+            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (expéditeur)'), hintText: tr('Société — Service commercial'))),
+            TextField(controller: _user, decoration: InputDecoration(labelText: tr('Identifiant (souvent l\'adresse complète)'))),
+            TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: tr('Mot de passe de la boîte'))),
+            const SizedBox(height: 10),
+            if (_provider == 'imap') _server('imap', 'IMAP (réception)') else _server('pop3', 'POP3 (réception)'),
+            const SizedBox(height: 6),
+            _server('smtp', 'SMTP (envoi)'),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _ownSmtpLogin,
+              onChanged: (v) => setState(() => _ownSmtpLogin = v == true),
+              title: Text(tr('Le serveur d\'envoi utilise un autre identifiant')),
+              subtitle: Text(tr('Relais SMTP de votre hébergeur, SendGrid, Brevo, Mailjet…')),
+            ),
+            if (_ownSmtpLogin) ...[
+              TextField(controller: _smtpUser, decoration: InputDecoration(labelText: tr('Identifiant SMTP'))),
+              TextField(controller: _smtpPassword, obscureText: true, decoration: InputDecoration(labelText: tr('Mot de passe SMTP (ou clé API)'))),
+            ],
+            if (_provider == 'pop3')
+              SwitchListTile(contentPadding: EdgeInsets.zero, value: _keep, onChanged: (v) => setState(() => _keep = v), title: Text(tr('Laisser une copie des messages sur le serveur'))),
+            if (s.canManage) ...[
+              SwitchListTile(contentPadding: EdgeInsets.zero, value: _shared, onChanged: (v) => setState(() => _shared = v), title: Text(tr('Boîte partagée (contact@, compta@…)')),
+                  subtitle: Text(tr('Visible par les collègues choisis'))),
+              if (_shared)
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final u in s.users)
+                    FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
+                ]),
+            ],
+          ],
+          if (_step == 2)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Column(children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(tr('Terminez la connexion dans la page qui vient de s\'ouvrir…'), textAlign: TextAlign.center),
+                SizedBox(height: 6),
+                Text(tr('Cette fenêtre se fermera toute seule.'), style: TextStyle(fontSize: 12)),
+              ]),
+            ),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            if (_step == 1) TextButton(onPressed: () => setState(() => _step = 0), child: Text(tr('Retour'))),
+            if (_step == 0) FilledButton(onPressed: _busy ? null : _detect, child: Text(tr('Continuer'))),
+            if (_step == 1 && oauth)
+              FilledButton.icon(onPressed: _busy || s.oauth[_provider] != true ? null : () => _oauth(_provider), icon: const Icon(Icons.login), label: Text(tr('Se connecter avec ${_provider == 'microsoft' ? 'Microsoft' : 'Google'}'))),
+            if (_step == 1 && _provider == 'hosted') FilledButton(onPressed: _busy ? null : _createHosted, child: Text(tr(_busy ? 'Création…' : 'Créer l\'adresse'))),
+            if (_step == 1 && !oauth && _provider != 'hosted') FilledButton(onPressed: _busy ? null : _save, child: Text(tr(_busy ? 'Vérification…' : 'Tester et ajouter'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        if (_step == 1) TextButton(onPressed: () => setState(() => _step = 0), child: Text(tr('Retour'))),
-        if (_step == 0) FilledButton(onPressed: _busy ? null : _detect, child: Text(tr('Continuer'))),
-        if (_step == 1 && oauth)
-          FilledButton.icon(onPressed: _busy || s.oauth[_provider] != true ? null : () => _oauth(_provider), icon: const Icon(Icons.login), label: Text(tr('Se connecter avec ${_provider == 'microsoft' ? 'Microsoft' : 'Google'}'))),
-        if (_step == 1 && _provider == 'hosted') FilledButton(onPressed: _busy ? null : _createHosted, child: Text(tr(_busy ? 'Création…' : 'Créer l\'adresse'))),
-        if (_step == 1 && !oauth && _provider != 'hosted') FilledButton(onPressed: _busy ? null : _save, child: Text(tr(_busy ? 'Vérification…' : 'Tester et ajouter'))),
-      ],
+      ]),
     );
   }
 }
@@ -365,7 +366,7 @@ class _ProviderButton extends StatelessWidget {
 
 // ---------------------------------------------------------------------------- réglages d'un compte
 
-Future<void> editAccount(BuildContext context, MailStore store, Map<String, dynamic> a) => showDialog(context: context, builder: (_) => _EditAccount(store: store, account: a));
+Future<void> editAccount(BuildContext context, MailStore store, Map<String, dynamic> a) => showFormDialog(context, title: '${a['email']}', builder: (_) => _EditAccount(store: store, account: a));
 
 class _EditAccount extends StatefulWidget {
   const _EditAccount({required this.store, required this.account});
@@ -441,191 +442,192 @@ class _EditAccountState extends State<_EditAccount> {
     final api = context.read<Session>().api;
     final oauth = a['provider'] == 'microsoft' || a['provider'] == 'google';
     final folders = widget.store.foldersOf(a['id'] as int);
-    return YAlertDialog(
-      title: Text(tr('${a['email']}')),
-      content: SizedBox(
-        width: 540,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
-              AccountAvatar(account: {...a, 'avatar_url': _avatar}, radius: 30),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(tr('${a['provider_label']}${a['shared'] == true ? ' · boîte partagée' : ''}'), style: TextStyle(color: Theme.of(context).hintColor)),
-                  Wrap(spacing: 4, children: [
-                    TextButton.icon(onPressed: _busy ? null : _pickAvatar, icon: const Icon(Icons.photo_camera_outlined, size: 18), label: Text(tr('Photo de profil'))),
-                    if (_avatar != null) TextButton(onPressed: _busy ? null : _removeAvatar, child: Text(tr('Retirer'))),
-                  ]),
-                  if (a['provider'] == 'microsoft' && a['settings']?['graph_user'] == null)
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      value: _publishPhoto,
-                      onChanged: (v) => setState(() => _publishPhoto = v == true),
-                      title: Text(tr('Publier aussi la photo sur Microsoft 365 (Outlook, Teams)')),
-                    ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            AccountAvatar(account: {...a, 'avatar_url': _avatar}, radius: 30),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tr('${a['provider_label']}${a['shared'] == true ? ' · boîte partagée' : ''}'), style: TextStyle(color: Theme.of(context).hintColor)),
+                Wrap(spacing: 4, children: [
+                  TextButton.icon(onPressed: _busy ? null : _pickAvatar, icon: const Icon(Icons.photo_camera_outlined, size: 18), label: Text(tr('Photo de profil'))),
+                  if (_avatar != null) TextButton(onPressed: _busy ? null : _removeAvatar, child: Text(tr('Retirer'))),
                 ]),
-              ),
-            ]),
-            if (a['error'] != null)
-              Container(
-                margin: const EdgeInsets.only(top: 10),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: YColors.danger.withValues(alpha: .08), borderRadius: BorderRadius.circular(10)),
-                child: Text(tr('${a['error']}'), style: const TextStyle(color: YColors.danger)),
-              ),
-            if (a['send_blocked_until'] != null)
-              Container(
-                margin: const EdgeInsets.only(top: 10),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: YColors.warning.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
-                child: Text(tr('Envois suspendus jusqu\'à ${dateTimeFr(a['send_blocked_until'])} : le serveur a refusé plusieurs messages de suite. Vérifiez les adresses des destinataires.')),
-              ),
-            if (a['limits'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(tr('Protection anti-spam : ${a['limits']['per_hour']} envois / heure, ${a['limits']['per_day']} / jour, ${a['limits']['recipients']} destinataires par message.'),
-                    style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
-              ),
-            const SizedBox(height: 8),
-            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (vu par vos destinataires)'), hintText: tr('Prénom Nom — Société'))),
-            if (!oauth && a['hosted'] != true) TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: tr('Nouveau mot de passe (laisser vide pour garder l\'actuel)'))),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<int>(
-              initialValue: [7, 14, 30, 60, 90, 180, 365].contains(_days) ? _days : 30,
-              decoration: InputDecoration(labelText: tr('Messages gardés sur les postes')),
-              items: [
-                DropdownMenuItem(value: 7, child: Text(tr('7 derniers jours'))), DropdownMenuItem(value: 14, child: Text(tr('14 derniers jours'))),
-                DropdownMenuItem(value: 30, child: Text(tr('30 derniers jours'))), DropdownMenuItem(value: 60, child: Text(tr('2 derniers mois'))),
-                DropdownMenuItem(value: 90, child: Text(tr('3 derniers mois'))), DropdownMenuItem(value: 180, child: Text(tr('6 derniers mois'))), DropdownMenuItem(value: 365, child: Text(tr('12 derniers mois'))),
-              ],
-              onChanged: (v) => setState(() => _days = v ?? 30),
-            ),
-            if (oauth)
-              SwitchListTile(contentPadding: EdgeInsets.zero, value: _calendar, onChanged: (v) => setState(() => _calendar = v), title: Text(tr('Calendrier synchronisé avec l\'Agenda'))),
-            const SizedBox(height: 6),
-            Wrap(spacing: 8, children: [
-              for (final c in _colors)
-                InkWell(
-                  onTap: () => setState(() => _color = c),
-                  child: CircleAvatar(radius: 13, backgroundColor: Color(int.parse('FF${c.substring(1)}', radix: 16)), child: _color == c ? const Icon(Icons.check, size: 15, color: Colors.white) : null),
-                ),
-            ]),
-            if (a['shared'] == true && widget.store.canManage) ...[
-              const SizedBox(height: 12),
-              Text(tr('Collègues qui ont accès'), style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final u in widget.store.users)
-                  FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
-              ]),
-            ],
-            if (folders.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(tr('Dossiers synchronisés'), style: TextStyle(fontWeight: FontWeight.w700)),
-              for (final f in folders)
-                CheckboxListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: f['sync'] != false,
-                  title: Text(tr('${f['name']}')),
-                  subtitle: f['error'] != null ? Text(tr('${f['error']}'), style: const TextStyle(color: YColors.danger)) : null,
-                  onChanged: (v) async {
-                    await api.put('mailbox/folders/${f['id']}', {'sync': v == true});
-                    f['sync'] = v == true;
-                    setState(() {});
-                  },
-                ),
-            ],
-            const Divider(height: 24),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              OutlinedButton.icon(
-                onPressed: () => showDialog(context: context, builder: (_) => _Deliverability(accountId: a['id'] as int)),
-                icon: const Icon(Icons.verified_outlined),
-                label: Text(tr('Tester la délivrabilité')),
-              ),
-              if (a['hosted'] == true)
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    if (!await confirm(context, tr('Configurer sur un téléphone ?'), tr('Un nouveau mot de passe est créé pour cette adresse (Yomara continue de fonctionner normalement).'), ok: tr('Continuer'))) return;
-                    try {
-                      final r = await api.post('mailbox/accounts/${a['id']}/hosted-password');
-                      if (!context.mounted) return;
-                      await showDialog(
-                        context: context,
-                        builder: (c) => YAlertDialog(
-                          title: Text(tr('Réglages pour Outlook, Gmail ou l\'application Mail')),
-                          content: SelectableText(tr('Adresse : ${r['email']}\nMot de passe : ${r['password']}\n\nRéception (IMAP) : ${r['imap']} — port 993, SSL\nEnvoi (SMTP) : ${r['smtp']} — port 465, SSL'
-                              '${r['usage'] != null ? '\n\nEspace utilisé : ${r['usage']['used_mb']} Mo sur ${r['usage']['quota_mb']} Mo' : ''}')),
-                          actions: [FilledButton(onPressed: () => Navigator.pop(c), child: Text(tr('Fermer')))],
-                        ),
-                      );
-                    } catch (e) {
-                      if (context.mounted) toast(context, errorText(e), error: true);
-                    }
-                  },
-                  icon: const Icon(Icons.smartphone),
-                  label: Text(tr('Configurer sur un téléphone')),
-                ),
-            ]),
-            if (a['provider'] == 'microsoft' || a['provider'] == 'google') ...[
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [
                 if (a['provider'] == 'microsoft' && a['settings']?['graph_user'] == null)
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final email = await promptText(context, 'Boîte partagée Microsoft 365', 'Adresse de la boîte partagée (ex. contact@votre-societe.com)');
-                      if (email == null || email.isEmpty) return;
-                      try {
-                        await api.post('mailbox/accounts/${a['id']}/shared', {'email': email});
-                        await widget.store.refresh();
-                        if (context.mounted) toast(context, tr('Boîte partagée ajoutée.'));
-                      } catch (e) {
-                        if (context.mounted) toast(context, errorText(e), error: true);
-                      }
-                    },
-                    icon: const Icon(Icons.group_add_outlined),
-                    label: Text(tr('Ajouter une boîte partagée')),
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: _publishPhoto,
+                    onChanged: (v) => setState(() => _publishPhoto = v == true),
+                    title: Text(tr('Publier aussi la photo sur Microsoft 365 (Outlook, Teams)')),
                   ),
+              ]),
+            ),
+          ]),
+          if (a['error'] != null)
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: YColors.danger.withValues(alpha: .08), borderRadius: BorderRadius.circular(10)),
+              child: Text(tr('${a['error']}'), style: const TextStyle(color: YColors.danger)),
+            ),
+          if (a['send_blocked_until'] != null)
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: YColors.warning.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
+              child: Text(tr('Envois suspendus jusqu\'à ${dateTimeFr(a['send_blocked_until'])} : le serveur a refusé plusieurs messages de suite. Vérifiez les adresses des destinataires.')),
+            ),
+          if (a['limits'] != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(tr('Protection anti-spam : ${a['limits']['per_hour']} envois / heure, ${a['limits']['per_day']} / jour, ${a['limits']['recipients']} destinataires par message.'),
+                  style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+            ),
+          const SizedBox(height: 8),
+          TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom affiché (vu par vos destinataires)'), hintText: tr('Prénom Nom — Société'))),
+          if (!oauth && a['hosted'] != true) TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: tr('Nouveau mot de passe (laisser vide pour garder l\'actuel)'))),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            initialValue: [7, 14, 30, 60, 90, 180, 365].contains(_days) ? _days : 30,
+            decoration: InputDecoration(labelText: tr('Messages gardés sur les postes')),
+            items: [
+              DropdownMenuItem(value: 7, child: Text(tr('7 derniers jours'))), DropdownMenuItem(value: 14, child: Text(tr('14 derniers jours'))),
+              DropdownMenuItem(value: 30, child: Text(tr('30 derniers jours'))), DropdownMenuItem(value: 60, child: Text(tr('2 derniers mois'))),
+              DropdownMenuItem(value: 90, child: Text(tr('3 derniers mois'))), DropdownMenuItem(value: 180, child: Text(tr('6 derniers mois'))), DropdownMenuItem(value: 365, child: Text(tr('12 derniers mois'))),
+            ],
+            onChanged: (v) => setState(() => _days = v ?? 30),
+          ),
+          if (oauth)
+            SwitchListTile(contentPadding: EdgeInsets.zero, value: _calendar, onChanged: (v) => setState(() => _calendar = v), title: Text(tr('Calendrier synchronisé avec l\'Agenda'))),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, children: [
+            for (final c in _colors)
+              InkWell(
+                onTap: () => setState(() => _color = c),
+                child: CircleAvatar(radius: 13, backgroundColor: Color(int.parse('FF${c.substring(1)}', radix: 16)), child: _color == c ? const Icon(Icons.check, size: 15, color: Colors.white) : null),
+              ),
+          ]),
+          if (a['shared'] == true && widget.store.canManage) ...[
+            const SizedBox(height: 12),
+            Text(tr('Collègues qui ont accès'), style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final u in widget.store.users)
+                FilterChip(label: Text(tr('${u['name']}')), selected: _sharedWith.contains(u['id']), onSelected: (v) => setState(() => v ? _sharedWith.add(u['id'] as int) : _sharedWith.remove(u['id']))),
+            ]),
+          ],
+          if (folders.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(tr('Dossiers synchronisés'), style: TextStyle(fontWeight: FontWeight.w700)),
+            for (final f in folders)
+              CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: f['sync'] != false,
+                title: Text(tr('${f['name']}')),
+                subtitle: f['error'] != null ? Text(tr('${f['error']}'), style: const TextStyle(color: YColors.danger)) : null,
+                onChanged: (v) async {
+                  await api.put('mailbox/folders/${f['id']}', {'sync': v == true});
+                  f['sync'] = v == true;
+                  setState(() {});
+                },
+              ),
+          ],
+          const Divider(height: 24),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            OutlinedButton.icon(
+              onPressed: () => showDialog(context: context, builder: (_) => _Deliverability(accountId: a['id'] as int)),
+              icon: const Icon(Icons.verified_outlined),
+              label: Text(tr('Tester la délivrabilité')),
+            ),
+            if (a['hosted'] == true)
+              OutlinedButton.icon(
+                onPressed: () async {
+                  if (!await confirm(context, tr('Configurer sur un téléphone ?'), tr('Un nouveau mot de passe est créé pour cette adresse (Yomara continue de fonctionner normalement).'), ok: tr('Continuer'))) return;
+                  try {
+                    final r = await api.post('mailbox/accounts/${a['id']}/hosted-password');
+                    if (!context.mounted) return;
+                    await showDialog(
+                      context: context,
+                      builder: (c) => YAlertDialog(
+                        title: Text(tr('Réglages pour Outlook, Gmail ou l\'application Mail')),
+                        content: SelectableText(tr('Adresse : ${r['email']}\nMot de passe : ${r['password']}\n\nRéception (IMAP) : ${r['imap']} — port 993, SSL\nEnvoi (SMTP) : ${r['smtp']} — port 465, SSL'
+                            '${r['usage'] != null ? '\n\nEspace utilisé : ${r['usage']['used_mb']} Mo sur ${r['usage']['quota_mb']} Mo' : ''}')),
+                        actions: [FilledButton(onPressed: () => Navigator.pop(c), child: Text(tr('Fermer')))],
+                      ),
+                    );
+                  } catch (e) {
+                    if (context.mounted) toast(context, errorText(e), error: true);
+                  }
+                },
+                icon: const Icon(Icons.smartphone),
+                label: Text(tr('Configurer sur un téléphone')),
+              ),
+          ]),
+          if (a['provider'] == 'microsoft' || a['provider'] == 'google') ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              if (a['provider'] == 'microsoft' && a['settings']?['graph_user'] == null)
                 OutlinedButton.icon(
                   onPressed: () async {
+                    final email = await promptText(context, 'Boîte partagée Microsoft 365', 'Adresse de la boîte partagée (ex. contact@votre-societe.com)');
+                    if (email == null || email.isEmpty) return;
                     try {
-                      final r = await api.postLong('mailbox/accounts/${a['id']}/contacts');
-                      if (context.mounted) toast(context, tr('${r['created']} contact(s) ajouté(s) aux clients, ${r['skipped']} déjà connu(s) ou sans adresse.'));
+                      await api.post('mailbox/accounts/${a['id']}/shared', {'email': email});
+                      await widget.store.refresh();
+                      if (context.mounted) toast(context, tr('Boîte partagée ajoutée.'));
                     } catch (e) {
                       if (context.mounted) toast(context, errorText(e), error: true);
                     }
                   },
-                  icon: const Icon(Icons.contacts_outlined),
-                  label: Text(tr('Importer les contacts dans les clients')),
+                  icon: const Icon(Icons.group_add_outlined),
+                  label: Text(tr('Ajouter une boîte partagée')),
                 ),
-              ]),
-            ],
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    final r = await api.postLong('mailbox/accounts/${a['id']}/contacts');
+                    if (context.mounted) toast(context, tr('${r['created']} contact(s) ajouté(s) aux clients, ${r['skipped']} déjà connu(s) ou sans adresse.'));
+                  } catch (e) {
+                    if (context.mounted) toast(context, errorText(e), error: true);
+                  }
+                },
+                icon: const Icon(Icons.contacts_outlined),
+                label: Text(tr('Importer les contacts dans les clients')),
+              ),
+            ]),
+          ],
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(
+              onPressed: () async {
+                if (!await confirm(context, a['hosted'] == true ? 'Supprimer cette adresse Yomara ?' : 'Retirer ce compte ?',
+                    a['hosted'] == true ? 'L\'adresse et tous ses messages seront définitivement supprimés du serveur.' : 'Les messages restent chez votre fournisseur ; seule la copie de Yomara est supprimée.',
+                    danger: true, ok: a['hosted'] == true ? 'Supprimer définitivement' : 'Retirer')) {
+                  return;
+                }
+                try {
+                  await api.delete('mailbox/accounts/${a['id']}');
+                  if (context.mounted) Navigator.pop(context);
+                  await widget.store.refresh();
+                } catch (e) {
+                  if (context.mounted) toast(context, errorText(e), error: true);
+                }
+              },
+              child: Text(tr('Retirer le compte'), style: TextStyle(color: YColors.danger)),
+            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
+            FilledButton(onPressed: _busy ? null : _save, child: Text(tr('Enregistrer'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            if (!await confirm(context, a['hosted'] == true ? 'Supprimer cette adresse Yomara ?' : 'Retirer ce compte ?',
-                a['hosted'] == true ? 'L\'adresse et tous ses messages seront définitivement supprimés du serveur.' : 'Les messages restent chez votre fournisseur ; seule la copie de Yomara est supprimée.',
-                danger: true, ok: a['hosted'] == true ? 'Supprimer définitivement' : 'Retirer')) {
-              return;
-            }
-            try {
-              await api.delete('mailbox/accounts/${a['id']}');
-              if (context.mounted) Navigator.pop(context);
-              await widget.store.refresh();
-            } catch (e) {
-              if (context.mounted) toast(context, errorText(e), error: true);
-            }
-          },
-          child: Text(tr('Retirer le compte'), style: TextStyle(color: YColors.danger)),
-        ),
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-        FilledButton(onPressed: _busy ? null : _save, child: Text(tr('Enregistrer'))),
-      ],
+      ]),
     );
   }
 }
@@ -683,7 +685,7 @@ Future<void> manageSignatures(BuildContext context, MailStore store) => showDial
 
 /// Nouvelle signature depuis la fenêtre de rédaction : renvoie son identifiant une fois enregistrée.
 Future<int?> editSignature(BuildContext context, MailStore store, {int? accountId}) async {
-  final id = await showDialog<int?>(context: context, builder: (_) => _SignatureEditor(store: store, accountId: accountId));
+  final id = await showFormDialog<int?>(context, title: 'Nouvelle signature', maxWidth: 808, builder: (_) => _SignatureEditor(store: store, accountId: accountId));
   await store.reloadIndex();
   return id;
 }
@@ -776,7 +778,7 @@ class _SignaturesState extends State<_Signatures> {
   }
 
   Future<void> _edit(Map<String, dynamic>? g) async {
-    await showDialog(context: context, builder: (_) => _SignatureEditor(store: widget.store, signature: g));
+    await showFormDialog(context, title: 'Modifier la signature', maxWidth: 808, builder: (_) => _SignatureEditor(store: widget.store, signature: g));
     await widget.store.reloadIndex();
     if (mounted) setState(() {});
   }
@@ -899,116 +901,122 @@ class _SignatureEditorState extends State<_SignatureEditor> {
   @override
   Widget build(BuildContext context) {
     const labels = {'name': 'Nom', 'title': 'Fonction', 'company': 'Société', 'phone': 'Téléphone', 'mobile': 'Mobile', 'email': 'E-mail', 'website': 'Site web', 'address': 'Adresse', 'logo': 'Logo de la société', 'photo': 'Photo (ronde)', 'legal': 'Mention légale / RCCM'};
-    return YAlertDialog(
-      title: Text(tr(widget.signature == null ? 'Nouvelle signature' : 'Modifier la signature')),
-      content: SizedBox(
-        width: 760,
-        height: 560,
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            child: ListView(children: [
-              TextField(controller: _label, decoration: InputDecoration(labelText: tr('Nom de la signature'))),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: [ButtonSegment(value: 'form', label: Text(tr('Générateur'))), ButtonSegment(value: 'html', label: Text(tr('HTML personnalisé')))],
-                selected: {_mode},
-                onSelectionChanged: (v) => setState(() => _mode = v.first),
-              ),
-              if (_mode == 'form') ...[
-                for (final k in labels.keys)
-                  k == 'logo' || k == 'photo'
-                      ? Row(children: [
-                          if (_c[k]!.text.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8, top: 8),
-                              child: k == 'photo' ? CircleAvatar(radius: 18, foregroundImage: NetworkImage(_c[k]!.text)) : Image.network(_c[k]!.text, height: 32, errorBuilder: (_, _, _) => const Icon(Icons.broken_image)),
-                            ),
-                          Expanded(child: TextField(controller: _c[k], decoration: InputDecoration(labelText: labels[k], hintText: tr('Chargez une image ou collez son adresse')), onChanged: (_) => setState(() {}))),
-                          IconButton(
-                            tooltip: tr('Charger une image'),
-                            icon: const Icon(Icons.upload_outlined),
-                            onPressed: () async {
-                              final url = await uploadMailImage(context, widget.store);
-                              if (url != null) setState(() => _c[k]!.text = url);
-                            },
-                          ),
-                          if (_c[k]!.text.isNotEmpty) IconButton(tooltip: tr('Retirer'), icon: const Icon(Icons.close), onPressed: () => setState(() => _c[k]!.clear())),
-                        ])
-                      : TextField(controller: _c[k], decoration: InputDecoration(labelText: labels[k]), onChanged: (_) => setState(() {})),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: ListView(children: [
+                TextField(controller: _label, decoration: InputDecoration(labelText: tr('Nom de la signature'))),
                 const SizedBox(height: 8),
-                Wrap(spacing: 8, children: [
-                  for (final c in ['#2E6BE6', '#0B1B3A', '#12A150', '#E8A317', '#D81B60', '#5B5FC7'])
-                    InkWell(
-                      onTap: () => setState(() => _color = c),
-                      child: CircleAvatar(radius: 12, backgroundColor: Color(int.parse('FF${c.substring(1)}', radix: 16)), child: _color == c ? const Icon(Icons.check, size: 14, color: Colors.white) : null),
-                    ),
-                ]),
-              ] else
-              ...[
-                Wrap(spacing: 6, children: [
-                  TextButton.icon(
-                    onPressed: () async {
-                      final url = await uploadMailImage(context, widget.store);
-                      if (url != null) setState(() => insertAtCursor(_custom, '<img src="$url" alt="" style="max-width:160px;height:auto">'));
-                    },
-                    icon: const Icon(Icons.image_outlined, size: 18),
-                    label: Text(tr('Insérer une image')),
-                  ),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final f = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['html', 'htm', 'txt']);
-                      if (f.isEmpty) return;
-                      final text = utf8.decode(await f.first.readAsBytes(), allowMalformed: true);
-                      final body = RegExp(r'<body[^>]*>([\s\S]*)</body>', caseSensitive: false).firstMatch(text)?.group(1) ?? text;
-                      setState(() => _custom.text = body.trim());
-                    },
-                    icon: const Icon(Icons.file_open_outlined, size: 18),
-                    label: Text(tr('Importer un fichier .html')),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => setState(() => _custom.text = _htmlFromForm()),
-                    icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-                    label: Text(tr('Partir du générateur')),
-                  ),
-                ]),
-                TextField(controller: _custom, minLines: 12, maxLines: 22, style: const TextStyle(fontFamily: 'monospace', fontSize: 12), decoration: InputDecoration(hintText: tr('<table>…</table>')), onChanged: (_) => setState(() {})),
-              ],
-              DropdownButtonFormField<int?>(
-                initialValue: _account,
-                decoration: InputDecoration(labelText: tr('Compte')),
-                items: [DropdownMenuItem(value: null, child: Text(tr('Tous mes comptes'))), for (final a in widget.store.accounts) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['email']}')))],
-                onChanged: (v) => setState(() => _account = v),
-              ),
-              SwitchListTile(contentPadding: EdgeInsets.zero, value: _default, onChanged: (v) => setState(() => _default = v), title: Text(tr('Signature par défaut'))),
-              SwitchListTile(contentPadding: EdgeInsets.zero, value: _onReply, onChanged: (v) => setState(() => _onReply = v), title: Text(tr('Aussi dans les réponses et transferts'))),
-              if (widget.store.canManage && widget.signature == null)
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: _company, onChanged: (v) => setState(() => _company = v), title: Text(tr('Signature de la société (proposée à tous)'))),
-            ]),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr('Aperçu'), style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: YColors.line), borderRadius: BorderRadius.circular(10)),
-                  child: MailHtml(key: ValueKey(_html()), html: '<p style="color:#8792A6">Bonjour,<br>…<br>Cordialement,</p>${_html()}'),
+                SegmentedButton<String>(
+                  segments: [ButtonSegment(value: 'form', label: Text(tr('Générateur'))), ButtonSegment(value: 'html', label: Text(tr('HTML personnalisé')))],
+                  selected: {_mode},
+                  onSelectionChanged: (v) => setState(() => _mode = v.first),
                 ),
-              ),
-            ]),
-          ),
-        ]),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))],
+                if (_mode == 'form') ...[
+                  for (final k in labels.keys)
+                    k == 'logo' || k == 'photo'
+                        ? Row(children: [
+                            if (_c[k]!.text.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8, top: 8),
+                                child: k == 'photo' ? CircleAvatar(radius: 18, foregroundImage: NetworkImage(_c[k]!.text)) : Image.network(_c[k]!.text, height: 32, errorBuilder: (_, _, _) => const Icon(Icons.broken_image)),
+                              ),
+                            Expanded(child: TextField(controller: _c[k], decoration: InputDecoration(labelText: labels[k], hintText: tr('Chargez une image ou collez son adresse')), onChanged: (_) => setState(() {}))),
+                            IconButton(
+                              tooltip: tr('Charger une image'),
+                              icon: const Icon(Icons.upload_outlined),
+                              onPressed: () async {
+                                final url = await uploadMailImage(context, widget.store);
+                                if (url != null) setState(() => _c[k]!.text = url);
+                              },
+                            ),
+                            if (_c[k]!.text.isNotEmpty) IconButton(tooltip: tr('Retirer'), icon: const Icon(Icons.close), onPressed: () => setState(() => _c[k]!.clear())),
+                          ])
+                        : TextField(controller: _c[k], decoration: InputDecoration(labelText: labels[k]), onChanged: (_) => setState(() {})),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, children: [
+                    for (final c in ['#2E6BE6', '#0B1B3A', '#12A150', '#E8A317', '#D81B60', '#5B5FC7'])
+                      InkWell(
+                        onTap: () => setState(() => _color = c),
+                        child: CircleAvatar(radius: 12, backgroundColor: Color(int.parse('FF${c.substring(1)}', radix: 16)), child: _color == c ? const Icon(Icons.check, size: 14, color: Colors.white) : null),
+                      ),
+                  ]),
+                ] else
+                ...[
+                  Wrap(spacing: 6, children: [
+                    TextButton.icon(
+                      onPressed: () async {
+                        final url = await uploadMailImage(context, widget.store);
+                        if (url != null) setState(() => insertAtCursor(_custom, '<img src="$url" alt="" style="max-width:160px;height:auto">'));
+                      },
+                      icon: const Icon(Icons.image_outlined, size: 18),
+                      label: Text(tr('Insérer une image')),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final f = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['html', 'htm', 'txt']);
+                        if (f.isEmpty) return;
+                        final text = utf8.decode(await f.first.readAsBytes(), allowMalformed: true);
+                        final body = RegExp(r'<body[^>]*>([\s\S]*)</body>', caseSensitive: false).firstMatch(text)?.group(1) ?? text;
+                        setState(() => _custom.text = body.trim());
+                      },
+                      icon: const Icon(Icons.file_open_outlined, size: 18),
+                      label: Text(tr('Importer un fichier .html')),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _custom.text = _htmlFromForm()),
+                      icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+                      label: Text(tr('Partir du générateur')),
+                    ),
+                  ]),
+                  TextField(controller: _custom, minLines: 12, maxLines: 22, style: const TextStyle(fontFamily: 'monospace', fontSize: 12), decoration: InputDecoration(hintText: tr('<table>…</table>')), onChanged: (_) => setState(() {})),
+                ],
+                DropdownButtonFormField<int?>(
+                  initialValue: _account,
+                  decoration: InputDecoration(labelText: tr('Compte')),
+                  items: [DropdownMenuItem(value: null, child: Text(tr('Tous mes comptes'))), for (final a in widget.store.accounts) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['email']}')))],
+                  onChanged: (v) => setState(() => _account = v),
+                ),
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: _default, onChanged: (v) => setState(() => _default = v), title: Text(tr('Signature par défaut'))),
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: _onReply, onChanged: (v) => setState(() => _onReply = v), title: Text(tr('Aussi dans les réponses et transferts'))),
+                if (widget.store.canManage && widget.signature == null)
+                  SwitchListTile(contentPadding: EdgeInsets.zero, value: _company, onChanged: (v) => setState(() => _company = v), title: Text(tr('Signature de la société (proposée à tous)'))),
+              ]),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tr('Aperçu'), style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: YColors.line), borderRadius: BorderRadius.circular(10)),
+                    child: MailHtml(key: ValueKey(_html()), html: '<p style="color:#8792A6">Bonjour,<br>…<br>Cordialement,</p>${_html()}'),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+          ]),
+        ),
+      ]),
     );
   }
 }
 
 // ---------------------------------------------------------------------------- paramètres Microsoft 365 / Google (gestionnaire)
 
-Future<void> mailboxSettings(BuildContext context) => showDialog(context: context, builder: (_) => const _Settings());
+Future<void> mailboxSettings(BuildContext context) => showFormDialog(context, title: 'Paramètres de la boîte mail', maxWidth: 688, builder: (_) => const _Settings());
 
 class _Settings extends StatefulWidget {
   const _Settings();
@@ -1049,90 +1057,93 @@ class _SettingsState extends State<_Settings> {
   @override
   Widget build(BuildContext context) {
     final d = _d;
-    return YAlertDialog(
-      title: Text(tr('Paramètres de la boîte mail')),
-      content: SizedBox(
-        width: 640,
-        child: d == null
-            ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
-            : SingleChildScrollView(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                  Row(children: [
-                    const Icon(Icons.window, color: Color(0xFF0F6CBD)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(tr('Microsoft 365 / Outlook'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-                    StatusChip(d['microsoft_ready'] == true ? (d['microsoft_platform'] == true ? 'Prêt (plateforme)' : 'Prêt') : 'À paramétrer', color: d['microsoft_ready'] == true ? YColors.success : YColors.warning),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(
-                    tr('1. Ouvrez portal.azure.com › Microsoft Entra ID › Inscriptions d\'applications › Nouvelle inscription.\n'
-                    '2. Nom : Yomara ERP ; types de comptes : « tous les annuaires et comptes Microsoft personnels ».\n'
-                    '3. URI de redirection (Web) : l\'adresse ci-dessous.\n'
-                    '4. Certificats et secrets › Nouveau secret client : copiez la valeur.\n'
-                    '5. Autorisations d\'API › Microsoft Graph (déléguées) : les autorisations ci-dessous, puis « Accorder le consentement ».'),
-                    style: TextStyle(fontSize: 12.5, height: 1.5),
-                  ),
-                  _copyRow('URI de redirection', '${d['redirect_microsoft']}'),
-                  _copyRow('Autorisations', '${d['ms_scopes']}'),
-                  TextField(controller: _msId, decoration: InputDecoration(labelText: tr('ID d\'application (client)'))),
-                  TextField(controller: _msSecret, obscureText: true, decoration: InputDecoration(labelText: tr('Secret client'))),
-                  TextField(controller: _msTenant, decoration: InputDecoration(labelText: tr('ID d\'annuaire (locataire) — vide = tous les comptes'), hintText: tr('common'))),
-                  const Divider(height: 32),
-                  Row(children: [
-                    const Icon(Icons.mail, color: Color(0xFFEA4335)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(tr('Gmail / Google Workspace'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-                    StatusChip(d['google_ready'] == true ? (d['google_platform'] == true ? 'Prêt (plateforme)' : 'Prêt') : 'À paramétrer', color: d['google_ready'] == true ? YColors.success : YColors.warning),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(
-                    tr('1. console.cloud.google.com › Nouveau projet › API et services : activez Gmail API, Google Calendar API et People API.\n'
-                    '2. Écran de consentement OAuth : type Externe (ou Interne pour Workspace), ajoutez les champs d\'application ci-dessous.\n'
-                    '3. Identifiants › Créer › ID client OAuth › Application Web, avec l\'URI de redirection ci-dessous.'),
-                    style: TextStyle(fontSize: 12.5, height: 1.5),
-                  ),
-                  _copyRow('URI de redirection', '${d['redirect_google']}'),
-                  _copyRow('Champs d\'application', '${d['google_scopes']}'),
-                  TextField(controller: _gId, decoration: InputDecoration(labelText: tr('ID client'))),
-                  TextField(controller: _gSecret, obscureText: true, decoration: InputDecoration(labelText: tr('Code secret du client'))),
-                  const Divider(height: 32),
-                  DropdownButtonFormField<int>(
-                    initialValue: [30, 90, 180, 365, 730].contains(_retention) ? _retention : 90,
-                    decoration: InputDecoration(labelText: tr('Conservation de la copie sur le serveur Yomara')),
-                    items: [
-                      DropdownMenuItem(value: 30, child: Text(tr('30 jours'))), DropdownMenuItem(value: 90, child: Text(tr('3 mois'))), DropdownMenuItem(value: 180, child: Text(tr('6 mois'))),
-                      DropdownMenuItem(value: 365, child: Text(tr('1 an'))), DropdownMenuItem(value: 730, child: Text(tr('2 ans'))),
-                    ],
-                    onChanged: (v) => setState(() => _retention = v ?? 90),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(tr('Les messages restent toujours chez votre fournisseur ; les messages suivis (drapeau) sont gardés.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
-                ]),
-              ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-        FilledButton(
-          onPressed: d == null
-              ? null
-              : () async {
-                  try {
-                    await context.read<Session>().api.put('mailbox/settings', {
-                      'microsoft_client_id': _msId.text.trim(), 'microsoft_tenant': _msTenant.text.trim(), 'google_client_id': _gId.text.trim(), 'retention_days': _retention,
-                      if (!_msSecret.text.startsWith('••')) 'microsoft_client_secret': _msSecret.text.trim(),
-                      if (!_gSecret.text.startsWith('••')) 'google_client_secret': _gSecret.text.trim(),
-                    });
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      toast(context, tr('Paramètres enregistrés.'));
-                    }
-                  } catch (e) {
-                    if (context.mounted) toast(context, errorText(e), error: true);
-                  }
-                },
-          child: Text(tr('Enregistrer')),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        d == null
+      ? const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+      : SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              const Icon(Icons.window, color: Color(0xFF0F6CBD)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(tr('Microsoft 365 / Outlook'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+              StatusChip(d['microsoft_ready'] == true ? (d['microsoft_platform'] == true ? 'Prêt (plateforme)' : 'Prêt') : 'À paramétrer', color: d['microsoft_ready'] == true ? YColors.success : YColors.warning),
+            ]),
+            const SizedBox(height: 6),
+            Text(
+              tr('1. Ouvrez portal.azure.com › Microsoft Entra ID › Inscriptions d\'applications › Nouvelle inscription.\n'
+              '2. Nom : Yomara ERP ; types de comptes : « tous les annuaires et comptes Microsoft personnels ».\n'
+              '3. URI de redirection (Web) : l\'adresse ci-dessous.\n'
+              '4. Certificats et secrets › Nouveau secret client : copiez la valeur.\n'
+              '5. Autorisations d\'API › Microsoft Graph (déléguées) : les autorisations ci-dessous, puis « Accorder le consentement ».'),
+              style: TextStyle(fontSize: 12.5, height: 1.5),
+            ),
+            _copyRow('URI de redirection', '${d['redirect_microsoft']}'),
+            _copyRow('Autorisations', '${d['ms_scopes']}'),
+            TextField(controller: _msId, decoration: InputDecoration(labelText: tr('ID d\'application (client)'))),
+            TextField(controller: _msSecret, obscureText: true, decoration: InputDecoration(labelText: tr('Secret client'))),
+            TextField(controller: _msTenant, decoration: InputDecoration(labelText: tr('ID d\'annuaire (locataire) — vide = tous les comptes'), hintText: tr('common'))),
+            const Divider(height: 32),
+            Row(children: [
+              const Icon(Icons.mail, color: Color(0xFFEA4335)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(tr('Gmail / Google Workspace'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+              StatusChip(d['google_ready'] == true ? (d['google_platform'] == true ? 'Prêt (plateforme)' : 'Prêt') : 'À paramétrer', color: d['google_ready'] == true ? YColors.success : YColors.warning),
+            ]),
+            const SizedBox(height: 6),
+            Text(
+              tr('1. console.cloud.google.com › Nouveau projet › API et services : activez Gmail API, Google Calendar API et People API.\n'
+              '2. Écran de consentement OAuth : type Externe (ou Interne pour Workspace), ajoutez les champs d\'application ci-dessous.\n'
+              '3. Identifiants › Créer › ID client OAuth › Application Web, avec l\'URI de redirection ci-dessous.'),
+              style: TextStyle(fontSize: 12.5, height: 1.5),
+            ),
+            _copyRow('URI de redirection', '${d['redirect_google']}'),
+            _copyRow('Champs d\'application', '${d['google_scopes']}'),
+            TextField(controller: _gId, decoration: InputDecoration(labelText: tr('ID client'))),
+            TextField(controller: _gSecret, obscureText: true, decoration: InputDecoration(labelText: tr('Code secret du client'))),
+            const Divider(height: 32),
+            DropdownButtonFormField<int>(
+              initialValue: [30, 90, 180, 365, 730].contains(_retention) ? _retention : 90,
+              decoration: InputDecoration(labelText: tr('Conservation de la copie sur le serveur Yomara')),
+              items: [
+                DropdownMenuItem(value: 30, child: Text(tr('30 jours'))), DropdownMenuItem(value: 90, child: Text(tr('3 mois'))), DropdownMenuItem(value: 180, child: Text(tr('6 mois'))),
+                DropdownMenuItem(value: 365, child: Text(tr('1 an'))), DropdownMenuItem(value: 730, child: Text(tr('2 ans'))),
+              ],
+              onChanged: (v) => setState(() => _retention = v ?? 90),
+            ),
+            const SizedBox(height: 4),
+            Text(tr('Les messages restent toujours chez votre fournisseur ; les messages suivis (drapeau) sont gardés.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+          ]),
         ),
-      ],
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
+            FilledButton(
+              onPressed: d == null
+                  ? null
+                  : () async {
+                      try {
+                        await context.read<Session>().api.put('mailbox/settings', {
+                          'microsoft_client_id': _msId.text.trim(), 'microsoft_tenant': _msTenant.text.trim(), 'google_client_id': _gId.text.trim(), 'retention_days': _retention,
+                          if (!_msSecret.text.startsWith('••')) 'microsoft_client_secret': _msSecret.text.trim(),
+                          if (!_gSecret.text.startsWith('••')) 'google_client_secret': _gSecret.text.trim(),
+                        });
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          toast(context, tr('Paramètres enregistrés.'));
+                        }
+                      } catch (e) {
+                        if (context.mounted) toast(context, errorText(e), error: true);
+                      }
+                    },
+              child: Text(tr('Enregistrer')),
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 }

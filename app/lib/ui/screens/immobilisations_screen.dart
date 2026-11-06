@@ -926,14 +926,11 @@ class _CategoriesTabState extends State<_CategoriesTab> {
     final years = TextEditingController(text: '${c?['years'] ?? 5}');
     var method = '${c?['method'] ?? 'linear'}';
     var active = c?['active'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => YAlertDialog(
-          title: Text(tr(c == null ? 'Nouvelle catégorie' : 'Catégorie')),
-          content: SizedBox(
-            width: 460,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: c == null ? 'Nouvelle catégorie' : 'Catégorie', builder: (d) => StatefulBuilder(
+        builder: (d, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'))),
               Row(children: [
                 Expanded(child: TextField(controller: gl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Compte (2…)')))),
@@ -956,11 +953,16 @@ class _CategoriesTabState extends State<_CategoriesTab> {
               ]),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
             ]),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || name.text.trim().isEmpty || !context.mounted) return;
     await context.read<SyncEngine>().save('im_categories', {
       'id': c?['id'] ?? newId(),

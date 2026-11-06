@@ -618,83 +618,81 @@ class _ToPayTabState extends State<_ToPayTab> {
       } catch (_) {}
     }
     if (!context.mounted) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
+    final ok = await showFormDialog<bool>(context, title: 'Rembourser ${_who(rows.first)}', builder: (c) => StatefulBuilder(
         builder: (c, set) {
           final sum = rows.where((e) => selected.contains(e['id'])).fold<double>(0, (t, e) => t + toDouble(e['amount']));
-          return YAlertDialog(
-            title: Text(tr('Rembourser ${_who(rows.first)}')),
-            content: SizedBox(
-              width: 500,
-              child: SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  for (final e in rows)
-                    CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      value: selected.contains(e['id']),
-                      onChanged: (v) => set(() => v == true ? selected.add('${e['id']}') : selected.remove(e['id'])),
-                      title: Text(tr('${e['description']}')),
-                      subtitle: Text(tr(dateFr(e['date']))),
-                      secondary: Text(tr(money(e['amount'], cur))),
-                    ),
-                  const Divider(),
-                  Text(tr('Total : ${money(sum, cur)}'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                  const SizedBox(height: 10),
-                  SegmentedButton<String>(
-                    segments: [
-                      if (accounts.isNotEmpty) ButtonSegment(value: 'treasury', label: Text(tr('Caisse / banque')), icon: Icon(Icons.savings_outlined)),
-                      if (accounts.isEmpty) ButtonSegment(value: 'cash', label: Text(tr('Paiement direct')), icon: Icon(Icons.payments_outlined)),
-                      if (runs.isNotEmpty) ButtonSegment(value: 'payroll', label: Text(tr('Sur la paie')), icon: Icon(Icons.receipt_long_outlined)),
-                    ],
-                    selected: {via},
-                    onSelectionChanged: (v) => set(() => via = v.first),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (final e in rows)
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: selected.contains(e['id']),
+                    onChanged: (v) => set(() => v == true ? selected.add('${e['id']}') : selected.remove(e['id'])),
+                    title: Text(tr('${e['description']}')),
+                    subtitle: Text(tr(dateFr(e['date']))),
+                    secondary: Text(tr(money(e['amount'], cur))),
                   ),
-                  const SizedBox(height: 8),
-                  if (via == 'treasury')
-                    DropdownButtonFormField<String>(
-                      initialValue: account,
-                      decoration: InputDecoration(labelText: tr('Payé depuis')),
-                      items: [for (final a in accounts) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}')))],
-                      onChanged: (v) => set(() => account = v),
-                    ),
-                  if (via == 'cash')
-                    DropdownButtonFormField<String>(
-                      initialValue: method,
-                      decoration: InputDecoration(labelText: tr('Mode')),
-                      items: [DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))), DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))), DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement')))],
-                      onChanged: (v) => set(() => method = v!),
-                    ),
-                  if (via != 'payroll')
-                    TextButton.icon(
-                      onPressed: () async {
-                        final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
-                        if (d != null) set(() => date = d);
-                      },
-                      icon: const Icon(Icons.event),
-                      label: Text(tr('Le ${dateFr(isoDate(date))}')),
-                    ),
-                  if (via == 'payroll') ...[
-                    DropdownButtonFormField<int>(
-                      initialValue: runId,
-                      decoration: InputDecoration(labelText: tr('Paie (brouillon)')),
-                      items: [for (final r in runs) DropdownMenuItem(value: r['id'] as int, child: Text(tr('${r['label'] ?? r['period']}')))],
-                      onChanged: (v) => set(() => runId = v),
-                    ),
-                    Text(tr('Ajouté au bulletin hors salaire : ni imposé ni soumis à la CNPS.'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
+                const Divider(),
+                Text(tr('Total : ${money(sum, cur)}'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 10),
+                SegmentedButton<String>(
+                  segments: [
+                    if (accounts.isNotEmpty) ButtonSegment(value: 'treasury', label: Text(tr('Caisse / banque')), icon: Icon(Icons.savings_outlined)),
+                    if (accounts.isEmpty) ButtonSegment(value: 'cash', label: Text(tr('Paiement direct')), icon: Icon(Icons.payments_outlined)),
+                    if (runs.isNotEmpty) ButtonSegment(value: 'payroll', label: Text(tr('Sur la paie')), icon: Icon(Icons.receipt_long_outlined)),
                   ],
+                  selected: {via},
+                  onSelectionChanged: (v) => set(() => via = v.first),
+                ),
+                const SizedBox(height: 8),
+                if (via == 'treasury')
+                  DropdownButtonFormField<String>(
+                    initialValue: account,
+                    decoration: InputDecoration(labelText: tr('Payé depuis')),
+                    items: [for (final a in accounts) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}')))],
+                    onChanged: (v) => set(() => account = v),
+                  ),
+                if (via == 'cash')
+                  DropdownButtonFormField<String>(
+                    initialValue: method,
+                    decoration: InputDecoration(labelText: tr('Mode')),
+                    items: [DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))), DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))), DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement')))],
+                    onChanged: (v) => set(() => method = v!),
+                  ),
+                if (via != 'payroll')
+                  TextButton.icon(
+                    onPressed: () async {
+                      final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                      if (d != null) set(() => date = d);
+                    },
+                    icon: const Icon(Icons.event),
+                    label: Text(tr('Le ${dateFr(isoDate(date))}')),
+                  ),
+                if (via == 'payroll') ...[
+                  DropdownButtonFormField<int>(
+                    initialValue: runId,
+                    decoration: InputDecoration(labelText: tr('Paie (brouillon)')),
+                    items: [for (final r in runs) DropdownMenuItem(value: r['id'] as int, child: Text(tr('${r['label'] ?? r['period']}')))],
+                    onChanged: (v) => set(() => runId = v),
+                  ),
+                  Text(tr('Ajouté au bulletin hors salaire : ni imposé ni soumis à la CNPS.'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
+                ],
+              ]),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                  TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+                  FilledButton(onPressed: selected.isEmpty ? null : () => Navigator.pop(c, true), child: Text(tr('Rembourser'))),
                 ]),
               ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-              FilledButton(onPressed: selected.isEmpty ? null : () => Navigator.pop(c, true), child: Text(tr('Rembourser'))),
-            ],
+            ]),
           );
         },
-      ),
-    );
+      ));
     if (ok != true || !context.mounted) return;
     try {
       final r = await s.api.post('notes_frais/pay', {
@@ -799,25 +797,27 @@ class _CategoriesTabState extends State<_CategoriesTab> {
     final max = TextEditingController(text: c?['max_amount'] == null ? '' : '${toDouble(c!['max_amount']).round()}');
     var receipt = c?['receipt_required'] != false;
     var active = c?['active'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => YAlertDialog(
-          title: Text(tr(c == null ? 'Nouvelle catégorie' : '${c['name']}')),
-          content: SizedBox(
-            width: 420,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: c == null ? 'Nouvelle catégorie' : '${c['name']}', builder: (d) => StatefulBuilder(
+        builder: (d, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'))),
               TextField(controller: gl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Compte de charge'), helperText: tr('618 transport, 6053 carburant, 6383 réceptions, 6384 missions…'))),
               TextField(controller: max, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Plafond par dépense (facultatif)'))),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Justificatif obligatoire')), value: receipt, onChanged: (v) => set(() => receipt = v)),
               SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Active')), value: active, onChanged: (v) => set(() => active = v)),
             ]),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || name.text.trim().isEmpty) return;
     await sync.save('nf_categories', {
       'id': c?['id'] ?? newId(),

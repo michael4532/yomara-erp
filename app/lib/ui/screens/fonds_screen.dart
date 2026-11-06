@@ -302,7 +302,7 @@ class _FundListState extends State<_FundList> {
 
 /// Crée ou modifie un appel de fonds (brouillon, ou demande à compléter).
 Future<Map<String, dynamic>?> editFundRequest(BuildContext context, Map<String, dynamic> meta, Map<String, dynamic>? r) {
-  return showDialog<Map<String, dynamic>>(context: context, builder: (_) => _FundForm(meta: meta, request: r));
+  return showFormDialog<Map<String, dynamic>>(context, title: r == null ? 'Nouvel appel de fonds' : 'Appel de fonds ${r['number'] ?? ''}', maxWidth: 908, builder: (_) => _FundForm(meta: meta, request: r));
 }
 
 class _FundForm extends StatefulWidget {
@@ -515,154 +515,155 @@ class _FundFormState extends State<_FundForm> {
           onSelected: (v) => ctl.text = v,
           fieldViewBuilder: (c, t, f, _) => TextField(controller: t, focusNode: f, onChanged: (v) => ctl.text = v, decoration: InputDecoration(labelText: trn(label))),
         );
-    return YAlertDialog(
-      title: Text(tr(r == null ? 'Nouvel appel de fonds' : 'Appel de fonds ${r!['number'] ?? ''}')),
-      content: SizedBox(
-        width: 860,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (r?['status'] == 'question')
-              Card(color: const Color(0xFF8E44AD).withValues(alpha: .08), child: ListTile(leading: Icon(Icons.help_outline, color: Color(0xFF8E44AD)), title: Text(tr('Complétez la demande puis répondez à la question depuis la fiche.')))),
-            TextField(controller: _title, autofocus: r == null, decoration: InputDecoration(labelText: tr('Objet (ex. Démarrage du chantier de Bingerville)'))),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: deptField(_dept, 'Service demandeur')),
-              const SizedBox(width: 12),
-              Expanded(child: deptField(_to, 'Adressé à (direction, siège)')),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: approvers.any((a) => a['id'] == _approver) ? _approver : null,
-                  decoration: InputDecoration(labelText: tr('Responsable qui décide')),
-                  items: [for (final a in approvers) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['name']}')))],
-                  onChanged: (v) => setState(() => _approver = v),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_needed ?? '') ?? DateTime.now().add(const Duration(days: 7)));
-                    if (d != null) setState(() => _needed = isoDate(d));
-                  },
-                  icon: const Icon(Icons.event, size: 18),
-                  label: Text(tr(_needed == null ? 'Pour quand ?' : 'Pour le ${dateFr(_needed)}')),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'normal', label: Text(tr('Normal'))),
-                  ButtonSegment(value: 'urgent', label: Text(tr('Urgent'))),
-                  ButtonSegment(value: 'very_urgent', label: Text(tr('Très urgent'))),
-                ],
-                selected: {_priority},
-                showSelectedIcon: false,
-                onSelectionChanged: (v) => setState(() => _priority = v.first),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (r?['status'] == 'question')
+            Card(color: const Color(0xFF8E44AD).withValues(alpha: .08), child: ListTile(leading: Icon(Icons.help_outline, color: Color(0xFF8E44AD)), title: Text(tr('Complétez la demande puis répondez à la question depuis la fiche.')))),
+          TextField(controller: _title, autofocus: r == null, decoration: InputDecoration(labelText: tr('Objet (ex. Démarrage du chantier de Bingerville)'))),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: deptField(_dept, 'Service demandeur')),
+            const SizedBox(width: 12),
+            Expanded(child: deptField(_to, 'Adressé à (direction, siège)')),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                initialValue: approvers.any((a) => a['id'] == _approver) ? _approver : null,
+                decoration: InputDecoration(labelText: tr('Responsable qui décide')),
+                items: [for (final a in approvers) DropdownMenuItem(value: a['id'] as int, child: Text(tr('${a['name']}')))],
+                onChanged: (v) => setState(() => _approver = v),
               ),
             ),
-            const SizedBox(height: 8),
-            TextField(controller: _purpose, maxLines: 3, decoration: InputDecoration(labelText: tr('Justification (pourquoi ces moyens, pour quoi faire)'), alignLabelWithHint: true)),
-            if (_show('motive')) ...[
-              const SizedBox(height: 14),
-              _FormSection('Motif de l\'appel de fonds'),
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final m in List<String>.from(_form['motives'] as List? ?? const []))
-                  ChoiceChip(label: Text(tr(m)), selected: _motive == m, onSelected: (v) => setState(() => _motive = v ? m : null)),
-                ChoiceChip(label: Text(tr('Autre')), selected: _motive == 'other', onSelected: (v) => setState(() => _motive = v ? 'other' : null)),
-              ]),
-              if (_motive == 'other') TextField(controller: _motiveOther, decoration: InputDecoration(labelText: tr('Précisez le motif'))),
-            ],
-            if (_show('beneficiary')) ...[
-              const SizedBox(height: 14),
-              _FormSection('Émetteur de la demande / Bénéficiaire'),
-              _pair(TextField(controller: _function, decoration: InputDecoration(labelText: tr('Votre fonction'))), TextField(controller: _project, decoration: InputDecoration(labelText: tr('Projet / activité')))),
-              _pair(TextField(controller: _beneficiary, decoration: InputDecoration(labelText: tr('Bénéficiaire (personne ou fournisseur payé)'))), TextField(controller: _structure, decoration: InputDecoration(labelText: tr('Structure du bénéficiaire')))),
-            ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_needed ?? '') ?? DateTime.now().add(const Duration(days: 7)));
+                  if (d != null) setState(() => _needed = isoDate(d));
+                },
+                icon: const Icon(Icons.event, size: 18),
+                label: Text(tr(_needed == null ? 'Pour quand ?' : 'Pour le ${dateFr(_needed)}')),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<String>(
+              segments: [
+                ButtonSegment(value: 'normal', label: Text(tr('Normal'))),
+                ButtonSegment(value: 'urgent', label: Text(tr('Urgent'))),
+                ButtonSegment(value: 'very_urgent', label: Text(tr('Très urgent'))),
+              ],
+              selected: {_priority},
+              showSelectedIcon: false,
+              onSelectionChanged: (v) => setState(() => _priority = v.first),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(controller: _purpose, maxLines: 3, decoration: InputDecoration(labelText: tr('Justification (pourquoi ces moyens, pour quoi faire)'), alignLabelWithHint: true)),
+          if (_show('motive')) ...[
             const SizedBox(height: 14),
-            Row(children: [
-              Expanded(child: Text(tr('Besoins'), style: TextStyle(fontWeight: FontWeight.w800))),
-              Text(tr('Brut ${money(_gross, cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
+            _FormSection('Motif de l\'appel de fonds'),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final m in List<String>.from(_form['motives'] as List? ?? const []))
+                ChoiceChip(label: Text(tr(m)), selected: _motive == m, onSelected: (v) => setState(() => _motive = v ? m : null)),
+              ChoiceChip(label: Text(tr('Autre')), selected: _motive == 'other', onSelected: (v) => setState(() => _motive = v ? 'other' : null)),
             ]),
-            const SizedBox(height: 6),
-            for (var i = 0; i < _lines.length; i++)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.fromLTRB(10, 6, 2, 8),
-                decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(10)),
-                child: Column(children: [
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Padding(padding: const EdgeInsets.only(top: 14, right: 8), child: Text(i < 9 ? '0${i + 1}' : '${i + 1}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                    Expanded(
-                      child: Column(children: [
-                        TextField(controller: _lines[i].desc, decoration: InputDecoration(isDense: true, hintText: tr('Description de la dépense (ex. Carburant groupe électrogène)'))),
-                        TextField(controller: _lines[i].note, style: const TextStyle(fontSize: 12.5), decoration: InputDecoration(isDense: true, hintText: tr('Précision (facultatif)'))),
-                      ]),
-                    ),
-                    IconButton(onPressed: _lines.length > 1 ? () => setState(() => _lines.removeAt(i)) : null, icon: const Icon(Icons.close, size: 18)),
-                  ]),
-                  const SizedBox(height: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, alignment: WrapAlignment.end, children: [
-                      SizedBox(
-                        width: 170,
-                        child: DropdownButtonFormField<String>(
-                          isDense: true,
-                          initialValue: _lines[i].type,
-                          items: [for (final t in types.entries) DropdownMenuItem(value: t.key, child: Text(tr('${t.value}'), overflow: TextOverflow.ellipsis))],
-                          onChanged: (v) => setState(() => _lines[i].type = v ?? 'funds'),
-                        ),
-                      ),
-                      SizedBox(width: 80, child: TextField(controller: _lines[i].qty, inputFormatters: fmt, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Qté')), onChanged: (_) => setState(() {}))),
-                      SizedBox(width: 140, child: TextField(controller: _lines[i].unit, inputFormatters: fmt, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Prix unitaire')), onChanged: (_) => setState(() {}))),
-                      SizedBox(width: 130, child: Text(tr(money(toDouble(_lines[i].qty.text) * toDouble(_lines[i].unit.text), cur)), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700))),
+            if (_motive == 'other') TextField(controller: _motiveOther, decoration: InputDecoration(labelText: tr('Précisez le motif'))),
+          ],
+          if (_show('beneficiary')) ...[
+            const SizedBox(height: 14),
+            _FormSection('Émetteur de la demande / Bénéficiaire'),
+            _pair(TextField(controller: _function, decoration: InputDecoration(labelText: tr('Votre fonction'))), TextField(controller: _project, decoration: InputDecoration(labelText: tr('Projet / activité')))),
+            _pair(TextField(controller: _beneficiary, decoration: InputDecoration(labelText: tr('Bénéficiaire (personne ou fournisseur payé)'))), TextField(controller: _structure, decoration: InputDecoration(labelText: tr('Structure du bénéficiaire')))),
+          ],
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: Text(tr('Besoins'), style: TextStyle(fontWeight: FontWeight.w800))),
+            Text(tr('Brut ${money(_gross, cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
+          ]),
+          const SizedBox(height: 6),
+          for (var i = 0; i < _lines.length; i++)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.fromLTRB(10, 6, 2, 8),
+              decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(10)),
+              child: Column(children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Padding(padding: const EdgeInsets.only(top: 14, right: 8), child: Text(i < 9 ? '0${i + 1}' : '${i + 1}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                    child: Column(children: [
+                      TextField(controller: _lines[i].desc, decoration: InputDecoration(isDense: true, hintText: tr('Description de la dépense (ex. Carburant groupe électrogène)'))),
+                      TextField(controller: _lines[i].note, style: const TextStyle(fontSize: 12.5), decoration: InputDecoration(isDense: true, hintText: tr('Précision (facultatif)'))),
                     ]),
                   ),
+                  IconButton(onPressed: _lines.length > 1 ? () => setState(() => _lines.removeAt(i)) : null, icon: const Icon(Icons.close, size: 18)),
                 ]),
-              ),
-            Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _lines.add(_FundLineCtl())), icon: const Icon(Icons.add, size: 18), label: Text(tr('Ajouter un besoin')))),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, alignment: WrapAlignment.end, children: [
+                    SizedBox(
+                      width: 170,
+                      child: DropdownButtonFormField<String>(
+                        isDense: true,
+                        initialValue: _lines[i].type,
+                        items: [for (final t in types.entries) DropdownMenuItem(value: t.key, child: Text(tr('${t.value}'), overflow: TextOverflow.ellipsis))],
+                        onChanged: (v) => setState(() => _lines[i].type = v ?? 'funds'),
+                      ),
+                    ),
+                    SizedBox(width: 80, child: TextField(controller: _lines[i].qty, inputFormatters: fmt, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Qté')), onChanged: (_) => setState(() {}))),
+                    SizedBox(width: 140, child: TextField(controller: _lines[i].unit, inputFormatters: fmt, textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Prix unitaire')), onChanged: (_) => setState(() {}))),
+                    SizedBox(width: 130, child: Text(tr(money(toDouble(_lines[i].qty.text) * toDouble(_lines[i].unit.text), cur)), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700))),
+                  ]),
+                ),
+              ]),
+            ),
+          Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _lines.add(_FundLineCtl())), icon: const Icon(Icons.add, size: 18), label: Text(tr('Ajouter un besoin')))),
+          const SizedBox(height: 6),
+          _amountsCard(cur, fmt),
+          if (_show('payment')) ...[
+            const SizedBox(height: 14),
+            _FormSection('Modalités de paiement'),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final m in List<String>.from(_form['payment_methods'] as List? ?? const []))
+                ChoiceChip(label: Text(tr(m)), selected: _payment == m, onSelected: (v) => setState(() => _payment = v ? m : null)),
+              ChoiceChip(label: Text(tr('Autre')), selected: _payment == 'other', onSelected: (v) => setState(() => _payment = v ? 'other' : null)),
+            ]),
+            if (_payment == 'other') TextField(controller: _paymentOther, decoration: InputDecoration(labelText: tr('Précisez le mode de paiement'))),
+            const SizedBox(height: 10),
+            Text(tr('Pièces jointes'), style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            _amountsCard(cur, fmt),
-            if (_show('payment')) ...[
-              const SizedBox(height: 14),
-              _FormSection('Modalités de paiement'),
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final m in List<String>.from(_form['payment_methods'] as List? ?? const []))
-                  ChoiceChip(label: Text(tr(m)), selected: _payment == m, onSelected: (v) => setState(() => _payment = v ? m : null)),
-                ChoiceChip(label: Text(tr('Autre')), selected: _payment == 'other', onSelected: (v) => setState(() => _payment = v ? 'other' : null)),
-              ]),
-              if (_payment == 'other') TextField(controller: _paymentOther, decoration: InputDecoration(labelText: tr('Précisez le mode de paiement'))),
-              const SizedBox(height: 10),
-              Text(tr('Pièces jointes'), style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              Wrap(spacing: 6, runSpacing: 6, children: [
-                for (final a in List<String>.from(_form['attachments'] as List? ?? const []))
-                  FilterChip(label: Text(tr(a)), selected: _attachments.contains(a), onSelected: (v) => setState(() => v ? _attachments.add(a) : _attachments.remove(a))),
-              ]),
-              TextField(controller: _attachmentsOther, decoration: InputDecoration(labelText: tr('Autre pièce (facultatif)'))),
-            ],
-            if (_show('remarks')) ...[
-              const SizedBox(height: 14),
-              TextField(controller: _remarks, maxLines: 2, decoration: InputDecoration(labelText: tr('Remarques / suggestions'), alignLabelWithHint: true)),
-            ],
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final a in List<String>.from(_form['attachments'] as List? ?? const []))
+                FilterChip(label: Text(tr(a)), selected: _attachments.contains(a), onSelected: (v) => setState(() => v ? _attachments.add(a) : _attachments.remove(a))),
+            ]),
+            TextField(controller: _attachmentsOther, decoration: InputDecoration(labelText: tr('Autre pièce (facultatif)'))),
+          ],
+          if (_show('remarks')) ...[
+            const SizedBox(height: 14),
+            TextField(controller: _remarks, maxLines: 2, decoration: InputDecoration(labelText: tr('Remarques / suggestions'), alignLabelWithHint: true)),
+          ],
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            if (r == null || r!['status'] == 'draft') OutlinedButton(onPressed: _busy ? null : () => _save(), child: Text(tr('Enregistrer le brouillon'))),
+            FilledButton.icon(
+              onPressed: _busy ? null : () => _save(submit: r == null || r!['status'] == 'draft'),
+              icon: Icon(r?['status'] == 'question' ? Icons.save_outlined : Icons.send, size: 18),
+              label: Text(tr(r?['status'] == 'question' ? 'Enregistrer' : 'Envoyer au responsable')),
+            ),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        if (r == null || r!['status'] == 'draft') OutlinedButton(onPressed: _busy ? null : () => _save(), child: Text(tr('Enregistrer le brouillon'))),
-        FilledButton.icon(
-          onPressed: _busy ? null : () => _save(submit: r == null || r!['status'] == 'draft'),
-          icon: Icon(r?['status'] == 'question' ? Icons.save_outlined : Icons.send, size: 18),
-          label: Text(tr(r?['status'] == 'question' ? 'Enregistrer' : 'Envoyer au responsable')),
-        ),
-      ],
+      ]),
     );
   }
 }
@@ -750,51 +751,51 @@ class _FundDetailState extends State<_FundDetail> {
     final note = TextEditingController();
     int? provider = providers.isNotEmpty ? providers.first['id'] as int : null;
     final cur = context.read<Session>().currency;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Approuver l\'appel de fonds')),
-          content: SizedBox(
-            width: 720,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text(tr('Montants accordés (modifiez pour accorder moins) :'), style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                for (final l in lines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(children: [
-                      Expanded(child: Text(tr('${l['description']}\ndemandé : ${_num(toDouble(l['quantity']))} × ${money(toDouble(l['unit_amount']), cur)} = ${money(toDouble(l['amount']), cur)}'), style: const TextStyle(fontSize: 13))),
-                      SizedBox(
-                        width: 80,
-                        child: TextField(
-                          controller: qty[l['id']],
-                          textAlign: TextAlign.right,
-                          decoration: InputDecoration(isDense: true, labelText: tr('Qté')),
-                          onChanged: (v) => amt[l['id']]!.text = '${(toDouble(v) * toDouble(l['unit_amount'])).round()}',
-                        ),
+    final ok = await showFormDialog<bool>(context, title: 'Approuver l\'appel de fonds', maxWidth: 768, builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(tr('Montants accordés (modifiez pour accorder moins) :'), style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              for (final l in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    Expanded(child: Text(tr('${l['description']}\ndemandé : ${_num(toDouble(l['quantity']))} × ${money(toDouble(l['unit_amount']), cur)} = ${money(toDouble(l['amount']), cur)}'), style: const TextStyle(fontSize: 13))),
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        controller: qty[l['id']],
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(isDense: true, labelText: tr('Qté')),
+                        onChanged: (v) => amt[l['id']]!.text = '${(toDouble(v) * toDouble(l['unit_amount'])).round()}',
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(width: 130, child: TextField(controller: amt[l['id']], textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Montant accordé')))),
-                    ]),
-                  ),
-                const Divider(),
-                DropdownButtonFormField<int>(
-                  initialValue: provider,
-                  decoration: InputDecoration(labelText: tr('Personne chargée de mettre à disposition')),
-                  items: [for (final p in providers) DropdownMenuItem(value: p['id'] as int, child: Text(tr('${p['name']}')))],
-                  onChanged: (v) => set(() => provider = v),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 130, child: TextField(controller: amt[l['id']], textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Montant accordé')))),
+                  ]),
                 ),
-                TextField(controller: dept, decoration: InputDecoration(labelText: tr('Service qui fournit (ex. Direction financière, Logistique)'))),
-                TextField(controller: note, maxLines: 2, decoration: InputDecoration(labelText: tr('Commentaire (facultatif)'))),
+              const Divider(),
+              DropdownButtonFormField<int>(
+                initialValue: provider,
+                decoration: InputDecoration(labelText: tr('Personne chargée de mettre à disposition')),
+                items: [for (final p in providers) DropdownMenuItem(value: p['id'] as int, child: Text(tr('${p['name']}')))],
+                onChanged: (v) => set(() => provider = v),
+              ),
+              TextField(controller: dept, decoration: InputDecoration(labelText: tr('Service qui fournit (ex. Direction financière, Logistique)'))),
+              TextField(controller: note, maxLines: 2, decoration: InputDecoration(labelText: tr('Commentaire (facultatif)'))),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Approuver'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Approuver')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true) return;
     await _act('approve', {
       'lines': [for (final l in lines) {'id': l['id'], 'approved_quantity': toDouble(qty[l['id']]!.text), 'approved_amount': toDouble(amt[l['id']]!.text)}],
@@ -814,61 +815,61 @@ class _FundDetailState extends State<_FundDetail> {
     final ref = TextEditingController();
     final note = TextEditingController();
     final cur = context.read<Session>().currency;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Mise à disposition')),
-          content: SizedBox(
-            width: 640,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                for (final l in lines)
-                  Row(children: [
-                    Checkbox(value: pick[l['id']], onChanged: (v) => set(() => pick[l['id'] as int] = v ?? false)),
-                    Expanded(child: Text(tr('${l['description']}'), overflow: TextOverflow.ellipsis)),
-                    SizedBox(width: 140, child: TextField(controller: amt[l['id']], enabled: pick[l['id']], textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Montant')))),
-                  ]),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: method,
-                  decoration: InputDecoration(labelText: tr('Moyen')),
-                  items: [for (final m in methods.entries) DropdownMenuItem(value: m.key, child: Text(tr('${m.value}')))],
-                  onChanged: (v) => set(() => method = v ?? 'other'),
-                ),
-                if (treasury.isNotEmpty && ['bank_transfer', 'cash', 'mobile_money', 'cheque'].contains(method)) ...[
-                  Row(children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: src,
-                        decoration: InputDecoration(labelText: tr('Depuis le compte (siège)')),
-                        items: [for (final a in treasury) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}'), overflow: TextOverflow.ellipsis))],
-                        onChanged: (v) => set(() => src = v),
-                      ),
+    final ok = await showFormDialog<bool>(context, title: 'Mise à disposition', maxWidth: 688, builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              for (final l in lines)
+                Row(children: [
+                  Checkbox(value: pick[l['id']], onChanged: (v) => set(() => pick[l['id'] as int] = v ?? false)),
+                  Expanded(child: Text(tr('${l['description']}'), overflow: TextOverflow.ellipsis)),
+                  SizedBox(width: 140, child: TextField(controller: amt[l['id']], enabled: pick[l['id']], textAlign: TextAlign.right, decoration: InputDecoration(isDense: true, labelText: tr('Montant')))),
+                ]),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: InputDecoration(labelText: tr('Moyen')),
+                items: [for (final m in methods.entries) DropdownMenuItem(value: m.key, child: Text(tr('${m.value}')))],
+                onChanged: (v) => set(() => method = v ?? 'other'),
+              ),
+              if (treasury.isNotEmpty && ['bank_transfer', 'cash', 'mobile_money', 'cheque'].contains(method)) ...[
+                Row(children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: src,
+                      decoration: InputDecoration(labelText: tr('Depuis le compte (siège)')),
+                      items: [for (final a in treasury) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}'), overflow: TextOverflow.ellipsis))],
+                      onChanged: (v) => set(() => src = v),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: dst,
-                        decoration: InputDecoration(labelText: tr('Vers le compte (service)')),
-                        items: [for (final a in treasury) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}'), overflow: TextOverflow.ellipsis))],
-                        onChanged: (v) => set(() => dst = v),
-                      ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: dst,
+                      decoration: InputDecoration(labelText: tr('Vers le compte (service)')),
+                      items: [for (final a in treasury) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}'), overflow: TextOverflow.ellipsis))],
+                      onChanged: (v) => set(() => dst = v),
                     ),
-                  ]),
-                  Text(tr('Avec les deux comptes, un virement interne est enregistré en trésorerie (et en comptabilité).'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
-                ],
-                TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence (n° de virement, bon de sortie…)'))),
-                TextField(controller: note, decoration: InputDecoration(labelText: tr('Commentaire (facultatif)'))),
-                const SizedBox(height: 8),
-                Text(tr('Total : ${money(lines.where((l) => pick[l['id']] == true).fold<double>(0, (s, l) => s + toDouble(amt[l['id']]!.text)), cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ]),
+                Text(tr('Avec les deux comptes, un virement interne est enregistré en trésorerie (et en comptabilité).'), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
+              ],
+              TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence (n° de virement, bon de sortie…)'))),
+              TextField(controller: note, decoration: InputDecoration(labelText: tr('Commentaire (facultatif)'))),
+              const SizedBox(height: 8),
+              Text(tr('Total : ${money(lines.where((l) => pick[l['id']] == true).fold<double>(0, (s, l) => s + toDouble(amt[l['id']]!.text)), cur)}'), style: const TextStyle(fontWeight: FontWeight.w800)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true) return;
     await _act('provide', {
       'items': [

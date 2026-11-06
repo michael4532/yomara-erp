@@ -448,78 +448,78 @@ class _CaseDetailState extends State<_CaseDetail> {
     final treasuryList = List<Map>.from(_meta?['treasury'] as List? ?? const []);
     final title = '${(_meta?['actions'] as Map?)?[type] ?? type}';
     final fmt = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))];
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dc) => StatefulBuilder(builder: (dc, set) {
+    final ok = await showFormDialog<bool>(context, title: title, builder: (dc) => StatefulBuilder(builder: (dc, set) {
         Future<void> pickDate(void Function(String) on, String? init) async {
           final d = await showDatePicker(context: dc, firstDate: DateTime(2024), lastDate: DateTime(2100), initialDate: DateTime.tryParse(init ?? '') ?? DateTime.now());
           if (d != null) set(() => on(isoDate(d)));
         }
 
-        return YAlertDialog(
-          title: Text(tr(title)),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                if (type == 'promise' || type == 'payment' || type == 'fees' || type == 'bailiff')
-                  TextField(controller: amount, inputFormatters: fmt, decoration: InputDecoration(labelText: trn(type == 'bailiff' ? 'Frais d\'huissier (facultatif)' : type == 'promise' ? 'Montant promis' : 'Montant'), suffixText: trn(cur == 'XOF' ? 'F CFA' : cur))),
-                if (type == 'promise') OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Payé au plus tard le ${dateFr(date)}'))),
-                if (type == 'payment') ...[
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (type == 'promise' || type == 'payment' || type == 'fees' || type == 'bailiff')
+                TextField(controller: amount, inputFormatters: fmt, decoration: InputDecoration(labelText: trn(type == 'bailiff' ? 'Frais d\'huissier (facultatif)' : type == 'promise' ? 'Montant promis' : 'Montant'), suffixText: trn(cur == 'XOF' ? 'F CFA' : cur))),
+              if (type == 'promise') OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Payé au plus tard le ${dateFr(date)}'))),
+              if (type == 'payment') ...[
+                DropdownButtonFormField<String>(
+                  initialValue: method,
+                  decoration: InputDecoration(labelText: tr('Moyen de paiement')),
+                  items: [
+                    DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))),
+                    DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))),
+                    DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement'))),
+                    DropdownMenuItem(value: 'cheque', child: Text(tr('Chèque'))),
+                    DropdownMenuItem(value: 'other', child: Text(tr('Autre'))),
+                  ],
+                  onChanged: (v) => set(() => method = v ?? 'cash'),
+                ),
+                if (treasuryList.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    initialValue: method,
-                    decoration: InputDecoration(labelText: tr('Moyen de paiement')),
-                    items: [
-                      DropdownMenuItem(value: 'mobile_money', child: Text(tr('Mobile Money'))),
-                      DropdownMenuItem(value: 'cash', child: Text(tr('Espèces'))),
-                      DropdownMenuItem(value: 'bank_transfer', child: Text(tr('Virement'))),
-                      DropdownMenuItem(value: 'cheque', child: Text(tr('Chèque'))),
-                      DropdownMenuItem(value: 'other', child: Text(tr('Autre'))),
-                    ],
-                    onChanged: (v) => set(() => method = v ?? 'cash'),
+                    initialValue: treasury,
+                    decoration: InputDecoration(labelText: tr('Encaissé sur le compte')),
+                    items: [for (final a in treasuryList) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}')))],
+                    onChanged: (v) => set(() => treasury = v),
                   ),
-                  if (treasuryList.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      initialValue: treasury,
-                      decoration: InputDecoration(labelText: tr('Encaissé sur le compte')),
-                      items: [for (final a in treasuryList) DropdownMenuItem(value: '${a['id']}', child: Text(tr('${a['name']}')))],
-                      onChanged: (v) => set(() => treasury = v),
+                TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence (n° de transaction, de chèque…)'))),
+                Text(tr('Le paiement est enregistré dans les Ventes sur les factures les plus anciennes du dossier.'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
+              ],
+              if (type == 'plan') ...[
+                Text(tr('Reste à recouvrer : ${money(toDouble(c['balance']), cur)}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                Row(children: [
+                  Expanded(child: TextField(controller: count, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Nombre d\'échéances')))),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: every,
+                      decoration: InputDecoration(labelText: tr('Fréquence')),
+                      items: [DropdownMenuItem(value: 'month', child: Text(tr('Mensuelle'))), DropdownMenuItem(value: 'week', child: Text(tr('Hebdomadaire')))],
+                      onChanged: (v) => set(() => every = v ?? 'month'),
                     ),
-                  TextField(controller: ref, decoration: InputDecoration(labelText: tr('Référence (n° de transaction, de chèque…)'))),
-                  Text(tr('Le paiement est enregistré dans les Ventes sur les factures les plus anciennes du dossier.'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
-                ],
-                if (type == 'plan') ...[
-                  Text(tr('Reste à recouvrer : ${money(toDouble(c['balance']), cur)}'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Row(children: [
-                    Expanded(child: TextField(controller: count, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Nombre d\'échéances')))),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: every,
-                        decoration: InputDecoration(labelText: tr('Fréquence')),
-                        items: [DropdownMenuItem(value: 'month', child: Text(tr('Mensuelle'))), DropdownMenuItem(value: 'week', child: Text(tr('Hebdomadaire')))],
-                        onChanged: (v) => set(() => every = v ?? 'month'),
-                      ),
-                    ),
-                  ]),
-                  OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Première échéance le ${dateFr(date)}'))),
-                ],
-                if (type == 'notice') ...[
-                  TextField(controller: days, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai accordé (jours)'))),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Envoyer par e-mail${c['email'] != null ? ' à ${c['email']}' : ' (aucun e-mail sur la fiche client)'}')), value: send, onChanged: c['email'] == null ? null : (v) => set(() => send = v)),
-                  Text(tr('Imprimez aussi la lettre (bouton PDF) pour l\'envoi en recommandé.'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
-                ],
-                if (type == 'bailiff') TextField(controller: bailiff, decoration: InputDecoration(labelText: tr('Huissier (étude, nom, ville)'))),
-                TextField(controller: body, maxLines: 3, decoration: InputDecoration(labelText: trn(['call', 'visit', 'email', 'sms', 'whatsapp', 'letter', 'note'].contains(type) ? 'Ce qui s\'est dit / résultat' : type == 'write_off' ? 'Raison du passage en perte' : 'Commentaire'))),
-                if (!['payment', 'write_off'].contains(type))
-                  OutlinedButton.icon(onPressed: () => pickDate((v) => next = v, next), icon: const Icon(Icons.event_repeat, size: 18), label: Text(tr(next == null ? 'Prochaine action le… (facultatif)' : 'Prochaine action le ${dateFr(next)}'))),
+                  ),
+                ]),
+                OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Première échéance le ${dateFr(date)}'))),
+              ],
+              if (type == 'notice') ...[
+                TextField(controller: days, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai accordé (jours)'))),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Envoyer par e-mail${c['email'] != null ? ' à ${c['email']}' : ' (aucun e-mail sur la fiche client)'}')), value: send, onChanged: c['email'] == null ? null : (v) => set(() => send = v)),
+                Text(tr('Imprimez aussi la lettre (bouton PDF) pour l\'envoi en recommandé.'), style: TextStyle(fontSize: 12, color: Theme.of(dc).hintColor)),
+              ],
+              if (type == 'bailiff') TextField(controller: bailiff, decoration: InputDecoration(labelText: tr('Huissier (étude, nom, ville)'))),
+              TextField(controller: body, maxLines: 3, decoration: InputDecoration(labelText: trn(['call', 'visit', 'email', 'sms', 'whatsapp', 'letter', 'note'].contains(type) ? 'Ce qui s\'est dit / résultat' : type == 'write_off' ? 'Raison du passage en perte' : 'Commentaire'))),
+              if (!['payment', 'write_off'].contains(type))
+                OutlinedButton.icon(onPressed: () => pickDate((v) => next = v, next), icon: const Icon(Icons.event_repeat, size: 18), label: Text(tr(next == null ? 'Prochaine action le… (facultatif)' : 'Prochaine action le ${dateFr(next)}'))),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(tr('Enregistrer')))],
+          ]),
         );
-      }),
-    );
+      }));
     if (ok != true) return;
     await _post('actions/$type', {
       if (body.text.trim().isNotEmpty) 'body': body.text.trim(),

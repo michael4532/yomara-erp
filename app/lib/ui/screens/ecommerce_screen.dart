@@ -122,7 +122,7 @@ class _EcommerceScreenState extends State<EcommerceScreen> with SingleTickerProv
   }
 
   Future<void> _newOrder(Map<String, dynamic> ov) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => _NewOrderDialog(ov: ov));
+    final ok = await showFormDialog<bool>(context, title: 'Nouvelle commande', builder: (_) => _NewOrderDialog(ov: ov));
     if (ok == true) {
       await _refreshAll();
       if (mounted) toast(context, tr('Commande enregistrée : elle est dans les Ventes et le stock est réservé.'));
@@ -719,94 +719,95 @@ class _NewOrderDialogState extends State<_NewOrderDialog> {
     final byId = {for (final p in _products) '${p['id']}': p};
     final subtotal = _items.entries.fold<double>(0, (a, e) => a + (byId[e.key] == null ? 0 : _ttc(byId[e.key]!) * e.value));
     final fee = _delivery == 'pickup' ? 0.0 : toDouble(zones.firstWhere((z) => z['name'] == _delivery, orElse: () => {})['fee']);
-    return YAlertDialog(
-      title: Text(tr('Nouvelle commande')),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Wrap(spacing: 6, runSpacing: 6, children: [
-              for (final e in channels.entries)
-                ChoiceChip(avatar: Icon(_channelIcons[e.key], size: 16), label: Text(tr('${e.value}')), selected: _channel == e.key, onSelected: (_) => setState(() => _channel = e.key)),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: TextField(controller: _name, decoration: InputDecoration(labelText: tr('Client *')))),
-              const SizedBox(width: 12),
-              Expanded(child: TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone *')))),
-            ]),
-            const SizedBox(height: 12),
-            Autocomplete<Map<String, dynamic>>(
-              displayStringForOption: (p) => '${p['name']}',
-              optionsBuilder: (v) => v.text.trim().isEmpty
-                  ? const Iterable.empty()
-                  : _products.where((p) => '${p['name']} ${p['sku'] ?? ''} ${p['barcode'] ?? ''}'.toLowerCase().contains(v.text.trim().toLowerCase())).take(12),
-              onSelected: (p) => setState(() => _items['${p['id']}'] = (_items['${p['id']}'] ?? 0) + 1),
-              fieldViewBuilder: (c, ctl, focus, submit) => TextField(
-                controller: ctl,
-                focusNode: focus,
-                decoration: InputDecoration(labelText: tr('Ajouter un article'), prefixIcon: Icon(Icons.search)),
-                onSubmitted: (_) {
-                  submit();
-                  ctl.clear();
-                },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final e in channels.entries)
+              ChoiceChip(avatar: Icon(_channelIcons[e.key], size: 16), label: Text(tr('${e.value}')), selected: _channel == e.key, onSelected: (_) => setState(() => _channel = e.key)),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: TextField(controller: _name, decoration: InputDecoration(labelText: tr('Client *')))),
+            const SizedBox(width: 12),
+            Expanded(child: TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone *')))),
+          ]),
+          const SizedBox(height: 12),
+          Autocomplete<Map<String, dynamic>>(
+            displayStringForOption: (p) => '${p['name']}',
+            optionsBuilder: (v) => v.text.trim().isEmpty
+                ? const Iterable.empty()
+                : _products.where((p) => '${p['name']} ${p['sku'] ?? ''} ${p['barcode'] ?? ''}'.toLowerCase().contains(v.text.trim().toLowerCase())).take(12),
+            onSelected: (p) => setState(() => _items['${p['id']}'] = (_items['${p['id']}'] ?? 0) + 1),
+            fieldViewBuilder: (c, ctl, focus, submit) => TextField(
+              controller: ctl,
+              focusNode: focus,
+              decoration: InputDecoration(labelText: tr('Ajouter un article'), prefixIcon: Icon(Icons.search)),
+              onSubmitted: (_) {
+                submit();
+                ctl.clear();
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final e in _items.entries)
+            if (byId[e.key] != null)
+              Row(children: [
+                Expanded(child: Text(tr('${byId[e.key]!['name']}'))),
+                IconButton(onPressed: () => setState(() => e.value <= 1 ? _items.remove(e.key) : _items[e.key] = e.value - 1), icon: const Icon(Icons.remove_circle_outline, size: 20)),
+                Text(tr('${e.value}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                IconButton(onPressed: () => setState(() => _items[e.key] = e.value + 1), icon: const Icon(Icons.add_circle_outline, size: 20)),
+                SizedBox(width: 110, child: Text(tr(money(_ttc(byId[e.key]!) * e.value, cur)), textAlign: TextAlign.right)),
+              ]),
+          if (_items.isEmpty) Text(tr('Aucun article.'), style: TextStyle(color: Theme.of(context).hintColor)),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _delivery,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('Livraison')),
+                items: [
+                  if (widget.ov['pickup'] == true) DropdownMenuItem(value: 'pickup', child: Text(tr('Retrait en boutique'))),
+                  for (final z in zones) DropdownMenuItem(value: '${z['name']}', child: Text(tr('${z['name']} (${money(toDouble(z['fee']), cur)})'))),
+                ],
+                onChanged: (v) => setState(() => _delivery = v ?? _delivery),
               ),
             ),
-            const SizedBox(height: 8),
-            for (final e in _items.entries)
-              if (byId[e.key] != null)
-                Row(children: [
-                  Expanded(child: Text(tr('${byId[e.key]!['name']}'))),
-                  IconButton(onPressed: () => setState(() => e.value <= 1 ? _items.remove(e.key) : _items[e.key] = e.value - 1), icon: const Icon(Icons.remove_circle_outline, size: 20)),
-                  Text(tr('${e.value}'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                  IconButton(onPressed: () => setState(() => _items[e.key] = e.value + 1), icon: const Icon(Icons.add_circle_outline, size: 20)),
-                  SizedBox(width: 110, child: Text(tr(money(_ttc(byId[e.key]!) * e.value, cur)), textAlign: TextAlign.right)),
-                ]),
-            if (_items.isEmpty) Text(tr('Aucun article.'), style: TextStyle(color: Theme.of(context).hintColor)),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _delivery,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Livraison')),
-                  items: [
-                    if (widget.ov['pickup'] == true) DropdownMenuItem(value: 'pickup', child: Text(tr('Retrait en boutique'))),
-                    for (final z in zones) DropdownMenuItem(value: '${z['name']}', child: Text(tr('${z['name']} (${money(toDouble(z['fee']), cur)})'))),
-                  ],
-                  onChanged: (v) => setState(() => _delivery = v ?? _delivery),
-                ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: payments.containsKey(_payment) ? _payment : null,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('Paiement')),
+                items: [for (final e in payments.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}'), overflow: TextOverflow.ellipsis))],
+                onChanged: (v) => setState(() => _payment = v ?? _payment),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: payments.containsKey(_payment) ? _payment : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Paiement')),
-                  items: [for (final e in payments.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}'), overflow: TextOverflow.ellipsis))],
-                  onChanged: (v) => setState(() => _payment = v ?? _payment),
-                ),
-              ),
-            ]),
-            if (_delivery != 'pickup') ...[
-              const SizedBox(height: 8),
-              TextField(controller: _address, decoration: InputDecoration(labelText: tr('Adresse de livraison *'))),
-            ],
+            ),
+          ]),
+          if (_delivery != 'pickup') ...[
             const SizedBox(height: 8),
-            TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
-            CheckboxListTile(contentPadding: EdgeInsets.zero, value: _confirm, onChanged: (v) => setState(() => _confirm = v ?? true), title: Text(tr('Confirmer la commande au client'))),
-            const Divider(),
-            Row(children: [
-              Expanded(child: Text(tr('Total TTC'), style: TextStyle(fontWeight: FontWeight.w700))),
-              Text(tr(money(subtotal + fee, cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-            ]),
+            TextField(controller: _address, decoration: InputDecoration(labelText: tr('Adresse de livraison *'))),
+          ],
+          const SizedBox(height: 8),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
+          CheckboxListTile(contentPadding: EdgeInsets.zero, value: _confirm, onChanged: (v) => setState(() => _confirm = v ?? true), title: Text(tr('Confirmer la commande au client'))),
+          const Divider(),
+          Row(children: [
+            Expanded(child: Text(tr('Total TTC'), style: TextStyle(fontWeight: FontWeight.w700))),
+            Text(tr(money(subtotal + fee, cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          ]),
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Annuler'))),
+            FilledButton(onPressed: _busy || _items.isEmpty ? null : _save, child: Text(tr('Enregistrer la commande'))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Annuler'))),
-        FilledButton(onPressed: _busy || _items.isEmpty ? null : _save, child: Text(tr('Enregistrer la commande'))),
-      ],
+      ]),
     );
   }
 }

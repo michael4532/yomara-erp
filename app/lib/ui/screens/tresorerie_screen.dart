@@ -296,58 +296,58 @@ Future<void> editAccount(BuildContext context, [Map<String, dynamic>? a]) async 
   var date = DateTime.tryParse('${a?['opening_date'] ?? ''}') ?? DateTime(DateTime.now().year, 1, 1);
   final methods = <String>{...((a?['methods'] as List?) ?? (kind == 'bank' ? ['bank_transfer', 'card', 'cheque'] : [])).map((e) => '$e')};
   var active = a?['active'] != false;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr(a == null ? 'Nouveau compte' : '${a['name']}')),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (a == null)
-                SegmentedButton<String>(
-                  segments: [for (final e in trKinds.entries) ButtonSegment(value: e.key, label: Text(tr(e.value)), icon: Icon(trKindIcons[e.key]))],
-                  selected: {kind},
-                  onSelectionChanged: (v) => set(() {
-                    kind = v.first;
-                    methods
-                      ..clear()
-                      ..addAll(switch (kind) { 'cash' => ['cash'], 'mobile_money' => ['mobile_money'], _ => ['bank_transfer', 'card', 'cheque'] });
-                  }),
+  final ok = await showFormDialog<bool>(context, title: a == null ? 'Nouveau compte' : '${a['name']}', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (a == null)
+              SegmentedButton<String>(
+                segments: [for (final e in trKinds.entries) ButtonSegment(value: e.key, label: Text(tr(e.value)), icon: Icon(trKindIcons[e.key]))],
+                selected: {kind},
+                onSelectionChanged: (v) => set(() {
+                  kind = v.first;
+                  methods
+                    ..clear()
+                    ..addAll(switch (kind) { 'cash' => ['cash'], 'mobile_money' => ['mobile_money'], _ => ['bank_transfer', 'card', 'cheque'] });
+                }),
+              ),
+            TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: trn(kind == 'bank' ? 'SGCI Plateau' : (kind == 'cash' ? 'Caisse boutique' : 'Orange Money marchand')))),
+            if (kind != 'cash') TextField(controller: bank, decoration: InputDecoration(labelText: trn(kind == 'bank' ? 'Banque' : 'Opérateur (Orange, MTN, Moov, Wave)'))),
+            if (kind != 'cash') TextField(controller: number, decoration: InputDecoration(labelText: trn(kind == 'bank' ? 'N° de compte / RIB' : 'N° marchand'))),
+            Row(children: [
+              Expanded(child: TextField(controller: opening, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: InputDecoration(labelText: tr('Solde d\'ouverture')))),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                    if (d != null) set(() => date = d);
+                  },
+                  child: Text(tr('au ${dateFr(isoDate(date))}')),
                 ),
-              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'), hintText: trn(kind == 'bank' ? 'SGCI Plateau' : (kind == 'cash' ? 'Caisse boutique' : 'Orange Money marchand')))),
-              if (kind != 'cash') TextField(controller: bank, decoration: InputDecoration(labelText: trn(kind == 'bank' ? 'Banque' : 'Opérateur (Orange, MTN, Moov, Wave)'))),
-              if (kind != 'cash') TextField(controller: number, decoration: InputDecoration(labelText: trn(kind == 'bank' ? 'N° de compte / RIB' : 'N° marchand'))),
-              Row(children: [
-                Expanded(child: TextField(controller: opening, keyboardType: const TextInputType.numberWithOptions(signed: true), decoration: InputDecoration(labelText: tr('Solde d\'ouverture')))),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
-                      if (d != null) set(() => date = d);
-                    },
-                    child: Text(tr('au ${dateFr(isoDate(date))}')),
-                  ),
-                ),
-              ]),
-              TextField(controller: low, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Seuil d\'alerte (facultatif)'))),
-              const SizedBox(height: 10),
-              Text(tr('Moyens de paiement encaissés ici par défaut'), style: TextStyle(fontWeight: FontWeight.w600)),
-              Wrap(spacing: 6, children: [
-                for (final m in ['cash', 'mobile_money', 'card', 'bank_transfer', 'cheque', 'other'])
-                  FilterChip(label: Text(tr(paymentMethods[m] ?? m)), selected: methods.contains(m), onSelected: (v) => set(() => v ? methods.add(m) : methods.remove(m))),
-              ]),
-              TextField(controller: gl, decoration: InputDecoration(labelText: tr('Compte comptable (facultatif)'), helperText: tr('Vide : compte du plan (521 banque, 571 caisse, 5215 Mobile Money)'))),
-              if (a != null) SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Compte actif')), value: active, onChanged: (v) => set(() => active = v)),
+              ),
+            ]),
+            TextField(controller: low, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Seuil d\'alerte (facultatif)'))),
+            const SizedBox(height: 10),
+            Text(tr('Moyens de paiement encaissés ici par défaut'), style: TextStyle(fontWeight: FontWeight.w600)),
+            Wrap(spacing: 6, children: [
+              for (final m in ['cash', 'mobile_money', 'card', 'bank_transfer', 'cheque', 'other'])
+                FilterChip(label: Text(tr(paymentMethods[m] ?? m)), selected: methods.contains(m), onSelected: (v) => set(() => v ? methods.add(m) : methods.remove(m))),
+            ]),
+            TextField(controller: gl, decoration: InputDecoration(labelText: tr('Compte comptable (facultatif)'), helperText: tr('Vide : compte du plan (521 banque, 571 caisse, 5215 Mobile Money)'))),
+            if (a != null) SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Compte actif')), value: active, onChanged: (v) => set(() => active = v)),
+          ]),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
             ]),
           ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Enregistrer')))],
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || name.text.trim().isEmpty) return;
   try {
     await sync.save('tr_accounts', {
@@ -386,14 +386,11 @@ Future<void> editOperation(BuildContext context, {int sign = -1, Map<String, dyn
   final label = TextEditingController(text: '${op?['label'] ?? ''}');
   final ref = TextEditingController(text: '${op?['reference'] ?? ''}');
   var date = DateTime.tryParse('${op?['date'] ?? ''}') ?? DateTime.now();
-  final ok = await showDialog<String>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr(op != null ? 'Opération' : (s < 0 ? 'Nouvelle dépense' : 'Nouvelle recette'))),
-        content: SizedBox(
-          width: 440,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+  final ok = await showFormDialog<String>(context, title: op != null ? 'Opération' : (s < 0 ? 'Nouvelle dépense' : 'Nouvelle recette'), builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             SegmentedButton<int>(
               segments: [ButtonSegment(value: -1, label: Text(tr('Dépense (sortie)'))), ButtonSegment(value: 1, label: Text(tr('Recette (entrée)')))],
               selected: {s},
@@ -431,15 +428,18 @@ Future<void> editOperation(BuildContext context, {int sign = -1, Map<String, dyn
               ),
             ]),
           ]),
-        ),
-        actions: [
-          if (op != null) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
-        ],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              if (op != null) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
+              TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+              FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   try {
     if (ok == 'delete') await sync.remove('tr_operations', '${op!['id']}');
     if (ok != 'save' || toDouble(amount.text) <= 0) return;
@@ -470,14 +470,11 @@ Future<void> newTransfer(BuildContext context) async {
   final amount = TextEditingController();
   final label = TextEditingController();
   var date = DateTime.now();
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (c) => StatefulBuilder(
-      builder: (c, set) => YAlertDialog(
-        title: Text(tr('Virement entre comptes')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+  final ok = await showFormDialog<bool>(context, title: 'Virement entre comptes', builder: (c) => StatefulBuilder(
+      builder: (c, set) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             DropdownButtonFormField<String>(
               initialValue: from,
               decoration: InputDecoration(labelText: tr('Depuis')),
@@ -500,11 +497,16 @@ Future<void> newTransfer(BuildContext context) async {
               child: Text(tr('Le ${dateFr(isoDate(date))}')),
             ),
           ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: from == to ? null : () => Navigator.pop(c, true), child: Text(tr('Enregistrer')))],
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))), FilledButton(onPressed: from == to ? null : () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
+            ]),
+          ),
+        ]),
       ),
-    ),
-  );
+    ));
   if (ok != true || toDouble(amount.text) <= 0) return;
   final tid = newId();
   String name(String id) => '${accounts.firstWhere((a) => a['id'] == id)['name']}';
@@ -1190,14 +1192,11 @@ class _ForecastTabState extends State<_ForecastTab> {
     var repeat = '${f?['repeat'] ?? 'monthly'}';
     var date = DateTime.tryParse('${f?['date'] ?? ''}') ?? DateTime.now().add(const Duration(days: 7));
     final scenarios = <String>{...((f?['scenarios'] as List?)?.map((e) => '$e') ?? trScenarios.keys)};
-    final r = await showDialog<String>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr('Entrée ou sortie prévue')),
-          content: SizedBox(
-            width: 440,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final r = await showFormDialog<String>(context, title: 'Entrée ou sortie prévue', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
               SegmentedButton<int>(segments: [ButtonSegment(value: -1, label: Text(tr('Sortie'))), ButtonSegment(value: 1, label: Text(tr('Entrée')))], selected: {sign}, onSelectionChanged: (v) => set(() => sign = v.first)),
               TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé'), hintText: tr('Loyer, échéance de prêt, subvention, TVA…'))),
               TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant'))),
@@ -1221,15 +1220,18 @@ class _ForecastTabState extends State<_ForecastTab> {
                   FilterChip(label: Text(tr(e.value)), selected: scenarios.contains(e.key), onSelected: (v) => set(() => v ? scenarios.add(e.key) : (scenarios.length > 1 ? scenarios.remove(e.key) : null))),
               ]),
             ]),
-          ),
-          actions: [
-            if (f != null) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
-          ],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                if (f != null) TextButton(onPressed: () => Navigator.pop(c, 'delete'), child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: () => Navigator.pop(c, 'save'), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     try {
       if (r == 'delete') await sync.remove('tr_forecasts', '${f!['id']}');
       if (r == 'save' && toDouble(amount.text) > 0 && label.text.trim().isNotEmpty) {

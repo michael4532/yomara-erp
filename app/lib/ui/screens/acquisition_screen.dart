@@ -367,12 +367,12 @@ class _SetupTabState extends State<_SetupTab> {
       });
 
   Future<void> _addAccount() async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => const _AccountDialog());
+    final ok = await showFormDialog<bool>(context, title: 'Relier un compte publicitaire', builder: (_) => const _AccountDialog());
     if (ok == true) _load();
   }
 
   Future<void> _editAccount(Map<String, dynamic> a) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => _AccountDialog(account: a));
+    final ok = await showFormDialog<bool>(context, title: 'Compte publicitaire', builder: (_) => _AccountDialog(account: a));
     if (ok == true) _load();
   }
 
@@ -580,42 +580,43 @@ class _AccountDialogState extends State<_AccountDialog> {
   @override
   Widget build(BuildContext context) {
     final edit = widget.account != null;
-    return AlertDialog(
-      title: Text(tr(edit ? 'Compte publicitaire' : 'Relier un compte publicitaire')),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (!edit)
-              SegmentedButton<String>(
-                segments: [for (final p in const ['meta', 'tiktok', 'linkedin']) ButtonSegment(value: p, label: Text(tr({'meta': 'Meta', 'tiktok': 'TikTok', 'linkedin': 'LinkedIn'}[p]!)))],
-                selected: {_platform},
-                onSelectionChanged: (v) => setState(() => _platform = v.first),
-              ),
-            const SizedBox(height: 10),
-            Text(tr(help[_platform] ?? ''), style: const TextStyle(color: YColors.muted, fontSize: 13)),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (!edit)
+            SegmentedButton<String>(
+              segments: [for (final p in const ['meta', 'tiktok', 'linkedin']) ButtonSegment(value: p, label: Text(tr({'meta': 'Meta', 'tiktok': 'TikTok', 'linkedin': 'LinkedIn'}[p]!)))],
+              selected: {_platform},
+              onSelectionChanged: (v) => setState(() => _platform = v.first),
+            ),
+          const SizedBox(height: 10),
+          Text(tr(help[_platform] ?? ''), style: const TextStyle(color: YColors.muted, fontSize: 13)),
+          const SizedBox(height: 6),
+          if (!edit) TextField(controller: _id, decoration: InputDecoration(labelText: tr('Identifiant du compte'))),
+          const SizedBox(height: 8),
+          TextField(controller: _token, obscureText: true, decoration: InputDecoration(labelText: tr(edit ? 'Nouveau jeton d\'accès (laisser vide pour garder)' : 'Jeton d\'accès'))),
+          if (_platform == 'meta') ...[
+            const SizedBox(height: 14),
+            Text(tr('Renvoyer les ventes à Meta (API Conversions)'), style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(tr('Quand une affaire issue d\'une publicité est gagnée, ou qu\'une commande est passée sur votre site, Meta en est informé : vos publicités apprennent à trouver des acheteurs.'),
+                style: const TextStyle(color: YColors.muted, fontSize: 13)),
             const SizedBox(height: 6),
-            if (!edit) TextField(controller: _id, decoration: InputDecoration(labelText: tr('Identifiant du compte'))),
+            TextField(controller: _pixel, decoration: InputDecoration(labelText: tr('Identifiant du pixel / jeu de données'))),
             const SizedBox(height: 8),
-            TextField(controller: _token, obscureText: true, decoration: InputDecoration(labelText: tr(edit ? 'Nouveau jeton d\'accès (laisser vide pour garder)' : 'Jeton d\'accès'))),
-            if (_platform == 'meta') ...[
-              const SizedBox(height: 14),
-              Text(tr('Renvoyer les ventes à Meta (API Conversions)'), style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text(tr('Quand une affaire issue d\'une publicité est gagnée, ou qu\'une commande est passée sur votre site, Meta en est informé : vos publicités apprennent à trouver des acheteurs.'),
-                  style: const TextStyle(color: YColors.muted, fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(controller: _pixel, decoration: InputDecoration(labelText: tr('Identifiant du pixel / jeu de données'))),
-              const SizedBox(height: 8),
-              TextField(controller: _capi, obscureText: true, decoration: InputDecoration(labelText: tr('Jeton de l\'API Conversions (facultatif, sinon le jeton du compte)'))),
-              SwitchListTile(contentPadding: EdgeInsets.zero, value: _send, onChanged: (v) => setState(() => _send = v), title: Text(tr('Renvoyer les ventes et prospects'))),
-            ],
+            TextField(controller: _capi, obscureText: true, decoration: InputDecoration(labelText: tr('Jeton de l\'API Conversions (facultatif, sinon le jeton du compte)'))),
+            SwitchListTile(contentPadding: EdgeInsets.zero, value: _send, onChanged: (v) => setState(() => _send = v), title: Text(tr('Renvoyer les ventes et prospects'))),
+          ],
+        ]),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+            FilledButton(onPressed: _busy ? null : _save, child: Text(tr(_busy ? 'Vérification…' : (edit ? 'Enregistrer' : 'Relier')))),
           ]),
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
-        FilledButton(onPressed: _busy ? null : _save, child: Text(tr(_busy ? 'Vérification…' : (edit ? 'Enregistrer' : 'Relier')))),
-      ],
+      ]),
     );
   }
 }

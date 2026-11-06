@@ -430,7 +430,9 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
-    context.watch<SyncEngine>();
+    // Redessiner à la fin d'une synchronisation (nouveaux produits, prix), au passage en ligne / hors ligne et
+    // quand la file d'envoi change — pas à chaque étape intermédiaire d'une synchronisation (toutes les 20 s).
+    context.select<SyncEngine, (DateTime?, bool, int)>((s) => (s.lastSyncAt, s.online, s.pendingCount));
     _applyPricing(session);
     _syncDisplay(session);
 

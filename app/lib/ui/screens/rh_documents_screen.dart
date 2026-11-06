@@ -637,38 +637,38 @@ class _TemplatesDialogState extends State<_TemplatesDialog> {
     var type = '${t?['type'] ?? 'other'}';
     var self = t?['self_service'] == true;
     var active = t?['active'] != false;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => YAlertDialog(
-          title: Text(tr(t == null ? 'Nouveau modèle' : '${t['name']}')),
-          content: SizedBox(
-            width: 640,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'))),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: InputDecoration(labelText: tr('Type')),
-                  items: [for (final e in docTypes.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
-                  onChanged: (v) => set(() => type = v!),
-                ),
-                const SizedBox(height: 8),
-                TextField(controller: body, maxLines: 16, minLines: 8, style: const TextStyle(fontSize: 13), decoration: InputDecoration(labelText: tr('Texte'))),
-                const SizedBox(height: 6),
-                Text(
-                  tr('Champs : {nom_complet} {civilite} {ne_e} {date_naissance} {matricule} {fonction} {service} {categorie} {type_contrat} {date_embauche} {date_sortie} {salaire_base} {transport} {cnps} {adresse} {piece_identite} {societe} {societe_adresse} {societe_rccm} {societe_ncc} {representant} {qualite_representant} {date} {ville}. Tout autre {champ} est demandé au moment d\'établir le document.'),
-                  style: TextStyle(fontSize: 11, color: Theme.of(d).hintColor),
-                ),
-                if (type == 'attestation' || type == 'other') SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Libre-service')), subtitle: Text(tr('Le salarié l\'obtient seul depuis son espace')), value: self, onChanged: (v) => set(() => self = v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
+    final ok = await showFormDialog<bool>(context, title: t == null ? 'Nouveau modèle' : '${t['name']}', maxWidth: 688, builder: (d) => StatefulBuilder(
+        builder: (d, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom'))),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                decoration: InputDecoration(labelText: tr('Type')),
+                items: [for (final e in docTypes.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
+                onChanged: (v) => set(() => type = v!),
+              ),
+              const SizedBox(height: 8),
+              TextField(controller: body, maxLines: 16, minLines: 8, style: const TextStyle(fontSize: 13), decoration: InputDecoration(labelText: tr('Texte'))),
+              const SizedBox(height: 6),
+              Text(
+                tr('Champs : {nom_complet} {civilite} {ne_e} {date_naissance} {matricule} {fonction} {service} {categorie} {type_contrat} {date_embauche} {date_sortie} {salaire_base} {transport} {cnps} {adresse} {piece_identite} {societe} {societe_adresse} {societe_rccm} {societe_ncc} {representant} {qualite_representant} {date} {ville}. Tout autre {champ} est demandé au moment d\'établir le document.'),
+                style: TextStyle(fontSize: 11, color: Theme.of(d).hintColor),
+              ),
+              if (type == 'attestation' || type == 'other') SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Libre-service')), subtitle: Text(tr('Le salarié l\'obtient seul depuis son espace')), value: self, onChanged: (v) => set(() => self = v)),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: active, onChanged: (v) => set(() => active = v)),
+            ]),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
               ]),
             ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || name.text.trim().isEmpty || body.text.trim().isEmpty) return;
     await sync.save('rh_doc_templates', {'id': t?['id'] ?? newId(), 'name': name.text.trim(), 'type': type, 'body': body.text, 'self_service': self && (type == 'attestation' || type == 'other'), 'active': active});
   }

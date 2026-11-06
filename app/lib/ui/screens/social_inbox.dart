@@ -604,7 +604,7 @@ class _SocialStudioTabState extends State<SocialStudioTab> {
     }
   }
 
-  Future<void> _brand() => showDialog<void>(context: context, builder: (_) => const _BrandDialog());
+  Future<void> _brand() => showFormDialog<void>(context, title: 'Charte de marque', builder: (_) => const _BrandDialog());
 
   @override
   Widget build(BuildContext context) {
@@ -759,38 +759,43 @@ class _BrandDialogState extends State<_BrandDialog> {
             decoration: InputDecoration(labelText: tr(label), prefixIcon: Padding(padding: const EdgeInsets.all(12), child: CircleAvatar(radius: 9, backgroundColor: _hex(_c[k]!.text) ?? Colors.transparent))),
           ),
         );
-    return AlertDialog(
-      title: Text(tr('Charte de marque')),
-      content: SizedBox(
-        width: 560,
-        child: !_ready
-            ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))
-            : SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(tr('Utilisée pour les visuels et les textes proposés par l\'IA. Le logo est celui de la société (Paramètres).'), style: const TextStyle(color: YColors.muted)),
-                  const SizedBox(height: 10),
-                  Row(children: [color('primary', 'Couleur principale'), const SizedBox(width: 8), color('accent', 'Couleur d\'accent')]),
-                  const SizedBox(height: 8),
-                  Row(children: [color('dark', 'Couleur sombre'), const SizedBox(width: 8), const Spacer()]),
-                  const SizedBox(height: 8),
-                  TextField(controller: _c['slogan'], decoration: InputDecoration(labelText: tr('Slogan'))),
-                  const SizedBox(height: 8),
-                  TextField(controller: _c['contact'], decoration: InputDecoration(labelText: tr('Coordonnées au bas des visuels'), hintText: tr('Ex. Tél. / WhatsApp 07 00 00 00 00'))),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _tones.containsKey(_tone) ? _tone : null,
-                    decoration: InputDecoration(labelText: tr('Ton des messages')),
-                    items: [for (final e in _tones.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                    onChanged: (v) => setState(() => _tone = v ?? _tone),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(controller: _c['hashtags'], decoration: InputDecoration(labelText: tr('Hashtags de la marque'))),
-                  const SizedBox(height: 8),
-                  TextField(controller: _c['words_avoid'], decoration: InputDecoration(labelText: tr('Mots à éviter'))),
-                ]),
-              ),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), FilledButton(onPressed: _ready ? _save : null, child: Text(tr('Enregistrer')))],
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        !_ready
+      ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))
+      : SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(tr('Utilisée pour les visuels et les textes proposés par l\'IA. Le logo est celui de la société (Paramètres).'), style: const TextStyle(color: YColors.muted)),
+            const SizedBox(height: 10),
+            Row(children: [color('primary', 'Couleur principale'), const SizedBox(width: 8), color('accent', 'Couleur d\'accent')]),
+            const SizedBox(height: 8),
+            Row(children: [color('dark', 'Couleur sombre'), const SizedBox(width: 8), const Spacer()]),
+            const SizedBox(height: 8),
+            TextField(controller: _c['slogan'], decoration: InputDecoration(labelText: tr('Slogan'))),
+            const SizedBox(height: 8),
+            TextField(controller: _c['contact'], decoration: InputDecoration(labelText: tr('Coordonnées au bas des visuels'), hintText: tr('Ex. Tél. / WhatsApp 07 00 00 00 00'))),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _tones.containsKey(_tone) ? _tone : null,
+              decoration: InputDecoration(labelText: tr('Ton des messages')),
+              items: [for (final e in _tones.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
+              onChanged: (v) => setState(() => _tone = v ?? _tone),
+            ),
+            const SizedBox(height: 8),
+            TextField(controller: _c['hashtags'], decoration: InputDecoration(labelText: tr('Hashtags de la marque'))),
+            const SizedBox(height: 8),
+            TextField(controller: _c['words_avoid'], decoration: InputDecoration(labelText: tr('Mots à éviter'))),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), FilledButton(onPressed: _ready ? _save : null, child: Text(tr('Enregistrer'))),
+          ]),
+        ),
+      ]),
     );
   }
 }

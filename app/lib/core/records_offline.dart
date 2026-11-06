@@ -38,16 +38,41 @@ class RecordsOffline {
   /// Lecture : serveur si possible (et mise en cache), sinon dernière copie connue.
   static Future<dynamic> get(ApiClient api, String path, {Map<String, dynamic>? query}) async {
     final key = _key(path, query);
+    // Les recherches tapées ne sont pas gardées hors ligne (une copie par mot cherché remplirait l'appareil)
+    final typed = (query ?? const {}).entries.any((e) => (e.key == 'search' || e.key == 'q') && '${e.value ?? ''}'.isNotEmpty);
     try {
       final r = await api.get(path, query: query);
-      if (LocalDb.isOpen) (await _cache()).put(key, jsonEncode(r));
+      if (LocalDb.isOpen && !typed) await _store(key, r);
       return r;
     } catch (e) {
       if (!_network(e) || !LocalDb.isOpen) rethrow;
       final c = (await _cache()).get(key);
       if (c == null) rethrow;
-      return jsonDecode(c);
+      final v = jsonDecode(c);
+      // Copie datée {t, r} (ancien format : la réponse seule)
+      return v is Map && v.length == 2 && v.containsKey('t') && v.containsKey('r') ? v['r'] : v;
     }
+  }
+
+  /// Taille maximale de la copie hors ligne des listes et fiches consultées.
+  static const cacheLimit = 400;
+
+  static Future<void> _store(String key, dynamic r) async {
+    final box = await _cache();
+    await box.put(key, jsonEncode({'t': DateTime.now().millisecondsSinceEpoch, 'r': r}));
+    if (box.length <= cacheLimit) return;
+    // Trop d'entrées : on retire le quart le plus ancien
+    final dated = <(int, dynamic)>[];
+    for (final k in box.keys) {
+      var t = 0;
+      try {
+        final v = jsonDecode(box.get(k) ?? 'null');
+        if (v is Map && v['t'] is int) t = v['t'] as int;
+      } catch (_) {}
+      dated.add((t, k));
+    }
+    dated.sort((a, b) => a.$1.compareTo(b.$1));
+    await box.deleteAll([for (final d in dated.take(box.length - cacheLimit * 3 ~/ 4)) d.$2]);
   }
 
   /// Écriture : envoyée tout de suite, ou mise en file sans réseau. Renvoie la réponse du serveur

@@ -75,13 +75,10 @@ class _MonEspaceScreenState extends State<MonEspaceScreen> {
     final api = context.read<Session>().api;
     final sync = context.read<SyncEngine>();
     final c = {for (final f in ['phone', 'email', 'address', 'emergency_contact']) f: TextEditingController(text: '${e[f] ?? ''}')};
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => YAlertDialog(
-        title: Text(tr('Mes coordonnées')),
-        content: SizedBox(
-          width: 420,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+    final ok = await showFormDialog<bool>(context, title: 'Mes coordonnées', builder: (d) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: c['phone'], keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone'))),
             TextField(controller: c['email'], keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('E-mail'))),
             TextField(controller: c['address'], decoration: InputDecoration(labelText: tr('Adresse'))),
@@ -89,10 +86,15 @@ class _MonEspaceScreenState extends State<MonEspaceScreen> {
             const SizedBox(height: 8),
             Text(tr('Pour le reste (situation familiale, RIB, contrat), adressez-vous au service RH.'), style: TextStyle(fontSize: 12, color: Theme.of(d).hintColor)),
           ]),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer')))],
-      ),
-    );
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Enregistrer'))),
+            ]),
+          ),
+        ]),
+      ));
     if (ok != true) return;
     try {
       await api.put('rh/me', {for (final f in c.keys) f: c[f]!.text.trim().isEmpty ? null : c[f]!.text.trim()});

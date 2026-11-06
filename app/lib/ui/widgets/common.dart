@@ -550,10 +550,10 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         padding: EdgeInsets.fromLTRB(icon != null ? 8 : 10, 4, 10, 4),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.11), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: color.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? .22 : .11), borderRadius: BorderRadius.circular(8)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 6)],
-          Flexible(child: Text(tr(label), overflow: TextOverflow.ellipsis, style: TextStyle(color: Color.lerp(color, Colors.black, .18), fontSize: 12.5, fontWeight: FontWeight.w600))),
+          Flexible(child: Text(tr(label), overflow: TextOverflow.ellipsis, style: TextStyle(color: Color.lerp(color, Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, Theme.of(context).brightness == Brightness.dark ? .35 : .18), fontSize: 12.5, fontWeight: FontWeight.w600))),
         ]),
       );
 }

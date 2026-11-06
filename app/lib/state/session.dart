@@ -8,6 +8,7 @@ import '../core/firebase_setup.dart';
 import '../core/config.dart';
 import '../core/local_db.dart';
 import '../core/prefs_sync.dart';
+import '../core/secure_store.dart';
 import '../i18n/i18n.dart';
 import '../core/sync_engine.dart';
 import '../ui/widgets/common.dart' show currencyDecimals, decimalsFor;
@@ -19,7 +20,10 @@ import '../core/json.dart';
 /// permissions. Le dernier "bootstrap" est mis en cache pour démarrer hors ligne.
 class Session extends ChangeNotifier {
   Session() {
-    api = ApiClient(baseUrl: (LocalDb.meta.get('server_url') as String?) ?? '', token: LocalDb.meta.get('token') as String?);
+    // Jeton : dans le coffre du système quand il existe (sinon, base locale comme avant)
+    final stored = LocalDb.meta.get('token') as String?;
+    api = ApiClient(baseUrl: (LocalDb.meta.get('server_url') as String?) ?? '', token: SecureStore.token ?? stored);
+    if (stored != null && SecureStore.available) unawaited(_saveToken());
     api.onUnauthorized = () {
       if (api.token != null) logout(remote: false);
     };
@@ -192,7 +196,7 @@ class Session extends ChangeNotifier {
     }));
     api.token = res['token'] as String;
     await LocalDb.meta.put('server_url', api.baseUrl);
-    await LocalDb.meta.put('token', api.token);
+    await _saveToken();
     await LocalDb.meta.put('last_email', email.trim());
     await refreshBootstrap(throwOnError: true);
     await _openLocal();
@@ -212,7 +216,7 @@ class Session extends ChangeNotifier {
     }));
     api.token = res['token'] as String;
     await LocalDb.meta.put('server_url', api.baseUrl);
-    await LocalDb.meta.put('token', api.token);
+    await _saveToken();
     final email = '${res['user']?['email'] ?? ''}';
     if (email.isNotEmpty) await LocalDb.meta.put('last_email', email);
     await refreshBootstrap(throwOnError: true);
@@ -228,7 +232,7 @@ class Session extends ChangeNotifier {
     final res = Map<String, dynamic>.from(await api.post('auth/register', data));
     api.token = res['token'] as String;
     await LocalDb.meta.put('server_url', api.baseUrl);
-    await LocalDb.meta.put('token', api.token);
+    await _saveToken();
     await refreshBootstrap(throwOnError: true);
     await _openLocal();
     _start();
@@ -315,7 +319,21 @@ class Session extends ChangeNotifier {
     });
   }
 
-  Future<void> logout({bool remote = true}) async {
+  /// Enregistre le jeton courant : coffre du système, ou base locale si le coffre n'est pas disponible.
+  Future<void> _saveToken() async {
+    if (await SecureStore.saveToken(api.token)) {
+      await LocalDb.meta.delete('token');
+    } else if (api.token != null) {
+      await LocalDb.meta.put('token', api.token);
+    } else {
+      await LocalDb.meta.delete('token');
+    }
+  }
+
+  /// Effacer par défaut les données de la société à la déconnexion : navigateur (souvent partagé) ou réglage choisi.
+  bool get wipeOnLogoutDefault => (LocalDb.meta.get('wipe_on_logout') as bool?) ?? kIsWeb;
+
+  Future<void> logout({bool remote = true, bool? wipe}) async {
     if (remote) {
       // Les modifications non envoyées restent stockées localement
       try {
@@ -342,9 +360,15 @@ class Session extends ChangeNotifier {
     RapportsMeta.reset();
     api.token = null;
     bootstrap = null;
-    await LocalDb.meta.delete('token');
+    await _saveToken();
     await LocalDb.meta.delete('bootstrap');
+    final tenant = LocalDb.tenant;
     await LocalDb.closeTenant();
+    // Poste partagé : plus aucune donnée de la société sur l'appareil après la déconnexion
+    if ((wipe ?? (remote && wipeOnLogoutDefault)) && tenant != null) {
+      if (wipe != null) await LocalDb.meta.put('wipe_on_logout', wipe);
+      await LocalDb.eraseTenant(tenant);
+    }
     notifyListeners();
   }
 

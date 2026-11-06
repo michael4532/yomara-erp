@@ -7,6 +7,7 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'kv_store.dart';
+import 'secure_store.dart';
 
 /// Base locale (Hive) : fonctionne sur Windows, macOS, Linux, Android, iOS
 /// et dans le navigateur (IndexedDB). Toutes les données de la société sont
@@ -37,6 +38,12 @@ class LocalDb {
   static Box<String>? _outbox;
   static Box? _state;
 
+  /// Dossier des fichiers Hive (ordinateur / téléphone) : utile pour effacer l'espace d'une société.
+  static String? _dir;
+
+  /// Chiffrement des données de la société (clé dans le coffre du système ; pas dans le navigateur).
+  static HiveAesCipher? get _cipher => sharedStore ? null : SecureStore.cipher;
+
   static Future<void> init() async {
     // Windows et Linux : données hors du dossier « Documents » (souvent synchronisé avec OneDrive ou partagé),
     // dans le dossier privé de l'application. Les données déjà présentes sont déplacées une fois.
@@ -65,6 +72,7 @@ class LocalDb {
         }
         target.createSync(recursive: true);
         Hive.init(target.path);
+        _dir = target.path;
         meta = await Hive.openBox('meta');
         return;
       } catch (_) {
@@ -73,11 +81,17 @@ class LocalDb {
     }
     try {
       await Hive.initFlutter('yomara_erp');
+      if (!kIsWeb) {
+        try {
+          _dir = '${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}yomara_erp';
+        } catch (_) {}
+      }
     } catch (_) {
       // Linux sans dossier « Documents » (installation minimale, poste partagé) : dossier de données de l'application
       if (kIsWeb) rethrow;
       final base = await getApplicationSupportDirectory();
       Hive.init('${base.path}/yomara_erp');
+      _dir = '${base.path}/yomara_erp';
     }
     meta = await Hive.openBox('meta');
   }
@@ -86,6 +100,7 @@ class LocalDb {
   @visibleForTesting
   static Future<void> initAt(String path) async {
     Hive.init(path);
+    _dir = path;
     meta = await Hive.openBox('meta');
   }
 
@@ -94,8 +109,9 @@ class LocalDb {
     if (_tenant != tenant) {
       await closeTenant();
       _tenant = tenant;
-      _outbox = await Hive.openBox<String>('${tenant}_outbox');
-      _state = await Hive.openBox('${tenant}_state');
+      await _encryptOnce(tenant);
+      _outbox = await Hive.openBox<String>('${tenant}_outbox', encryptionCipher: _cipher);
+      _state = await Hive.openBox('${tenant}_state', encryptionCipher: _cipher);
       if (sharedStore) {
         _shared = await KvStore.open('${tenant}_data');
         const version = _storeVersion;
@@ -130,7 +146,7 @@ class LocalDb {
       }
     } else {
       // Ouverture en parallèle des boîtes (une par entité)
-      final opened = await Future.wait(missing.map((e) => Hive.openBox<String>('${tenant}_$e')));
+      final opened = await Future.wait(missing.map((e) => Hive.openBox<String>('${tenant}_$e', encryptionCipher: _cipher)));
       for (var i = 0; i < missing.length; i++) {
         _boxes[missing[i]] = _HiveBox(opened[i]);
       }
@@ -165,7 +181,83 @@ class LocalDb {
     final key = '${_tenant}_$name';
     final b = _extra[key];
     if (b != null && b.isOpen) return b;
-    return _extra[key] = await Hive.openBox<String>(key);
+    return _extra[key] = await Hive.openBox<String>(key, encryptionCipher: _cipher);
+  }
+
+  /// Passage au stockage chiffré (une fois par société et par appareil) : les saisies en attente d'envoi sont
+  /// reprises, le reste est effacé puis rechargé depuis le serveur à la synchronisation suivante.
+  static Future<void> _encryptOnce(String tenant) async {
+    if (sharedStore) return;
+    final cipher = _cipher;
+    var done = List<String>.from((meta.get('encrypted_tenants') as List?) ?? const []);
+    if (cipher == null) {
+      // Coffre devenu indisponible : les fichiers chiffrés sont illisibles, on repart d'un espace vide
+      if (done.contains(tenant)) {
+        await _deleteTenantFiles(tenant);
+        await meta.put('encrypted_tenants', done..remove(tenant));
+      }
+      return;
+    }
+    // Nouvelle clé (coffre réinitialisé) : les espaces chiffrés avec l'ancienne sont à refaire
+    final keyId = SecureStore.keyId;
+    if (meta.get('encrypted_key') != keyId) {
+      done = [];
+      await meta.put('encrypted_key', keyId);
+      await meta.put('encrypted_tenants', done);
+    }
+    if (done.contains(tenant)) return;
+    // Files d'envoi à conserver : synchronisation et demandes faites hors ligne
+    const keep = ['outbox', 'records_outbox', 'records_failed'];
+    final pending = <String, Map<dynamic, String>>{};
+    for (final n in keep) {
+      try {
+        final old = await Hive.openBox<String>('${tenant}_$n');
+        if (old.isNotEmpty) pending[n] = Map<dynamic, String>.from(old.toMap());
+        await old.close();
+      } catch (_) {}
+    }
+    await _deleteTenantFiles(tenant);
+    for (final e in pending.entries) {
+      final box = await Hive.openBox<String>('${tenant}_${e.key}', encryptionCipher: cipher);
+      await box.putAll(e.value);
+      await box.close();
+    }
+    await meta.put('encrypted_tenants', [...done, tenant]);
+  }
+
+  /// Fichiers locaux d'une société (et d'elle seule : pas les espaces « _uN » des autres personnes du poste).
+  static Future<void> _deleteTenantFiles(String tenant) async {
+    final dir = _dir;
+    if (dir == null || kIsWeb) return;
+    final prefix = '${tenant.toLowerCase()}_';
+    final other = RegExp('^${RegExp.escape(prefix)}u\\d+_');
+    try {
+      for (final f in Directory(dir).listSync().whereType<File>()) {
+        final name = f.uri.pathSegments.last;
+        if (name.startsWith(prefix) && !other.hasMatch(name) && (name.endsWith('.hive') || name.endsWith('.lock') || name.endsWith('.hivec'))) {
+          try {
+            f.deleteSync();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Effacer toutes les données d'une société sur cet appareil (déconnexion sur un poste partagé).
+  static Future<void> eraseTenant(String tenant) async {
+    if (_tenant == tenant) await closeTenant();
+    if (kIsWeb || sharedStore) {
+      await KvStore.deleteByPrefix('${tenant}_');
+      for (final n in ['outbox', 'state', 'data']) {
+        try {
+          await Hive.deleteBoxFromDisk('${tenant}_$n');
+        } catch (_) {}
+      }
+    } else {
+      await _deleteTenantFiles(tenant);
+    }
+    final done = List<String>.from((meta.get('encrypted_tenants') as List?) ?? const [])..remove(tenant);
+    await meta.put('encrypted_tenants', done);
   }
 
   static bool get isOpen => _tenant != null && _outbox != null && _state != null;

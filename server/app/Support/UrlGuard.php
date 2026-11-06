@@ -38,9 +38,22 @@ class UrlGuard
     /** Nom d'hôte (serveur IMAP, SMTP…) : refusé s'il désigne le serveur lui-même ou le réseau interne. */
     public static function assertPublicHost(string $host): void
     {
-        if (! self::isPublic('https://'.trim($host, '[] '))) {
+        self::publicHostIp($host);
+    }
+
+    /**
+     * Comme assertPublicHost, mais renvoie l'adresse IP vérifiée, à utiliser telle quelle pour la connexion
+     * (contre le « DNS rebinding » : pas de seconde résolution du nom entre la vérification et la connexion).
+     * null en tests (pas de DNS) : on se connecte alors au nom d'hôte.
+     */
+    public static function publicHostIp(string $host): ?string
+    {
+        $ips = self::resolve('https://'.trim($host, '[] '));
+        if ($ips === null) {
             throw new \DomainException('Serveur refusé : '.$host.' désigne une adresse interne.');
         }
+
+        return $ips[0] ?? null;
     }
 
     /** Adresses IP publiques du serveur visé, [] en tests (pas de DNS), null si l'adresse est refusée. */

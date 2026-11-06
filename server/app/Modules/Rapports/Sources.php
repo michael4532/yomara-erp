@@ -105,9 +105,10 @@ class Sources
                 'where' => fn (Builder $q) => $q->where('d.direction', 'sale')->whereIn('d.type', ['quote', 'order'])->where('d.status', '<>', 'cancelled')->whereNull('d.deleted_at'),
                 'joins' => $partnerJoin + $userJoin('d.user_id') + [
                     // Documents issus du devis / de la commande (transformation)
+                    // (même société que le document d'origine : jamais de rapprochement inter-sociétés)
                     'cv' => fn (Builder $q) => $q->leftJoinSub(
-                        \Illuminate\Support\Facades\DB::table('trade_documents')->select('source_id')->whereNotNull('source_id')->whereNull('deleted_at')->where('status', '<>', 'cancelled')->groupBy('source_id'),
-                        'cv', 'cv.source_id', '=', 'd.id'),
+                        \Illuminate\Support\Facades\DB::table('trade_documents')->select('company_id', 'source_id')->whereNotNull('source_id')->whereNull('deleted_at')->where('status', '<>', 'cancelled')->groupBy('company_id', 'source_id'),
+                        'cv', fn ($j) => $j->on('cv.source_id', '=', 'd.id')->on('cv.company_id', '=', 'd.company_id')),
                 ],
                 'dimensions' => [
                     'type' => ['label' => 'Type', 'sql' => 'd.type', 'labels' => ['quote' => 'Devis', 'order' => 'Commande']],

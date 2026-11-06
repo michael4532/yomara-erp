@@ -112,12 +112,54 @@ class FilterBar extends StatelessWidget {
         if (f.options.isNotEmpty) _FilterPill(spec: f, value: values[f.key], onChanged: (v) => onFilter?.call(f.key, v)),
       if (showPeriod) _PeriodPill(period: period, onChanged: onPeriod),
     ];
+    // Téléphone : les filtres déroulants sont regroupés derrière un bouton « Filtres », la liste reste visible
+    final fold = narrow && dropdowns.length > 1;
+    final activeCount = values.values.where((v) => v != null && v.isNotEmpty).length + (period != null ? 1 : 0);
+    Widget filtersButton() => _FiltersButton(
+          count: activeCount,
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            showDragHandle: true,
+            isScrollControlled: true,
+            builder: (c) => SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tr('Filtres'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 14),
+                  Wrap(spacing: 8, runSpacing: 10, children: [
+                    for (final f in filters)
+                      if (f.options.isNotEmpty)
+                        _FilterPill(spec: f, value: values[f.key], onChanged: (v) {
+                          Navigator.pop(c);
+                          onFilter?.call(f.key, v);
+                        }),
+                    if (showPeriod)
+                      _PeriodPill(period: period, onChanged: (p) {
+                        Navigator.pop(c);
+                        onPeriod?.call(p);
+                      }),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        );
     return Padding(
       padding: pad,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        if (fold)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(children: [
+              if (onSearch != null) Expanded(child: _SearchBox(hint: searchHint, value: search, onChanged: onSearch!)) else const Spacer(),
+              const SizedBox(width: 8),
+              filtersButton(),
+            ]),
+          ),
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          if (onSearch != null) SizedBox(width: narrow ? double.infinity : 300, child: _SearchBox(hint: searchHint, value: search, onChanged: onSearch!)),
-          ...dropdowns,
+          if (onSearch != null && !fold) SizedBox(width: narrow ? double.infinity : 300, child: _SearchBox(hint: searchHint, value: search, onChanged: onSearch!)),
+          if (!fold) ...dropdowns,
           ...trailing,
           if (_active && onReset != null)
             TextButton.icon(
@@ -167,6 +209,31 @@ class FilterBar extends StatelessWidget {
           ),
         ],
       ]),
+    );
+  }
+}
+
+/// Bouton « Filtres » (téléphone), avec le nombre de filtres actifs.
+class _FiltersButton extends StatelessWidget {
+  const _FiltersButton({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = count > 0;
+    final c = Theme.of(context).colorScheme.primary;
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 46),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        backgroundColor: on ? c.withValues(alpha: .08) : null,
+        side: BorderSide(color: on ? c : Theme.of(context).dividerColor),
+      ),
+      icon: const Icon(Icons.tune_rounded, size: 18),
+      label: Text(on ? tr('Filtres ($count)') : tr('Filtres')),
     );
   }
 }

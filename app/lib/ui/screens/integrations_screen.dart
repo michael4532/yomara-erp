@@ -775,90 +775,88 @@ class _ChannelsTab extends StatelessWidget {
       'telegram': 'Créez un bot avec @BotFather (jeton), ajoutez-le au groupe, puis indiquez l\'identifiant du groupe (ex. -100123…).',
       'google_chat': 'Google Chat › espace › Applications et intégrations › Webhooks › copier l\'adresse.',
     };
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => YAlertDialog(
-          title: Text(tr(ch == null ? 'Nouveau canal' : 'Modifier le canal')),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (ch == null)
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final k in kinds)
-                          ChoiceChip(avatar: Icon(_icons[k['key']], size: 16), label: Text(tr('${k['label']}')), selected: kind == k['key'], onSelected: (_) => set(() => kind = '${k['key']}')),
-                      ],
-                    ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: name,
-                    decoration: InputDecoration(labelText: tr('Nom (ex. #parc-auto, Direction)')),
-                  ),
-                  const SizedBox(height: 10),
-                  if (kind == 'telegram') ...[
-                    TextField(
-                      controller: token,
-                      decoration: InputDecoration(labelText: trn(ch == null ? 'Jeton du bot' : 'Nouveau jeton (laisser vide pour garder)')),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: chat,
-                      decoration: InputDecoration(labelText: tr('Identifiant de la conversation')),
-                    ),
-                  ] else
-                    TextField(
-                      controller: url,
-                      decoration: InputDecoration(labelText: trn(ch == null ? 'Adresse du webhook' : 'Nouvelle adresse (laisser vide pour garder)')),
-                    ),
-                  const SizedBox(height: 6),
-                  Text(tr(help[kind] ?? ''), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
-                  const SizedBox(height: 14),
-                  Text(tr('Notifications à relayer'), style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
+    final ok = await showFormDialog<bool>(context, title: ch == null ? 'Nouveau canal' : 'Modifier le canal', builder: (c) => StatefulBuilder(
+        builder: (c, set) => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (ch == null)
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      FilterChip(
-                        label: Text(tr('Toutes')),
-                        selected: events.contains('*'),
-                        onSelected: (v) => set(
-                          () => v
-                              ? (events
-                                  ..clear()
-                                  ..add('*'))
-                              : events.remove('*'),
-                        ),
-                      ),
-                      for (final t in topics)
-                        FilterChip(
-                          label: Text(tr('${t['label']}')),
-                          selected: events.contains(t['key']),
-                          onSelected: (v) => set(() {
-                            events.remove('*');
-                            v ? events.add('${t['key']}') : events.remove(t['key']);
-                          }),
-                        ),
+                      for (final k in kinds)
+                        ChoiceChip(avatar: Icon(_icons[k['key']], size: 16), label: Text(tr('${k['label']}')), selected: kind == k['key'], onSelected: (_) => set(() => kind = '${k['key']}')),
                     ],
                   ),
-                ],
-              ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: name,
+                  decoration: InputDecoration(labelText: tr('Nom (ex. #parc-auto, Direction)')),
+                ),
+                const SizedBox(height: 10),
+                if (kind == 'telegram') ...[
+                  TextField(
+                    controller: token,
+                    decoration: InputDecoration(labelText: trn(ch == null ? 'Jeton du bot' : 'Nouveau jeton (laisser vide pour garder)')),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: chat,
+                    decoration: InputDecoration(labelText: tr('Identifiant de la conversation')),
+                  ),
+                ] else
+                  TextField(
+                    controller: url,
+                    decoration: InputDecoration(labelText: trn(ch == null ? 'Adresse du webhook' : 'Nouvelle adresse (laisser vide pour garder)')),
+                  ),
+                const SizedBox(height: 6),
+                Text(tr(help[kind] ?? ''), style: TextStyle(fontSize: 12, color: Theme.of(c).hintColor)),
+                const SizedBox(height: 14),
+                Text(tr('Notifications à relayer'), style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    FilterChip(
+                      label: Text(tr('Toutes')),
+                      selected: events.contains('*'),
+                      onSelected: (v) => set(
+                        () => v
+                            ? (events
+                                ..clear()
+                                ..add('*'))
+                            : events.remove('*'),
+                      ),
+                    ),
+                    for (final t in topics)
+                      FilterChip(
+                        label: Text(tr('${t['label']}')),
+                        selected: events.contains(t['key']),
+                        onSelected: (v) => set(() {
+                          events.remove('*');
+                          v ? events.add('${t['key']}') : events.remove(t['key']);
+                        }),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-            FilledButton(onPressed: events.isEmpty ? null : () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
-          ],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
+                TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+                FilledButton(onPressed: events.isEmpty ? null : () => Navigator.pop(c, true), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
         ),
-      ),
-    );
+      ));
     if (ok != true || !context.mounted) return;
     final body = {
       'name': name.text.trim().isEmpty ? kinds.firstWhere((k) => k['key'] == kind)['label'] : name.text.trim(),

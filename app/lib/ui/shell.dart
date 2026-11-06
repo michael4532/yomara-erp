@@ -133,6 +133,7 @@ import 'screens/stock_screen.dart';
 import 'navigation.dart';
 import 'screens/document_editor.dart';
 import 'theme.dart';
+import '../core/local_db.dart';
 import 'widgets/common.dart';
 import '../i18n/i18n.dart';
 import '../core/json.dart';
@@ -699,8 +700,8 @@ class _AppShellState extends State<AppShell> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFFFFF4D6),
-                border: Border.all(color: const Color(0xFFF5D88A)),
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF3A2F12) : const Color(0xFFFFF4D6),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF6B5420) : const Color(0xFFF5D88A)),
               ),
               child: Row(
                 children: [
@@ -715,12 +716,12 @@ class _AppShellState extends State<AppShell> {
                             ? '« ${expiring.first['name']} » ${toDouble(expiring.first['days_left']) == 0 ? 'expire aujourd\'hui' : 'expire dans ${toDouble(expiring.first['days_left']).round()} jour(s)'}${expiring.first['source'] == 'trial' ? ' (essai)' : ''}.'
                             : '${expiring.length} modules arrivent à échéance (le premier dans ${toDouble(expiring.first['days_left']).round()} jour(s)).',
                       ),
-                      style: const TextStyle(color: Color(0xFF6B4A0E), fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFF6DFA0) : const Color(0xFF6B4A0E), fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   ),
                   TextButton(
                     onPressed: () => _go('store'),
-                    style: TextButton.styleFrom(foregroundColor: const Color(0xFF8A5A0B)),
+                    style: TextButton.styleFrom(foregroundColor: Theme.of(context).brightness == Brightness.dark ? YColors.yellow : const Color(0xFF8A5A0B)),
                     child: Text(tr('Renouveler')),
                   ),
                   IconButton(
@@ -1634,21 +1635,10 @@ class _TopBar extends StatelessWidget {
               if (v == 'shortcuts') onSearch();
               if (v == 'guide') return showOnboardingGuide(context, markSeen: false);
               if (v == 'lang') return chooseLanguage(context);
+              if (v == 'appearance') return chooseAppearance(context);
               if (v == 'about') return showYomaraAbout(context);
               if (v == 'delete_account') return showDeleteAccountDialog(context);
-              if (v == 'logout') {
-                final pending = context.read<SyncEngine>().pendingCount;
-                final ok = await confirm(
-                  context,
-                  tr('Se déconnecter ?'),
-                  pending > 0
-                      ? '$pending saisie(s) ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à votre prochaine connexion.'
-                      : 'Vous pourrez vous reconnecter à tout moment.',
-                  ok: tr('Déconnexion'),
-                  danger: pending > 0,
-                );
-                if (ok && context.mounted) await context.read<Session>().logout();
-              }
+              if (v == 'logout') return confirmLogout(context);
             },
             header: _AccountHeader(
               name: name,
@@ -1664,6 +1654,8 @@ class _TopBar extends StatelessWidget {
               _accountItem('shortcuts', Icons.keyboard_command_key, 'Recherche rapide', 'Ctrl K pour aller partout', const Color(0xFF00897B)),
               _accountItem('guide', Icons.school_outlined, 'Guide de démarrage', 'Revoir la présentation des espaces', const Color(0xFFD97706)),
               _accountItem('lang', Icons.translate, 'Langue', I18n.languages[I18n.lang], const Color(0xFF0891B2)),
+              _accountItem('appearance', dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined, 'Apparence',
+                  switch (ThemePrefs.name) { 'dark' => 'Sombre', 'system' => 'Selon l\'appareil', _ => 'Clair' }, const Color(0xFF4F46E5)),
               if (!dark)
                 _accountItem(
                   'theme',
@@ -2038,6 +2030,15 @@ Future<void> _accountSheet(BuildContext context) => showModalBottomSheet<void>(
         ),
         const Divider(height: 1),
         ListTile(
+          leading: const Icon(Icons.contrast_rounded),
+          title: Text(tr('Apparence')),
+          subtitle: Text(tr(switch (ThemePrefs.name) { 'dark' => 'Sombre', 'system' => 'Selon l\'appareil', _ => 'Clair' })),
+          onTap: () {
+            Navigator.pop(c);
+            chooseAppearance(context);
+          },
+        ),
+        ListTile(
           leading: const Icon(Icons.info_outline),
           title: Text(tr('À propos')),
           onTap: () {
@@ -2050,9 +2051,7 @@ Future<void> _accountSheet(BuildContext context) => showModalBottomSheet<void>(
           title: Text(tr('Se déconnecter'), style: const TextStyle(color: YColors.danger)),
           onTap: () async {
             Navigator.pop(c);
-            final pending = context.read<SyncEngine>().pendingCount;
-            final ok = await confirm(context, tr('Se déconnecter ?'), pending > 0 ? '$pending saisie(s) ne sont pas encore envoyées au serveur : elles seront perdues.' : 'Vous pourrez vous reconnecter à tout moment.', ok: tr('Déconnexion'), danger: pending > 0);
-            if (ok && context.mounted) await context.read<Session>().logout();
+            await confirmLogout(context);
           },
         ),
         if (!s.isSuperAdmin)
@@ -2070,3 +2069,73 @@ Future<void> _accountSheet(BuildContext context) => showModalBottomSheet<void>(
     );
   },
 );
+
+/// Déconnexion, avec le choix d'effacer les données de la société de cet appareil (poste partagé, navigateur).
+Future<void> confirmLogout(BuildContext context) async {
+  final session = context.read<Session>();
+  final pending = context.read<SyncEngine>().pendingCount;
+  var wipe = session.wipeOnLogoutDefault;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) => YAlertDialog(
+        icon: const Icon(Icons.logout_rounded),
+        title: Text(tr('Se déconnecter ?')),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr(pending > 0 && !wipe
+              ? '$pending saisie(s) ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à votre prochaine connexion.'
+              : 'Vous pourrez vous reconnecter à tout moment.')),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            value: wipe,
+            onChanged: (v) => set(() => wipe = v ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(tr('Effacer les données de la société sur cet appareil')),
+            subtitle: Text(tr('Conseillé sur un ordinateur partagé : elles seront rechargées à la prochaine connexion.')),
+          ),
+          if (wipe && pending > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(tr('Attention : $pending saisie(s) non envoyée(s) seront perdues.'), style: const TextStyle(color: YColors.danger, fontWeight: FontWeight.w600)),
+            ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+          FilledButton(
+            style: wipe && pending > 0 ? FilledButton.styleFrom(backgroundColor: YColors.danger) : null,
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(tr('Déconnexion')),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (ok == true) await session.logout(wipe: wipe);
+}
+
+/// Apparence de l'application sur cet appareil : clair, sombre ou selon le réglage du système.
+Future<void> chooseAppearance(BuildContext context) async {
+  final v = await showDialog<String>(
+    context: context,
+    builder: (c) => SimpleDialog(
+      title: Text(tr('Apparence')),
+      children: [
+        for (final (k, label, icon) in const [
+          ('light', 'Clair', Icons.light_mode_outlined),
+          ('dark', 'Sombre', Icons.dark_mode_outlined),
+          ('system', 'Selon l\'appareil', Icons.brightness_auto_outlined),
+        ])
+          ListTile(
+            leading: Icon(icon),
+            title: Text(tr(label)),
+            trailing: ThemePrefs.name == k ? const Icon(Icons.check_rounded, color: YColors.blue) : null,
+            onTap: () => Navigator.pop(c, k),
+          ),
+      ],
+    ),
+  );
+  if (v == null) return;
+  await LocalDb.meta.put('theme_mode', v);
+  ThemePrefs.load(v);
+}

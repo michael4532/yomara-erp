@@ -65,4 +65,19 @@ class KvStore {
   }
 
   Future<void> close() async => _db.close();
+
+  /// Supprime les bases IndexedDB dont le nom commence par [prefix] (données d'une société).
+  static Future<void> deleteByPrefix(String prefix) async {
+    try {
+      final list = (await web.window.indexedDB.databases().toDart).toDart;
+      for (final info in list) {
+        final name = info.name;
+        if (name.toLowerCase().startsWith(prefix.toLowerCase())) {
+          try {
+            await _done(web.window.indexedDB.deleteDatabase(name));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
 }
