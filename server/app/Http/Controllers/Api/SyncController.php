@@ -37,7 +37,7 @@ class SyncController extends Controller
     public function pull(Request $request)
     {
         $cursor = max(0, (int) $request->query('cursor', 0));
-        $limit = min((int) $request->query('limit', config('erp.sync.page_size')), 2000);
+        $limit = max(1, min((int) $request->query('limit', config('erp.sync.page_size')), 2000));
         $entities = $this->readableEntities($request);
         app(\App\Support\ModuleRegistry::class)->ensureSetup(app('tenant'));
 
@@ -141,6 +141,13 @@ class SyncController extends Controller
             if ($m['op'] === 'delete' && $class::query()->whereKey($m['record_id'])->exists()
                 && ! EntityController::visibleRecord($class, $m['record_id'], $user)) {
                 $results[] = $this->store($m, $company->id, $user->id, EntityWriter::REJECTED, $class, 'Suppression refusée : cet élément ne vous appartient pas.');
+                continue;
+            }
+            // Même règle que l'API REST pour l'écriture : un identifiant existant (autre société, ou fiche que l'utilisateur
+            // ne voit pas) n'est jamais réécrit — ni erreur serveur ni écrasement de la fiche d'un collègue.
+            if ($m['op'] === 'upsert' && $class::withoutGlobalScopes()->whereKey($m['record_id'])->exists()
+                && ! EntityController::visibleRecord($class, $m['record_id'], $user)) {
+                $results[] = $this->store($m, $company->id, $user->id, EntityWriter::REJECTED, $class, 'Modification refusée : cet élément ne vous est pas accessible.');
                 continue;
             }
 

@@ -73,7 +73,10 @@ class FournisseursController extends Controller
         $inv = SupplierInvoice::findOrFail($id);
         abort_unless($inv->file_path && Storage::disk('local')->exists($inv->file_path), 404);
 
-        return Storage::disk('local')->response($inv->file_path, $inv->file_name);
+        // Type déduit de l'extension contrôlée au dépôt (jamais du contenu) : un faux PDF/PNG contenant du HTML ne s'affiche pas
+        $mime = ['pdf' => 'application/pdf', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'webp' => 'image/webp'][strtolower(pathinfo($inv->file_path, PATHINFO_EXTENSION))] ?? 'application/octet-stream';
+
+        return Storage::disk('local')->response($inv->file_path, $inv->file_name, \App\Support\SafeDownload::headers($mime, (string) ($inv->file_name ?: basename($inv->file_path)), true));
     }
 
     public function match(string $id)

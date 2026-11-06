@@ -689,9 +689,10 @@ class ShopService
         if (! $items || (strlen(preg_replace('/\D/', '', (string) $phone)) < 8 && ! $email)) {
             throw new \DomainException('Panier incomplet.');
         }
-        $cart = ! empty($d['token']) ? $C::withoutGlobalScopes()->where('site_id', $s->id)->where('token', $d['token'])->whereNull('order_id')->first() : null;
+        $cart = ! empty($d['token']) ? $C::withoutGlobalScopes()->where('site_id', $s->id)->where('token', (string) $d['token'])->whereNull('order_id')->first() : null;
         if (! $cart) {
             // Même client (téléphone ou e-mail) avec un panier ouvert récent : on le met à jour au lieu d'en créer un autre
+            // (son jeton n'est pas renvoyé au navigateur : voir PublicSiteController::cart)
             $digits = substr(preg_replace('/\D/', '', (string) $phone), -8);
             $cart = $C::withoutGlobalScopes()->where('site_id', $s->id)->whereNull('order_id')->where('updated_at', '>=', now()->subDays(3))->get()
                 ->first(fn ($c) => ($email && $c->email === $email) || (strlen($digits) === 8 && substr(preg_replace('/\D/', '', (string) $c->phone), -8) === $digits));

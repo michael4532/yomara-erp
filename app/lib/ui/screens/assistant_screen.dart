@@ -125,7 +125,7 @@ class _AssistantScreenState extends State<AssistantScreen> with SingleTickerProv
                 },
                 child: Text(tr('Revenir à la clé de la plateforme')),
               ),
-            FilledButton(
+            SaveButton(
               onPressed: () async {
                 try {
                   await context.read<Session>().api.put('ia/settings', {

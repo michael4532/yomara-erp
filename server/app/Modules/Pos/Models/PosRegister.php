@@ -37,8 +37,8 @@ class PosRegister extends Model
         return [
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:20',
-            'warehouse_id' => 'nullable|uuid',
-            'branch_id' => 'nullable|uuid',
+            'warehouse_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('warehouses')],
+            'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')],
             'active' => 'sometimes|boolean',
         ];
     }

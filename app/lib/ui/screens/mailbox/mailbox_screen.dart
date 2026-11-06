@@ -207,6 +207,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
         if (_filter == 'attachments') 'attachments': 1,
         if (_q.isNotEmpty) 'q': _q,
       }, _olderCursor ?? (last == null ? null : '${last['date']}|${last['id']}'));
+      if (!mounted) return;
       setState(() {
         _older.addAll(rows);
         _olderDone = rows.length < 50;
@@ -298,7 +299,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             _afterRemove(id);
           case 'flag':
             await _s.setFlags(id, flagged: m?['flagged'] != true);
-            setState(() => _open = _s.local(id) ?? _open);
+            if (mounted) setState(() => _open = _s.local(id) ?? _open);
           case 'unread':
             await _s.setFlags(id, seen: m?['seen'] != true ? true : false);
             if (m?['seen'] == true) setState(() => (_openId = null, _open = null));
@@ -386,7 +387,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
               final t = await pickMailTheme(context, _theme);
               if (t != null) {
                 await MailTheme.save(t);
-                setState(() => _theme = t);
+                if (mounted) setState(() => _theme = t);
               }
             },
           ),
@@ -415,7 +416,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 final t = await pickMailTheme(context, _theme);
                 if (t != null) {
                   await MailTheme.save(t);
-                  setState(() => _theme = t);
+                  if (mounted) setState(() => _theme = t);
                 }
               }),
             ]),
@@ -997,7 +998,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             icon: Icon(m['flagged'] == true ? Icons.flag : Icons.outlined_flag, color: m['flagged'] == true ? YColors.danger : null),
             onPressed: () => _do(() async {
               await _s.setFlags(m['id'] as int, flagged: m['flagged'] != true);
-              setState(() => _open = _s.local(m['id'] as int) ?? m);
+              if (mounted) setState(() => _open = _s.local(m['id'] as int) ?? m);
             }),
           ),
           if (back) IconButton(
@@ -1005,7 +1006,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             icon: const Icon(Icons.mark_email_unread_outlined),
             onPressed: () => _do(() async {
               await _s.setFlags(m['id'] as int, seen: false);
-              setState(() => (_openId = null, _open = null));
+              if (mounted) setState(() => (_openId = null, _open = null));
             }),
           ),
           PopupMenuButton<String>(

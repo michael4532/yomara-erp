@@ -365,7 +365,7 @@ class _ShopSettingsState extends State<_ShopSettings> {
         ]),
       ),
       const SizedBox(height: 12),
-      Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.save_outlined), label: Text(tr('Enregistrer')))),
+      Align(alignment: Alignment.centerRight, child: SaveButton(onPressed: _save, icon: const Icon(Icons.save_outlined), child: Text(tr('Enregistrer')))),
     ]);
   }
 }
@@ -496,7 +496,7 @@ class _BlogTabState extends State<BlogTab> {
                     child: Text(tr('Supprimer')),
                   ),
                 TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     final fields = {'title': title.text.trim(), 'excerpt': excerpt.text.trim(), 'body': body.text, 'published': published ? '1' : '0'};
                     final path = p == null ? 'sites/posts' : 'sites/posts/${p['id']}';
@@ -583,7 +583,7 @@ class _Coupons extends StatelessWidget {
     await showFormDialog(context, title: c == null ? 'Nouveau code promo' : 'Code ${c['code']}', builder: (dc) => StatefulBuilder(
         builder: (dc, set) {
           Future<void> pick(bool start) async {
-            final d = await showDatePicker(context: dc, firstDate: DateTime(2024), lastDate: DateTime(2035), initialDate: DateTime.tryParse((start ? from : to) ?? '') ?? DateTime.now());
+            final d = await pickDate(dc, firstDate: DateTime(2024), lastDate: DateTime(2035), initialDate: DateTime.tryParse((start ? from : to) ?? '') ?? DateTime.now());
             if (d != null) set(() => start ? from = d.toIso8601String().substring(0, 10) : to = d.toIso8601String().substring(0, 10));
           }
 
@@ -626,7 +626,7 @@ class _Coupons extends StatelessWidget {
                       child: Text(tr('Supprimer')),
                     ),
                   TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
-                  FilledButton(
+                  SaveButton(
                     onPressed: () async {
                       try {
                         await api.post(c == null ? 'sites/coupons' : 'sites/coupons/${c['id']}', {

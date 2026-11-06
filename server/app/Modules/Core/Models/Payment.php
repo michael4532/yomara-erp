@@ -56,7 +56,7 @@ class Payment extends Model
             'method' => 'required|in:'.implode(',', static::METHODS),
             'reference' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
-            'treasury_account_id' => 'nullable|uuid',
+            'treasury_account_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('tr_accounts')],
             'exchange_rate' => 'nullable|numeric|gt:0|max:1000000000',
         ];
     }
@@ -69,6 +69,9 @@ class Payment extends Model
     public function beforeEntityWrite(array &$data, bool $creating): void
     {
         $docClass = static::DOCUMENT_CLASS;
+        if (! $creating && isset($data['document_id']) && (string) $data['document_id'] !== (string) $this->document_id) {
+            throw new \DomainException('Un paiement ne change pas de facture : supprimez-le et enregistrez-le sur la bonne facture.');
+        }
         $doc = $docClass::find($data['document_id'] ?? $this->document_id);
 
         if (! $doc) {

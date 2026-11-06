@@ -95,7 +95,7 @@ class Partner extends Model
             'contacts.*.role' => 'nullable|string|max:120',
             'contacts.*.phone' => 'nullable|string|max:50',
             'contacts.*.email' => 'nullable|email|max:255',
-            'price_list_id' => 'nullable|uuid',
+            'price_list_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('pl_lists')],
             'payment_term_id' => ['nullable', 'uuid', \Illuminate\Validation\Rule::exists('payment_terms', 'id')->where('company_id', app('tenant')->id)->whereNull('deleted_at')],
             'supplier_payment_term_id' => ['nullable', 'uuid', \Illuminate\Validation\Rule::exists('payment_terms', 'id')->where('company_id', app('tenant')->id)->whereNull('deleted_at')],
         ];

@@ -342,7 +342,11 @@ class SignatureService
     /** Toutes les signatures recueillies : document scellé, copies envoyées, devis transformé en commande. */
     public function complete(Company $company, SignRequest $r): void
     {
-        $r->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
+        // Deux dernières signatures simultanées : une seule clôture (scellement, envois, commande)
+        if (! SignRequest::whereKey($r->id)->where('status', 'pending')->update(['status' => 'completed', 'completed_at' => now()])) {
+            return;
+        }
+        $r->refresh();
         $this->log($r, 'completed');
         try {
             app(SignaturePdf::class)->seal($company, $r->fresh(['signers', 'events']));

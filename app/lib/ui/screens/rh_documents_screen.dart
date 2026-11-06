@@ -488,7 +488,7 @@ class _DocFormState extends State<_DocForm> {
             label: tr('Date'),
             child: OutlinedButton.icon(
               onPressed: () async {
-                final x = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                final x = await pickDate(context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                 if (x != null) setState(() => _date = x);
               },
               icon: const Icon(Icons.event),

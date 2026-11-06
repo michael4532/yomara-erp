@@ -47,7 +47,12 @@ class CinetPay extends Gateway
             'apikey' => $this->key('apikey'), 'site_id' => $this->key('site_id'), 'transaction_id' => $tx->reference,
         ])->json();
         if (($res['data']['status'] ?? null) === 'ACCEPTED') {
-            $this->confirm($res['data']['amount'] ?? null, $res['data']['currency'] ?? null);
+            // Montant facturé arrondi au multiple de 5 supérieur (initiate) : c'est le montant attendu de cette transaction
+            $amount = $res['data']['amount'] ?? null;
+            if (is_numeric($amount) && abs((float) $amount - ceil($tx->amount / 5) * 5) < 0.01) {
+                $amount = (float) $tx->amount;
+            }
+            $this->confirm($amount, $res['data']['currency'] ?? null);
         }
 
         return match ($res['data']['status'] ?? null) {

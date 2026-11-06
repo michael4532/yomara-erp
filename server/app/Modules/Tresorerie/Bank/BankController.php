@@ -200,7 +200,7 @@ class BankController extends Controller
     protected function ruleRules(): array
     {
         return [
-            'name' => 'required|string|max:120', 'contains' => 'required|string|max:255', 'direction' => 'nullable|in:in,out,any', 'account_id' => 'nullable|uuid',
+            'name' => 'required|string|max:120', 'contains' => 'required|string|max:255', 'direction' => 'nullable|in:in,out,any', 'account_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('tr_accounts')],
             'amount_min' => 'nullable|numeric|min:0', 'amount_max' => 'nullable|numeric|min:0', 'action' => 'nullable|in:operation,ignore',
             'category' => ['nullable', Rule::in(array_keys(Operation::CATEGORIES))], 'label' => 'nullable|string|max:190', 'active' => 'nullable|boolean',
         ];
@@ -218,7 +218,8 @@ class BankController extends Controller
     public function updateRule(Request $r, int $id)
     {
         $d = $r->validate($this->ruleRules());
-        abort_unless(DB::table('tr_bank_rules')->where('company_id', app('tenant')->id)->where('id', $id)->update($d + ['updated_at' => now()]) !== false, 404);
+        abort_unless(DB::table('tr_bank_rules')->where('company_id', app('tenant')->id)->where('id', $id)->exists(), 404);
+        DB::table('tr_bank_rules')->where('company_id', app('tenant')->id)->where('id', $id)->update($d + ['updated_at' => now()]);
 
         return ['data' => DB::table('tr_bank_rules')->find($id), 'preview' => $this->preview($id)];
     }

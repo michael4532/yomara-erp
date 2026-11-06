@@ -169,6 +169,7 @@ class ImmobilierController extends Controller
     {
         $q = Rent::query();
         $status = $r->query('status', 'all');
+        $r->validate(['month' => 'nullable|date_format:Y-m']);
         if ($r->filled('month') && $status !== 'overdue') {
             $m = Carbon::parse($r->query('month').'-01');
             $q->where('period_start', '<=', $m->copy()->endOfMonth()->toDateString())->where('period_end', '>=', $m->toDateString());
@@ -201,7 +202,7 @@ class ImmobilierController extends Controller
 
     public function pay(Request $r, int $id)
     {
-        $d = $r->validate(['amount' => 'nullable|numeric|min:1', 'method' => 'nullable|string|max:20', 'reference' => 'nullable|string|max:80', 'date' => 'nullable|date', 'treasury_account_id' => 'nullable|uuid']);
+        $d = $r->validate(['amount' => 'nullable|numeric|min:1', 'method' => 'nullable|string|max:20', 'reference' => 'nullable|string|max:80', 'date' => 'nullable|date', 'treasury_account_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('tr_accounts')]]);
 
         return $this->guard(fn () => ['data' => $this->svc->rentToApi($this->svc->pay(Rent::findOrFail($id), array_filter($d, fn ($v) => $v !== null)))]);
     }
@@ -231,6 +232,9 @@ class ImmobilierController extends Controller
             'category' => 'nullable|in:'.implode(',', array_keys(ImmobilierService::EXPENSE_CATEGORIES)), 'amount' => 'required|numeric|min:1', 'owner_charge' => 'nullable|boolean',
             'supplier' => 'nullable|string|max:160', 'notes' => 'nullable|string|max:2000']);
         Property::findOrFail($d['property_id']);
+        if (! empty($d['unit_id']) && ! Unit::whereKey($d['unit_id'])->where('property_id', $d['property_id'])->exists()) {
+            return response()->json(['message' => 'Ce lot n\'appartient pas à ce bien.'], 422);
+        }
 
         return response()->json(['data' => Expense::create($d)], 201);
     }
@@ -276,7 +280,7 @@ class ImmobilierController extends Controller
 
     public function savePayout(Request $r)
     {
-        $d = $r->validate(['owner_id' => 'required|uuid', 'period_from' => 'required|date', 'period_to' => 'required|date', 'amount' => 'nullable|numeric|min:1', 'paid_at' => 'nullable|date',
+        $d = $r->validate(['owner_id' => ['required', 'uuid', \App\Support\TenantRef::of('partners')], 'period_from' => 'required|date', 'period_to' => 'required|date', 'amount' => 'nullable|numeric|min:1', 'paid_at' => 'nullable|date',
             'method' => 'nullable|string|max:20', 'reference' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:1000']);
 
         return $this->guard(fn () => response()->json(['data' => $this->svc->savePayout($d)], 201));

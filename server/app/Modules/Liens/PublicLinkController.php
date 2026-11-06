@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 /** Ouverture publique d'un lien court / smartlink : /l/{alias}. */
 class PublicLinkController extends Controller
@@ -38,9 +39,17 @@ class PublicLinkController extends Controller
         }
         if ($l->password && ! $r->session()->get('lk_ok_'.$l->id)) {
             if ($r->isMethod('post')) {
+                // contre la recherche du mot de passe par essais successifs : 10 essais par lien et par adresse IP toutes les 10 minutes
+                $key = 'lk_pw:'.$l->id.':'.$r->ip();
+                if (RateLimiter::tooManyAttempts($key, 10)) {
+                    return response()->view('liens.password', ['l' => $l, 'error' => 'Trop d\'essais : réessayez dans quelques minutes.'], 429);
+                }
                 if (Hash::check((string) $r->input('password'), $l->password)) {
+                    RateLimiter::clear($key);
                     $r->session()->put('lk_ok_'.$l->id, true);
                 } else {
+                    RateLimiter::hit($key, 600);
+
                     return response()->view('liens.password', ['l' => $l, 'error' => 'Mot de passe incorrect.'], 422);
                 }
             } else {

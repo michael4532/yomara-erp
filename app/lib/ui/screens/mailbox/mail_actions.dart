@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme.dart';
-import '../../widgets/common.dart' show showFormDialog;
+import '../../widgets/common.dart' show showFormDialog, pickDate;
 import '../../../i18n/i18n.dart';
 import '../../../core/json.dart';
 
@@ -225,7 +225,7 @@ class _MeetingDialogState extends State<_MeetingDialog> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, initialDate: _at, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
+                  final d = await pickDate(context, initialDate: _at, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
                   if (d != null) setState(() => _at = DateTime(d.year, d.month, d.day, _at.hour, _at.minute));
                 },
                 icon: const Icon(Icons.calendar_month, size: 18),

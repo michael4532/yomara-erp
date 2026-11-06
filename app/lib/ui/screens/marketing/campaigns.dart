@@ -208,7 +208,7 @@ Future<void> newCampaign(BuildContext context, Map<String, dynamic> overview, Fu
               child: Text(tr('Le canal ${mkChannelLabels[channel]} n\'est pas encore configuré : vous pourrez préparer la campagne, mais pas l\'envoyer.'), style: const TextStyle(color: YColors.warning)),
             ),
           const SizedBox(height: 16),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) {
                 toast(c, tr('Donnez un nom à la campagne.'), error: true);
@@ -364,7 +364,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now());
+                final d = await pickDate(c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now());
                 if (d == null || !c.mounted) return;
                 final t = await showTimePicker(context: c, initialTime: const TimeOfDay(hour: 9, minute: 0));
                 if (t == null) return;

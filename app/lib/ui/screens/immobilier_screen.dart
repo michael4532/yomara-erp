@@ -659,7 +659,7 @@ class _LeaseDialogState extends State<_LeaseDialog> {
     final monthly = toDouble(_rent.text) + toDouble(_charges.text);
     final entry = toDouble(_deposit.text) + monthly * _advance;
     Future<void> pick(bool start) async {
-      final d = await showDatePicker(context: context, initialDate: start ? _start : (_end ?? _start.add(const Duration(days: 365))), firstDate: DateTime(2015), lastDate: DateTime(2045));
+      final d = await pickDate(context, initialDate: start ? _start : (_end ?? _start.add(const Duration(days: 365))), firstDate: DateTime(2015), lastDate: DateTime(2045));
       if (d != null) setState(() => start ? _start = d : _end = d);
     }
 
@@ -946,7 +946,7 @@ class _RentTile extends StatelessWidget {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now());
+                  final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now());
                   if (d != null) set(() => date = d);
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -1292,7 +1292,7 @@ class _ExpensesState extends State<_Expenses> with _Loader {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now().add(const Duration(days: 30)));
+                  final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime.now().add(const Duration(days: 30)));
                   if (d != null) set(() => date = d);
                 },
                 icon: const Icon(Icons.event, size: 18),

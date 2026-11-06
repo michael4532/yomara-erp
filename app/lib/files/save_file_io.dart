@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'safe_name.dart';
+
 /// Enregistre le fichier dans « Téléchargements » (ou Documents) et renvoie son chemin.
 Future<String> saveFile(String name, List<int> bytes, {String mime = 'application/octet-stream'}) async {
+  // Nom venu du serveur (pièce jointe…) : jamais de chemin, le fichier reste dans le dossier choisi
+  name = safeFileName(name);
   Directory? dir;
   try {
     dir = await getDownloadsDirectory();

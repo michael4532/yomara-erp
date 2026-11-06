@@ -19,7 +19,7 @@ class CommercialController extends Controller
 
     public function vehicle(Request $r, int $id)
     {
-        $in = $r->validate(['start' => 'nullable|date_format:H:i', 'end' => 'nullable|date_format:H:i', 'vehicle_id' => 'nullable|integer', 'passengers' => 'nullable|string|max:255']);
+        $in = $r->validate(['start' => 'nullable|date_format:H:i', 'end' => 'nullable|date_format:H:i', 'vehicle_id' => ['nullable', 'integer', \App\Support\TenantRef::of('fl_vehicles')], 'passengers' => 'nullable|string|max:255']);
         try {
             $trip = DB::transaction(fn () => $this->h->requestVehicle(app('tenant'), $r->user(), $id, $in));
         } catch (\DomainException $e) {

@@ -59,6 +59,12 @@ class ProjetsTest extends TestCase
         $dapi()->postJson('/api/projets/timesheets', ['project_id' => $p['id'], 'user_id' => $this->admin->id, 'date' => now()->toDateString(), 'hours' => 2])->assertStatus(422);
         $api()->postJson('/api/projets/timesheets', ['project_id' => $p['id'], 'task_id' => $t2['id'], 'date' => now()->subDay()->toDateString(), 'hours' => 3])->assertCreated();
         $api()->postJson('/api/projets/timesheets', ['project_id' => $p['id'], 'date' => now()->toDateString(), 'hours' => 1, 'billable' => false, 'description' => 'Réunion interne'])->assertCreated();
+        // Le collaborateur ne supprime ni le temps ni la tâche d'un collègue
+        $adminTs = collect($api()->getJson('/api/projets/timesheets')->json('data'))->firstWhere('hours', 3);
+        $dapi()->deleteJson("/api/projets/timesheets/{$adminTs['id']}")->assertStatus(422);
+        $t3 = $api()->postJson('/api/projets/tasks', ['project_id' => $p['id'], 'title' => 'Recette', 'assignee_id' => $this->admin->id])->assertCreated()->json('data');
+        $dapi()->deleteJson("/api/projets/tasks/{$t3['id']}")->assertStatus(422);
+        $api()->deleteJson("/api/projets/tasks/{$t3['id']}")->assertOk();
 
         $s = collect($api()->getJson('/api/projets/stats')->assertOk()->json('projects'))->firstWhere('id', $p['id']);
         $this->assertSame(2, $s['tasks']);

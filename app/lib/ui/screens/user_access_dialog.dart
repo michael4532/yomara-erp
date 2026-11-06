@@ -39,6 +39,7 @@ class _AccessDialogState extends State<_AccessDialog> {
     try {
       final r = await context.read<Session>().api.get('users/${widget.user['id']}/access');
       final d = asMap(r);
+      if (!mounted) return;
       setState(() {
         _d = d;
         for (final m in (d['modules'] as List)) {

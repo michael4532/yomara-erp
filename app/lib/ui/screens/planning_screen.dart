@@ -541,7 +541,7 @@ Future<void> editAssignment(BuildContext context, {Map<String, dynamic>? assignm
               label: tr('Du'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final p = await showDatePicker(context: ctx, initialDate: DateTime(from.year, from.month, from.day), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                  final p = await pickDate(ctx, initialDate: DateTime(from.year, from.month, from.day), firstDate: DateTime(2020), lastDate: DateTime(2100));
                   if (p != null) {
                     final d = _utc(p);
                     set(() {
@@ -562,7 +562,7 @@ Future<void> editAssignment(BuildContext context, {Map<String, dynamic>? assignm
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final i = to.isBefore(from) ? from : to;
-                  final d = await showDatePicker(context: ctx, initialDate: DateTime(i.year, i.month, i.day), firstDate: DateTime(from.year, from.month, from.day), lastDate: DateTime(2100));
+                  final d = await pickDate(ctx, initialDate: DateTime(i.year, i.month, i.day), firstDate: DateTime(from.year, from.month, from.day), lastDate: DateTime(2100));
                   if (d != null) set(() => to = _utc(d));
                 },
                 icon: const Icon(Icons.flag_outlined, size: 18),
@@ -615,7 +615,7 @@ Future<void> editAssignment(BuildContext context, {Map<String, dynamic>? assignm
               child: Text(tr('Répéter après')),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               final h = toDouble(hours.text);
               if (user == null) return toast(ctx, tr('Choisissez une personne.'), error: true);
@@ -681,7 +681,7 @@ Future<void> planningSettings(BuildContext context) async {
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: SaveButton(
             onPressed: () async {
               try {
                 await api.put('planning/settings', {'week_hours': toDouble(week.text), 'work_days': (days.toList()..sort()), 'overload_percent': int.tryParse(over.text) ?? 100});

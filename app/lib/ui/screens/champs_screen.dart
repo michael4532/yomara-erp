@@ -225,7 +225,7 @@ class _FieldFormState extends State<_FieldForm> {
             label: Text(tr('Supprimer')),
           ),
         const Spacer(),
-        FilledButton(
+        SaveButton(
           onPressed: () async {
             if (_opt.text.trim().isNotEmpty) _addOption();
             if (_label.text.trim().isEmpty) return toast(context, tr('Indiquez un libellé.'), error: true);

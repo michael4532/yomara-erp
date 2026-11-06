@@ -381,7 +381,7 @@ class _EndpointFormState extends State<_EndpointForm> {
             children: [
               TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
               const SizedBox(width: 8),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   final body = {'url': _url.text.trim(), 'description': _desc.text.trim(), 'events': _sel.toList(), 'active': _active};
                   try {

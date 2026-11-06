@@ -37,7 +37,7 @@ class TreasuryAccount extends Model
     public static function syncRules(): array
     {
         return [
-            'branch_id' => 'nullable|uuid',
+            'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')],
             'name' => 'required|string|max:100',
             'kind' => 'required|in:bank,cash,mobile_money',
             'bank_name' => 'nullable|string|max:100',

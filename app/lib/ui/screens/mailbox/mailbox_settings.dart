@@ -77,7 +77,7 @@ class _AddAccountState extends State<_AddAccount> {
         }
         _user.text = email;
       }
-      setState(() => _step = 1);
+      if (mounted) setState(() => _step = 1);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     } finally {
@@ -91,7 +91,7 @@ class _AddAccountState extends State<_AddAccount> {
       final r = await context.read<Session>().api.post('mailbox/oauth/$provider', {'calendar': _calendar, 'email': _email.text.trim()});
       _before = widget.store.accounts.length;
       await safeLaunchUrl(Uri.parse('${r['url']}'), mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank');
-      setState(() => _step = 2);
+      if (mounted) setState(() => _step = 2);
       _poll = Timer.periodic(const Duration(seconds: 3), (_) async {
         await widget.store.reloadIndex();
         if (widget.store.accounts.length > _before && mounted) {
@@ -395,7 +395,7 @@ class _EditAccountState extends State<_EditAccount> {
     try {
       final f = files.first;
       final r = await context.read<Session>().api.uploadForm('mailbox/accounts/${widget.account['id']}/avatar', {'publish': _publishPhoto ? '1' : '0'}, 'file', await f.readAsBytes(), f.name);
-      setState(() => _avatar = '${r['data']['avatar_url']}');
+      if (mounted) setState(() => _avatar = '${r['data']['avatar_url']}');
       if (mounted) toast(context, r['warning'] != null ? '${r['warning']}' : (r['published'] == true ? 'Photo enregistrée et publiée sur Microsoft 365.' : 'Photo enregistrée.'), error: r['warning'] != null);
       unawaited(widget.store.reloadIndex());
     } catch (e) {
@@ -408,7 +408,7 @@ class _EditAccountState extends State<_EditAccount> {
   Future<void> _removeAvatar() async {
     try {
       await context.read<Session>().api.delete('mailbox/accounts/${widget.account['id']}/avatar');
-      setState(() => _avatar = null);
+      if (mounted) setState(() => _avatar = null);
       unawaited(widget.store.reloadIndex());
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -533,7 +533,7 @@ class _EditAccountState extends State<_EditAccount> {
                 onChanged: (v) async {
                   await api.put('mailbox/folders/${f['id']}', {'sync': v == true});
                   f['sync'] = v == true;
-                  setState(() {});
+                  if (mounted) setState(() {});
                 },
               ),
           ],
@@ -738,7 +738,7 @@ class _SignaturesState extends State<_Signatures> {
                               onPressed: () async {
                                 await context.read<Session>().api.delete('mailbox/signatures/${g['id']}');
                                 await s.reloadIndex();
-                                setState(() {});
+                                if (mounted) setState(() {});
                               },
                             ),
                           ]),
@@ -760,7 +760,7 @@ class _SignaturesState extends State<_Signatures> {
                         onPressed: () async {
                           await context.read<Session>().api.delete('mailbox/templates/${t['id']}');
                           await s.reloadIndex();
-                          setState(() {});
+                          if (mounted) setState(() {});
                         },
                       ),
                       onTap: () => _template(t),
@@ -961,7 +961,7 @@ class _SignatureEditorState extends State<_SignatureEditor> {
                         if (f.isEmpty) return;
                         final text = utf8.decode(await f.first.readAsBytes(), allowMalformed: true);
                         final body = RegExp(r'<body[^>]*>([\s\S]*)</body>', caseSensitive: false).firstMatch(text)?.group(1) ?? text;
-                        setState(() => _custom.text = body.trim());
+                        if (mounted) setState(() => _custom.text = body.trim());
                       },
                       icon: const Icon(Icons.file_open_outlined, size: 18),
                       label: Text(tr('Importer un fichier .html')),
@@ -1006,7 +1006,7 @@ class _SignatureEditorState extends State<_SignatureEditor> {
         Align(
           alignment: Alignment.centerRight,
           child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))), SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
           ]),
         ),
       ]),

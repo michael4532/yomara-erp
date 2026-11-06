@@ -59,6 +59,9 @@ class PublicSurveyController extends Controller
         foreach (QuestionnaireService::questions($f) as $q) {
             $name = 'a['.$q['id'].']';
             $v = $old[$q['id']] ?? null;
+            if (is_array($v) !== ($q['type'] === 'multi')) {
+                $v = $q['type'] === 'multi' ? [] : null; // valeur d'un autre type renvoyée par un robot : non réaffichée
+            }
             $h .= '<div class="card"><label class="q">'.e($q['label']).($q['required'] ? ' <span class="req">*</span>' : '').'</label>'.(! empty($q['help']) ? '<p class="muted" style="margin-top:-6px">'.e($q['help']).'</p>' : '');
             $h .= match ($q['type']) {
                 'long' => '<textarea name="'.$name.'" rows="4">'.e((string) $v).'</textarea>',
@@ -96,7 +99,7 @@ class PublicSurveyController extends Controller
             return $this->form($f, $c, [], []);
         }
         $input = (array) $r->input('a', []);
-        $contact = ['name' => (string) $r->input('name', ''), 'phone' => (string) $r->input('phone', '')];
+        $contact = ['name' => is_string($r->input('name')) ? $r->input('name') : '', 'phone' => is_string($r->input('phone')) ? $r->input('phone') : ''];
         try {
             DB::transaction(fn () => $this->s->store($f, $input, $contact, 'link', null, $r->ip()));
         } catch (QuestionnaireErrors $e) {

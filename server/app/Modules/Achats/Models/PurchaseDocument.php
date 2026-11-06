@@ -38,6 +38,31 @@ class PurchaseDocument extends TradeDocument
         return $this->type === 'purchase_order' && $limit > 0 && $this->subtotal > $limit && ! $this->approved_at;
     }
 
+    /** Lignes modifiées après approbation : montant en hausse, autre fournisseur ou autre devise → l'approbation tombe. */
+    public function replaceLines(array $lines): void
+    {
+        $before = (float) $this->subtotal;
+        $changed = $this->wasChanged(['partner_id', 'currency', 'exchange_rate']);
+        parent::replaceLines($lines);
+        if ($this->type === 'purchase_order' && $this->approved_at && ($changed || (float) $this->subtotal > $before + 0.005)) {
+            $this->approved_at = null;
+            $this->approved_by = null;
+            $this->save();
+        }
+    }
+
+    /** Fournisseur, devise ou taux changés sans renvoyer les lignes : l'approbation tombe aussi (avant une éventuelle validation). */
+    public function afterEntityWrite(array $data, bool $creating): void
+    {
+        if (! $creating && ! array_key_exists('lines', $data) && $this->type === 'purchase_order' && $this->status === 'draft' && $this->approved_at
+            && $this->wasChanged(['partner_id', 'currency', 'exchange_rate'])) {
+            $this->approved_at = null;
+            $this->approved_by = null;
+            $this->save();
+        }
+        parent::afterEntityWrite($data, $creating);
+    }
+
     public function validateDocument(): void
     {
         if ($this->needsApproval()) {

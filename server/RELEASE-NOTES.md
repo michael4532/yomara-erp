@@ -1,5 +1,30 @@
 # Notes de version
 
+## 0.99.33 — audit complet : failles et bugs corrigés
+Sécurité serveur
+- Mise à jour : un paquet venant du serveur de mises à jour est toujours contrôlé par sa signature Yomara ; numéro de version vérifié.
+- Séparation des sociétés renforcée partout : clients, comptes de trésorerie, agences, sessions de caisse, véhicules, propriétaires (Immobilier), contacts WhatsApp, règles bancaires, écritures comptables, invités d'agenda, utilisateurs (Analytique)… ne peuvent plus pointer vers une autre société ni en afficher les données.
+- Synchronisation : une saisie qui vise un élément d'une autre société ou invisible pour la personne est refusée proprement ; clé API limitée à la société de son créateur ; super administrateur désactivé refusé.
+- Appels sortants protégés contre les adresses internes : FNE, Shopify (jeton envoyé seulement à la boutique), serveur d'envoi SMTP des sociétés (SaaS), transcription Visio.
+- Fichiers déposés (CV, justificatifs, factures fournisseurs, pièces RH) : servis selon leur extension, jamais exécutés dans le navigateur.
+- Import : il faut aussi la permission du module visé (stock, ventes…).
+- Pages publiques : mot de passe des liens limité en essais, panier du site qui ne révèle plus les coordonnées d'un client, réservations et questionnaires qui ne plantent plus sur des données mal formées.
+- Rejeu après reconnexion : une saisie hors ligne renvoyée après une nouvelle connexion n'est pas créée deux fois.
+Argent et métiers
+- Restaurant : un serveur ne peut plus changer le prix d'un plat.
+- Paie : les heures supplémentaires, soldes de tout compte et remboursements ne sont plus payés deux fois après modification d'un bulletin ; paiement de paie et de notes de frais protégé du double clic.
+- Caisse : un caissier ne voit et ne clôture que ses sessions et ne rattache ses tickets qu'à elles (gérant : toutes).
+- Achats : une commande approuvée repasse en approbation si son montant, son fournisseur ou sa devise change ; réception au-delà de la commande impossible.
+- Abonnements, signatures, Mobile Money, acceptation de devis : plus de double facturation, double encaissement ou double clôture quand deux actions arrivent en même temps.
+- CinetPay : paiements arrondis au multiple de 5 acceptés.
+Application
+- Plus de doublons au double appui sur les boutons d'enregistrement (environ 90 formulaires).
+- Caisse : montants avec décimales pour les devises qui en ont.
+- Données hors ligne : rien n'est perdu si l'application s'arrête pendant le chiffrement ou si le coffre du système est momentanément indisponible ; déconnexion qui attend la fin de l'envoi sans jamais rester bloquée.
+- Noms de fichiers reçus nettoyés avant enregistrement ; sauvegarde Android et transfert d'appareil exclus.
+- Sélecteurs de date qui s'ouvrent toujours, recherches moins bavardes, textes lisibles en mode sombre.
+- Message clair si l'application est déjà ouverte dans une autre fenêtre.
+
 ## 0.99.32 — données protégées sur l'appareil, mode sombre, filtres sur téléphone
 - Ordinateur et téléphone : le jeton de connexion est rangé dans le coffre du système (Trousseau Mac et iPhone, Keystore Android, Gestionnaire d'identifiants Windows, trousseau Linux) et les données de la société sur l'appareil sont chiffrées (AES, clé dans ce coffre). Le passage se fait tout seul à la première ouverture : les saisies en attente d'envoi sont gardées, le reste est rechargé depuis le serveur. Sans coffre disponible, l'application fonctionne comme avant.
 - Déconnexion : case « Effacer les données de la société sur cet appareil » (cochée par défaut dans le navigateur, choix mémorisé), avec avertissement si des saisies n'ont pas encore été envoyées ; seules les données de cette personne dans cette société sont effacées.

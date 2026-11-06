@@ -136,17 +136,23 @@ HTML;
     /** Acceptation en ligne : bon pour accord (nom, date, IP), puis commande confirmée. */
     public function acceptQuote(Company $company, Partner $partner, SalesDocument $q, string $signer): ?SalesDocument
     {
-        if ($this->quoteState($q) !== 'pending') {
-            throw new \DomainException('Ce devis ne peut plus être accepté en ligne.');
-        }
-        $order = null;
-        if ($company->setting('portal_quote_to_order', true)) {
-            $order = $q->convertTo('order');
-            $order->reference = $order->reference ?: 'Bon pour accord en ligne — '.$signer;
-            $order->save();
-            $order->validateDocument();
-        }
-        $this->log($partner->id, 'quote_accepted', $q->id, ['signer' => $signer, 'order_id' => $order?->id, 'order_number' => $order?->number, 'total' => $q->total]);
+        // Double clic ou deux onglets : le devis est verrouillé le temps de l'acceptation (une seule commande créée)
+        $order = \Illuminate\Support\Facades\DB::transaction(function () use ($company, $partner, $q, $signer) {
+            SalesDocument::whereKey($q->id)->lockForUpdate()->first();
+            if ($this->quoteState($q) !== 'pending') {
+                throw new \DomainException('Ce devis ne peut plus être accepté en ligne.');
+            }
+            $order = null;
+            if ($company->setting('portal_quote_to_order', true)) {
+                $order = $q->convertTo('order');
+                $order->reference = $order->reference ?: 'Bon pour accord en ligne — '.$signer;
+                $order->save();
+                $order->validateDocument();
+            }
+            $this->log($partner->id, 'quote_accepted', $q->id, ['signer' => $signer, 'order_id' => $order?->id, 'order_number' => $order?->number, 'total' => $q->total]);
+
+            return $order;
+        });
         $this->notifyStaff($company, 'Devis accepté en ligne : '.$q->number,
             $partner->name.' a accepté le devis '.$q->number.' ('.number_format($q->total, 0, ',', ' ').' '.$q->currency.')'.($order ? ' — commande '.$order->number.' créée.' : '.'),
             $order?->id ?? $q->id);

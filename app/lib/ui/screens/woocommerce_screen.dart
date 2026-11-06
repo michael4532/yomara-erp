@@ -1281,7 +1281,7 @@ class _SettingsDialogState extends State<_SettingsDialog> {
           alignment: Alignment.centerRight,
           child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-            FilledButton(
+            SaveButton(
               style: FilledButton.styleFrom(backgroundColor: _woo),
               onPressed: () async {
                 try {

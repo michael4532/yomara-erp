@@ -45,7 +45,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
   Map<String, dynamic>? _partner;
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _msgs = [];
-  Timer? _listTimer, _chatTimer;
+  Timer? _listTimer, _chatTimer, _searchTimer;
   bool _showInfo = true, _sending = false;
   Object? _error;
   final _text = TextEditingController();
@@ -68,6 +68,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
   void dispose() {
     _listTimer?.cancel();
     _chatTimer?.cancel();
+    _searchTimer?.cancel();
     _text.dispose();
     _scroll.dispose();
     _focus.dispose();
@@ -136,6 +137,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
       // statuts (distribué / lu) des derniers messages envoyés
       final recent = await api.get('whatsapp/conversations/$id', query: {'limit': '20', 'peek': '1'});
       final upd = {for (final m in (recent['messages'] as List)) (m as Map)['id']: m};
+      if (!mounted) return;
       setState(() {
         _conv = conv;
         _msgs = [for (final m in _msgs) upd.containsKey(m['id']) ? asMap(upd[m['id']]) : m, ...add.where((a) => !_msgs.any((m) => m['id'] == a['id']))];
@@ -161,6 +163,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
           ? await api.uploadForm('whatsapp/conversations/${c['id']}/messages', {if (body.isNotEmpty) 'body': body}, 'file', file.$1, file.$2)
           : await api.post('whatsapp/conversations/${c['id']}/messages', {if (template == null && body.isNotEmpty) 'body': body, 'template': ?template, 'params': ?params});
       _text.clear();
+      if (!mounted) return;
       setState(() {
         _msgs.add(asMap(r['data']));
         _conv = asMap(r['conversation']);
@@ -177,7 +180,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
   Future<void> _update(Map<String, dynamic> data, [String? ok]) async {
     try {
       final r = await api.put('whatsapp/conversations/${_conv!['id']}', data);
-      setState(() => _conv = asMap(r['data']));
+      if (mounted) setState(() => _conv = asMap(r['data']));
       if (ok != null && mounted) toast(context, ok);
       unawaited(_loadList(silent: true));
     } catch (e) {
@@ -276,7 +279,8 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
             padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
             onSearch: (v) {
               _q = v.trim();
-              _loadList(silent: true);
+              _searchTimer?.cancel();
+              _searchTimer = Timer(const Duration(milliseconds: 400), () => _loadList(silent: true));
             },
             search: _q,
             searchHint: 'Rechercher un nom, un numéro, un message',
@@ -561,7 +565,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(switch (type) { 'audio' => Icons.mic, 'video' => Icons.play_circle_outline, 'image' => Icons.image_outlined, _ => Icons.description_outlined }, color: _waGreen),
                   const SizedBox(width: 8),
-                  Flexible(child: Text(tr('${m['file_name'] ?? (type == 'audio' ? 'Note vocale' : 'Fichier')}'), style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text(tr('${m['file_name'] ?? (type == 'audio' ? 'Note vocale' : 'Fichier')}'), style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF111B21)), overflow: TextOverflow.ellipsis)),
                   if (url != null) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.download, size: 18, color: Color(0xFF54656F))),
                 ]),
               ),
@@ -598,7 +602,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
         if (matches.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(bottom: 6),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8)]),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(10), boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8)]),
             child: Column(children: [
               for (final q in matches)
                 ListTile(
@@ -723,7 +727,7 @@ class _WhatsappScreenState extends State<WhatsappScreen> {
   Future<void> _createPartner() async {
     try {
       final r = await api.post('whatsapp/conversations/${_conv!['id']}/partner', {'name': _conv!['name']});
-      setState(() => _conv = asMap(r['data']));
+      if (mounted) setState(() => _conv = asMap(r['data']));
       await _open(_conv!);
       if (mounted) toast(context, tr('Fiche client créée.'));
     } catch (e) {
@@ -939,7 +943,7 @@ class _WaSettingsState extends State<_WaSettings> {
 
   Future<void> _reload() async {
     final r = await api.get('whatsapp/inbox');
-    setState(() => d = asMap(r['data']));
+    if (mounted) setState(() => d = asMap(r['data']));
   }
 
   Future<void> _save() async {
@@ -987,7 +991,7 @@ class _WaSettingsState extends State<_WaSettings> {
                       subtitle: Text(tr('Le fournisseur et ses clés se règlent dans Paramètres › Canaux d\'envoi.')),
                     ),
                     Text(tr('Adresse de réception à déclarer chez votre fournisseur :'), style: TextStyle(fontWeight: FontWeight.w700)),
-                    _copy('URL du webhook (rappel)', '${d['webhook_url']}'),
+                    if (d['webhook_url'] != null) _copy('URL du webhook (rappel)', '${d['webhook_url']}') else Text(tr('Visible par les responsables WhatsApp.'), style: TextStyle(color: Theme.of(context).hintColor)),
                     if (d['verify_token'] != null) _copy('Jeton de vérification (Meta)', '${d['verify_token']}'),
                     const SizedBox(height: 6),
                     Text(
@@ -1089,7 +1093,7 @@ class _WaSettingsState extends State<_WaSettings> {
         Align(
           alignment: Alignment.centerRight,
           child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))), FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))), SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
           ]),
         ),
       ]),

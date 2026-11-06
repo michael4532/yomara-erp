@@ -34,6 +34,7 @@ class _GroupTabState extends State<_GroupTab> {
     try {
       final r = await context.read<Session>().api.get('compta/group');
       final g = asMap(r['data']);
+      if (!mounted) return;
       setState(() {
         _g = g;
         _error = null;
@@ -129,7 +130,7 @@ class _GroupTabState extends State<_GroupTab> {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(acq ?? '') ?? DateTime.now());
+                  final d = await pickDate(dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(acq ?? '') ?? DateTime.now());
                   if (d != null) set(() => acq = isoDate(d));
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -147,7 +148,7 @@ class _GroupTabState extends State<_GroupTab> {
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: () async {
-                      final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(impDate ?? '') ?? DateTime.now());
+                      final d = await pickDate(dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.tryParse(impDate ?? '') ?? DateTime.now());
                       if (d != null) set(() => impDate = isoDate(d));
                     },
                     icon: const Icon(Icons.event, size: 18),
@@ -264,7 +265,7 @@ class _GroupTabState extends State<_GroupTab> {
                             : () async {
                                 if (await confirm(context, tr('Retirer ${m['name']} ?'), tr('La société ne sera plus consolidée. Ses comptes ne sont pas modifiés.'), ok: tr('Retirer'))) {
                                   await _run(() => api.delete('compta/group/members/${m['id']}'), 'Société retirée du périmètre.');
-                                  setState(() => _s = null);
+                                  if (mounted) setState(() => _s = null);
                                 }
                               },
                         icon: const Icon(Icons.link_off),
@@ -339,7 +340,7 @@ class _GroupTabState extends State<_GroupTab> {
                   Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     OutlinedButton.icon(
                       onPressed: () async {
-                        final d = await showDatePicker(context: d2, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.parse(date));
+                        final d = await pickDate(d2, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.parse(date));
                         if (d != null) set2(() => date = isoDate(d));
                       },
                       icon: const Icon(Icons.event, size: 18),
@@ -393,7 +394,7 @@ class _GroupTabState extends State<_GroupTab> {
                         style: TextStyle(fontSize: 12, color: Theme.of(d2).hintColor)),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        final d = await showDatePicker(context: d2, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.parse(date));
+                        final d = await pickDate(d2, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: DateTime.parse(date));
                         if (d != null) set2(() => date = isoDate(d));
                       },
                       icon: const Icon(Icons.event, size: 18),

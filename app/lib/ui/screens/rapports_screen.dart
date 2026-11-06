@@ -335,9 +335,9 @@ class _BoardsTabState extends State<_BoardsTab> {
       await context.read<SyncEngine>().save('rp_dashboards', {'id': id, ...res, if (board == null) 'widgets': <dynamic>[]});
       if (board == null) {
         _select(id);
-        setState(() => _edit = true);
+        if (mounted) setState(() => _edit = true);
       } else {
-        setState(() {});
+        if (mounted) setState(() {});
         unawaited(Future.delayed(const Duration(seconds: 2), _load));
       }
     } catch (e) {
@@ -411,6 +411,7 @@ class _BoardsTabState extends State<_BoardsTab> {
                   onPressed: () async {
                     if (await confirm(context, tr('Supprimer « ${b['name']} » ?'), tr('Les rapports eux-mêmes sont conservés.'), danger: true) && context.mounted) {
                       await context.read<SyncEngine>().remove('rp_dashboards', b['id'] as String);
+                      if (!mounted) return;
                       setState(() {
                         _edit = false;
                         _run = null;
@@ -1415,7 +1416,7 @@ class _ReportBuilderPageState extends State<ReportBuilderPage> {
                       padding: EdgeInsets.only(right: k == 'from' ? 8 : 0),
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final x = await showDatePicker(context: context, initialDate: DateTime.tryParse('${_c[k]}') ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                          final x = await pickDate(context, initialDate: DateTime.tryParse('${_c[k]}') ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
                           if (x != null) {
                             _c[k] = isoDate(x);
                             _changed();

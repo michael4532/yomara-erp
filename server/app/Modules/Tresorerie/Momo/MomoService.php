@@ -160,6 +160,18 @@ class MomoService
     /** Encaissement sur la facture (au plus le reste dû) ; l'éventuel surplus reste à traiter. */
     public function assign(MomoMessage $m, SalesDocument $d, string $reason, ?string $by = null): SalesPayment
     {
+        // Verrou sur le SMS : deux rapprochements simultanés ne créent pas deux encaissements
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($m, $d, $reason, $by) {
+            $locked = MomoMessage::whereKey($m->id)->lockForUpdate()->first() ?? $m;
+            $pay = $this->assignLocked($locked, $d, $reason, $by);
+            $m->setRawAttributes($locked->getAttributes(), true);
+
+            return $pay;
+        });
+    }
+
+    protected function assignLocked(MomoMessage $m, SalesDocument $d, string $reason, ?string $by = null): SalesPayment
+    {
         if ($m->payment_id || $m->status === 'matched') {
             throw new \DomainException('Cet encaissement est déjà rapproché.');
         }
@@ -193,6 +205,17 @@ class MomoService
 
     /** Encaissement hors facture (apport, remboursement…) : opération de trésorerie. */
     public function toOperation(MomoMessage $m, string $category, ?string $label, ?string $by = null): Operation
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($m, $category, $label, $by) {
+            $locked = MomoMessage::whereKey($m->id)->lockForUpdate()->first() ?? $m;
+            $op = $this->toOperationLocked($locked, $category, $label, $by);
+            $m->setRawAttributes($locked->getAttributes(), true);
+
+            return $op;
+        });
+    }
+
+    protected function toOperationLocked(MomoMessage $m, string $category, ?string $label, ?string $by = null): Operation
     {
         if ($m->status === 'matched') {
             throw new \DomainException('Cet encaissement est déjà rapproché.');

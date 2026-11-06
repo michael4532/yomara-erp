@@ -72,6 +72,10 @@ class Timesheet extends Model
         if ($this->invoice_id) {
             throw new \DomainException('Ce temps a déjà été facturé.');
         }
+        $user = auth()->user();
+        if ($user && ! $user->hasPermission('projets.manage') && (int) $this->user_id !== $user->id) {
+            throw new \DomainException('Vous ne pouvez supprimer que votre propre temps.');
+        }
         \App\Modules\Feuilles\FeuillesService::check((int) $this->user_id, $this->date?->toDateString());
     }
 

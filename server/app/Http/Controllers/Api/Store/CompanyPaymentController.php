@@ -38,7 +38,9 @@ class CompanyPaymentController extends Controller
             'instructions' => 'nullable|string|max:3000',
             'enabled' => 'sometimes|boolean',
             'sort' => 'sometimes|integer|min:0|max:999',
-            'treasury_account_id' => 'sometimes|nullable|uuid',
+            // Compte de trésorerie de la société en cours uniquement (jamais celui d'une autre société)
+            'treasury_account_id' => array_values(array_filter(['sometimes', 'nullable', 'uuid',
+                app()->bound('tenant') && \Illuminate\Support\Facades\Schema::hasTable('tr_accounts') ? \App\Support\TenantRef::of('tr_accounts') : null])),
         ];
     }
 

@@ -749,6 +749,7 @@ class _NewRequestDialogState extends State<_NewRequestDialog> {
     final f = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
     if (f.isEmpty) return;
     final b = await f.first.readAsBytes();
+    if (!mounted) return;
     setState(() {
       _bytes = Uint8List.fromList(b);
       _name = f.first.name;

@@ -43,7 +43,7 @@ class PosSession extends Model
     public static function syncRules(): array
     {
         return [
-            'register_id' => 'required|uuid',
+            'register_id' => ['required', 'uuid', \App\Support\TenantRef::of('pos_registers')],
             'status' => 'sometimes|in:open,closed',
             'opened_at' => 'nullable|date',
             'closed_at' => 'nullable|date',
@@ -51,6 +51,14 @@ class PosSession extends Model
             'counted_cash' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
         ];
+    }
+
+    /** pos.use : le caissier ne voit (et ne clôture) que ses propres sessions ; pos.manage voit tous les rapports. */
+    public static function syncVisibility(\Illuminate\Database\Eloquent\Builder $q, $user): void
+    {
+        if (! $user->hasPermission('pos.manage')) {
+            $q->where('user_id', $user->id);
+        }
     }
 
     public function beforeEntityWrite(array &$data, bool $creating): void

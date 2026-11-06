@@ -148,7 +148,7 @@ class _ToolPageState extends State<_ToolPage> {
     for (final f in res) {
       final b = Uint8List.fromList(await f.readAsBytes());
       final d = _Doc(f.name, b);
-      setState(() => _docs.add(d));
+      if (mounted) setState(() => _docs.add(d));
       if (!t.images) await _inspect(d);
       if (!t.multi && !t.images) break;
     }
@@ -282,9 +282,9 @@ class _ToolPageState extends State<_ToolPage> {
       final res = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg']);
       if (res.isEmpty) return;
       final b = Uint8List.fromList(await res.first.readAsBytes());
-      setState(() => _items.add({'type': 'image', 'page': 1, 'x': 60.0, 'y': 80.0, 'width': 25.0, 'bytes': b}));
+      if (mounted) setState(() => _items.add({'type': 'image', 'page': 1, 'x': 60.0, 'y': 80.0, 'width': 25.0, 'bytes': b}));
     } else {
-      setState(() => _items.add({'type': 'text', 'page': 1, 'x': 10.0, 'y': 85.0, 'text': 'Lu et approuvé', 'size': 12, 'color': '#111A2E', 'bold': false}));
+      if (mounted) setState(() => _items.add({'type': 'text', 'page': 1, 'x': 10.0, 'y': 85.0, 'text': 'Lu et approuvé', 'size': 12, 'color': '#111A2E', 'bold': false}));
     }
   }
 
@@ -456,7 +456,7 @@ class _ToolPageState extends State<_ToolPage> {
                 final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg']);
                 if (r.isNotEmpty) {
                   final b = Uint8List.fromList(await r.first.readAsBytes());
-                  setState(() => _wmImage = b);
+                  if (mounted) setState(() => _wmImage = b);
                 }
               },
               icon: const Icon(Icons.image_outlined),

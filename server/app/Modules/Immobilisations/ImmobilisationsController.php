@@ -81,7 +81,7 @@ class ImmobilisationsController extends Controller
 
     public function dispose(Request $r, string $id)
     {
-        $v = $r->validate(['date' => 'required|date', 'type' => 'required|in:sale,scrap', 'amount' => 'nullable|numeric|min:0', 'partner_id' => 'nullable|uuid', 'note' => 'nullable|string|max:255']);
+        $v = $r->validate(['date' => 'required|date', 'type' => 'required|in:sale,scrap', 'amount' => 'nullable|numeric|min:0', 'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')], 'note' => 'nullable|string|max:255']);
 
         return $this->guard(function () use ($v, $id) {
             $this->svc->dispose(Asset::findOrFail($id), $v);

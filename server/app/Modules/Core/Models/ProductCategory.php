@@ -27,7 +27,7 @@ class ProductCategory extends Model
     public static function syncRules(): array
     {
         return [
-            'parent_id' => 'nullable|uuid',
+            'parent_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('product_categories')],
             'name' => 'required|string|max:255',
         ];
     }

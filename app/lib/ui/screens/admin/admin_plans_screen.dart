@@ -268,7 +268,7 @@ class AdminPlansScreen extends StatelessWidget {
                 child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
               ),
             const Spacer(),
-            FilledButton(
+            SaveButton(
               onPressed: () async {
                 final body = {
                   'name': name.text.trim(),
@@ -559,7 +559,7 @@ class _TrialOfferCardState extends State<_TrialOfferCard> {
   }
 
   Future<void> _pick(bool from) async {
-    final d = await showDatePicker(context: context, initialDate: (from ? _from : _until) ?? DateTime.now().add(Duration(days: from ? 0 : 30)), firstDate: DateTime(2024), lastDate: DateTime(2035));
+    final d = await pickDate(context, initialDate: (from ? _from : _until) ?? DateTime.now().add(Duration(days: from ? 0 : 30)), firstDate: DateTime(2024), lastDate: DateTime(2035));
     if (d != null) setState(() => from ? _from = d : _until = d);
   }
 

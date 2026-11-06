@@ -254,7 +254,7 @@ class _CheckoutsTabState extends State<_CheckoutsTab> {
             ),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 try {
                   await api.put('materiel/settings', {'managers': {for (final e in map.entries) if (e.value.isNotEmpty) e.key: e.value.toList()}});
@@ -337,7 +337,7 @@ class _CheckoutFormState extends State<_CheckoutForm> {
   bool _busy = false;
 
   Future<void> _pickBack() async {
-    final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: _back ?? DateTime.now());
+    final d = await pickDate(context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: _back ?? DateTime.now());
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_back ?? DateTime.now()));
     setState(() => _back = DateTime(d.year, d.month, d.day, t?.hour ?? 18, t?.minute ?? 0));
@@ -853,7 +853,7 @@ Future<void> editItem(BuildContext context, [Map<String, dynamic>? item]) {
               label: Text(tr('Supprimer')),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (c['name']!.text.trim().isEmpty) return toast(dc, tr('Le nom est obligatoire.'), error: true);
               try {

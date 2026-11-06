@@ -590,7 +590,7 @@ class _PartnerFormState extends State<_PartnerForm> {
             ),
           if (widget.partner != null) TextButton.icon(onPressed: _delete, icon: const Icon(Icons.delete_outline, color: YColors.danger), label: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
           const Spacer(),
-          FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+          SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
         ]),
       ]),
     );

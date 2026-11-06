@@ -51,6 +51,9 @@ class FneController extends Controller
                 'footer' => 'nullable|string|max:255',
                 'sticker_alert' => 'integer|min:0|max:100000',
             ]);
+            if (! empty($v['base_url']) && ! \App\Support\UrlGuard::isPublic($v['base_url'])) {
+                throw new \DomainException('Adresse refusée : seuls les serveurs publics (http/https) sont autorisés, pas le réseau interne.');
+            }
             $cfg = $this->svc->config();
             $keyChanged = filled($v['api_key'] ?? null);
             if (! $keyChanged) {

@@ -97,7 +97,13 @@ class TicketOrder extends Model
         $this->channel = static::$systemWrite ? 'online' : 'box_office';
         $items = [];
         $total = 0.0;
+        // un même tarif répété sur plusieurs lignes est cumulé (sinon la limite par commande et le stock sont contournés)
+        $merged = [];
         foreach ($data['items'] as $it) {
+            $k = strtolower((string) $it['type_id']);
+            $merged[$k] = ['type_id' => $it['type_id'], 'quantity' => ($merged[$k]['quantity'] ?? 0) + (int) $it['quantity']];
+        }
+        foreach ($merged as $it) {
             $t = TicketType::where('event_id', $event->id)->find($it['type_id']);
             if (! $t || ! $t->active) {
                 throw new \DomainException('Tarif indisponible.');

@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_busy || !_formKey.currentState!.validate()) return;
     setState(() {
       _busy = true;
       _error = null;

@@ -197,7 +197,7 @@ Future<void> editPaymentTerm(BuildContext context, [Map<String, dynamic>? t]) as
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return toast(ctx, tr('Donnez un nom.'), error: true);
               if ((total - 100).abs() > 0.01) return toast(ctx, tr('Les échéances doivent totaliser 100 %.'), error: true);

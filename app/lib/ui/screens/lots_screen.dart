@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -43,11 +45,18 @@ class _LotsScreenState extends State<LotsScreen> {
   Map<String, dynamic> _settings = const {};
   String? _error;
   bool _offline = false;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -132,7 +141,7 @@ class _LotsScreenState extends State<LotsScreen> {
     if (ok != true || !mounted) return;
     try {
       final r = await context.read<Session>().api.put('lots/settings', {'alert_days': int.tryParse(days.text) ?? 30, 'block_expired': block});
-      setState(() => _settings = asMap(r['data']));
+      if (mounted) setState(() => _settings = asMap(r['data']));
       _load();
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -191,7 +200,8 @@ class _LotsScreenState extends State<LotsScreen> {
         searchHint: 'N° de lot ou de série, article…',
         onSearch: (v) {
           setState(() => _q = v.trim());
-          if (_q.isEmpty || _q.length >= 2) _load();
+          _debounce?.cancel();
+          if (_q.isEmpty || _q.length >= 2) _debounce = Timer(const Duration(milliseconds: 400), _load);
         },
         statuses: _statusLabels,
         status: _status,

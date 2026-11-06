@@ -104,6 +104,18 @@ class Appointment extends Model
         }
     }
 
+    /** rendez_vous.own : on ne supprime que ses propres rendez-vous ; un rendez-vous facturé reste dans l'historique. */
+    public function beforeEntityDelete(): void
+    {
+        $user = auth()->user();
+        if ($user && ! $user->hasPermission('rendez_vous.manage') && ! in_array($this->staff_id, Staff::where('user_id', $user->id)->pluck('id')->all(), true)) {
+            throw new \DomainException('Vous ne gérez que vos propres rendez-vous.');
+        }
+        if ($this->invoice_id) {
+            throw new \DomainException('Ce rendez-vous est facturé : annulez-le au lieu de le supprimer.');
+        }
+    }
+
     public static function tz(): string
     {
         return app()->bound('tenant') ? (app('tenant')->settings['timezone'] ?? config('erp.defaults.timezone', 'UTC')) : 'UTC';

@@ -60,7 +60,7 @@ class Subscription extends Model
             'lines.*.unit_price' => 'required|numeric|min:0',
             'lines.*.tax_rate' => 'nullable|numeric|min:0|max:100',
             'lines.*.discount_percent' => 'nullable|numeric|min:0|max:100',
-            'lines.*.product_id' => 'nullable|uuid',
+            'lines.*.product_id' => ['nullable', 'uuid', Rule::exists('products', 'id')->where('company_id', $c)],
             'lines.*.unit' => 'nullable|string|max:30',
             'currency' => ['nullable', 'string', 'size:3'],
             'auto_validate' => 'boolean',

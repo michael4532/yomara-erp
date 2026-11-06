@@ -449,8 +449,8 @@ class _CaseDetailState extends State<_CaseDetail> {
     final title = '${(_meta?['actions'] as Map?)?[type] ?? type}';
     final fmt = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))];
     final ok = await showFormDialog<bool>(context, title: title, builder: (dc) => StatefulBuilder(builder: (dc, set) {
-        Future<void> pickDate(void Function(String) on, String? init) async {
-          final d = await showDatePicker(context: dc, firstDate: DateTime(2024), lastDate: DateTime(2100), initialDate: DateTime.tryParse(init ?? '') ?? DateTime.now());
+        Future<void> chooseDate(void Function(String) on, String? init) async {
+          final d = await pickDate(dc, firstDate: DateTime(2024), lastDate: DateTime(2100), initialDate: DateTime.tryParse(init ?? '') ?? DateTime.now());
           if (d != null) set(() => on(isoDate(d)));
         }
 
@@ -460,7 +460,7 @@ class _CaseDetailState extends State<_CaseDetail> {
             Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (type == 'promise' || type == 'payment' || type == 'fees' || type == 'bailiff')
                 TextField(controller: amount, inputFormatters: fmt, decoration: InputDecoration(labelText: trn(type == 'bailiff' ? 'Frais d\'huissier (facultatif)' : type == 'promise' ? 'Montant promis' : 'Montant'), suffixText: trn(cur == 'XOF' ? 'F CFA' : cur))),
-              if (type == 'promise') OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Payé au plus tard le ${dateFr(date)}'))),
+              if (type == 'promise') OutlinedButton(onPressed: () => chooseDate((v) => date = v, date), child: Text(tr('Payé au plus tard le ${dateFr(date)}'))),
               if (type == 'payment') ...[
                 DropdownButtonFormField<String>(
                   initialValue: method,
@@ -498,7 +498,7 @@ class _CaseDetailState extends State<_CaseDetail> {
                     ),
                   ),
                 ]),
-                OutlinedButton(onPressed: () => pickDate((v) => date = v, date), child: Text(tr('Première échéance le ${dateFr(date)}'))),
+                OutlinedButton(onPressed: () => chooseDate((v) => date = v, date), child: Text(tr('Première échéance le ${dateFr(date)}'))),
               ],
               if (type == 'notice') ...[
                 TextField(controller: days, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Délai accordé (jours)'))),
@@ -508,7 +508,7 @@ class _CaseDetailState extends State<_CaseDetail> {
               if (type == 'bailiff') TextField(controller: bailiff, decoration: InputDecoration(labelText: tr('Huissier (étude, nom, ville)'))),
               TextField(controller: body, maxLines: 3, decoration: InputDecoration(labelText: trn(['call', 'visit', 'email', 'sms', 'whatsapp', 'letter', 'note'].contains(type) ? 'Ce qui s\'est dit / résultat' : type == 'write_off' ? 'Raison du passage en perte' : 'Commentaire'))),
               if (!['payment', 'write_off'].contains(type))
-                OutlinedButton.icon(onPressed: () => pickDate((v) => next = v, next), icon: const Icon(Icons.event_repeat, size: 18), label: Text(tr(next == null ? 'Prochaine action le… (facultatif)' : 'Prochaine action le ${dateFr(next)}'))),
+                OutlinedButton.icon(onPressed: () => chooseDate((v) => next = v, next), icon: const Icon(Icons.event_repeat, size: 18), label: Text(tr(next == null ? 'Prochaine action le… (facultatif)' : 'Prochaine action le ${dateFr(next)}'))),
             ]),
             const SizedBox(height: 20),
             Align(

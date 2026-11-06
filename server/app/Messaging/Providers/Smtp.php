@@ -23,10 +23,41 @@ class Smtp implements Provider
         }
         $enc = $c['encryption'] ?? 'tls';
         $port = (int) ($c['port'] ?? ($enc === 'ssl' ? 465 : 587));
+        if (! empty($c['_tenant'])) {
+            return self::tenantTransport($c, $enc, $port);
+        }
         $scheme = $enc === 'ssl' || $port === 465 ? 'smtps' : 'smtp';
         $auth = isset($c['username']) && $c['username'] !== '' ? rawurlencode($c['username']).':'.rawurlencode((string) ($c['password'] ?? '')).'@' : '';
 
         return Transport::fromDsn($scheme.'://'.$auth.$c['host'].':'.$port.($enc === 'none' ? '?auto_tls=false' : ''));
+    }
+
+    /**
+     * Serveur SMTP saisi par une société : nom d'hôte simple (pas d'injection dans le DSN) et, en SaaS,
+     * connexion à l'IP publique vérifiée (pas le serveur lui-même ni le réseau interne), comme la Boîte mail.
+     */
+    protected static function tenantTransport(array $c, string $enc, int $port): TransportInterface
+    {
+        $host = trim((string) $c['host']);
+        if (! preg_match('/^[A-Za-z0-9.-]{1,190}$/', $host) || $port < 1 || $port > 65535) {
+            throw new \DomainException('Serveur SMTP invalide.');
+        }
+        $target = $host;
+        if (config('erp.mode') === 'saas' && ! config('erp.mailbox.allow_private_hosts', false)) {
+            $ip = \App\Support\UrlGuard::publicHostIp($host);
+            $target = $ip === null ? $host : (str_contains($ip, ':') ? '['.$ip.']' : $ip);
+        }
+        $t = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport($target, $port, $enc === 'ssl' || $port === 465 ? true : null);
+        if ($enc === 'none') {
+            $t->setAutoTls(false);
+        }
+        $t->getStream()->setStreamOptions(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true, 'peer_name' => $host]]);
+        if (isset($c['username']) && $c['username'] !== '') {
+            $t->setUsername((string) $c['username']);
+            $t->setPassword((string) ($c['password'] ?? ''));
+        }
+
+        return $t;
     }
 
     public function send(Message $m, array $c): SendResult

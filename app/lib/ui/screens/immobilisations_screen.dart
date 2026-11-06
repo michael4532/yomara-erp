@@ -120,7 +120,7 @@ Future<void> postDepreciation(BuildContext context, {String? assetId}) async {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
-                final x = await showDatePicker(context: d, initialDate: until, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                final x = await pickDate(d, initialDate: until, firstDate: DateTime(2000), lastDate: DateTime(2100));
                 if (x != null) set(() => until = x);
               },
               icon: const Icon(Icons.event),
@@ -413,7 +413,7 @@ class _AssetFormState extends State<_AssetForm> {
           onPressed: !enabled
               ? null
               : () async {
-                  final d = await showDatePicker(context: context, initialDate: v ?? DateTime.now(), firstDate: DateTime(1990), lastDate: DateTime(2100));
+                  final d = await pickDate(context, initialDate: v ?? DateTime.now(), firstDate: DateTime(1990), lastDate: DateTime(2100));
                   if (d != null) {
                     setState(() {
                       on(d);
@@ -638,7 +638,7 @@ class _AssetDetailState extends State<AssetDetail> {
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: () async {
-                  final x = await showDatePicker(context: d, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
+                  final x = await pickDate(d, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100));
                   if (x != null) set(() => date = x);
                 },
                 icon: const Icon(Icons.event),

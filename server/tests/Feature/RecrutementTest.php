@@ -68,7 +68,7 @@ class RecrutementTest extends TestCase
         $this->assertSame(['planned', 45], [collect($pull($rhApi)['rc_interviews']['upserts'])->firstWhere('id', $iv)['status'], collect($pull($rhApi)['rc_interviews']['upserts'])->firstWhere('id', $iv)['duration']]);
         $this->assertTrue(AppNotification::withoutGlobalScopes()->where('user_id', $dg->id)->where('title', 'Entretien de recrutement')->exists());
         $this->assertSame([$a['id']], array_column($pull($dgApi)['rc_applications']['upserts'], 'id'));
-        $dgApi()->get("/api/recrutement/applications/{$a['id']}/cv")->assertOk();
+        $dgApi()->get("/api/recrutement/applications/{$a['id']}/cv")->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Content-Type-Options', 'nosniff');
         $dgApi()->get("/api/recrutement/applications/{$apps['Fatou']['id']}/cv")->assertNotFound();
         $caisseApi()->get("/api/recrutement/applications/{$a['id']}/cv")->assertForbidden();
         $this->assertContains('Serge', array_column($rhApi()->getJson('/api/recrutement/users')->assertOk()->json('data'), 'name'));
@@ -112,5 +112,10 @@ class RecrutementTest extends TestCase
         $this->assertTrue($gone->trashed());
         $this->assertSame(['Candidat', 'effacé', null, null], [$gone->first_name, $gone->last_name, $gone->email, $gone->cover_letter]);
         $this->assertFalse(Storage::disk('local')->exists($path));
+        // CV piégé (HTML nommé .pdf) : jamais servi comme page web
+        $api()->post("/api/recrutement/applications/{$a['id']}/cv", ['file' => UploadedFile::fake()->createWithContent('cv.pdf', '<html><script>alert(1)</script></html>')])->assertOk();
+        $res = $api()->get("/api/recrutement/applications/{$a['id']}/cv")->assertOk();
+        $this->assertStringNotContainsString('html', (string) $res->headers->get('Content-Type'));
+        $this->assertStringContainsString('sandbox', (string) $res->headers->get('Content-Security-Policy'));
     }
 }

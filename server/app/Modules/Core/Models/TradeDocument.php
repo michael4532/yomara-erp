@@ -160,6 +160,14 @@ abstract class TradeDocument extends Model
         $requested = $data['status'] ?? null;
         unset($data['status']); // les transitions passent par validate()/cancel()
 
+        // Ticket de caisse : seulement sur sa propre session (gérant : toutes). Une session déjà close reste
+        // acceptée, car des ventes faites hors ligne pendant la session arrivent après la clôture.
+        if (! empty($data['pos_session_id']) && $data['pos_session_id'] !== $this->pos_session_id
+            && ($u = auth()->user()) && ! $u->hasPermission('pos.manage')
+            && \Illuminate\Support\Facades\DB::table('pos_sessions')->where('id', $data['pos_session_id'])->value('user_id') != $u->id) {
+            throw new \DomainException('Cette session de caisse appartient à un autre caissier.');
+        }
+
         // Ventilation analytique (module Analytique) : contrôlée, sinon ignorée
         if (array_key_exists('analytic', $data)) {
             $data['analytic'] = static::cleanAnalytic($data['analytic']);

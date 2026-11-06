@@ -77,7 +77,7 @@ class InboxController extends Controller
         return ['data' => [
             'provider' => $ch['provider'], 'provider_label' => \App\Messaging\MessagingService::PROVIDERS['whatsapp'][$ch['provider']]['label'] ?? null,
             'can_manage' => $this->manager($r), 'me' => $r->user()->id,
-            'webhook_url' => url('/api/whatsapp-webhook/'.$s->webhook_token), 'verify_token' => $this->manager($r) ? $s->verify_token : null,
+            'webhook_url' => $this->manager($r) ? url('/api/whatsapp-webhook/'.$s->webhook_token) : null, 'verify_token' => $this->manager($r) ? $s->verify_token : null,
             'display_phone' => $s->display_phone, 'click_to_chat' => $phone ? 'https://wa.me/'.$phone : null,
             'auto_assign' => (bool) $s->auto_assign, 'welcome_message' => $s->welcome_message, 'away_message' => $s->away_message, 'hours' => json_decode((string) $s->hours, true),
             'open_now' => $this->inbox->isOpen($s),
@@ -126,7 +126,7 @@ class InboxController extends Controller
             $conv->forceFill(['unread' => 0])->save();
         }
         $users = $this->users();
-        $partner = $conv->partner_id ? DB::table('partners')->where('id', $conv->partner_id)->first(['id', 'name', 'email', 'phone', 'type']) : null;
+        $partner = $conv->partner_id ? DB::table('partners')->where('company_id', $conv->company_id)->where('id', $conv->partner_id)->first(['id', 'name', 'email', 'phone', 'type']) : null;
         $stats = $partner ? [
             'invoices_due' => (float) DB::table('trade_documents')->where('company_id', $conv->company_id)->where('partner_id', $partner->id)->where('direction', 'sale')
                 ->whereIn('type', ['invoice'])->where('status', 'validated')->whereNull('deleted_at')->sum(DB::raw('total - amount_paid')),
@@ -164,7 +164,7 @@ class InboxController extends Controller
     public function start(Request $r)
     {
         $d = $r->validate(['phone' => 'required|string|max:30', 'name' => 'nullable|string|max:190', 'body' => 'nullable|string|max:4096', 'template' => 'nullable|string|max:120',
-            'params' => 'nullable|array|max:10', 'language' => 'nullable|string|max:10', 'partner_id' => 'nullable|uuid']);
+            'params' => 'nullable|array|max:10', 'language' => 'nullable|string|max:10', 'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')]]);
         $phone = Phone::digits($d['phone']);
         abort_unless($phone, 422, 'Numéro invalide.');
         $c = app('tenant');
@@ -185,8 +185,8 @@ class InboxController extends Controller
     public function update(Request $r, int $id)
     {
         $conv = $this->conv($r, $id);
-        $d = $r->validate(['assigned_to' => 'nullable|integer', 'status' => 'nullable|in:open,pending,closed', 'labels' => 'nullable|array|max:10', 'labels.*' => 'string|max:30',
-            'name' => 'nullable|string|max:190', 'partner_id' => 'nullable|uuid', 'unread' => 'nullable|boolean']);
+        $d = $r->validate(['assigned_to' => ['nullable', 'integer', \App\Support\TenantRef::of('users')], 'status' => 'nullable|in:open,pending,closed', 'labels' => 'nullable|array|max:10', 'labels.*' => 'string|max:30',
+            'name' => 'nullable|string|max:190', 'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')], 'unread' => 'nullable|boolean']);
         if ($r->has('assigned_to')) {
             abort_unless($this->manager($r) || in_array($d['assigned_to'], [null, $r->user()->id], true) || $conv->assigned_to === $r->user()->id, 403, 'Seul un responsable peut attribuer à un collègue.');
             $conv->assigned_to = $d['assigned_to'];

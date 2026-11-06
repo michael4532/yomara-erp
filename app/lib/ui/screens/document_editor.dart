@@ -327,12 +327,13 @@ class _DocumentEditorState extends State<DocumentEditor> {
     }
     final payload = _payload(status: status);
     final saved = await context.read<SyncEngine>().save(cfg.entity, payload);
+    if (!mounted) return;
     setState(() {
       _doc = saved;
       _dirty = false;
       _customDirty = false;
     });
-    if (mounted) {
+    {
       final rule = status == 'validated' ? _approvalRule(payload) : null;
       final session = context.read<Session>();
       toast(
@@ -400,7 +401,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
     if (!await confirm(context, tr('Annuler ce document ?'), tr('Le stock sera rétabli. Cette action est définitive.'), ok: tr('Annuler le document'), danger: true)) return;
     if (!mounted) return;
     final saved = await context.read<SyncEngine>().save(cfg.entity, {'id': _doc['id'], 'status': 'cancelled'});
-    setState(() => _doc = saved);
+    if (mounted) setState(() => _doc = saved);
   }
 
   Future<void> _deleteDraft() async {
@@ -455,7 +456,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
 
   Future<void> _pickDate(String field) async {
     final current = DateTime.tryParse('${_doc[field] ?? ''}') ?? DateTime.now();
-    final d = await showDatePicker(context: context, initialDate: current, firstDate: DateTime(2015), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: current, firstDate: DateTime(2015), lastDate: DateTime(2100));
     if (d != null) {
       setState(() {
         _doc[field] = isoDate(d);
@@ -1260,6 +1261,7 @@ class _PartnerPickerState extends State<_PartnerPicker> {
         ]),
       ),
       actions: [
+        if (context.read<Session>().can('core.contacts.manage'))
         TextButton.icon(
           onPressed: () async {
             final created = await editPartner(context, null, widget.cfg.partnerType);
@@ -1423,7 +1425,7 @@ class _PaymentFormState extends State<_PaymentForm> {
         child: _DateBox(
           value: isoDate(_date),
           onTap: () async {
-            final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+            final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
             if (d != null) setState(() => _date = d);
           },
         ),
@@ -1441,7 +1443,7 @@ class _PaymentFormState extends State<_PaymentForm> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(tr('Le solde est vérifié par le serveur à la synchronisation ; un paiement refusé est signalé.'), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
         ),
-      Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer le paiement')))),
+      Align(alignment: Alignment.centerRight, child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer le paiement')))),
     ]);
   }
 }

@@ -123,7 +123,9 @@ class SiteGrowthTest extends TestCase
         $t2 = $this->postJson('/site/cosmetiques-nina/panier', ['token' => $t, 'phone' => '07 99 88 77 66', 'email' => 'mariam@exemple.ci', 'items' => [['id' => $savon, 'quantity' => 3], ['id' => $huile, 'quantity' => 1]]])->json('token');
         $this->assertSame($t, $t2); // même panier mis à jour
         $t3 = $this->postJson('/site/cosmetiques-nina/panier', ['phone' => '+225 0799887766', 'items' => [['id' => $savon, 'quantity' => 3], ['id' => $huile, 'quantity' => 1]]])->json('token');
-        $this->assertSame($t, $t3); // autre navigateur, même client : pas de doublon
+        $this->assertNull($t3); // autre navigateur, même client : pas de doublon, et le jeton du panier existant n'est pas divulgué
+        $this->postJson('/site/cosmetiques-nina/panier', ['phone' => '0799887766', 'items' => [['id' => $savon, 'quantity' => 1]]])->assertOk()->assertJsonPath('token', null)->assertJsonMissing(['name' => 'Mariam']);
+        $this->postJson('/site/cosmetiques-nina/panier', ['phone' => '+225 0799887766', 'items' => [['id' => $savon, 'quantity' => 3], ['id' => $huile, 'quantity' => 1]]])->assertOk();
         $this->assertSame(1, SiteCart::withoutGlobalScopes()->count());
         $cart = SiteCart::withoutGlobalScopes()->first();
         $this->assertEquals([12500, 'Mariam'], [$cart->total, $cart->name]);

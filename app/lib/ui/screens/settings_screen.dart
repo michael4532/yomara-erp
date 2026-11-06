@@ -286,7 +286,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
+              child: SaveButton(
                 onPressed: () async {
                   try {
                     await session.api.put('company', {
@@ -342,7 +342,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
+              child: SaveButton(
                 onPressed: () async {
                   try {
                     await session.api.post('auth/password', {'current_password': current.text, 'password': next.text, 'password_confirmation': confirmC.text});

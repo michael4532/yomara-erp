@@ -62,7 +62,7 @@ class ProductionOrder extends Model
             'planned_date' => 'nullable|date',
             'status' => 'nullable|in:draft,confirmed,in_progress,done,cancelled',
             'components' => 'nullable|array',
-            'components.*.product_id' => 'required|uuid',
+            'components.*.product_id' => ['required', 'uuid', Rule::exists('products', 'id')->where('company_id', $company)],
             'components.*.planned' => 'nullable|numeric|min:0',
             'components.*.consumed' => 'nullable|numeric|min:0',
             'labour_minutes' => 'nullable|integer|min:0',

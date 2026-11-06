@@ -63,6 +63,8 @@ class AgendaController extends Controller
         [$class, $module] = self::MOVABLE[$kind];
         abort_unless(app('tenant')->hasModule($module) && class_exists($class), 404);
         abort_unless($r->user()->hasPermission($class::$managePermission), 403, 'Vous ne pouvez pas modifier cet élément.');
+        // l'élément doit exister et être visible : jamais de création ni d'écriture sur un enregistrement inaccessible
+        abort_unless(\App\Http\Controllers\Api\EntityController::visibleQuery($class, $r->user())->whereKey((string) $r->route('id'))->exists(), 404);
 
         return $class;
     }

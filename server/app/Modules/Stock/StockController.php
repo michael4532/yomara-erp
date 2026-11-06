@@ -52,9 +52,9 @@ class StockController extends Controller
         $data = $request->validate([
             'warehouse_id' => 'required|uuid',
             'counts' => 'required|array|min:1',
-            'counts.*.product_id' => 'required|uuid',
+            'counts.*.product_id' => ['required', 'uuid', \App\Support\TenantRef::of('products')],
             'counts.*.quantity' => 'required|numeric|min:0',
-            'counts.*.lot_id' => 'nullable|uuid',
+            'counts.*.lot_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('stock_lots')],
         ]);
         Warehouse::findOrFail($data['warehouse_id']);
         $current = $stock->levels($data['warehouse_id'])->keyBy('product_id');

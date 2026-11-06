@@ -555,7 +555,7 @@ class ImmobilierService
             $out[] = $row;
         }
         $paidOut = $ownerId ? (float) Payout::where('owner_id', $ownerId)->where('period_from', '>=', $from)->where('period_to', '<=', $to)->sum('amount') : 0;
-        $owner = $ownerId ? DB::table('partners')->where('id', $ownerId)->first(['id', 'name', 'phone', 'email']) : null;
+        $owner = $ownerId ? DB::table('partners')->where('company_id', app('tenant')->id)->where('id', $ownerId)->first(['id', 'name', 'phone', 'email']) : null;
 
         return ['owner' => $owner ? (array) $owner : null, 'from' => $from, 'to' => $to, 'properties' => $out, 'totals' => $tot, 'paid_out' => $paidOut, 'to_pay' => max(0, $tot['net'] - $paidOut),
             'payouts' => $ownerId ? Payout::where('owner_id', $ownerId)->orderByDesc('paid_at')->limit(24)->get()->toArray() : []];

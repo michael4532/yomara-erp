@@ -293,7 +293,7 @@ Future<void> newProductionOrder(BuildContext context, {String? productId, double
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime.now().subtract(const Duration(days: 30)), lastDate: DateTime(2100));
+                final d = await pickDate(c, initialDate: date, firstDate: DateTime.now().subtract(const Duration(days: 30)), lastDate: DateTime(2100));
                 if (d != null) set(() => date = d);
               },
               icon: const Icon(Icons.event_outlined),
@@ -753,7 +753,7 @@ class _BomEditorState extends State<BomEditor> {
             },
             icon: const Icon(Icons.delete_outline),
           ),
-        if (manage) Padding(padding: const EdgeInsets.only(right: 12), child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))),
+        if (manage) Padding(padding: const EdgeInsets.only(right: 12), child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer')))),
       ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         SectionCard(

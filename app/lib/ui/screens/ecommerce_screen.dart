@@ -287,10 +287,10 @@ class _OrdersState extends State<_Orders> {
           values: {..._f, 'channel': _channel},
           onFilter: (k, v) {
             if (k == 'channel') {
-              setState(() => _channel = v);
+              if (mounted) setState(() => _channel = v);
               _load();
             } else {
-              setState(() => _f = {..._f, k: v});
+              if (mounted) setState(() => _f = {..._f, k: v});
             }
           },
           showPeriod: true,
@@ -508,7 +508,7 @@ class _OrdersState extends State<_Orders> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 60)));
+                          final d = await pickDate(c, initialDate: date, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 60)));
                           if (d != null) set(() => date = d);
                         },
                         icon: const Icon(Icons.event, size: 18),
@@ -977,7 +977,7 @@ class _SettingsState extends State<_Settings> {
     try {
       final r = await context.read<Session>().api.put('ecommerce/settings', body);
       final d = asMap(r['data']);
-      setState(() => (_s = d, _feeds = asMap(d['feeds']), _wa = d['whatsapp_link'] as String?));
+      if (mounted) setState(() => (_s = d, _feeds = asMap(d['feeds']), _wa = d['whatsapp_link'] as String?));
       await widget.onSaved();
       if (mounted) toast(context, tr('Réglages enregistrés.'));
     } catch (e) {
@@ -1017,7 +1017,7 @@ class _SettingsState extends State<_Settings> {
               if (!context.mounted) return;
               try {
                 final r = await context.read<Session>().api.post('ecommerce/settings/feed-token');
-                setState(() => _feeds = asMap((r['data'] as Map)['feeds']));
+                if (mounted) setState(() => _feeds = asMap((r['data'] as Map)['feeds']));
               } catch (e) {
                 if (context.mounted) toast(context, errorText(e), error: true);
               }

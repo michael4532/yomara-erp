@@ -128,7 +128,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: c.withValues(alpha: .10), borderRadius: BorderRadius.circular(8)),
-                child: Text(tr('${qty(q)} ${p['unit'] ?? ''}'), style: TextStyle(color: Color.lerp(c, Colors.black, .15), fontWeight: FontWeight.w600, fontSize: 13)),
+                child: Text(tr('${qty(q)} ${p['unit'] ?? ''}'), style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? c : Color.lerp(c, Colors.black, .15), fontWeight: FontWeight.w600, fontSize: 13)),
               );
             }
 
@@ -421,7 +421,7 @@ class _ProductFormState extends State<_ProductForm> {
               label: Text(tr('Étiquettes')),
             ),
           const Spacer(),
-          FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+          SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
         ]),
       ]),
     );

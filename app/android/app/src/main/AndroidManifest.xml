@@ -6,6 +6,7 @@
         android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Rendu Skia : sur certains téléphones, le moteur Impeller efface ou brouille des textes (puces de filtre vides) -->

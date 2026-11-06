@@ -51,7 +51,7 @@ Future<void> _saveXlsx(BuildContext context, String path, String name) async {
 
 Widget _dateButton(BuildContext context, String label, String? value, ValueChanged<String?> on, {bool clear = true}) => OutlinedButton.icon(
       onPressed: () async {
-        final d = await showDatePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.tryParse(value ?? '') ?? DateTime.now());
+        final d = await pickDate(context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.tryParse(value ?? '') ?? DateTime.now());
         if (d != null) on(isoDate(d));
       },
       onLongPress: clear ? () => on(null) : null,
@@ -1976,7 +1976,7 @@ Future<void> _rentalDetail(BuildContext context, Map<String, dynamic> meta, int 
             }, child: Text(tr('Modifier'))),
             OutlinedButton(
               onPressed: () async {
-                final d = await showDatePicker(context: dc, firstDate: DateTime.parse('${r['end_date']}').add(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.parse('${r['end_date']}').add(const Duration(days: 7)));
+                final d = await pickDate(dc, firstDate: DateTime.parse('${r['end_date']}').add(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.parse('${r['end_date']}').add(const Duration(days: 7)));
                 if (d != null) await act('extend', {'end_date': isoDate(d)}, 'Location prolongée.');
               },
               child: Text(tr('Prolonger')),

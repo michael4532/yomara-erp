@@ -50,7 +50,7 @@ class Tiers
         $mov = (clone $this->lines($c, $side))->whereBetween('e.date', [$from, $to])->groupBy('l.partner_id')
             ->selectRaw('l.partner_id, SUM(l.debit) as d, SUM(l.credit) as c, MAX(e.date) as last')->get()->keyBy('partner_id');
         $ids = $open->keys()->merge($mov->keys())->unique();
-        $partners = DB::table('partners')->whereIn('id', $ids)->when($q, fn ($w) => $w->where(fn ($x) => $x->where('name', 'like', "%$q%")->orWhere('aux_code', 'like', "%$q%")))
+        $partners = DB::table('partners')->where('company_id', $c->id)->whereIn('id', $ids)->when($q, fn ($w) => $w->where(fn ($x) => $x->where('name', 'like', "%$q%")->orWhere('aux_code', 'like', "%$q%")))
             ->get(['id', 'name', 'aux_code', 'phone', 'email'])->keyBy('id');
         $rows = [];
         foreach ($partners as $id => $p) {

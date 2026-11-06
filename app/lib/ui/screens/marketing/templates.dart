@@ -108,7 +108,7 @@ class TemplatesTab extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                              child: Text(tr('${t['text'] ?? ''}'), maxLines: 7, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                              child: Text(tr('${t['text'] ?? ''}'), maxLines: 7, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF111B21))),
                             ),
                           ),
                   ),

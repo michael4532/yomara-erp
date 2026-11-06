@@ -22,4 +22,16 @@ class IdempotencyTest extends TestCase
         $send('local-2')->assertSuccessful();
         $this->assertSame(2, Partner::withoutGlobalScopes()->where('name', 'Client rejoué')->count());
     }
+
+    public function test_replay_after_new_login_is_not_duplicated(): void
+    {
+        [, $u, $token] = $this->makeCompany('Idem Relogin');
+        $this->api($token)->withHeaders(['Idempotency-Key' => 'local-9'])
+            ->postJson('/api/core/partners', ['name' => 'Client reconnexion', 'type' => 'customer'])->assertSuccessful();
+        $token2 = $u->createToken('relogin')->plainTextToken;
+        $this->api($token2)->withHeaders(['Idempotency-Key' => 'local-9'])
+            ->postJson('/api/core/partners', ['name' => 'Client reconnexion', 'type' => 'customer'])
+            ->assertSuccessful()->assertHeader('Idempotent-Replay', 'true');
+        $this->assertSame(1, Partner::withoutGlobalScopes()->where('name', 'Client reconnexion')->count());
+    }
 }

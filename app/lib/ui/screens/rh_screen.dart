@@ -498,7 +498,7 @@ class _EmployeeFormState extends State<_EmployeeForm> {
     child: InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () async {
-        final d = await showDatePicker(context: context, firstDate: DateTime(1940), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_c[f]!.text) ?? DateTime.now());
+        final d = await pickDate(context, firstDate: DateTime(1940), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_c[f]!.text) ?? DateTime.now());
         if (d != null) setState(() => _c[f]!.text = isoDate(d));
       },
       child: InputDecorator(
@@ -1244,7 +1244,7 @@ Future<void> editRhContract(BuildContext context, Map<String, dynamic> employee,
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () async {
-                final d = await showDatePicker(context: dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: v ?? start ?? DateTime.now());
+                final d = await pickDate(dc, firstDate: DateTime(1990), lastDate: DateTime(2100), initialDate: v ?? start ?? DateTime.now());
                 if (d != null) setS(() => set(d));
               },
               child: InputDecorator(
@@ -1284,7 +1284,7 @@ Future<void> editRhContract(BuildContext context, Map<String, dynamic> employee,
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: SaveButton(
             onPressed: () async {
               if (start == null) return toast(dc, tr('Indiquez la prise de fonction.'), error: true);
               if (needsEnd && end == null && status != 'draft') return toast(dc, tr('Un ${rhContractTypes[type]} a une date de fin.'), error: true);

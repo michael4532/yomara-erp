@@ -224,7 +224,7 @@ class _ThreadState extends State<_Thread> {
     try {
       final r = await fn();
       if (r is Map && r['data'] is Map && (r['data'] as Map).containsKey('messages')) {
-        setState(() => _c = asMap(r['data']));
+        if (mounted) setState(() => _c = asMap(r['data']));
       }
       if (done != null && mounted) toast(context, done);
       widget.onChanged();
@@ -597,7 +597,7 @@ class _SocialStudioTabState extends State<SocialStudioTab> {
     try {
       final b = await files.first.readAsBytes();
       final r = asMap(await api.upload('social/media', 'file', b, files.first.name));
-      setState(() => _mediaId = (asMap(r['data'] ?? r)['id'] as num?)?.toInt());
+      if (mounted) setState(() => _mediaId = (asMap(r['data'] ?? r)['id'] as num?)?.toInt());
       if (mounted) toast(context, tr('Photo prête.'));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);

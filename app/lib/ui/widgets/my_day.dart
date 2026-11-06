@@ -745,7 +745,7 @@ class _MyDayPanelState extends State<_MyDayPanel> with SingleTickerProviderState
               IconButton(
                 tooltip: tr('Échéance'),
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 730)), initialDate: _due ?? DateTime.now());
+                  final d = await pickDate(context, firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 730)), initialDate: _due ?? DateTime.now());
                   setState(() => _due = d);
                 },
                 icon: Icon(Icons.event, color: _due != null ? YColors.blue : null),

@@ -8,6 +8,7 @@ use App\Modules\Appro\Models\ImportFile;
 use App\Modules\Appro\Models\OfferInvite;
 use App\Modules\Appro\Models\Rental;
 use App\Modules\Appro\Models\Spec;
+use App\Support\TenantRef;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -67,7 +68,8 @@ class ApproController extends Controller
 
     public function saveImport(Request $r, ?int $id = null)
     {
-        $d = $r->validate(['title' => ($id ? 'sometimes' : 'required').'|string|max:200', 'partner_id' => 'nullable|uuid', 'origin_country' => 'nullable|string|max:60', 'currency' => 'nullable|string|size:3',
+        $r->validate(['lines.*.product_id' => ['nullable', 'uuid', TenantRef::of('products')]]); // articles de la société uniquement
+        $d = $r->validate(['title' => ($id ? 'sometimes' : 'required').'|string|max:200', 'partner_id' => ['nullable', 'uuid', TenantRef::of('partners')], 'origin_country' => 'nullable|string|max:60', 'currency' => 'nullable|string|size:3',
             'exchange_rate' => 'nullable|numeric|min:0', 'incoterm' => 'nullable|string|max:10', 'transport' => 'nullable|string|max:10', 'allocation' => 'nullable|string|max:10', 'vat_rate' => 'nullable|numeric|min:0|max:100',
             'order_date' => 'nullable|date', 'eta' => 'nullable|date', 'arrived_at' => 'nullable|date', 'tracking' => 'nullable|string|max:120', 'forwarder' => 'nullable|string|max:160', 'project_id' => 'nullable|string|max:40',
             'notes' => 'nullable|string|max:5000', 'status' => 'nullable|string|max:12', 'lines' => 'sometimes|array|max:300', 'costs' => 'sometimes|array|max:50']);
@@ -259,9 +261,9 @@ class ApproController extends Controller
 
     public function saveRental(Request $r, ?int $id = null)
     {
-        $d = $r->validate(['kind' => 'nullable|string|max:12', 'title' => ($id ? 'sometimes' : 'required').'|string|max:200', 'partner_id' => 'nullable|uuid', 'start_date' => ($id ? 'sometimes' : 'required').'|date',
+        $d = $r->validate(['kind' => 'nullable|string|max:12', 'title' => ($id ? 'sometimes' : 'required').'|string|max:200', 'partner_id' => ['nullable', 'uuid', TenantRef::of('partners')], 'start_date' => ($id ? 'sometimes' : 'required').'|date',
             'end_date' => ($id ? 'sometimes' : 'required').'|date', 'rate' => 'nullable|numeric|min:0', 'rate_unit' => 'nullable|string|max:8', 'quantity' => 'nullable|numeric|min:0', 'deposit' => 'nullable|numeric|min:0',
-            'site' => 'nullable|string|max:200', 'project_id' => 'nullable|string|max:40', 'reference' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:3000', 'responsible_id' => 'nullable|integer']);
+            'site' => 'nullable|string|max:200', 'project_id' => 'nullable|string|max:40', 'reference' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:3000', 'responsible_id' => ['nullable', 'integer', TenantRef::of('users')]]);
 
         return $this->run(fn () => response()->json(['data' => $this->rentals->toApi($this->rentals->save(app('tenant'), $id ? Rental::findOrFail($id) : null, $d, $r->user()), true)], $id ? 200 : 201));
     }

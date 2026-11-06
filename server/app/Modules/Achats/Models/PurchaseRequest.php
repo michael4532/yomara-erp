@@ -64,6 +64,10 @@ class PurchaseRequest extends Model
             if (! $user || ! $user->hasPermission('achats.manage')) {
                 throw new \DomainException('La demande est envoyée : repassez-la en brouillon pour la modifier.');
             }
+            // demande approuvée modifiée : le nouveau montant doit rester dans le seuil de celui qui modifie
+            if ($this->status === 'approved' && isset($data['lines']) && $user && ! $this->canApprove($user, $data)) {
+                throw new \DomainException('Ce montant dépasse votre seuil d\'approbation : repassez la demande en brouillon pour la faire approuver à nouveau.');
+            }
         }
         if ($user && ! $creating && $this->requester_id !== $user->id && ! $user->hasPermission('achats.manage') && ! $user->hasPermission('achats.approve')) {
             throw new \DomainException('Cette demande n\'est pas la vôtre.');

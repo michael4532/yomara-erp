@@ -140,7 +140,7 @@ class _LotsDialogState extends State<_LotsDialog> {
                   flex: 3,
                   child: OutlinedButton(
                     onPressed: () async {
-                      final d = await showDatePicker(context: context, initialDate: DateTime.tryParse('${_rows[i]['expiry'] ?? ''}') ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                      final d = await pickDate(context, initialDate: DateTime.tryParse('${_rows[i]['expiry'] ?? ''}') ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2000), lastDate: DateTime(2100));
                       if (d != null) setState(() => _rows[i]['expiry'] = isoDate(d));
                     },
                     child: Text(tr(_rows[i]['expiry'] == null ? 'Péremption' : dateFr(_rows[i]['expiry'])), overflow: TextOverflow.ellipsis),

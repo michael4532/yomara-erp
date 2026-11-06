@@ -136,7 +136,7 @@ class EcommerceController extends Controller
 
     public function pay(Request $r, int $id)
     {
-        $d = $r->validate(['method' => 'nullable|string|max:20', 'reference' => 'nullable|string|max:80', 'amount' => 'nullable|numeric|min:1', 'date' => 'nullable|date', 'treasury_account_id' => 'nullable|uuid']);
+        $d = $r->validate(['method' => 'nullable|string|max:20', 'reference' => 'nullable|string|max:80', 'amount' => 'nullable|numeric|min:1', 'date' => 'nullable|date', 'treasury_account_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('tr_accounts')]]);
 
         return $this->act($id, 'pay', fn ($o) => $this->svc->pay($o, array_filter($d, fn ($v) => $v !== null)));
     }
@@ -187,6 +187,7 @@ class EcommerceController extends Controller
 
     public function stats(Request $r)
     {
+        $r->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
         $s = \App\Modules\Sites\Models\Site::first();
         if (! $s) {
             return ['data' => null];

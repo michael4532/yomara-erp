@@ -175,7 +175,7 @@ class _PrinterSettingsDialogState extends State<PrinterSettingsDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Annuler'))),
-        FilledButton(
+        SaveButton(
           onPressed: () async {
             _collect();
             await PosPrinter.save(_cfg);

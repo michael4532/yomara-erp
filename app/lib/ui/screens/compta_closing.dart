@@ -55,6 +55,7 @@ class _ClosingTabState extends State<_ClosingTab> {
     try {
       final r = await context.read<Session>().api.get('compta/years');
       final years = List<Map>.from(r['data'] as List);
+      if (!mounted) return;
       setState(() {
         _years = years;
         _settings = asMap(r['fiscal_settings']);
@@ -161,7 +162,7 @@ class _ClosingTabState extends State<_ClosingTab> {
     if (ok != true || !mounted) return;
     try {
       final r = await context.read<Session>().api.put('compta/fiscal-settings', {for (final e in c.entries) e.key: toDouble(e.value.text)});
-      setState(() => _settings = asMap(r['data']));
+      if (mounted) setState(() => _settings = asMap(r['data']));
       await _load();
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -390,7 +391,7 @@ class _ClosingTabState extends State<_ClosingTab> {
                   Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                     OutlinedButton.icon(
                       onPressed: () async {
-                        final dt = await showDatePicker(context: context, firstDate: endDate.add(const Duration(days: 1)), lastDate: DateTime(endDate.year + 2, 12, 31), initialDate: DateTime.tryParse(_allocDate ?? '') ?? DateTime(endDate.year, endDate.month + 7, 0));
+                        final dt = await pickDate(context, firstDate: endDate.add(const Duration(days: 1)), lastDate: DateTime(endDate.year + 2, 12, 31), initialDate: DateTime.tryParse(_allocDate ?? '') ?? DateTime(endDate.year, endDate.month + 7, 0));
                         if (dt != null) setState(() => _allocDate = isoDate(dt));
                       },
                       icon: const Icon(Icons.event, size: 18),

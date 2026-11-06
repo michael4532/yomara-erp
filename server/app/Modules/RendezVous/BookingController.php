@@ -65,7 +65,11 @@ class BookingController extends Controller
         if ($service) {
             $staffList = $this->slots->staffFor($service, true);
             $staffId = $r->query('staff') && $staffList->contains('id', $r->query('staff')) ? $r->query('staff') : null;
-            $from = $r->query('from') ? Carbon::parse($r->query('from'), $cfg['tz']) : Carbon::now($cfg['tz']);
+            try {
+                $from = $r->query('from') ? Carbon::parse((string) $r->query('from'), $cfg['tz']) : Carbon::now($cfg['tz']);
+            } catch (\Throwable) {
+                $from = Carbon::now($cfg['tz']);
+            }
             if ($from->lt(Carbon::now($cfg['tz'])->startOfDay())) {
                 $from = Carbon::now($cfg['tz']);
             }
@@ -81,9 +85,13 @@ class BookingController extends Controller
     public function confirm(Request $r, string $slug)
     {
         $c = $this->company($slug);
-        $service = Service::where('active', true)->where('online', true)->findOrFail($r->query('service'));
-        $start = Carbon::parse((string) $r->query('start'));
-        $staff = $r->query('staff') ? Staff::find($r->query('staff')) : null;
+        $service = Service::where('active', true)->where('online', true)->findOrFail(is_string($r->query('service')) ? $r->query('service') : '');
+        try {
+            $start = Carbon::parse((string) $r->query('start'));
+        } catch (\Throwable) {
+            abort(404);
+        }
+        $staff = is_string($r->query('staff')) && $r->query('staff') !== '' ? Staff::find($r->query('staff')) : null;
 
         return $this->view('confirm', ['company' => $c, 'service' => $service, 'start' => $start, 'staff' => $staff, 'cfg' => $this->slots->settings($c),
             'reschedule' => $this->reschedule($r), 'portal' => $r->query('portal'), 'partner' => $this->portalPartner($r, $c), 'error' => session('error')]);

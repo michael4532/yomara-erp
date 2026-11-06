@@ -213,12 +213,17 @@ class PublicSiteController extends Controller
         }
         RateLimiter::hit('site-cart:'.$r->ip(), 600);
         try {
-            $c = $this->shop->saveCart($s, $r->only(['token', 'name', 'phone', 'email', 'items']));
+            // champs texte reçus sous forme de liste (robot) : ignorés, pas d'erreur serveur
+            $c = $this->shop->saveCart($s, array_filter($r->only(['token', 'name', 'phone', 'email', 'items']), fn ($v, $k) => $k === 'items' || $v === null || is_string($v), ARRAY_FILTER_USE_BOTH));
         } catch (\DomainException) {
             return response()->json(['ok' => false], 422);
         }
 
-        return response()->json(['ok' => true, 'token' => $c->token]);
+        // Panier retrouvé par le téléphone ou l'e-mail (sans son jeton) : mis à jour, mais son jeton n'est pas divulgué
+        // (il permettrait de lire le nom, le téléphone et l'e-mail du client à partir de son seul numéro).
+        $own = $c->wasRecentlyCreated || (is_string($r->input('token')) && hash_equals($c->token, $r->input('token')));
+
+        return response()->json(['ok' => true, 'token' => $own ? $c->token : null]);
     }
 
     public function coupon(Request $r, Site $s)

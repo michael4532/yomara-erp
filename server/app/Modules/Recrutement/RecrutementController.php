@@ -29,7 +29,10 @@ class RecrutementController extends Controller
         $a = $this->visible($r, $id);
         abort_unless($a->cv_path && Storage::disk('local')->exists($a->cv_path), 404, 'Pas de CV.');
 
-        return response()->file(Storage::disk('local')->path($a->cv_path), ['Content-Disposition' => 'inline; filename="'.($a->cv_name ?: basename($a->cv_path)).'"']);
+        // Type déduit de l'extension enregistrée (jamais du contenu déposé par le candidat) : un « CV » en HTML ne s'exécute pas
+        $mime = ['pdf' => 'application/pdf', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png'][strtolower(pathinfo($a->cv_path, PATHINFO_EXTENSION))] ?? 'application/octet-stream';
+
+        return response()->file(Storage::disk('local')->path($a->cv_path), \App\Support\SafeDownload::headers($mime, $a->cv_name ?: basename($a->cv_path), true));
     }
 
     public function uploadCv(Request $r, string $id)

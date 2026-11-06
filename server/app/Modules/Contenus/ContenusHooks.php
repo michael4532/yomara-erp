@@ -50,6 +50,19 @@ class ContenusHooks
                 $data['validator_id'] = $u->id;
                 $data['validated_at'] = now()->format('Y-m-d H:i:s');
             }
+            if (! $u->hasPermission('contenus.validate')) {
+                unset($data['validator_id'], $data['validated_at']); // la validation ne se déclare pas à la main
+                // contenu modifié après validation : la publication repasse « À valider » (sinon publiée sans relecture)
+                $before = fn ($k) => $k === 'networks' ? array_values((array) json_decode((string) ($old[$k] ?? '[]'), true)) : ($old[$k] ?? null);
+                $now = fn ($k) => $k === 'networks' ? array_values((array) $data[$k]) : $data[$k];
+                $changed = $old && ($old['status'] ?? null) === 'approved' && in_array($data['status'] ?? 'approved', ['approved', 'published'], true)
+                    && collect(['caption', 'hashtags', 'visual_url', 'link_url', 'networks', 'title'])->contains(fn ($k) => array_key_exists($k, $data) && $now($k) != $before($k));
+                if ($changed) {
+                    $data['status'] = 'review';
+                    $data['validator_id'] = null;
+                    $data['validated_at'] = null;
+                }
+            }
         }
 
         return $data;

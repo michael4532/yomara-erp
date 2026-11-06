@@ -142,7 +142,7 @@ class _DayAgendaState extends State<DayAgenda> {
           IconButton(onPressed: () => setState(() => _date = DateTime(_date.year, _date.month, _date.day - 1)), icon: const Icon(Icons.chevron_left)),
           TextButton(
             onPressed: () async {
-              final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+              final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
               if (d != null) setState(() => _date = d);
             },
             child: Text(tr(toBeginningOfSentenceCase(DateFormat('EEEE d MMMM', I18n.dateLocale).format(_date))), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
@@ -639,7 +639,7 @@ class _AppointmentFormState extends State<_AppointmentForm> {
             label: tr('Date'),
             child: OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d == null) return;
                 setState(() => _date = d);
                 _loadSlots();
@@ -728,7 +728,7 @@ class _AppointmentFormState extends State<_AppointmentForm> {
             child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }
@@ -990,7 +990,7 @@ class _ServicesTabState extends State<_ServicesTab> {
               alignment: Alignment.centerRight,
               child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     if (name.text.trim().isEmpty) return;
                     try {
@@ -1184,7 +1184,7 @@ class _StaffTab extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     if (name.text.trim().isEmpty) return;
                     try {
@@ -1237,7 +1237,7 @@ class _StaffTab extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: from, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                      final d = await pickDate(c, initialDate: from, firstDate: DateTime(2020), lastDate: DateTime(2100));
                       if (d != null) set(() => (from = d, to = to.isBefore(d) ? d : to));
                     },
                     child: Text(tr('Du ${DateFormat('dd/MM/yyyy').format(from)}')),
@@ -1247,7 +1247,7 @@ class _StaffTab extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: to, firstDate: from, lastDate: DateTime(2100));
+                      final d = await pickDate(c, initialDate: to, firstDate: from, lastDate: DateTime(2100));
                       if (d != null) set(() => to = d);
                     },
                     child: Text(tr('Au ${DateFormat('dd/MM/yyyy').format(to)}')),
@@ -1283,7 +1283,7 @@ class _StaffTab extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     final s = allDay ? from : DateTime(from.year, from.month, from.day, t1.hour, t1.minute);
                     final e = allDay ? DateTime(to.year, to.month, to.day + 1) : DateTime(to.year, to.month, to.day, t2.hour, t2.minute);

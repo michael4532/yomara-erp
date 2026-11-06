@@ -56,7 +56,7 @@ class Product extends Model
     public static function syncRules(): array
     {
         return [
-            'category_id' => 'nullable|uuid',
+            'category_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('product_categories')],
             'type' => 'sometimes|in:product,service',
             'sku' => 'nullable|string|max:100',
             'barcode' => 'nullable|string|max:100',

@@ -281,7 +281,7 @@ class _NewReviewFormState extends State<_NewReviewForm> {
               label: 'Date prévue',
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: _date ?? DateTime.now());
+                  final d = await pickDate(context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: _date ?? DateTime.now());
                   if (d != null) setState(() => _date = d);
                 },
                 icon: const Icon(Icons.event),
@@ -703,7 +703,7 @@ class _TrainingFormState extends State<_TrainingForm> {
   bool _busy = false;
 
   Future<void> _date(String key) async {
-    final d = await showDatePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.tryParse('${_t[key] ?? ''}') ?? DateTime.now());
+    final d = await pickDate(context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.tryParse('${_t[key] ?? ''}') ?? DateTime.now());
     if (d != null) setState(() => _t[key] = d.toIso8601String().substring(0, 10));
   }
 
@@ -977,7 +977,7 @@ class _NewChecklistFormState extends State<_NewChecklistForm> {
           label: 'À terminer pour le',
           child: OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.now().add(const Duration(days: 14)));
+              final d = await pickDate(context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: DateTime.now().add(const Duration(days: 14)));
               if (d != null) setState(() => _due = d);
             },
             icon: const Icon(Icons.event),

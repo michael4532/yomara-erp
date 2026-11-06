@@ -29,7 +29,7 @@ class MaterielPdf
             $emp = DB::table('rh_employees')->where('id', $x->employee_id)->first();
             $holder = $emp ? trim($emp->last_name.' '.$emp->first_name).($emp->matricule ? ' ('.$emp->matricule.')' : '').($emp->job_title ? ' — '.$emp->job_title : '') : $holder;
         }
-        $client = $x->partner_id ? DB::table('partners')->where('id', $x->partner_id)->value('name') : null;
+        $client = $x->partner_id ? DB::table('partners')->where('company_id', $c->id)->where('id', $x->partner_id)->value('name') : null;
         $d = fn ($v) => $v ? $v->copy()->timezone(config('app.timezone'))->format('d/m/Y à H:i') : '—';
 
         $html = '<table cellpadding="0"><tr><td width="58%"><b style="font-size:14pt">'.$e($c->name).'</b><br><span style="color:#64748B">'

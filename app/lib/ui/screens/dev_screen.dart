@@ -147,7 +147,9 @@ class _KanbanState extends State<_Kanban> {
 
   Color _c(Map f, dynamic v) {
     final o = recordOption(f, v);
-    return Color(int.parse('FF${'${o?['color'] ?? '#64748B'}'.substring(1)}', radix: 16));
+    final h = '${o?['color'] ?? ''}';
+    final rgb = h.length == 7 && h.startsWith('#') ? int.tryParse(h.substring(1), radix: 16) : null;
+    return Color(0xFF000000 | (rgb ?? 0x64748B));
   }
 
   @override

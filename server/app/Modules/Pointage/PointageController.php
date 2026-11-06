@@ -96,8 +96,9 @@ class PointageController extends Controller
 
     public function pin(Request $r, string $id)
     {
+        $r->validate(['pin' => 'nullable|digits_between:4,6']);
         $b = Badge::findOrFail($id);
-        $this->setPin($b, $r->input('pin'));
+        $this->setPin($b, $r->filled('pin') ? (string) $r->input('pin') : null);
 
         return ['data' => $b->fresh()];
     }

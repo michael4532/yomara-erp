@@ -54,7 +54,7 @@ class QuestionnairesController extends Controller
     {
         abort_unless($r->user()->hasPermission('questionnaires.answer') || $r->user()->hasPermission('questionnaires.manage'), 403);
         $f = $this->form($id);
-        $d = $r->validate(['answers' => 'required|array', 'name' => 'nullable|string|max:150', 'email' => 'nullable|email|max:190', 'phone' => 'nullable|string|max:40', 'partner_id' => 'nullable|string|max:40']);
+        $d = $r->validate(['answers' => 'required|array', 'name' => 'nullable|string|max:150', 'email' => 'nullable|email|max:190', 'phone' => 'nullable|string|max:40', 'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')]]);
         if ($f->status === 'closed') {
             return response()->json(['message' => 'Ce questionnaire est fermé.'], 422);
         }

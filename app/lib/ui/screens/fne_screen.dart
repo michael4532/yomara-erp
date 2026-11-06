@@ -704,7 +704,7 @@ Future<bool> fneSettingsDialog(BuildContext context) async {
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Annuler'))),
             const SizedBox(width: 8),
-            FilledButton(
+            SaveButton(
               onPressed: () async {
                 try {
                   await api.put('fne/settings', {

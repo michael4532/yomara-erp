@@ -273,7 +273,7 @@ class _ExpenseFormState extends State<_ExpenseForm> {
           onPressed: !_editable
               ? null
               : () async {
-                  final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                  final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime.now());
                   if (d != null) setState(() => _date = d);
                 },
           icon: const Icon(Icons.event),
@@ -665,7 +665,7 @@ class _ToPayTabState extends State<_ToPayTab> {
                 if (via != 'payroll')
                   TextButton.icon(
                     onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                      final d = await pickDate(c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
                       if (d != null) set(() => date = d);
                     },
                     icon: const Icon(Icons.event),

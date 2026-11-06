@@ -307,7 +307,17 @@ class PaieController extends Controller
             'items.*.kind' => 'required|in:gain,deduction,reimbursement',
             'items.*.taxable' => 'nullable|boolean',
             'items.*.social' => 'nullable|boolean',
+            'items.*.source' => 'nullable|string|max:30',
         ]);
+        if (array_key_exists('items', $data)) {
+            // Lignes générées (heures sup. du pointage, solde de tout compte, notes de frais) : la version serveur est conservée telle quelle.
+            // Sans cela, la ligne renvoyée par l'application perdait son origine et était ajoutée une seconde fois au recalcul (double paiement).
+            $system = array_values(array_filter((array) $slip->items, fn ($i) => ! empty($i['source'])));
+            $sig = fn ($i) => mb_strtolower(trim((string) $i['label'])).'|'.round((float) $i['amount'], 2).'|'.$i['kind'];
+            $systemSigs = array_map($sig, $system);
+            $manual = array_values(array_filter($data['items'], fn ($i) => empty($i['source']) && ! in_array($sig($i), $systemSigs, true)));
+            $data['items'] = array_merge(array_map(fn ($i) => array_diff_key($i, ['source' => 1]), $manual), $system);
+        }
         $slip->fill($data);
         $this->service->computeSlip($this->company(), $slip);
         $slip->save();

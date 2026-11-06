@@ -283,7 +283,7 @@ Future<void> receiveOrder(BuildContext context, Map<String, dynamic> order) asyn
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton.icon(
+          SaveButton(
             onPressed: () async {
               final out = [
                 for (final l in lines)
@@ -323,7 +323,7 @@ Future<void> receiveOrder(BuildContext context, Map<String, dynamic> order) asyn
               }
             },
             icon: const Icon(Icons.check),
-            label: Text(tr('Valider la réception')),
+            child: Text(tr('Valider la réception')),
           ),
         ],
       ),
@@ -701,7 +701,7 @@ class _RequestFormState extends State<_RequestForm> {
             label: tr('Pour le'),
             child: OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: _needed ?? DateTime.now().add(const Duration(days: 7)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: _needed ?? DateTime.now().add(const Duration(days: 7)), firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d != null) setState(() => _needed = d);
               },
               icon: const Icon(Icons.event, size: 18),
@@ -1205,7 +1205,7 @@ class _SupplierPricesScreenState extends State<SupplierPricesScreen> {
                     child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                   ),
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     if (product == null || partner == null) return;
                     await sync.save('supplier_prices', {

@@ -71,7 +71,10 @@ class FlotteHooks
     public function assertFree(int $companyId, int $vehicleId, $start, $end, ?int $except = null): void
     {
         $v = DB::table('fl_vehicles')->where('company_id', $companyId)->where('id', $vehicleId)->first();
-        if ($v && $v->status === 'retired') {
+        if (! $v) {
+            throw new \DomainException('Véhicule introuvable.');
+        }
+        if ($v->status === 'retired') {
             throw new \DomainException('« '.$v->title.' » est hors service.');
         }
         $clash = DB::table('fl_trips')->where('company_id', $companyId)->where('vehicle_id', $vehicleId)->whereIn('status', ['approved', 'out'])
@@ -171,9 +174,12 @@ class FlotteHooks
                     $this->assert($vehicleId > 0, 'Choisissez le véhicule attribué.');
                     $this->assertFree($c->id, $vehicleId, $t->planned_start, $t->planned_end, $t->id);
                 }
+                if (! empty($in['driver_id'])) {
+                    $this->assert(DB::table('users')->where('company_id', $c->id)->where('id', $in['driver_id'])->exists(), 'Conducteur introuvable.');
+                }
                 $set = ['status' => $action === 'approve' ? 'approved' : 'refused', 'decided_by' => $u->id, 'decision_note' => $in['note'] ?? null, 'vehicle_id' => $vehicleId ?: null]
                     + (isset($in['driver_id']) ? ['driver_id' => $in['driver_id']] : []);
-                $msg = $action === 'approve' ? 'Véhicule attribué : '.DB::table('fl_vehicles')->where('id', $vehicleId)->value('title').'.' : 'Demande refusée'.(! empty($in['note']) ? ' : '.$in['note'] : '.');
+                $msg = $action === 'approve' ? 'Véhicule attribué : '.DB::table('fl_vehicles')->where('company_id', $c->id)->where('id', $vehicleId)->value('title').'.' : 'Demande refusée'.(! empty($in['note']) ? ' : '.$in['note'] : '.');
                 AppNotification::send($c->id, [$t->requester_id, $t->driver_id], 'flotte', $action === 'approve' ? 'Sortie approuvée' : 'Sortie refusée', $t->title.' — '.$msg, 'flotte', (string) $t->id, $u->id);
                 break;
             case 'checkout':

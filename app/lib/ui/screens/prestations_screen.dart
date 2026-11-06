@@ -362,7 +362,7 @@ Future<void> logTime(BuildContext context, {String? packId}) async {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                    final d = await pickDate(c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
                     if (d != null) set(() => date = d);
                   },
                   child: Text(tr(dateFr(isoDate(date)))),
@@ -376,7 +376,7 @@ Future<void> logTime(BuildContext context, {String? packId}) async {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               final h = toDouble(hours.text);
               if (pid == null || h <= 0 || h > 24 || desc.text.trim().isEmpty) return toast(c, tr('Forfait, durée (24 h au plus) et description obligatoires.'), error: true);
@@ -471,7 +471,7 @@ class _PackFormState extends State<_PackForm> {
             label: tr('Début'),
             child: OutlinedButton(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: DateTime.tryParse(_start) ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: DateTime.tryParse(_start) ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d != null) setState(() => _start = isoDate(d));
               },
               child: Text(tr(dateFr(_start))),
@@ -484,7 +484,7 @@ class _PackFormState extends State<_PackForm> {
             label: tr('Valable jusqu\'au (facultatif)'),
             child: OutlinedButton(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: DateTime.tryParse(_expiry ?? '') ?? DateTime.now().add(const Duration(days: 90)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: DateTime.tryParse(_expiry ?? '') ?? DateTime.now().add(const Duration(days: 90)), firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d != null) setState(() => _expiry = isoDate(d));
               },
               child: Text(tr(_expiry == null ? 'Sans limite' : dateFr(_expiry))),
@@ -494,7 +494,7 @@ class _PackFormState extends State<_PackForm> {
       ]),
       if (widget.pack == null) SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Facturer le forfait maintenant')), value: _invoice, onChanged: (v) => setState(() => _invoice = v)),
       Field(label: tr('Notes'), child: TextField(controller: _c['notes'], maxLines: 2)),
-      Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))),
+      Align(alignment: Alignment.centerRight, child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer')))),
     ]);
   }
 }
@@ -643,6 +643,7 @@ class _DeliverableFormState extends State<_DeliverableForm> {
       return false;
     }
     final saved = await context.read<SyncEngine>().save('pr_deliverables', {..._payload(), 'status': ?status, if (newVersion) 'new_version': true});
+    if (!mounted) return true;
     setState(() => d
       ..clear()
       ..addAll(saved));
@@ -662,6 +663,7 @@ class _DeliverableFormState extends State<_DeliverableForm> {
       final res = await api.upload('prestations/deliverables/$_id/file', 'file', await r.first.readAsBytes(), r.first.name);
       final rec = asMap(res['data']);
       await LocalDb.put('pr_deliverables', rec);
+      if (!mounted) return;
       setState(() => d
         ..clear()
         ..addAll(rec));
@@ -715,7 +717,7 @@ class _DeliverableFormState extends State<_DeliverableForm> {
               onPressed: !_editable
                   ? null
                   : () async {
-                      final x = await showDatePicker(context: context, initialDate: DateTime.tryParse(_due ?? '') ?? DateTime.now().add(const Duration(days: 3)), firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100));
+                      final x = await pickDate(context, initialDate: DateTime.tryParse(_due ?? '') ?? DateTime.now().add(const Duration(days: 3)), firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100));
                       if (x != null) setState(() => _due = isoDate(x));
                     },
               child: Text(tr(_due == null ? '—' : dateFr(_due))),

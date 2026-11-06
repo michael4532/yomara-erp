@@ -66,7 +66,7 @@ class EntityController extends Controller
         $model = new $class;
         $query = static::visibleQuery($class, $request->user());
 
-        if ($q = trim((string) $request->query('q'))) {
+        if ($q = trim(is_string($request->query('q')) ? $request->query('q') : '')) {
             $query->where(function ($w) use ($class, $q) {
                 foreach ($class::$searchable ?? ['name'] as $col) {
                     $w->orWhere($col, 'like', "%$q%");
@@ -80,7 +80,7 @@ class EntityController extends Controller
             }
         }
 
-        $sort = $request->query('sort', '-updated_at');
+        $sort = is_string($request->query('sort')) ? $request->query('sort') : '-updated_at'; // paramètre en tableau : tri par défaut, pas d'erreur serveur
         $dir = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $col = ltrim($sort, '-');
         if (in_array($col, array_merge($model->getFillable(), ['created_at', 'updated_at']), true)) {
@@ -108,6 +108,7 @@ class EntityController extends Controller
     {
         $class = $this->cls($request);
         $id = $request->input('id');
+        abort_if($id !== null && ! is_string($id), 422, 'Identifiant invalide.');
         // un identifiant existant mais invisible pour l'utilisateur ne peut pas être réécrit par cette route
         if ($id && $class::withoutGlobalScopes()->whereKey($id)->exists() && ! static::visibleRecord($class, (string) $id, $request->user())) {
             abort(404);

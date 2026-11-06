@@ -640,7 +640,7 @@ class _EntryFormState extends State<_EntryForm> {
                 label: tr('Date'),
                 child: OutlinedButton(
                   onPressed: () async {
-                    final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                    final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                     if (d != null) setState(() => _date = d);
                   },
                   child: Text(tr(dateFr(isoDate(_date)))),

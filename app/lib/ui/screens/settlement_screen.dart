@@ -163,7 +163,7 @@ class _SettlementViewState extends State<_SettlementView> {
           ),
           OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(context: context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: _end);
+              final d = await pickDate(context, firstDate: DateTime(2020), lastDate: DateTime(2100), initialDate: _end);
               if (d == null) return;
               setState(() => _end = d);
               _compute();

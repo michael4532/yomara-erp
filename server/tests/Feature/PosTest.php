@@ -168,4 +168,20 @@ class PosTest extends TestCase
         $this->assertEquals(6500, $doc['total']);
         $this->assertEquals($doc['total'], $doc['subtotal'] + $doc['tax_total']);
     }
+    public function test_cashier_sees_only_own_sessions_and_registers_stay_in_company(): void
+    {
+        // Session ouverte par l'administrateur : invisible pour la caissière (rapport, clôture)
+        $session = $this->uuid();
+        $this->assertSame('applied', $this->push($this->admin, [['entity' => 'pos_sessions', 'op' => 'upsert', 'record_id' => $session, 'data' => ['register_id' => $this->registerId, 'opening_cash' => 5000]]])[0]['status']);
+        $this->api($this->cashier)->getJson("/api/pos/sessions/$session/report")->assertNotFound();
+        $this->api($this->cashier)->putJson("/api/pos/sessions/$session", ['status' => 'closed', 'counted_cash' => 0])->assertNotFound();
+        $this->api($this->admin)->getJson("/api/pos/sessions/$session/report")->assertOk();
+
+        // Caisse d'une autre société : refusée
+        [, , $other] = $this->makeCompany('Concurrent');
+        $foreign = $this->api($other)->postJson('/api/pos/registers', ['name' => 'Caisse X'])->assertCreated()->json('data.id');
+        $this->api($this->cashier)->postJson('/api/pos/sessions', ['register_id' => $foreign, 'opening_cash' => 0])->assertStatus(422);
+        $foreignWarehouse = $this->api($other)->postJson('/api/stock/warehouses', ['name' => 'Dépôt X'])->json('data.id');
+        $this->api($this->admin)->postJson('/api/pos/registers', ['name' => 'Caisse 2', 'warehouse_id' => $foreignWarehouse])->assertStatus(422);
+    }
 }

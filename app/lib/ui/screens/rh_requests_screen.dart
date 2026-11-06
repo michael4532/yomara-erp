@@ -227,7 +227,7 @@ class _RequestFormState extends State<_RequestForm> {
   DateTime? _start, _end, _effective;
   bool _busy = false;
 
-  Future<DateTime?> _pick(DateTime? init) => showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 60)), lastDate: DateTime(2100), initialDate: init ?? DateTime.now());
+  Future<DateTime?> _pick(DateTime? init) => pickDate(context, firstDate: DateTime.now().subtract(const Duration(days: 60)), lastDate: DateTime(2100), initialDate: init ?? DateTime.now());
 
   Widget _date(String label, DateTime? v, ValueChanged<DateTime> set) => Field(
         label: label,
@@ -785,7 +785,7 @@ class _RhRequestsTabState extends State<RhRequestsTab> {
           const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 if (enabled.isEmpty) return toast(dc, tr('Gardez au moins un type de demande.'), error: true);
                 try {

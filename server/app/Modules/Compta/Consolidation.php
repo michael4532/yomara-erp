@@ -800,7 +800,11 @@ class Consolidation
             }
         }
         if (! empty($d['id'])) {
-            $this->assert(DB::table('compta_group_adjustments')->where('parent_id', $parent->id)->where('id', $d['id'])->update($row) >= 0, '');
+            // retraitement existant : sa période d'origine ne doit pas être arrêtée non plus
+            $prev = DB::table('compta_group_adjustments')->where('parent_id', $parent->id)->where('id', $d['id'])->first();
+            $this->assert((bool) $prev, 'Retraitement introuvable.');
+            $this->assert(! $this->isFrozen($parent, (string) $prev->period_to), 'Les comptes consolidés de cette période sont arrêtés : rouvrez-les avant de modifier les retraitements.');
+            DB::table('compta_group_adjustments')->where('parent_id', $parent->id)->where('id', $d['id'])->update($row);
         } else {
             DB::table('compta_group_adjustments')->insert($row + ['created_at' => now()]);
         }

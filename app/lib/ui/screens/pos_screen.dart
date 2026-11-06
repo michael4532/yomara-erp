@@ -206,7 +206,7 @@ class _PosScreenState extends State<PosScreen> {
       else if (wh.isNotEmpty) 'warehouse_id': (wh.firstWhere((w) => w['is_default'] == true, orElse: () => wh.first))['id'],
     });
     await LocalDb.meta.put('pos_register_id', reg['id']);
-    setState(() => _registerId = reg['id']);
+    if (mounted) setState(() => _registerId = reg['id']);
   }
 
   Future<void> _openSessionDialog(Map<String, dynamic> register) async {
@@ -224,7 +224,7 @@ class _PosScreenState extends State<PosScreen> {
             child: TextField(
               controller: ctrl,
               autofocus: true,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(currencyDecimals == 0 ? r'[0-9]' : r'[0-9.,]'))],
               onSubmitted: (_) => Navigator.pop(c, true),
             ),
           ),
@@ -243,7 +243,7 @@ class _PosScreenState extends State<PosScreen> {
       'opened_at': DateTime.now().toUtc().toIso8601String(),
       'user_name': userName,
     });
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   /// Rapport calculé localement (identique au rapport Z serveur), utilisable hors ligne.
@@ -299,7 +299,7 @@ class _PosScreenState extends State<PosScreen> {
                 child: TextField(
                   controller: counted,
                   autofocus: true,
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(currencyDecimals == 0 ? r'[0-9]' : r'[0-9.,]'))],
                   onChanged: (_) => setS(() {}),
                 ),
               ),
@@ -330,8 +330,8 @@ class _PosScreenState extends State<PosScreen> {
       'counted_cash': toDouble(counted.text),
       'difference': toDouble(counted.text) - toDouble(report['expected_cash']),
     };
-    setState(() {});
     if (!mounted) return;
+    setState(() {});
     if (await confirm(context, tr('Caisse clôturée'), tr('Imprimer le rapport de caisse (Z) ?'), ok: tr('Imprimer'))) {
       final warn = await PosPrinter.printZReport(session: session0, report: z, registerName: '${register['name']}');
       if (warn != null && mounted) toast(context, warn, error: true);
@@ -445,7 +445,7 @@ class _PosScreenState extends State<PosScreen> {
             icon: Icons.point_of_sale,
             title: tr('Aucune caisse configurée'),
             message: session.can('pos.manage') ? 'Créez votre première caisse pour commencer à vendre.' : 'Demandez à un administrateur de créer une caisse.',
-            action: session.can('pos.manage') ? FilledButton.icon(onPressed: _createRegister, icon: const Icon(Icons.add), label: Text(tr('Créer une caisse'))) : null,
+            action: session.can('pos.manage') ? SaveButton(onPressed: _createRegister, icon: const Icon(Icons.add), child: Text(tr('Créer une caisse'))) : null,
           );
         }
         final open = _openSession(register['id']);
@@ -469,7 +469,7 @@ class _PosScreenState extends State<PosScreen> {
         tooltip: tr('Changer de caisse'),
         onSelected: (id) async {
           await LocalDb.meta.put('pos_register_id', id);
-          setState(() => _registerId = id);
+          if (mounted) setState(() => _registerId = id);
         },
         itemBuilder: (_) => [for (final r in _registers) PopupMenuItem(value: r['id'] as String, child: Text(tr('${r['name']}')))],
         child: Chip(avatar: const Icon(Icons.point_of_sale, size: 18), label: Text(tr('${current['name']}'))),
@@ -1016,8 +1016,11 @@ class _PaymentDialogState extends State<_PaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _amount.text = '${widget.total.round()}';
+    _amount.text = _fmt(widget.total);
   }
+
+  /// Montant pré-rempli : entier pour les devises sans centimes, 2 décimales sinon (sinon une carte ne peut pas régler 12,50 €).
+  String _fmt(double v) => decimalsFor(context.read<Session>().currency) == 0 ? '${v.round()}' : v.toStringAsFixed(2);
 
   Map<String, dynamic>? get _card => widget.partnerId == null ? null : loyaltyCardOf(widget.partnerId);
 
@@ -1045,7 +1048,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     if (r == null || !mounted) return;
     setState(() {
       _payments.add({'method': 'mobile_money', 'amount': double.parse(r.amount.toStringAsFixed(2)), 'reference': r.reference});
-      _amount.text = _remaining > 0 ? '${_remaining.round()}' : '';
+      _amount.text = _remaining > 0 ? _fmt(_remaining) : '';
       _ref.clear();
     });
     if (_remaining <= 0.009) Navigator.pop(context, _PaymentResult(_payments, _change));
@@ -1098,7 +1101,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
     setState(() {
       if (_method == 'cash' && given > applied) _change = given - applied;
       _payments.add({'method': _method, 'amount': double.parse(applied.toStringAsFixed(2)), if (_ref.text.trim().isNotEmpty) 'reference': _ref.text.trim()});
-      _amount.text = _remaining > 0 ? '${_remaining.round()}' : '';
+      _amount.text = _remaining > 0 ? _fmt(_remaining) : '';
       _ref.clear();
     });
   }
@@ -1153,7 +1156,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                         label: Text(tr('1/$n = ${money((widget.total / n).ceilToDouble(), cur)}')),
                         onPressed: () => setState(() {
                           final part = (widget.total / n).ceilToDouble();
-                          _amount.text = '${(part < _remaining ? part : _remaining).round()}';
+                          _amount.text = _fmt(part < _remaining ? part : _remaining);
                         }),
                       ),
                   ]),
@@ -1164,7 +1167,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                 autofocus: true,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 decoration: InputDecoration(labelText: trn(_method == 'cash' ? 'Montant reçu' : 'Montant'), suffixText: trn(cur == 'XOF' ? 'F CFA' : cur)),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(decimalsFor(context.read<Session>().currency) == 0 ? r'[0-9]' : r'[0-9.,]'))],
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => toDouble(_amount.text) + 0.009 >= _remaining ? _validate() : _addPayment(),
               ),

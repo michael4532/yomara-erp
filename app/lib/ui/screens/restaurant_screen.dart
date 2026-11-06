@@ -825,16 +825,25 @@ class _OrderScreenState extends State<OrderScreen> {
     if (ok == true) await _add(p, q: q, note: note.text.trim(), course: course);
   }
 
+  /// Envoi en cours : un double appui sur « Envoyer » n'imprime pas deux fois les bons de cuisine.
+  bool _sending = false;
+
   Future<void> _send({Set<int>? courses}) async {
+    if (_sending) return;
     final sync = context.read<SyncEngine>();
     final pending = rsLines(widget.id).where((l) => l['status'] == 'pending' && (courses == null || courses.contains(l['course']))).toList();
     if (pending.isEmpty) return;
-    final now = DateTime.now().toUtc().toIso8601String();
-    for (final l in pending) {
-      await sync.save('rs_order_lines', {'id': l['id'], 'status': 'sent', 'sent_at': now});
+    _sending = true;
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      for (final l in pending) {
+        await sync.save('rs_order_lines', {'id': l['id'], 'status': 'sent', 'sent_at': now});
+      }
+      if (mounted) toast(context, tr('${pending.length} ligne(s) envoyée(s) en cuisine et au bar.'));
+      if (printKitchenTickets) await _printTickets(pending);
+    } finally {
+      _sending = false;
     }
-    if (mounted) toast(context, tr('${pending.length} ligne(s) envoyée(s) en cuisine et au bar.'));
-    if (printKitchenTickets) await _printTickets(pending);
   }
 
   Future<void> _printTickets(List<Map<String, dynamic>> lines) async {
@@ -2183,7 +2192,7 @@ class _SettingsTabState extends State<_SettingsTab> {
                   value: printKitchenTickets,
                   onChanged: (v) async {
                     await LocalDb.meta.put('rs_print_tickets', v);
-                    setState(() {});
+                    if (mounted) setState(() {});
                   },
                 ),
               ),

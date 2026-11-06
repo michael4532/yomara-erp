@@ -83,7 +83,7 @@ class RecordsOffline {
     if (local != null) return _editQueued(local, method, path, body);
     // Même clé pour l'envoi et ses éventuels renvois : le serveur ne crée pas deux fois la fiche
     // si la première demande est arrivée mais que la réponse s'est perdue (délai dépassé).
-    final id = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    final id = newLocalId();
     final idem = {'Idempotency-Key': id};
     try {
       return switch (method) {
@@ -98,6 +98,18 @@ class RecordsOffline {
       await _count();
       return {'data': {...?body, if (method == 'POST') 'id': id, '_pending': true}, 'offline': true};
     }
+  }
+
+  static int _lastId = 0;
+
+  /// Identifiant unique et croissant (ordre d'envoi de la file) : dans le navigateur, l'horloge n'avance que
+  /// par millisecondes ; deux envois dans la même milliseconde avaient la même clé (la seconde fiche remplaçait
+  /// la première dans la file, et le serveur la prenait pour un renvoi de la première : fiche jamais créée).
+  @visibleForTesting
+  static String newLocalId() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    _lastId = now > _lastId ? now : _lastId + 1;
+    return 'local-$_lastId';
   }
 
   static Future<dynamic> _editQueued(String localId, String method, String path, Map<String, dynamic>? body) async {
@@ -150,7 +162,9 @@ class RecordsOffline {
       final q = await _queue();
       final keys = q.keys.toList()..sort((a, b) => '$a'.compareTo('$b'));
       for (final k in keys) {
-        final e = asMap(jsonDecode(q.get(k)!));
+        final raw = q.get(k);
+        if (raw == null) continue; // annulée entre-temps
+        final e = asMap(jsonDecode(raw));
         final body = (e['body'] as Map?)?.cast<String, dynamic>();
         try {
           final idem = {'Idempotency-Key': '${e['id'] ?? k}'};
@@ -165,7 +179,8 @@ class RecordsOffline {
           n++;
         } catch (err) {
           // Réseau coupé, serveur en maintenance (5xx) ou trop de demandes : on réessaiera plus tard
-          if (_network(err) || (err is ApiException && ((err.status ?? 0) >= 500 || err.status == 429))) break;
+          // Session expirée (401) : la file attend la reconnexion, rien n'est classé « refusé »
+          if (_network(err) || (err is ApiException && ((err.status ?? 0) >= 500 || err.status == 429 || err.status == 401))) break;
           (await _failed()).put('$k', jsonEncode({...e, 'error': err is ApiException ? err.detail : '$err'}));
         }
         await q.delete(k);

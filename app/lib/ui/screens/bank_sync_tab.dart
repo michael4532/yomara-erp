@@ -539,7 +539,7 @@ class _RuleFormState extends State<_RuleForm> {
         child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
           const SizedBox(width: 8),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               final body = {
                 'name': _name.text.trim(), 'contains': _contains.text.trim(), 'direction': _direction, 'action': _action, 'category': _category,

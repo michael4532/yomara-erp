@@ -438,7 +438,7 @@ class _RunDetailState extends State<_RunDetail> {
                 icon: const Icon(Icons.event),
                 label: Text(tr('Date : ${dateFr(isoDate(date))}')),
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, firstDate: DateTime(2015), lastDate: DateTime(2100), initialDate: date);
+                  final d = await pickDate(c, firstDate: DateTime(2015), lastDate: DateTime(2100), initialDate: date);
                   if (d != null) set(() => date = d);
                 },
               ),
@@ -738,6 +738,7 @@ class _PayslipViewState extends State<_PayslipView> {
         'days_worked': num.tryParse(_days.text.replaceAll(',', '.')) ?? 30,
         'items': _items.where((i) => '${i['label']}'.trim().isNotEmpty).map((i) => {...i, 'amount': i['amount'] ?? 0}).toList(),
       });
+      if (!mounted) return;
       setState(() {
         _slip = Map<String, dynamic>.from(r);
         _items = [for (final i in (_slip['items'] as List? ?? const [])) Map<String, dynamic>.from(i)];

@@ -560,7 +560,7 @@ class _LinkEditorState extends State<LinkEditor> {
                     Expanded(
                       child: InkWell(
                         onTap: () async {
-                          final d = await showDatePicker(context: context, initialDate: _expires ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 3650)));
+                          final d = await pickDate(context, initialDate: _expires ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 3650)));
                           setState(() => _expires = d);
                         },
                         child: InputDecorator(decoration: InputDecoration(labelText: tr('Date de fin')), child: Text(_expires == null ? tr('Aucune') : DateFormat('d MMM yyyy', 'fr').format(_expires!))),

@@ -263,7 +263,7 @@ class _ReviewState extends State<_Review> {
     }
     if (!mounted) return;
     await context.read<SyncEngine>().save('tt_weeks', {'id': w['id'], 'status': approve ? 'approved' : 'rejected', 'comment': ?comment});
-    setState(() => _rows!.removeWhere((x) => x['week']['id'] == w['id']));
+    if (mounted) setState(() => _rows!.removeWhere((x) => x['week']['id'] == w['id']));
     if (mounted) toast(context, approve ? 'Feuille validée.' : 'Feuille renvoyée avec votre commentaire.');
   }
 

@@ -17,7 +17,10 @@ class MailHtml extends StatelessWidget {
           child: HtmlWidget(
             html,
             textStyle: TextStyle(fontSize: 14, height: 1.45, color: dark ? Colors.white : const Color(0xFF1B1F24)),
-            onTapUrl: (url) => safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+            onTapUrl: (url) async {
+              final uri = Uri.tryParse(url.trim());
+              return uri != null && await safeLaunchUrl(uri, mode: LaunchMode.externalApplication);
+            },
             renderMode: RenderMode.column,
           ),
         ),

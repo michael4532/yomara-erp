@@ -109,7 +109,13 @@ class LocalDb {
     if (_tenant != tenant) {
       await closeTenant();
       _tenant = tenant;
-      await _encryptOnce(tenant);
+      try {
+        await _encryptOnce(tenant);
+      } catch (_) {
+        // Rien d'ouvert : un nouvel appel (redémarrage, reconnexion) reprend le passage au lieu de croire la société ouverte
+        _tenant = null;
+        rethrow;
+      }
       _outbox = await Hive.openBox<String>('${tenant}_outbox', encryptionCipher: _cipher);
       _state = await Hive.openBox('${tenant}_state', encryptionCipher: _cipher);
       if (sharedStore) {
@@ -178,6 +184,8 @@ class LocalDb {
 
   /// Boîte locale annexe d'un module (ex. copie locale des e-mails), propre à la société ouverte.
   static Future<Box<String>> extraBox(String name) async {
+    // Aucune société ouverte (déconnexion en cours) : surtout pas de boîte « null_… » partagée entre comptes
+    if (_tenant == null) throw StateError('Aucune société ouverte');
     final key = '${_tenant}_$name';
     final b = _extra[key];
     if (b != null && b.isOpen) return b;
@@ -186,15 +194,25 @@ class LocalDb {
 
   /// Passage au stockage chiffré (une fois par société et par appareil) : les saisies en attente d'envoi sont
   /// reprises, le reste est effacé puis rechargé depuis le serveur à la synchronisation suivante.
+  ///
+  /// Sans perte si l'application s'arrête en cours de route : les saisies en attente sont d'abord copiées dans
+  /// « meta » (elles étaient déjà en clair sur le disque) et reprises de là au démarrage suivant.
+  /// Coffre momentanément illisible (trousseau verrouillé, délai dépassé) : les fichiers chiffrés sont mis de côté,
+  /// pas effacés, et reviennent quand la même clé est de nouveau disponible.
   static Future<void> _encryptOnce(String tenant) async {
     if (sharedStore) return;
     final cipher = _cipher;
     var done = List<String>.from((meta.get('encrypted_tenants') as List?) ?? const []);
+    final aside = List<String>.from((meta.get('encrypted_aside') as List?) ?? const []);
+    final backupKey = 'encrypt_backup_$tenant';
     if (cipher == null) {
-      // Coffre devenu indisponible : les fichiers chiffrés sont illisibles, on repart d'un espace vide
-      if (done.contains(tenant)) {
-        await _deleteTenantFiles(tenant);
+      // Coffre indisponible : les fichiers chiffrés sont illisibles sans la clé, on les garde de côté
+      final restoring = List<String>.from((meta.get('encrypt_restoring') as List?) ?? const []);
+      if (done.contains(tenant) || restoring.contains(tenant)) {
+        await _moveTenantFiles(tenant, toAside: true);
+        if (!aside.contains(tenant)) await meta.put('encrypted_aside', [...aside, tenant]);
         await meta.put('encrypted_tenants', done..remove(tenant));
+        if (restoring.remove(tenant)) await meta.put('encrypt_restoring', restoring);
       }
       return;
     }
@@ -204,37 +222,132 @@ class LocalDb {
       done = [];
       await meta.put('encrypted_key', keyId);
       await meta.put('encrypted_tenants', done);
+      await meta.delete('encrypt_restoring');
+      // fichiers mis de côté avec l'ancienne clé : illisibles pour toujours
+      for (final t in aside) {
+        await _deleteTenantFiles(t, aside: true);
+      }
+      aside.clear();
+      await meta.put('encrypted_aside', aside);
     }
-    if (done.contains(tenant)) return;
+    if (done.contains(tenant)) {
+      if (meta.containsKey(backupKey)) await meta.delete(backupKey);
+      return;
+    }
     // Files d'envoi à conserver : synchronisation et demandes faites hors ligne
     const keep = ['outbox', 'records_outbox', 'records_failed'];
     final pending = <String, Map<dynamic, String>>{};
-    for (final n in keep) {
+    // Retour des fichiers mis de côté déjà commencé (arrêt en cours de route) : ces fichiers sont chiffrés,
+    // ils ne sont ni relus sans la clé ni effacés
+    final restoring = List<String>.from((meta.get('encrypt_restoring') as List?) ?? const []);
+    final backup = meta.get(backupKey);
+    if (backup is String) {
+      // Reprise après un arrêt pendant le passage : la copie fait foi (les boîtes ont pu être déjà effacées)
       try {
-        final old = await Hive.openBox<String>('${tenant}_$n');
-        if (old.isNotEmpty) pending[n] = Map<dynamic, String>.from(old.toMap());
-        await old.close();
+        (jsonDecode(backup) as Map).forEach((n, entries) {
+          if (!keep.contains(n) || entries is! List) return;
+          final kept = <dynamic, String>{};
+          for (final e in entries) {
+            // Copie abîmée : seules les lignes valides (clé Hive, saisie JSON) sont reprises, sans bloquer le démarrage
+            if (e is! List || e.length < 2 || e[1] is! String) continue;
+            final k = e[0];
+            if ((k is int && k >= 0 && k <= 0xFFFFFFFF) || (k is String && k.length <= 255)) kept[k] = e[1] as String;
+          }
+          pending['$n'] = kept;
+        });
       } catch (_) {}
     }
-    await _deleteTenantFiles(tenant);
+    if (!restoring.contains(tenant)) {
+      // Saisies en clair sur le disque (y compris celles faites depuis un arrêt, coffre indisponible entre-temps)
+      for (final n in keep) {
+        try {
+          final old = await Hive.openBox<String>('${tenant}_$n');
+          final kept = pending[n] ?? <dynamic, String>{};
+          final known = kept.values.toSet();
+          var next = kept.keys.whereType<int>().fold<int>(-1, (m, k) => k > m ? k : m) + 1;
+          old.toMap().forEach((k, v) {
+            // Seulement des saisies lisibles (JSON) : jamais d'octets chiffrés relus sans la clé
+            try {
+              if (known.contains(v) || jsonDecode(v) is! Map) return;
+              if (k is int) {
+                kept[next++] = v; // à la suite de la copie, dans l'ordre d'envoi
+              } else if (!kept.containsKey(k)) {
+                kept[k] = v;
+              }
+            } catch (_) {}
+          });
+          if (kept.isNotEmpty) pending[n] = kept;
+          await old.close();
+        } catch (_) {}
+      }
+      await meta.put(backupKey, jsonEncode({for (final e in pending.entries) e.key: [for (final x in e.value.entries) [x.key, x.value]]}));
+    }
+    if (!restoring.contains(tenant)) await _deleteTenantFiles(tenant);
+    // Fichiers chiffrés mis de côté avec la même clé : ils reviennent (saisies d'avant comprises)
+    if (aside.contains(tenant) || restoring.contains(tenant)) {
+      if (!restoring.contains(tenant)) await meta.put('encrypt_restoring', [...restoring, tenant]);
+      await _moveTenantFiles(tenant, toAside: false);
+      await meta.put('encrypted_aside', aside..remove(tenant));
+    }
     for (final e in pending.entries) {
       final box = await Hive.openBox<String>('${tenant}_${e.key}', encryptionCipher: cipher);
-      await box.putAll(e.value);
+      // Reprise après arrêt : une saisie déjà recopiée n'est pas ajoutée deux fois
+      final present = box.values.toSet();
+      for (final x in e.value.entries) {
+        try {
+          // file de synchronisation : clés numériques (ordre d'envoi) ; ajoutées à la suite de celles déjà présentes
+          if (x.key is int) {
+            if (!present.contains(x.value)) await box.add(x.value);
+          } else {
+            await box.put(x.key, x.value);
+          }
+        } catch (_) {}
+      }
       await box.close();
     }
     await meta.put('encrypted_tenants', [...done, tenant]);
+    await meta.put('encrypt_restoring', List<String>.from((meta.get('encrypt_restoring') as List?) ?? const [])..remove(tenant));
+    await meta.delete(backupKey);
+  }
+
+  static const _asideDir = 'coffre_indisponible';
+
+  /// Met de côté (ou ramène) les fichiers chiffrés d'une société.
+  static Future<void> _moveTenantFiles(String tenant, {required bool toAside}) async {
+    final dir = _dir;
+    if (dir == null || kIsWeb) return;
+    final sep = Platform.pathSeparator;
+    final aside = Directory('$dir$sep$_asideDir');
+    final from = toAside ? Directory(dir) : aside;
+    final to = toAside ? aside : Directory(dir);
+    try {
+      if (!from.existsSync()) return;
+      to.createSync(recursive: true);
+      for (final f in from.listSync().whereType<File>()) {
+        final name = f.uri.pathSegments.last;
+        if (!_isTenantFile(tenant, name)) continue;
+        try {
+          f.renameSync('${to.path}$sep$name');
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  static bool _isTenantFile(String tenant, String name) {
+    final prefix = '${tenant.toLowerCase()}_';
+    final other = RegExp('^${RegExp.escape(prefix)}u\\d+_');
+    return name.startsWith(prefix) && !other.hasMatch(name) && (name.endsWith('.hive') || name.endsWith('.lock') || name.endsWith('.hivec'));
   }
 
   /// Fichiers locaux d'une société (et d'elle seule : pas les espaces « _uN » des autres personnes du poste).
-  static Future<void> _deleteTenantFiles(String tenant) async {
+  static Future<void> _deleteTenantFiles(String tenant, {bool aside = false}) async {
     final dir = _dir;
     if (dir == null || kIsWeb) return;
-    final prefix = '${tenant.toLowerCase()}_';
-    final other = RegExp('^${RegExp.escape(prefix)}u\\d+_');
+    final d = aside ? Directory('$dir${Platform.pathSeparator}$_asideDir') : Directory(dir);
     try {
-      for (final f in Directory(dir).listSync().whereType<File>()) {
-        final name = f.uri.pathSegments.last;
-        if (name.startsWith(prefix) && !other.hasMatch(name) && (name.endsWith('.hive') || name.endsWith('.lock') || name.endsWith('.hivec'))) {
+      if (!d.existsSync()) return;
+      for (final f in d.listSync().whereType<File>()) {
+        if (_isTenantFile(tenant, f.uri.pathSegments.last)) {
           try {
             f.deleteSync();
           } catch (_) {}
@@ -247,17 +360,24 @@ class LocalDb {
   static Future<void> eraseTenant(String tenant) async {
     if (_tenant == tenant) await closeTenant();
     if (kIsWeb || sharedStore) {
-      await KvStore.deleteByPrefix('${tenant}_');
+      // Pas les bases des autres personnes du poste (« <société>_uN_… ») : leurs saisies en attente y sont
+      await KvStore.deleteByPrefix('${tenant}_', except: RegExp('^${RegExp.escape(tenant.toLowerCase())}_u\\d+_'));
       for (final n in ['outbox', 'state', 'data']) {
         try {
-          await Hive.deleteBoxFromDisk('${tenant}_$n');
+          await Hive.deleteBoxFromDisk('${tenant}_$n').timeout(const Duration(seconds: 5));
         } catch (_) {}
       }
     } else {
       await _deleteTenantFiles(tenant);
+      await _deleteTenantFiles(tenant, aside: true);
     }
     final done = List<String>.from((meta.get('encrypted_tenants') as List?) ?? const [])..remove(tenant);
     await meta.put('encrypted_tenants', done);
+    final aside = List<String>.from((meta.get('encrypted_aside') as List?) ?? const []);
+    if (aside.remove(tenant)) await meta.put('encrypted_aside', aside);
+    await meta.delete('encrypt_backup_$tenant');
+    final restoring = List<String>.from((meta.get('encrypt_restoring') as List?) ?? const []);
+    if (restoring.remove(tenant)) await meta.put('encrypt_restoring', restoring);
   }
 
   static bool get isOpen => _tenant != null && _outbox != null && _state != null;

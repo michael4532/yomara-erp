@@ -100,6 +100,12 @@ class QuestionnaireService
                 $v = trim($v);
             }
             $empty = $v === null || $v === '' || $v === [];
+            // Seul le choix multiple accepte une liste (sinon « Array to string conversion » → erreur 500)
+            if (! $empty && is_array($v) !== ($q['type'] === 'multi')) {
+                $err[$q['id']] = 'Réponse invalide.';
+
+                continue;
+            }
             if ($empty) {
                 if ($q['required']) {
                     $err[$q['id']] = 'Réponse obligatoire.';
@@ -109,7 +115,7 @@ class QuestionnaireService
             }
             $bad = match ($q['type']) {
                 'single' => ! in_array($v, $q['options'], true),
-                'multi' => ! is_array($v) || array_diff($v, $q['options']) !== [],
+                'multi' => ! is_array($v) || collect($v)->contains(fn ($x) => ! is_scalar($x)) || array_diff($v, $q['options']) !== [],
                 'rating' => ! is_numeric($v) || (int) $v < 1 || (int) $v > 5,
                 'nps' => ! is_numeric($v) || (int) $v < 0 || (int) $v > 10,
                 'yesno' => ! in_array($v, ['oui', 'non', 'yes', 'no', true, false, 1, 0, '1', '0'], true),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -580,6 +582,7 @@ class _PostListState extends State<_PostList> {
   late String _filter = widget.pending > 0 ? 'pending' : 'upcoming';
   String _q = '';
   List<Map<String, dynamic>>? _rows;
+  Timer? _debounce;
 
   static const _filters = {
     'upcoming': ('À venir', ['scheduled', 'pending', 'publishing']),
@@ -594,6 +597,12 @@ class _PostListState extends State<_PostList> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -639,7 +648,8 @@ class _PostListState extends State<_PostList> {
             hint: tr('Rechercher un texte, une campagne…'),
             onChanged: (v) {
               _q = v;
-              _load();
+              _debounce?.cancel();
+              _debounce = Timer(const Duration(milliseconds: 400), _load);
             },
           ),
         ),
@@ -1038,6 +1048,7 @@ class _SocialComposerState extends State<SocialComposer> {
         'with_media': _media.isNotEmpty,
       });
       final v = Map<String, dynamic>.from(r['variants'] as Map);
+      if (!mounted) return;
       setState(() {
         for (final e in v.entries) {
           final text = '${(e.value as Map)['text']}';
@@ -1153,7 +1164,7 @@ class _SocialComposerState extends State<SocialComposer> {
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final base = _at ?? now.add(const Duration(hours: 1));
-    final d = await showDatePicker(context: context, initialDate: base.isBefore(now) ? now : base, firstDate: DateUtils.dateOnly(now), lastDate: now.add(const Duration(days: 365)));
+    final d = await pickDate(context, initialDate: base.isBefore(now) ? now : base, firstDate: DateUtils.dateOnly(now), lastDate: now.add(const Duration(days: 365)));
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(base));
     if (t == null) return;
@@ -1795,7 +1806,7 @@ class _SocialComposerState extends State<SocialComposer> {
                     'with_media': _media.isNotEmpty,
                     'link': _link.text.trim().isEmpty ? null : _link.text.trim(),
                   });
-                  setState(() => (_variants[n] ??= TextEditingController()).text = '${r['text']}');
+                  if (mounted) setState(() => (_variants[n] ??= TextEditingController()).text = '${r['text']}');
                 } catch (e) {
                   if (context.mounted) toast(context, errorText(e), error: true);
                 }

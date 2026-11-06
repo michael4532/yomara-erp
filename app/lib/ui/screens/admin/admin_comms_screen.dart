@@ -662,7 +662,7 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final d = await showDatePicker(context: context, firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: _sendAt ?? now);
+    final d = await pickDate(context, firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: _sendAt ?? now);
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_sendAt ?? now.add(const Duration(hours: 1))));
     if (t == null) return;

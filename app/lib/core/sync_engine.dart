@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hive_ce/hive.dart' show Box;
 import 'package:uuid/uuid.dart';
 
 import 'api_client.dart';
@@ -67,9 +68,26 @@ class SyncEngine extends ChangeNotifier {
   StreamSubscription? _connSub;
   bool _again = false;
 
+  /// Arrêtée (déconnexion) : plus aucune synchronisation ne démarre, même relancée par une précédente.
+  bool _stopped = false;
+  Completer<void>? _idle;
+
+  /// Se termine quand aucune synchronisation n'est en cours.
+  Future<void> idle() => !syncing ? Future.value() : (_idle?.future ?? Future<void>.delayed(const Duration(milliseconds: 50)));
+
+  /// Synchronisation complète maintenant : attend celle en cours (qui a pu commencer avant la dernière saisie)
+  /// puis en lance une nouvelle et attend sa fin.
+  Future<void> syncNow() async {
+    while (syncing) {
+      await idle();
+    }
+    await sync();
+  }
+
   int get pendingCount => (LocalDb.isOpen ? LocalDb.outbox().length : 0) + RecordsOffline.queued;
 
   void start() {
+    _stopped = false;
     _loadIssues();
     _timer?.cancel();
     _timer = Timer.periodic(AppConfig.syncInterval, (_) => sync());
@@ -82,6 +100,8 @@ class SyncEngine extends ChangeNotifier {
   }
 
   void stop() {
+    _stopped = true;
+    _again = false;
     _timer?.cancel();
     _debounce?.cancel();
     _connSub?.cancel();
@@ -130,7 +150,10 @@ class SyncEngine extends ChangeNotifier {
   void _enqueue({required String entity, required String op, required String recordId, Map<String, dynamic>? data}) {
     final box = LocalDb.outbox();
     for (final key in box.keys) {
-      final m = Map<String, dynamic>.from(jsonDecode(box.get(key)!));
+      final raw = box.get(key);
+      // Lecture rapide : on ne décode que les envois qui mentionnent cet enregistrement
+      if (raw == null || !raw.contains(recordId)) continue;
+      final m = Map<String, dynamic>.from(jsonDecode(raw));
       if (m['record_id'] != recordId || m['entity'] != entity || m['in_flight'] == true) continue;
 
       if (op == 'delete') {
@@ -203,12 +226,14 @@ class SyncEngine extends ChangeNotifier {
   // ------------------------------------------------------------------
 
   Future<void> sync() async {
-    if (!LocalDb.isOpen || api.token == null) return;
+    // Arrêtée (déconnexion en cours) : une saisie ou un minuteur ne relance plus d'envoi sur des données en cours de fermeture
+    if (_stopped || !LocalDb.isOpen || api.token == null) return;
     if (syncing) {
-      _again = true;
+      if (!_stopped) _again = true;
       return;
     }
     syncing = true;
+    _idle = Completer<void>();
     unawaited(RecordsOffline.refreshCount());
     notifyListeners();
 
@@ -228,10 +253,12 @@ class SyncEngine extends ChangeNotifier {
       if (kDebugMode) debugPrint('sync error: $e');
     } finally {
       syncing = false;
+      _idle?.complete();
+      _idle = null;
       notifyListeners();
     }
 
-    if (_again) {
+    if (_again && !_stopped) {
       _again = false;
       unawaited(sync());
     }
@@ -243,8 +270,20 @@ class SyncEngine extends ChangeNotifier {
       final keys = box.keys.take(100).toList();
       final mutations = <Map<String, dynamic>>[];
 
+      final sent = <dynamic>[];
       for (final key in keys) {
-        final m = Map<String, dynamic>.from(jsonDecode(box.get(key)!));
+        final raw = box.get(key);
+        if (raw == null) continue; // retirée entre-temps (créée puis supprimée hors ligne)
+        final Map<String, dynamic> m;
+        try {
+          m = Map<String, dynamic>.from(jsonDecode(raw));
+        } catch (_) {
+          // Ligne illisible : elle bloquerait toute la file pour toujours ; mise de côté pour le support
+          await LocalDb.state().put('outbox_corrupt_$key', raw);
+          await box.delete(key);
+          continue;
+        }
+        sent.add(key);
         m['in_flight'] = true;
         await box.put(key, jsonEncode(m));
         final local = LocalDb.get(m['entity'], m['record_id']);
@@ -259,29 +298,28 @@ class SyncEngine extends ChangeNotifier {
         });
       }
 
+      if (mutations.isEmpty) continue;
       Map<String, dynamic> res;
       try {
         res = Map<String, dynamic>.from(await api.post('sync/push', {'mutations': mutations}));
       } catch (e) {
         // Échec réseau : les mutations restent dans la file pour le prochain essai.
-        for (final key in keys) {
-          final raw = box.get(key);
-          if (raw == null) continue;
-          final m = Map<String, dynamic>.from(jsonDecode(raw))..remove('in_flight');
-          await box.put(key, jsonEncode(m));
-        }
+        await _release(box, sent);
         rethrow;
       }
 
-      for (final r in (res['results'] as List)) {
+      for (final r in (res['results'] as List? ?? const [])) {
+        // Résultat incomplet ou d'un autre type : ignoré (la mutation reste en file) au lieu de bloquer toute la synchronisation
+        if (r is! Map) continue;
         final result = Map<String, dynamic>.from(r);
-        final entity = result['entity'] as String;
-        final recordId = result['record_id'] as String;
-        final status = result['status'] as String;
-        final record = result['record'] == null ? null : Map<String, dynamic>.from(result['record']);
+        final entity = result['entity'];
+        final recordId = result['record_id'];
+        final status = '${result['status'] ?? ''}';
+        if (entity is! String || recordId is! String || status.isEmpty) continue;
+        final record = result['record'] is Map ? Map<String, dynamic>.from(result['record']) : null;
 
         // Retire la mutation de la file
-        final key = keys.firstWhere(
+        final key = sent.firstWhere(
           (k) => box.get(k) != null && jsonDecode(box.get(k)!)['id'] == result['mutation_id'],
           orElse: () => null,
         );
@@ -325,6 +363,24 @@ class SyncEngine extends ChangeNotifier {
       }
       await _saveIssues();
       notifyListeners();
+      // Réponse sans résultat pour certaines mutations : on s'arrête là (elles repartiront à la prochaine
+      // synchronisation) au lieu de renvoyer le même lot en boucle au serveur.
+      final left = sent.where((k) => box.get(k) != null).toList();
+      if (left.isNotEmpty) {
+        await _release(box, left);
+        break;
+      }
+    }
+  }
+
+  Future<void> _release(Box<String> box, List<dynamic> keys) async {
+    for (final key in keys) {
+      final raw = box.get(key);
+      if (raw == null) continue;
+      try {
+        final m = Map<String, dynamic>.from(jsonDecode(raw))..remove('in_flight');
+        await box.put(key, jsonEncode(m));
+      } catch (_) {}
     }
   }
 
@@ -352,25 +408,29 @@ class SyncEngine extends ChangeNotifier {
       final allDeletes = <String, List<String>>{};
       for (final entry in changes.entries) {
         final entity = entry.key;
-        if (!LocalDb.hasEntity(entity)) continue;
+        if (!LocalDb.hasEntity(entity) || entry.value is! Map) continue;
         final c = Map<String, dynamic>.from(entry.value);
 
         final upserts = <Map<String, dynamic>>[];
-        for (final r in (c['upserts'] as List? ?? [])) {
+        for (final r in (c['upserts'] is List ? c['upserts'] as List : const [])) {
+          // Ligne sans identifiant texte : elle ferait échouer toute la page, donc toute la synchronisation
+          if (r is! Map || r['id'] is! String) continue;
           final rec = Map<String, dynamic>.from(r);
           final pending = pendingIndex.contains('$entity/${rec['id']}') ? _pendingFor(entity, rec['id']) : null;
           if (pending?['_deleted'] == true) continue;
           upserts.add({...rec, ...?pending, if (pending != null) '_local': true});
         }
-        final deletes = List<String>.from(c['deletes'] ?? []);
+        final deletes = [for (final d in (c['deletes'] is List ? c['deletes'] as List : const [])) if (d != null) '$d'];
         allUpserts[entity] = upserts;
         allDeletes[entity] = deletes.where((id) => !pendingIndex.contains('$entity/$id')).toList();
       }
       // Toute la page en une fois (une seule écriture sur le navigateur)
       await LocalDb.applyBatch(allUpserts, allDeletes);
 
-      cursor = (res['cursor'] as num).toInt();
-      hasMore = res['has_more'] == true;
+      final next = (res['cursor'] as num?)?.toInt() ?? cursor;
+      // Curseur qui n'avance pas : on s'arrête au lieu de redemander la même page sans fin
+      hasMore = res['has_more'] == true && next > cursor;
+      cursor = next;
       await state.put('cursor', cursor);
       final latest = (res['latest'] as num?)?.toInt() ?? cursor;
       pullProgress.value = !hasMore || latest <= start ? 1 : ((cursor - start) / (latest - start)).clamp(0, 1).toDouble();
@@ -379,7 +439,21 @@ class SyncEngine extends ChangeNotifier {
 
   /// Oublie les données locales et recharge tout depuis le serveur.
   Future<void> resync() async {
-    await LocalDb.wipeTenant();
+    // Une synchronisation en cours réécrirait son curseur après l'effacement (données manquantes ensuite)
+    while (syncing) {
+      await idle();
+    }
+    if (!LocalDb.isOpen) return;
+    syncing = true;
+    _idle = Completer<void>();
+    try {
+      await LocalDb.wipeTenant();
+    } finally {
+      syncing = false;
+      _idle?.complete();
+      _idle = null;
+    }
+    _again = false;
     await sync();
   }
 

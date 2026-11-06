@@ -106,7 +106,7 @@ class ApiClient {
 
   /// Réponse brute (fichiers : CSV, PDF…).
   Future<List<int>> download(String path, {Map<String, dynamic>? query}) async {
-    final res = await http.get(_uri(path, query), headers: {..._headers, 'Accept': '*/*'}).timeout(AppConfig.requestTimeout * 2);
+    final res = await _net(() => http.get(_uri(path, query), headers: {..._headers, 'Accept': '*/*'}), AppConfig.requestTimeout * 2);
     if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
     if (res.statusCode == 401) onUnauthorized?.call();
     throw ApiException('Téléchargement impossible (${res.statusCode}).', status: res.statusCode);
@@ -121,7 +121,7 @@ class ApiClient {
     for (final f in files) {
       req.files.add(http.MultipartFile.fromBytes(f.$1, f.$2, filename: f.$3));
     }
-    final res = await http.Response.fromStream(await req.send()).timeout(const Duration(minutes: 4));
+    final res = await _net(() async => http.Response.fromStream(await req.send()), const Duration(minutes: 4));
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final cd = res.headers['content-disposition'] ?? '';
       final m = RegExp(r'filename="?([^";]+)"?').firstMatch(cd);
@@ -167,16 +167,20 @@ class ApiClient {
         return http.Response.fromStream(await req.send());
       }, timeout: const Duration(minutes: 3));
 
-  Future<dynamic> _send(Future<http.Response> Function() call, {Duration? timeout}) async {
-    http.Response res;
+  /// Erreurs réseau converties en ApiException « hors ligne » (status null), comme pour les appels JSON.
+  static Future<http.Response> _net(Future<http.Response> Function() call, Duration timeout) async {
     try {
-      res = await call().timeout(timeout ?? AppConfig.requestTimeout);
+      return await call().timeout(timeout);
     } on TimeoutException {
       throw ApiException('Le serveur ne répond pas.');
     } on http.ClientException {
       // http 1.x : les erreurs réseau (y compris SocketException) arrivent ici
       throw ApiException('Pas de connexion au serveur.');
     }
+  }
+
+  Future<dynamic> _send(Future<http.Response> Function() call, {Duration? timeout}) async {
+    final res = await _net(call, timeout ?? AppConfig.requestTimeout);
 
     dynamic body;
     try {
@@ -189,10 +193,11 @@ class ApiClient {
 
     final map = body is Map<String, dynamic> ? body : <String, dynamic>{};
     if (res.statusCode == 401) onUnauthorized?.call();
+    // message / code d'un autre type (nombre, liste) : pas de plantage, message générique
     throw ApiException(
-      (map['message'] as String?) ?? 'Erreur du serveur (${res.statusCode}).',
+      map['message'] is String ? map['message'] as String : 'Erreur du serveur (${res.statusCode}).',
       status: res.statusCode,
-      code: map['code'] as String?,
+      code: map['code'] is String ? map['code'] as String : null,
       errors: map['errors'] is Map ? Map<String, dynamic>.from(map['errors']) : null,
       body: body,
     );

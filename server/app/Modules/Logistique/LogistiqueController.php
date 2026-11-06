@@ -71,6 +71,7 @@ class LogistiqueController extends Controller
     /** Indicateurs sur une période. */
     public function stats(Request $r)
     {
+        $r->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
         $from = Carbon::parse($r->query('from', now()->startOfMonth()->toDateString()))->toDateString();
         $to = Carbon::parse($r->query('to', now()->toDateString()))->toDateString();
         $rows = Delivery::whereBetween('scheduled_date', [$from, $to])->where('status', '!=', 'cancelled')->get();

@@ -2507,7 +2507,7 @@ Future<void> showOfflineInstructions(BuildContext context, Map<String, dynamic> 
               const Spacer(),
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Plus tard'))),
               const SizedBox(width: 8),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   if (ref.text.trim().isEmpty) return toast(c, tr('Saisissez la référence du paiement.'), error: true);
                   try {

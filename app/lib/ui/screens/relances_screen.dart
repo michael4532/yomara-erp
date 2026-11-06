@@ -796,7 +796,7 @@ class _SettingsTabState extends State<_SettingsTab> {
           ),
         TextButton(onPressed: () => setState(() => _fill(_s!['defaults'] as List)), child: Text(tr('Textes par défaut'))),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }

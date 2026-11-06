@@ -101,7 +101,7 @@ class _AdminUpdatesScreenState extends State<AdminUpdatesScreen> {
     const size = 4 * 1024 * 1024; // morceaux de 4 Mo (limites des hébergements mutualisés)
     final total = (bytes.length / size).ceil();
     final id = '${DateTime.now().millisecondsSinceEpoch}';
-    setState(() => _upload = 0);
+    if (mounted) setState(() => _upload = 0);
     try {
       Map<String, dynamic>? rel;
       for (var i = 0; i < total; i++) {

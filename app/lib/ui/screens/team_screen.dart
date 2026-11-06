@@ -150,14 +150,14 @@ class _MonEquipeScreenState extends State<MonEquipeScreen> {
                       _dept = v;
                       _reload();
                     } else {
-                      setState(() => _f = {..._f, k: v});
+                      if (mounted) setState(() => _f = {..._f, k: v});
                     }
                   },
                   count: shown.length,
                   countLabel: 'personne',
                   onReset: () {
                     final reloadDept = _dept != null;
-                    setState(() => (_q = '', _filter = '', _f = {}, _rk++, _dept = null));
+                    if (mounted) setState(() => (_q = '', _filter = '', _f = {}, _rk++, _dept = null));
                     if (reloadDept) _reload();
                   },
                 ),

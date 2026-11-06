@@ -34,7 +34,7 @@ class Warehouse extends Model
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:30',
             'address' => 'nullable|string|max:255',
-            'branch_id' => 'nullable|uuid',
+            'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')],
             'is_default' => 'sometimes|boolean',
             'active' => 'sometimes|boolean',
         ];

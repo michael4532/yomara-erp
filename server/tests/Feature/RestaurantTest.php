@@ -54,6 +54,8 @@ class RestaurantTest extends TestCase
         // Ligne envoyée : contenu verrouillé ; non envoyée : modifiable puis supprimable
         $waiter()->putJson("/api/restaurant/order-lines/{$l1['id']}", ['quantity' => 5])->assertStatus(422)->assertJsonFragment(['message' => 'Ligne déjà envoyée en cuisine : annulez-la et ajoutez-en une nouvelle.']);
         $waiter()->putJson("/api/restaurant/order-lines/{$l3['id']}", ['quantity' => 2])->assertOk();
+        // Ligne non envoyée : la serveuse ne baisse pas le prix de la carte
+        $this->assertEquals(5000, $waiter()->putJson("/api/restaurant/order-lines/{$l3['id']}", ['unit_price' => 1])->assertOk()->json('data.unit_price'));
         $waiter()->deleteJson("/api/restaurant/order-lines/{$l1['id']}")->assertStatus(422);
         $waiter()->putJson("/api/restaurant/order-lines/{$l3['id']}", ['status' => 'sent'])->assertOk();
 

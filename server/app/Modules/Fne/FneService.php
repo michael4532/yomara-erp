@@ -174,7 +174,14 @@ class FneService
             $cert->attempts++;
 
             try {
-                $res = Http::withToken((string) $cfg->api_key)->acceptJson()->asJson()
+                // adresse saisie par la société : jamais le serveur lui-même ni le réseau interne (SSRF)
+                $pin = \App\Support\UrlGuard::pinned($cfg->baseUrl().$url);
+            } catch (\DomainException $e) {
+                return $this->fail($cert, null, $e->getMessage());
+            }
+
+            try {
+                $res = Http::withToken((string) $cfg->api_key)->acceptJson()->asJson()->withOptions($pin)
                     ->connectTimeout(8)->timeout(25)
                     ->post($cfg->baseUrl().$url, $payload);
             } catch (ConnectionException $e) {

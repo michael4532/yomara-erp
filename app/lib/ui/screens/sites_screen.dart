@@ -37,7 +37,10 @@ Color hexColor(dynamic v, [Color fallback = YColors.blue]) {
 
 String colorHex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
-Future<void> openUrl(String url) => safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+Future<void> openUrl(String url) async {
+  final uri = Uri.tryParse(url.trim());
+  if (uri != null) await safeLaunchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 /// Menu « Site web » : modèles, demande sur mesure, demandes et devis, personnalisation, domaine, messages, statistiques.
 class SitesScreen extends StatefulWidget {
@@ -702,7 +705,7 @@ class _CustomRequestState extends State<_CustomRequest> {
                 label: tr('Date souhaitée'),
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: _deadline ?? DateTime.now().add(const Duration(days: 30)));
+                    final d = await pickDate(context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: _deadline ?? DateTime.now().add(const Duration(days: 30)));
                     if (d != null) setState(() => _deadline = d);
                   },
                   icon: const Icon(Icons.event),
@@ -959,7 +962,7 @@ class _SiteEditorState extends State<SiteEditor> {
     if (!mounted) return;
     try {
       final r = await context.read<Session>().api.uploadForm('sites/site/images', {'slot': slot}, 'file', bytes, f.name);
-      setState(() => s = asMap(r['data']));
+      if (mounted) setState(() => s = asMap(r['data']));
       if (mounted) toast(context, tr('Image ajoutée.'));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -969,7 +972,7 @@ class _SiteEditorState extends State<SiteEditor> {
   Future<void> _remove(String path) async {
     try {
       final r = await context.read<Session>().api.post('sites/site/images/remove', {'path': path});
-      setState(() => s = asMap(r['data']));
+      if (mounted) setState(() => s = asMap(r['data']));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

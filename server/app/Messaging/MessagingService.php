@@ -132,6 +132,8 @@ class MessagingService
             }
             $p = self::platformMail();
             $config = array_merge($p, array_filter(['from_name' => $config['from_name'] ?? $company->name, 'reply_to' => $config['reply_to'] ?? $company->email]));
+        } elseif ($channel === 'email') {
+            $config['_tenant'] = true; // serveur SMTP de la société : contrôlé (SSRF)
         }
         $impl = match ($channel) {
             'email' => new Smtp,

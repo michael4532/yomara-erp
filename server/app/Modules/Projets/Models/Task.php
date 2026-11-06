@@ -72,6 +72,15 @@ class Task extends Model
         }
     }
 
+    /** Un contributeur ne supprime pas la tâche d'un collègue. */
+    public function beforeEntityDelete(): void
+    {
+        $user = auth()->user();
+        if ($user && ! $user->hasPermission('projets.manage') && $this->assignee_id && $this->assignee_id !== $user->id) {
+            throw new \DomainException('Cette tâche est attribuée à quelqu\'un d\'autre.');
+        }
+    }
+
     protected static function booted(): void
     {
         static::saving(function (self $t) {

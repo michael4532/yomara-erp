@@ -51,7 +51,18 @@ String dateTimeFr(dynamic v) {
 
 String isoDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
-double toDouble(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}'.replaceAll(' ', '').replaceAll(',', '.')) ?? 0;
+double toDouble(dynamic v) {
+  if (v is num) return v.toDouble();
+  // Espaces (y compris insécables) des milliers retirés ; « 1.234,50 » et « 1,234.50 » : le dernier séparateur est décimal
+  var s = '${v ?? ''}'.replaceAll(RegExp(r'\s'), '');
+  final comma = s.lastIndexOf(','), dot = s.lastIndexOf('.');
+  if (comma >= 0 && dot >= 0) {
+    s = comma > dot ? s.replaceAll('.', '').replaceAll(',', '.') : s.replaceAll(',', '');
+  } else {
+    s = s.replaceAll(',', '.');
+  }
+  return double.tryParse(s) ?? 0;
+}
 
 const materialIcons = <String, IconData>{
   'move_down': Icons.move_down,
@@ -322,9 +333,14 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hint = Theme.of(context).hintColor;
+    final theme = Theme.of(context);
+    final hint = theme.hintColor;
     final icon = this.icon ?? (autoIcon ? kpiIcon(label) : null);
     final d = (detail ?? '').trim();
+    // Mode sombre : une couleur très foncée (bleu nuit, noir) serait illisible sur la carte sombre.
+    final dark = theme.brightness == Brightness.dark;
+    final color = dark && this.color.computeLuminance() < .05 ? theme.colorScheme.onSurface : this.color;
+    final valueColor = dark && this.valueColor != null && this.valueColor!.computeLuminance() < .05 ? null : this.valueColor;
     // Variation (« +12 % », « ↑ … », « -3 % ») : pastille verte ou rouge, comme sur le tableau de bord
     final up = RegExp(r'^(\+|↑|▲)').hasMatch(d);
     final down = RegExp(r'^(-\s?\d|−|↓|▼)').hasMatch(d);
@@ -359,7 +375,7 @@ class StatTile extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(color: (up ? YColors.success : YColors.danger).withValues(alpha: .11), borderRadius: BorderRadius.circular(8)),
                     child: Text(tr(d), maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Color.lerp(up ? YColors.success : YColors.danger, Colors.black, .15), fontSize: 12, fontWeight: FontWeight.w600)),
+                        style: TextStyle(color: dark ? (up ? YColors.success : YColors.danger) : Color.lerp(up ? YColors.success : YColors.danger, Colors.black, .15), fontSize: 12, fontWeight: FontWeight.w600)),
                   )
                 else
                   // Une ligne réservée même sans détail : toutes les cartes d'une rangée ont la même hauteur
@@ -833,6 +849,57 @@ class YAlertDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Sélecteur de date dont la date initiale est ramenée dans [firstDate, lastDate] : une date enregistrée
+/// hors plage (échéance passée, fiche ancienne) ferait sinon échouer l'ouverture du calendrier.
+Future<DateTime?> pickDate(BuildContext context, {DateTime? initialDate, required DateTime firstDate, required DateTime lastDate}) {
+  var init = initialDate;
+  if (init != null) {
+    if (init.isBefore(firstDate)) init = firstDate;
+    if (init.isAfter(lastDate)) init = lastDate;
+  }
+  return showDatePicker(context: context, initialDate: init, firstDate: firstDate, lastDate: lastDate);
+}
+
+/// Bouton d'enregistrement : désactivé (avec indicateur) tant que l'action asynchrone est en cours,
+/// pour qu'un double appui ne crée pas de doublon ni ne ferme deux fois le formulaire.
+/// Une erreur non gérée est affichée en toast au lieu de remonter.
+class SaveButton extends StatefulWidget {
+  const SaveButton({super.key, required this.onPressed, required this.child, this.style, this.icon});
+
+  final Future<void> Function()? onPressed;
+  final Widget child;
+  final ButtonStyle? style;
+  final Widget? icon;
+
+  @override
+  State<SaveButton> createState() => _SaveButtonState();
+}
+
+class _SaveButtonState extends State<SaveButton> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onPressed!();
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onPressed = widget.onPressed == null || _busy ? null : _run;
+    final icon = _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : widget.icon;
+    return icon == null
+        ? FilledButton(style: widget.style, onPressed: onPressed, child: widget.child)
+        : FilledButton.icon(style: widget.style, onPressed: onPressed, icon: icon, label: widget.child);
   }
 }
 

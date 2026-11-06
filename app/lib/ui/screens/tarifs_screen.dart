@@ -370,7 +370,7 @@ class _PriceListFormState extends State<_PriceListForm> {
 
   Future<void> _pickDate(bool start) async {
     final cur = DateTime.tryParse((start ? _start : _end) ?? '') ?? DateTime.now();
-    final d = await showDatePicker(context: context, initialDate: cur, firstDate: DateTime(2020), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: cur, firstDate: DateTime(2020), lastDate: DateTime(2100));
     if (d != null) setState(() => start ? _start = isoDate(d) : _end = isoDate(d));
   }
 
@@ -454,7 +454,7 @@ class _PriceListFormState extends State<_PriceListForm> {
                 child: Text(tr('Supprimer')),
               ),
             const Spacer(),
-            FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+            SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
           ],
         ),
       ],

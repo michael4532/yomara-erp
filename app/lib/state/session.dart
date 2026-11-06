@@ -333,11 +333,27 @@ class Session extends ChangeNotifier {
   /// Effacer par défaut les données de la société à la déconnexion : navigateur (souvent partagé) ou réglage choisi.
   bool get wipeOnLogoutDefault => (LocalDb.meta.get('wipe_on_logout') as bool?) ?? kIsWeb;
 
+  bool _loggingOut = false;
+
   Future<void> logout({bool remote = true, bool? wipe}) async {
+    // Plusieurs réponses 401 à la suite (ou 401 pendant une déconnexion) : une seule déconnexion
+    if (_loggingOut) return;
+    _loggingOut = true;
+    try {
+      await _logout(remote: remote, wipe: wipe);
+    } finally {
+      _loggingOut = false;
+    }
+  }
+
+  Future<void> _logout({required bool remote, bool? wipe}) async {
     if (remote) {
       // Les modifications non envoyées restent stockées localement
       try {
-        await sync.sync();
+        // Attend une synchronisation déjà en cours puis envoie les dernières saisies
+        await sync.syncNow().timeout(const Duration(seconds: 60));
+      } catch (_) {}
+      try {
         await PrefsSync.flush();
         await FirebaseSetup.unregisterPush(api);
         await api.post('auth/logout');
@@ -351,9 +367,12 @@ class Session extends ChangeNotifier {
     _heartbeat?.cancel();
     sync.stop();
     // Attendre la fin d'une synchronisation en cours avant de fermer les données locales
-    for (var i = 0; i < 150 && sync.syncing; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    try {
+      await sync.idle().timeout(const Duration(seconds: 30));
+    } catch (_) {}
+    // Saisies encore en attente d'envoi : l'effacement « par défaut » (navigateur) ne les supprime pas ;
+    // seul un choix explicite de la personne, prévenue de la perte, les efface.
+    final pendingLeft = sync.pendingCount;
     // Caches en mémoire de la session précédente (utilisateurs, catalogue des rapports, préférences)
     PrefsSync.reset();
     RecordSchema.clear();
@@ -365,7 +384,8 @@ class Session extends ChangeNotifier {
     final tenant = LocalDb.tenant;
     await LocalDb.closeTenant();
     // Poste partagé : plus aucune donnée de la société sur l'appareil après la déconnexion
-    if ((wipe ?? (remote && wipeOnLogoutDefault)) && tenant != null) {
+    final erase = wipe ?? (remote && wipeOnLogoutDefault && pendingLeft == 0);
+    if (erase && tenant != null) {
       if (wipe != null) await LocalDb.meta.put('wipe_on_logout', wipe);
       await LocalDb.eraseTenant(tenant);
     }

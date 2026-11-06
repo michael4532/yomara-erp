@@ -62,7 +62,7 @@ class Operation extends Model
         $company = app('tenant')->id;
 
         return [
-            'branch_id' => 'nullable|uuid',
+            'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')],
             'account_id' => ['required', 'uuid', Rule::exists('tr_accounts', 'id')->where('company_id', $company)],
             'date' => 'required|date',
             'amount' => 'required|numeric|not_in:0',

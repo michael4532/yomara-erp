@@ -38,7 +38,7 @@ class DocumentsController extends Controller
     {
         $v = $r->validate([
             'file' => 'required|file', 'folder_id' => 'nullable|uuid', 'name' => 'nullable|string|max:200', 'description' => 'nullable|string|max:5000',
-            'tags' => 'nullable|string', 'partner_id' => 'nullable|uuid', 'employee_id' => 'nullable|uuid', 'expires_at' => 'nullable|date',
+            'tags' => 'nullable|string', 'partner_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('partners')], 'employee_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('rh_employees')], 'expires_at' => 'nullable|date',
             'source_type' => 'nullable|string|max:30', 'source_id' => 'nullable|string|max:64',
         ], ['file.required' => 'Choisissez un fichier.', 'file.uploaded' => 'Envoi interrompu ou fichier trop lourd pour le serveur.']);
         if (isset($v['tags'])) {

@@ -374,7 +374,7 @@ Future<void> editTender(BuildContext context, [Map<String, dynamic>? t]) async {
               label: tr('Date limite des offres'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+                  final d = await pickDate(ctx, initialDate: deadline, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
                   if (d == null || !ctx.mounted) return;
                   final h = await showTimePicker(context: ctx, initialTime: TimeOfDay.fromDateTime(deadline));
                   set(() => deadline = DateTime(d.year, d.month, d.day, h?.hour ?? 17, h?.minute ?? 0));
@@ -510,7 +510,7 @@ Future<void> importSupplierInvoice(BuildContext context) async {
               label: tr('Date'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime.now());
+                  final d = await pickDate(ctx, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime.now());
                   if (d != null) set(() => date = d);
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -651,7 +651,7 @@ Future<void> _matchSettings(BuildContext context) async {
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: SaveButton(
             onPressed: () async {
               try {
                 await api.put('portail_fournisseurs/settings', {'match_tolerance': toDouble(tol.text)});

@@ -19,7 +19,10 @@ class Idempotency
         if ($key === '' || ! $token || strlen($key) > 100 || ! in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             return $next($request);
         }
-        $ck = 'idem:'.hash('sha256', $token.'|'.$request->method().'|'.$request->path().'|'.$key);
+        // Par personne (et non par jeton) : une saisie rejouée après une reconnexion n'est pas créée deux fois
+        $u = rescue(fn () => $request->user('sanctum'), null, false);
+        $who = $u ? 'u'.$u->getKey().'|'.$request->header('X-Company-Id', '') : $token;
+        $ck = 'idem:'.hash('sha256', $who.'|'.$request->method().'|'.$request->path().'|'.$key);
         if ($hit = Cache::get($ck)) {
             return response($hit['body'], $hit['status'], ['Content-Type' => $hit['type'] ?: 'application/json', 'Idempotent-Replay' => 'true']);
         }

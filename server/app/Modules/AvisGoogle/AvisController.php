@@ -246,7 +246,7 @@ class AvisController extends Controller
     public function updateLocation(Request $r, int $id)
     {
         $l = $this->loc($id);
-        $d = $r->validate(['description' => 'nullable|string|max:750', 'phone' => 'nullable|string|max:40', 'website' => 'nullable|url|max:300', 'hours' => 'nullable|array', 'branch_id' => 'nullable|uuid']);
+        $d = $r->validate(['description' => 'nullable|string|max:750', 'phone' => 'nullable|string|max:40', 'website' => 'nullable|url|max:300', 'hours' => 'nullable|array', 'branch_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('branches')]]);
         try {
             $this->gp->updateInfo(app('tenant'), $l, array_intersect_key($d, array_flip(['description', 'phone', 'website', 'hours'])));
         } catch (\DomainException $e) {
@@ -384,8 +384,9 @@ class AvisController extends Controller
     {
         $req = DB::table('gb_requests')->where('token', $token)->first();
         abort_unless($req, 404);
-        $loc = DB::table('gb_locations')->find($req->location_id);
+        $loc = DB::table('gb_locations')->where('company_id', $req->company_id)->where('id', $req->location_id)->first();
         $c = Company::find($req->company_id);
+        abort_unless($loc && $c, 404); // établissement retiré entre-temps
         if (! $req->clicked_at) {
             DB::table('gb_requests')->where('id', $req->id)->update(['clicked_at' => now(), 'status' => in_array($req->status, ['sent', 'scheduled'], true) ? 'clicked' : $req->status]);
         }
@@ -408,19 +409,19 @@ class AvisController extends Controller
     public function feedback(Request $r, string $token)
     {
         $req = DB::table('gb_requests')->where('token', $token)->first();
-        abort_unless($req, 404);
+        $c = $req ? Company::find($req->company_id) : null;
+        abort_unless($req && $c, 404);
         $d = $r->validate(['rating' => 'required|integer|min:1|max:5', 'feedback' => 'required|string|max:3000']);
         DB::table('gb_requests')->where('id', $req->id)->update(['feedback_rating' => $d['rating'], 'feedback' => $d['feedback'], 'status' => 'feedback', 'updated_at' => now()]);
-        $c = Company::find($req->company_id);
         $users = User::where('company_id', $c->id)->where('is_active', true)->get()->filter(fn ($u) => $u->hasPermission('avis.manage') || $u->hasPermission('avis.reply'))->pluck('id')->all();
         try {
             AppNotification::send($c->id, $users, 'avis', 'Retour client ('.$d['rating'].'/5) · '.($req->name ?: $req->to), mb_substr($d['feedback'], 0, 200), 'avis_google', 'request:'.$req->id);
         } catch (\Throwable) {
         }
-        $loc = DB::table('gb_locations')->find($req->location_id);
+        $loc = DB::table('gb_locations')->where('company_id', $req->company_id)->where('id', $req->location_id)->first();
 
         return $this->page('Merci, c\'est transmis', '<p style="color:#5B6B85;line-height:1.5">L\'équipe de '.e($c->name).' a bien reçu votre message et revient vers vous rapidement.</p>'
-            .'<p style="margin-top:18px"><a href="'.e($loc->review_uri).'" style="color:#1A73E8">Vous pouvez aussi laisser un avis public sur Google</a></p>');
+            .($loc?->review_uri ? '<p style="margin-top:18px"><a href="'.e($loc->review_uri).'" style="color:#1A73E8">Vous pouvez aussi laisser un avis public sur Google</a></p>' : ''));
     }
 
     /** QR code du comptoir : redirige vers la page d'avis Google (scans comptés). */

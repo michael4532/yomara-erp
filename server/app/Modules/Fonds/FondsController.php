@@ -76,7 +76,7 @@ class FondsController extends Controller
     {
         return $r->validate([
             'title' => ($creating ? 'required' : 'sometimes').'|string|max:200', 'department' => 'nullable|string|max:120', 'to_department' => 'nullable|string|max:120',
-            'approver_id' => 'nullable|integer', 'priority' => 'nullable|in:normal,urgent,very_urgent', 'needed_by' => 'nullable|date', 'purpose' => 'nullable|string|max:5000', 'project_id' => 'nullable|string|max:40',
+            'approver_id' => ['nullable', 'integer', \App\Support\TenantRef::of('users')], 'priority' => 'nullable|in:normal,urgent,very_urgent', 'needed_by' => 'nullable|date', 'purpose' => 'nullable|string|max:5000', 'project_id' => 'nullable|string|max:40',
             'lines' => ($creating ? 'required' : 'sometimes').'|array|max:100', 'lines.*.id' => 'nullable|integer', 'lines.*.type' => 'nullable|in:funds,equipment,service',
             'lines.*.description' => 'nullable|string|max:255', 'lines.*.quantity' => 'nullable|numeric|min:0', 'lines.*.unit_amount' => 'nullable|numeric|min:0',
             'lines.*.note' => 'nullable|string|max:255', 'lines.*.product_id' => 'nullable|string|max:40',
@@ -121,6 +121,7 @@ class FondsController extends Controller
 
     public function dashboard(Request $r)
     {
+        $r->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
         $from = $r->query('from', now()->startOfYear()->toDateString());
         $to = $r->query('to', now()->toDateString());
 

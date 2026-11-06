@@ -451,7 +451,7 @@ Future<void> editProject(BuildContext context, [Map<String, dynamic>? project]) 
               label: tr('Début'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: start ?? _today(), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                  final d = await pickDate(ctx, initialDate: start ?? _today(), firstDate: DateTime(2020), lastDate: DateTime(2100));
                   if (d != null) set(() => start = d);
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -465,7 +465,7 @@ Future<void> editProject(BuildContext context, [Map<String, dynamic>? project]) 
               label: tr('Fin prévue'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: end ?? (start ?? _today()).add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                  final d = await pickDate(ctx, initialDate: end ?? (start ?? _today()).add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
                   if (d != null) set(() => end = d);
                 },
                 icon: const Icon(Icons.flag_outlined, size: 18),
@@ -531,7 +531,7 @@ Future<void> editProject(BuildContext context, [Map<String, dynamic>? project]) 
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (c['name']!.text.trim().isEmpty) {
                 toast(ctx, tr('Donnez un nom au projet.'), error: true);
@@ -936,7 +936,7 @@ Future<void> editLabourCosts(BuildContext context) async {
       const SizedBox(height: 14),
       Align(
         alignment: Alignment.centerRight,
-        child: FilledButton(
+        child: SaveButton(
           onPressed: () async {
             double? n(String t) => double.tryParse(t.replaceAll(RegExp(r'[\s ]'), '').replaceAll(',', '.'));
             try {
@@ -1500,7 +1500,7 @@ Future<void> editMilestone(BuildContext context, Map<String, dynamic> project, [
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(context: c, initialDate: due ?? _today().add(const Duration(days: 14)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+              final d = await pickDate(c, initialDate: due ?? _today().add(const Duration(days: 14)), firstDate: DateTime(2020), lastDate: DateTime(2100));
               if (d != null) set(() => due = d);
             },
             icon: const Icon(Icons.event),
@@ -1517,7 +1517,7 @@ Future<void> editMilestone(BuildContext context, Map<String, dynamic> project, [
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return;
               await sync.save('prj_milestones', {
@@ -1620,7 +1620,7 @@ class _TaskFormState extends State<_TaskForm> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, initialDate: v ?? _today(), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                  final d = await pickDate(context, initialDate: v ?? _today(), firstDate: DateTime(2020), lastDate: DateTime(2100));
                   if (d != null) setState(() => set(d));
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -1748,7 +1748,7 @@ class _TaskFormState extends State<_TaskForm> {
             child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }
@@ -1789,7 +1789,7 @@ Future<void> logTime(BuildContext context, {required Map<String, dynamic> projec
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: day, firstDate: DateTime(2020), lastDate: _today().add(const Duration(days: 7)));
+                    final d = await pickDate(c, initialDate: day, firstDate: DateTime(2020), lastDate: _today().add(const Duration(days: 7)));
                     if (d != null) set(() => day = d);
                   },
                   icon: const Icon(Icons.event, size: 18),
@@ -1818,7 +1818,7 @@ Future<void> logTime(BuildContext context, {required Map<String, dynamic> projec
                   child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   final hours = double.tryParse(h.text.replaceAll(',', '.').trim());
                   if (hours == null || hours <= 0 || hours > 24) {

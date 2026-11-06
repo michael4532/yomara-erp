@@ -290,6 +290,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _log = [for (final l in (r['log'] as List? ?? const [])) '$l'];
     } catch (e) {
       ticker.cancel();
+      if (!mounted) return;
       setState(() {
         _phase = _Phase.failed;
         _message = 'La mise à jour n\'a pas pu être installée : ${errorText(e)}\nRien n\'a été modifié, le logiciel fonctionne comme avant.';
@@ -297,18 +298,20 @@ class _UpdateDialogState extends State<UpdateDialog> {
       return;
     }
     ticker.cancel();
-    setState(() => _step = 3);
+    if (mounted) setState(() => _step = 3);
     // Finalisation par une nouvelle requête : le nouveau code est chargé
     try {
       final f = Map<String, dynamic>.from(await s.api.postLong('system/update/finish'));
       _log = [for (final l in (f['log'] as List? ?? const [])) '$l'];
       if (f['ok'] == true) {
+        if (!mounted) return;
         setState(() {
           _step = 5;
           _phase = _Phase.done;
           _message = 'Yomara ERP ${f['version']} est installé.';
         });
       } else {
+        if (!mounted) return;
         setState(() {
           _phase = _Phase.failed;
           _message = f['rolled_back'] == true
@@ -319,6 +322,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
     } catch (e) {
       // Le nouveau code ne répond pas : restauration de secours sans Laravel
       final restored = await _rescue(s, token);
+      if (!mounted) return;
       setState(() {
         _phase = _Phase.failed;
         _message = restored
@@ -331,7 +335,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
   Future<bool> _rescue(Session s, String? token) async {
     if (token == null) return false;
     try {
-      final r = await http.get(Uri.parse('${s.api.baseUrl}/restore.php?token=$token')).timeout(const Duration(minutes: 5));
+      // Jeton envoyé dans le corps (pas dans l'adresse : il finirait dans les journaux du serveur)
+      final r = await http.post(Uri.parse('${s.api.baseUrl}/restore.php'), body: {'token': token}).timeout(const Duration(minutes: 5));
       return r.statusCode == 200;
     } catch (_) {
       return false;

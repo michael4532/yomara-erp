@@ -137,6 +137,8 @@ class Event extends Model
         if (array_key_exists('attendee_ids', $data)) {
             $ids = array_values(array_unique(array_map('intval', (array) $data['attendee_ids'])));
             $ids = array_values(array_diff($ids, [(int) ($this->owner_id ?? $user?->id)]));
+            // seuls les utilisateurs de la société peuvent être invités (pas de notification vers une autre société)
+            $ids = $ids ? array_values(array_intersect($ids, \App\Models\User::where('company_id', app('tenant')->id)->whereIn('id', $ids)->pluck('id')->map(fn ($i) => (int) $i)->all())) : [];
             $data['attendee_ids'] = $ids;
             $data['responses'] = array_intersect_key((array) ($data['responses'] ?? $this->responses), array_flip(array_map('strval', $ids)));
         }

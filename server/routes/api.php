@@ -273,20 +273,20 @@ Route::middleware('installed')->group(function () {
                 Route::post('licenses/{id}/reset', [\App\Http\Controllers\Api\Licensing\LicenseController::class, 'reset'])->whereNumber('id');
                 Route::post('licenses/{id}/revoke', [\App\Http\Controllers\Api\Licensing\LicenseController::class, 'revoke'])->whereNumber('id');
             });
-            Route::post('store/orders/{id}/verify', [StoreController::class, 'verify'])->middleware('throttle:store');
+            Route::post('store/orders/{id}/verify', [StoreController::class, 'verify'])->middleware('throttle:store')->whereNumber('id');
             Route::middleware('perm:core.settings.manage')->group(function () {
                 Route::post('store/orders', [StoreController::class, 'order'])->middleware('throttle:store');
                 Route::post('store/promo', [StoreController::class, 'checkPromo'])->middleware('throttle:store');
-                Route::post('store/orders/{id}/declare', [StoreController::class, 'declare']);
-                Route::post('store/orders/{id}/cancel', [StoreController::class, 'cancel']);
+                Route::post('store/orders/{id}/declare', [StoreController::class, 'declare'])->whereNumber('id');
+                Route::post('store/orders/{id}/cancel', [StoreController::class, 'cancel'])->whereNumber('id');
                 Route::post('store/trial/{key}', [StoreController::class, 'trial']);
 
                 // Moyens de paiement de la société (pour ses propres clients)
                 Route::get('payments/setup', [CompanyPaymentController::class, 'setup']);
                 Route::post('payments/gateways', [CompanyPaymentController::class, 'store']);
-                Route::put('payments/gateways/{id}', [CompanyPaymentController::class, 'update']);
-                Route::delete('payments/gateways/{id}', [CompanyPaymentController::class, 'destroy']);
-                Route::post('payments/gateways/{id}/test', [CompanyPaymentController::class, 'test']);
+                Route::put('payments/gateways/{id}', [CompanyPaymentController::class, 'update'])->whereNumber('id');
+                Route::delete('payments/gateways/{id}', [CompanyPaymentController::class, 'destroy'])->whereNumber('id');
+                Route::post('payments/gateways/{id}/test', [CompanyPaymentController::class, 'test'])->whereNumber('id');
                 Route::put('payments/bank-accounts', [CompanyPaymentController::class, 'bankAccounts']);
             });
             Route::post('payments/pay-link/{id}', [CompanyPaymentController::class, 'payLink'])->middleware(['module:ventes', 'perm:ventes.view,ventes.manage']);
@@ -300,16 +300,16 @@ Route::middleware('installed')->group(function () {
                 Route::get('users', [UserController::class, 'index']);
                 Route::get('users/form-meta', [UserController::class, 'formMeta']);
                 Route::post('users', [UserController::class, 'store']);
-                Route::put('users/{id}', [UserController::class, 'update']);
-                Route::delete('users/{id}', [UserController::class, 'destroy']);
+                Route::put('users/{id}', [UserController::class, 'update'])->whereNumber('id');
+                Route::delete('users/{id}', [UserController::class, 'destroy'])->whereNumber('id');
                 Route::get('users/{id}/access', [UserController::class, 'access'])->whereNumber('id');
                 Route::put('users/{id}/access', [UserController::class, 'updateAccess'])->whereNumber('id');
 
                 Route::get('permissions', [RoleController::class, 'permissions']);
                 Route::get('roles', [RoleController::class, 'index']);
                 Route::post('roles', [RoleController::class, 'store']);
-                Route::put('roles/{id}', [RoleController::class, 'update']);
-                Route::delete('roles/{id}', [RoleController::class, 'destroy']);
+                Route::put('roles/{id}', [RoleController::class, 'update'])->whereNumber('id');
+                Route::delete('roles/{id}', [RoleController::class, 'destroy'])->whereNumber('id');
             });
         });
 

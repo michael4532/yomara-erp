@@ -718,7 +718,7 @@ Future<void> editDocFile(BuildContext context, Map f) async {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final x = await showDatePicker(context: d, initialDate: exp ?? DateTime.now().add(const Duration(days: 365)), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                    final x = await pickDate(d, initialDate: exp ?? DateTime.now().add(const Duration(days: 365)), firstDate: DateTime(2000), lastDate: DateTime(2100));
                     if (x != null) set(() => exp = x);
                   },
                   icon: const Icon(Icons.event),

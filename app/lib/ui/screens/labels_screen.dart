@@ -264,6 +264,7 @@ class _LabelsScreenState extends State<LabelsScreen> {
       if (!mounted) return;
       await context.read<SyncEngine>().sync();
       final d = asMap(r['data']);
+      if (!mounted) return;
       setState(() {
         for (final i in _items) {
           final fresh = LocalDb.get('products', '${i.product['id']}');
@@ -403,7 +404,7 @@ class _LabelsScreenState extends State<LabelsScreen> {
         'style': 'product',
         'fields': ['name', 'price', 'barcode'],
       });
-      setState(() => _formatId = id);
+      if (mounted) setState(() => _formatId = id);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

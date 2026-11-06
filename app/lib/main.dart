@@ -19,14 +19,25 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr');
   await SecureStore.init(); // coffre du système : jeton et clé de chiffrement des données locales
-  await LocalDb.init();
+  try {
+    await LocalDb.init();
+  } catch (e) {
+    // Base locale verrouillée (application déjà ouverte) ou illisible : on le dit au lieu de rester bloqué
+    runApp(_StartError('$e'));
+    return;
+  }
   ThemePrefs.load(LocalDb.meta.get('theme_mode'));
   // Langue : choix mémorisé sur l'appareil, sinon langue du système (français par défaut)
   final device = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
   await I18n.use((LocalDb.meta.get('lang') as String?) ?? (I18n.languages.containsKey(device) ? device : 'fr'));
 
   final session = Session();
-  await session.restore();
+  try {
+    await session.restore();
+  } catch (e) {
+    runApp(_StartError('$e'));
+    return;
+  }
 
   runApp(
     MultiProvider(
@@ -131,5 +142,32 @@ class _EntryState extends State<_Entry> {
         child: _intro
             ? IntroScreen(key: const ValueKey('intro'), onDone: (register) => setState(() => (_intro = false, _register = register)))
             : LoginScreen(key: const ValueKey('login'), startRegister: _register),
+      );
+}
+
+/// Écran affiché quand l'application ne peut pas démarrer (souvent : déjà ouverte dans une autre fenêtre).
+class _StartError extends StatelessWidget {
+  const _StartError(this.detail);
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.lock_clock_outlined, size: 48),
+                const SizedBox(height: 16),
+                const Text('Yomara ERP ne peut pas ouvrir ses données', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                const SizedBox(height: 8),
+                const Text("L'application est peut-être déjà ouverte dans une autre fenêtre. Fermez-la, puis relancez Yomara ERP.", textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                SelectableText(detail, style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
+              ]),
+            ),
+          ),
+        ),
       );
 }

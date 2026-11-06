@@ -90,8 +90,9 @@ class FirebaseSetup {
     // Jeton de l'appareil supprimé aussi chez Firebase : même si la session avait expiré (serveur injoignable avec
     // l'ancien jeton), l'appareil ne reçoit plus les notifications du compte précédent. Un nouveau jeton est créé à la connexion.
     try {
+      // Hors ligne, Firebase peut attendre longtemps : la déconnexion n'attend pas plus de 10 s
       // ignore: deprecated_member_use
-      if (await ensure()) await FirebaseMessaging.instance.deleteToken();
+      if (await ensure()) await FirebaseMessaging.instance.deleteToken().timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
 

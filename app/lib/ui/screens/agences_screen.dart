@@ -332,7 +332,7 @@ class _ManageState extends State<_Manage> {
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 final body = {
                   for (final e in c.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),

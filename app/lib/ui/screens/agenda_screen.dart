@@ -1127,7 +1127,7 @@ Future<(DateTime, DateTime)?> agPickTime(BuildContext context, AgItem it) async 
             runSpacing: 10,
             children: [
               box(Icons.event_rounded, agDayLabel(day), () async {
-                final p = await showDatePicker(context: d, initialDate: day, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final p = await pickDate(d, initialDate: day, firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (p != null) set(() => day = p);
               }),
               if (!it.allDay) ...[
@@ -1460,7 +1460,7 @@ class _AgPeek extends StatelessWidget {
                         onSelected: (d) async {
                           if (d != null) return postpone(d);
                           final nav = Navigator.of(context);
-                          final p = await showDatePicker(context: context, initialDate: _addDays(it.start, 1), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                          final p = await pickDate(context, initialDate: _addDays(it.start, 1), firstDate: DateTime(2020), lastDate: DateTime(2100));
                           if (p == null || !context.mounted) return;
                           final ns = DateTime(p.year, p.month, p.day, it.start.hour, it.start.minute);
                           if (await agReschedule(context, it, ns, ns.add(it.end.difference(it.start)))) nav.pop();
@@ -1600,7 +1600,7 @@ class _EventFormState extends State<_EventForm> {
 
   Future<void> _pickDate(bool isStart) async {
     final cur = isStart ? _start : _end;
-    final d = await showDatePicker(context: context, initialDate: cur, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: cur, firstDate: DateTime(2000), lastDate: DateTime(2100));
     if (d == null) return;
     setState(() {
       final dur = _end.difference(_start);
@@ -1887,7 +1887,7 @@ class _EventFormState extends State<_EventForm> {
                   ),
                   const SizedBox(width: 8),
                   pill(Icons.event_busy_rounded, _until == null ? 'Sans fin' : 'Jusqu\'au ${dateFr(isoDate(_until!))}', () async {
-                    final d = await showDatePicker(context: context, initialDate: _until ?? _addDays(_start, 90), firstDate: _start, lastDate: DateTime(2100));
+                    final d = await pickDate(context, initialDate: _until ?? _addDays(_start, 90), firstDate: _start, lastDate: DateTime(2100));
                     setState(() => _until = d);
                   }),
                 ],
@@ -2223,7 +2223,7 @@ class _EventFormState extends State<_EventForm> {
                     const Spacer(),
                   TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
                   const SizedBox(width: 8),
-                  FilledButton.icon(onPressed: _save, icon: const Icon(Icons.check_rounded, size: 18), label: Text(tr('Enregistrer'))),
+                  SaveButton(onPressed: _save, icon: const Icon(Icons.check_rounded, size: 18), child: Text(tr('Enregistrer'))),
                 ],
               ),
             ),

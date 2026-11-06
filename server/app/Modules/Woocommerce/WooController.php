@@ -309,7 +309,7 @@ class WooController extends Controller
     /** Webhook public WooCommerce. */
     public function webhook(Request $r, string $token)
     {
-        $s = DB::table('woo_stores')->where('token', $token)->first();
+        $s = DB::table('woo_stores')->where('token', $token)->where('platform', $this->platform)->first();
         if (! $s) {
             return response()->json(['ok' => false], 404);
         }

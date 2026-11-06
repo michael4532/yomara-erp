@@ -196,7 +196,7 @@ class _ModuleEditorState extends State<_ModuleEditor> {
       final bytes = await f.readAsBytes();
       if (!mounted) return;
       final r = await context.read<Session>().api.upload('admin/modules/${m['key']}/screenshots', 'image', bytes, f.name);
-      setState(() => _shots = [..._shots, '${r['url']}']);
+      if (mounted) setState(() => _shots = [..._shots, '${r['url']}']);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     } finally {
@@ -207,7 +207,7 @@ class _ModuleEditorState extends State<_ModuleEditor> {
   Future<void> _remove(String url) async {
     try {
       await context.read<Session>().api.delete('admin/modules/${m['key']}/screenshots', {'path': url});
-      setState(() => _shots.remove(url));
+      if (mounted) setState(() => _shots.remove(url));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

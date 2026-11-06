@@ -979,7 +979,7 @@ Future<void> editCategory(BuildContext context, [Map<String, dynamic>? c]) {
               label: Text(tr('Supprimer')),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (code.text.trim().isEmpty) return toast(dc, tr('Le code est obligatoire.'), error: true);
               try {
@@ -1144,7 +1144,7 @@ class _RhContractsTabState extends State<RhContractsTab> {
                           trailing: Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
                             if (r['alert'] == 'soon') const StatusChip('Échéance proche', color: YColors.warning),
                             if (r['alert'] == 'expired') const StatusChip('Échu', color: YColors.danger),
-                            StatusChip('${r['status_label']}', color: Color(int.parse('FF${'${r['status_color']}'.replaceAll('#', '')}', radix: 16))),
+                            StatusChip('${r['status_label']}', color: Color(0xFF000000 | (int.tryParse('${r['status_color']}'.replaceAll('#', ''), radix: 16) ?? 0x64748B))),
                           ]),
                           onTap: () => _open(r),
                         ),
@@ -1172,7 +1172,7 @@ class _RhContractsTabState extends State<RhContractsTab> {
       final body = '${c['body'] ?? ''}'.trim();
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          StatusChip('${r['status_label']}', color: Color(int.parse('FF${'${r['status_color']}'.replaceAll('#', '')}', radix: 16))),
+          StatusChip('${r['status_label']}', color: Color(0xFF000000 | (int.tryParse('${r['status_color']}'.replaceAll('#', ''), radix: 16) ?? 0x64748B))),
           Text(tr('${r['employee'] ?? ''} · ${r['source'] == 'juridique' ? 'rédigé par le juriste' : 'émis par la RH'}'), style: TextStyle(color: Theme.of(dc).hintColor)),
         ]),
         const SizedBox(height: 12),
@@ -1405,7 +1405,7 @@ Future<void> editDepartment(BuildContext context, [Map<String, dynamic>? d]) {
               label: Text(tr('Supprimer')),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return toast(dc, tr('Le nom est obligatoire.'), error: true);
               try {

@@ -69,10 +69,11 @@ class SecureStore {
     _token = value;
     if (!_ok) return false;
     try {
+      // Trousseau verrouillé ou qui ne répond pas : la connexion / déconnexion ne reste pas bloquée
       if (value == null) {
-        await _storage.delete(key: 'token');
+        await _storage.delete(key: 'token').timeout(const Duration(seconds: 5));
       } else {
-        await _storage.write(key: 'token', value: value);
+        await _storage.write(key: 'token', value: value).timeout(const Duration(seconds: 5));
       }
       return true;
     } catch (_) {

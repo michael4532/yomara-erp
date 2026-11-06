@@ -329,7 +329,7 @@ class _DayPainter extends CustomPainter {
       }
     }
     canvas.drawPath(path, line);
-    tp.text = TextSpan(text: tr('Cumul : ${toDouble(rows.last['cumulative']).round()}'), style: const TextStyle(color: YColors.night, fontSize: 11.5, fontWeight: FontWeight.w700));
+    tp.text = TextSpan(text: tr('Cumul : ${toDouble(rows.last['cumulative']).round()}'), style: TextStyle(color: hint, fontSize: 11.5, fontWeight: FontWeight.w700));
     tp.layout();
     tp.paint(canvas, Offset(size.width - tp.width - 4, 0));
   }
@@ -458,7 +458,7 @@ class _RegFormState extends State<_RegForm> {
       Field(label: tr('Message de confirmation'), child: TextField(controller: _message, maxLines: 3)),
       SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Demander l\'avis des participants après l\'événement')), value: _feedback, onChanged: (v) => setState(() => _feedback = v)),
       const SizedBox(height: 8),
-      Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))),
+      Align(alignment: Alignment.centerRight, child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer')))),
     ]);
   }
 }
@@ -490,7 +490,7 @@ Future<void> markBookingPaid(BuildContext context, Map<String, dynamic> booking)
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
-          FilledButton.icon(
+          SaveButton(
             onPressed: () async {
               try {
                 await sync.sync();
@@ -506,7 +506,7 @@ Future<void> markBookingPaid(BuildContext context, Map<String, dynamic> booking)
               }
             },
             icon: const Icon(Icons.check),
-            label: Text(tr('Encaisser')),
+            child: Text(tr('Encaisser')),
           ),
         ],
       ),

@@ -345,6 +345,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     if (res.isEmpty) return;
     final b = Uint8List.fromList(await res.first.readAsBytes());
     final img = await decodeImageFromList(b);
+    if (!mounted) return;
     setState(() {
       _pendingImage = b;
       _pendingAspect = img.height / img.width;

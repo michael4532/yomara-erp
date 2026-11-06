@@ -143,7 +143,7 @@ class ComptaController extends Controller
             ->when($request->query('q'), fn ($q, $s) => $q->where(fn ($w) => $w->where('label', 'like', "%$s%")->orWhere('number', 'like', "%$s%")->orWhere('reference', 'like', "%$s%")))
             ->orderByDesc('date')->orderByDesc('id');
 
-        return $q->paginate(min((int) $request->query('per_page', 50), 200));
+        return $q->paginate(min(max((int) $request->query('per_page', 50), 1), 200));
     }
 
     public function storeEntry(Request $request)
@@ -159,7 +159,7 @@ class ComptaController extends Controller
             'lines.*.debit' => 'nullable|numeric|min:0',
             'lines.*.credit' => 'nullable|numeric|min:0',
             'lines.*.label' => 'nullable|string|max:255',
-            'lines.*.partner_id' => 'nullable|uuid',
+            'lines.*.partner_id' => ['nullable', 'uuid', Rule::exists('partners', 'id')->where('company_id', $c->id)],
         ]);
 
         try {
@@ -230,7 +230,7 @@ class ComptaController extends Controller
         $rows = Entry::with(['lines.account:id,code,name', 'journal:id,code'])
             ->whereBetween('date', [$from, $to])->orderBy('date')->orderBy('id')->get();
         app(Tiers::class)->ensureCodes(app('tenant'));
-        $partners = \Illuminate\Support\Facades\DB::table('partners')->whereIn('id', $rows->flatMap->lines->pluck('partner_id')->filter()->unique())->get(['id', 'name', 'aux_code'])->keyBy('id');
+        $partners = \Illuminate\Support\Facades\DB::table('partners')->where('company_id', app('tenant')->id)->whereIn('id', $rows->flatMap->lines->pluck('partner_id')->filter()->unique())->get(['id', 'name', 'aux_code'])->keyBy('id');
 
         $out = fopen('php://temp', 'w+');
         fwrite($out, "\xEF\xBB\xBF");
@@ -323,9 +323,9 @@ class ComptaController extends Controller
         $c = $this->company();
         $rows = \Illuminate\Support\Facades\DB::table('compta_account_rules')->where('company_id', $c->id)->orderBy('scope')->get();
         $names = [
-            'product' => \Illuminate\Support\Facades\DB::table('products')->whereIn('id', $rows->where('scope', 'product')->pluck('ref_id'))->pluck('name', 'id'),
-            'supplier' => \Illuminate\Support\Facades\DB::table('partners')->whereIn('id', $rows->where('scope', 'supplier')->pluck('ref_id'))->pluck('name', 'id'),
-            'category' => \Illuminate\Support\Facades\DB::table('product_categories')->whereIn('id', $rows->where('scope', 'category')->pluck('ref_id'))->pluck('name', 'id'),
+            'product' => \Illuminate\Support\Facades\DB::table('products')->where('company_id', $c->id)->whereIn('id', $rows->where('scope', 'product')->pluck('ref_id'))->pluck('name', 'id'),
+            'supplier' => \Illuminate\Support\Facades\DB::table('partners')->where('company_id', $c->id)->whereIn('id', $rows->where('scope', 'supplier')->pluck('ref_id'))->pluck('name', 'id'),
+            'category' => \Illuminate\Support\Facades\DB::table('product_categories')->where('company_id', $c->id)->whereIn('id', $rows->where('scope', 'category')->pluck('ref_id'))->pluck('name', 'id'),
         ];
 
         return ['data' => $rows->map(fn ($x) => ['id' => $x->id, 'scope' => $x->scope, 'ref_id' => $x->ref_id, 'name' => $names[$x->scope][$x->ref_id] ?? '—',
@@ -338,6 +338,8 @@ class ComptaController extends Controller
         $c = $this->company();
         $v = $r->validate(['scope' => 'required|in:product,supplier,category', 'ref_id' => 'required|string|max:40', 'account_code' => ['nullable', 'regex:/^[26][0-9]{1,9}$/']],
             ['account_code.regex' => 'Choisissez un compte de charge (6) ou d\'immobilisation (2).']);
+        $table = ['product' => 'products', 'supplier' => 'partners', 'category' => 'product_categories'][$v['scope']];
+        abort_unless(\Illuminate\Support\Facades\DB::table($table)->where('company_id', $c->id)->where('id', $v['ref_id'])->exists(), 422, 'Élément introuvable.');
         $review->saveRule($c, $v['scope'], $v['ref_id'], $v['account_code'] ?? null);
 
         return $this->rules($review);

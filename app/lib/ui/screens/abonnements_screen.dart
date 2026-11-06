@@ -319,7 +319,7 @@ class _SubFormState extends State<_SubForm> {
                   onPressed: x['id'] != null && (x['generated_count'] as num? ?? 0) > 0
                       ? null
                       : () async {
-                          final d = await showDatePicker(context: context, initialDate: _start, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                          final d = await pickDate(context, initialDate: _start, firstDate: DateTime(2015), lastDate: DateTime(2100));
                           if (d != null) setState(() => _start = d);
                         },
                   icon: const Icon(Icons.event, size: 18),
@@ -334,7 +334,7 @@ class _SubFormState extends State<_SubForm> {
                 label: tr('Fin du contrat (facultatif)'),
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: context, initialDate: _end ?? _start.add(const Duration(days: 365)), firstDate: _start, lastDate: DateTime(2100));
+                    final d = await pickDate(context, initialDate: _end ?? _start.add(const Duration(days: 365)), firstDate: _start, lastDate: DateTime(2100));
                     setState(() => _end = d);
                   },
                   icon: const Icon(Icons.event_busy, size: 18),

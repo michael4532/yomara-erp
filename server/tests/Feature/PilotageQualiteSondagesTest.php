@@ -169,6 +169,7 @@ class PilotageQualiteSondagesTest extends TestCase
 
         // réponse publique : obligatoire manquante, puis valide ; un robot est ignoré
         $this->post('/q/'.$tok, ['a' => [$id(1) => 4]])->assertOk()->assertSee('Réponse obligatoire.');
+        $this->post('/q/'.$tok, ['a' => [$id(0) => 5, $id(5) => ['x', 'y']]])->assertOk()->assertSee('Réponse invalide.'); // liste sur une question texte : refusée, pas d'erreur 500
         $this->post('/q/'.$tok, ['a' => [$id(0) => 5, $id(1) => 5, $id(4) => 10, $id(6) => 'Facebook', $id(5) => 'Rien à redire'], 'name' => 'Awa', 'phone' => '0707070707'])->assertOk()->assertSee('Merci');
         $this->post('/q/'.$tok, ['a' => [$id(0) => 1], 'website' => 'spam'])->assertOk();
         $this->assertSame(1, DB::table('qs_responses')->count());

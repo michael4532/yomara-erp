@@ -49,6 +49,14 @@ class PaieOvertimeSettlementTest extends TestCase
         $ot = collect($slip['items'])->where('source', 'pointage')->keyBy('code');
         $this->assertEquals([4600, 3500, 1750, 4000], [$ot['ot15']['amount'], $ot['ot_night']['amount'], $ot['ot75']['amount'], $ot['ot100']['amount']]);
         $this->assertStringContainsString('de nuit +75 %', $ot['ot_night']['label']);
+        // Bulletin modifié dans l'application (lignes renvoyées telles quelles, avec ou sans origine) puis recalculé : heures sup. jamais payées deux fois
+        $sent = array_merge(array_map(fn ($i) => array_intersect_key($i, array_flip(['label', 'amount', 'kind', 'taxable', 'social'])), $slip['items']), [['label' => 'Prime', 'amount' => 1000, 'kind' => 'gain']]);
+        $api()->putJson("/api/paie/payslips/{$slip['id']}", ['items' => $sent])->assertOk();
+        $api()->postJson("/api/paie/runs/{$run['id']}/refresh")->assertOk();
+        $after = collect($api()->getJson("/api/paie/runs/{$run['id']}")->json('payslips'))->firstWhere('employee_id', $awa);
+        $this->assertSame(4, collect($after['items'])->whereIn('label', $ot->pluck('label')->all())->count());
+        $this->assertSame(1, collect($after['items'])->where('label', 'Prime')->count());
+        $this->assertEquals($slip['gross'] + 1000, $after['gross']);
         // Majorations modifiables
         $api()->putJson('/api/pointage/settings', ['overtime_rates' => ['ot_night' => 100]])->assertOk()->assertJsonPath('data.overtime_rates.ot_night', 100);
 

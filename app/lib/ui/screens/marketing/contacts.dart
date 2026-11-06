@@ -122,7 +122,7 @@ class _ContactsTabState extends State<ContactsTab> {
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return;
               final body = {'name': name.text.trim(), 'description': desc.text.trim()};
@@ -177,7 +177,7 @@ class _ContactsTabState extends State<ContactsTab> {
                 label: tr('Anniversaire'),
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: DateTime.tryParse(birthday ?? '') ?? DateTime(1990), firstDate: DateTime(1920), lastDate: DateTime.now());
+                    final d = await pickDate(c, initialDate: DateTime.tryParse(birthday ?? '') ?? DateTime(1990), firstDate: DateTime(1920), lastDate: DateTime.now());
                     if (d != null) set(() => birthday = isoDate(d));
                   },
                   icon: const Icon(Icons.cake_outlined, size: 18),
@@ -210,7 +210,7 @@ class _ContactsTabState extends State<ContactsTab> {
                   child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
               const Spacer(),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   final body = {
                     for (final e in f.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),
@@ -293,7 +293,7 @@ class _ContactsTabState extends State<ContactsTab> {
             onChanged: (v) => set(() => triggers = v),
           ),
           const SizedBox(height: 16),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               try {
                 final r = mkMap(await _api.post('marketing/import', {'list_id': list, 'source': source, 'partner_type': partnerType, 'trigger_automations': triggers, if (source == 'text') 'text': text.text}));
@@ -726,7 +726,7 @@ class _SegmentEditorState extends State<_SegmentEditor> {
             child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
           ),
         const Spacer(),
-        FilledButton(
+        SaveButton(
           onPressed: () async {
             if (_name.text.trim().isEmpty) {
               toast(context, tr('Donnez un nom au segment.'), error: true);

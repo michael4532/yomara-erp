@@ -88,7 +88,7 @@ class _ScanHomeState extends State<ScanHome> {
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {
-              if (v == 'logout' && await confirm(context, tr('Se déconnecter ?'), sync.pendingCount > 0 ? 'Des entrées ne sont pas encore envoyées : elles seront perdues.' : 'Vous pourrez vous reconnecter à tout moment.', ok: tr('Déconnexion'), danger: sync.pendingCount > 0)) {
+              if (v == 'logout' && await confirm(context, tr('Se déconnecter ?'), sync.pendingCount > 0 ? 'Des entrées ne sont pas encore envoyées : elles seront gardées sur cet appareil et envoyées à votre prochaine connexion.' : 'Vous pourrez vous reconnecter à tout moment.', ok: tr('Déconnexion'), danger: sync.pendingCount > 0)) {
                 await session.logout();
               }
             },

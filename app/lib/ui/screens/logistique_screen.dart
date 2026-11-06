@@ -217,7 +217,7 @@ class DayPlanner extends StatelessWidget {
           IconButton(onPressed: () => onDate(_addDays(date, -1)), icon: const Icon(Icons.chevron_left)),
           TextButton(
             onPressed: () async {
-              final d = await showDatePicker(context: context, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+              final d = await pickDate(context, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100));
               if (d != null) onDate(d);
             },
             child: Text(tr(DateFormat('EEEE d MMMM', I18n.dateLocale).format(date)), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
@@ -772,7 +772,7 @@ class _SettingsTab extends StatelessWidget {
                   child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   if (name.text.trim().isEmpty) return;
                   await sync.save('lg_zones', {
@@ -820,7 +820,7 @@ class _SettingsTab extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     if (name.text.trim().isEmpty) return;
                     await sync.save('lg_vehicles', {
@@ -865,7 +865,7 @@ Future<void> editTour(BuildContext context, {Map<String, dynamic>? tour, DateTim
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: c, initialDate: day, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(c, initialDate: day, firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d != null) set(() => day = d);
               },
               icon: const Icon(Icons.event),
@@ -905,7 +905,7 @@ Future<void> editTour(BuildContext context, {Map<String, dynamic>? tour, DateTim
                   child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   final id = tour?['id'] ?? newId();
                   await sync.save('lg_tours', {'id': id, 'name': name.text.trim().isEmpty ? null : name.text.trim(), 'date': _day(day), 'driver_id': driver, 'vehicle_id': vehicle});
@@ -1099,7 +1099,7 @@ class _DeliveryFormState extends State<_DeliveryForm> {
             label: tr('Date'),
             child: OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d != null) setState(() => _date = d);
               },
               icon: const Icon(Icons.event, size: 18),
@@ -1176,7 +1176,7 @@ class _DeliveryFormState extends State<_DeliveryForm> {
             child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }

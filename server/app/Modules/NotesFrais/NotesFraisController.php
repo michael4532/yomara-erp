@@ -51,7 +51,10 @@ class NotesFraisController extends Controller
         $e = $this->visible($r, $id);
         abort_unless($e->receipt_path && Storage::disk('local')->exists($e->receipt_path), 404, 'Pas de justificatif.');
 
-        return response()->file(Storage::disk('local')->path($e->receipt_path), ['Content-Disposition' => 'inline; filename="'.($e->receipt_name ?: basename($e->receipt_path)).'"']);
+        // Type déduit de l'extension enregistrée, pas du contenu déposé : un faux justificatif HTML ne s'exécute pas dans le navigateur
+        $mime = ['pdf' => 'application/pdf', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'][strtolower(pathinfo($e->receipt_path, PATHINFO_EXTENSION))] ?? 'application/octet-stream';
+
+        return response()->file(Storage::disk('local')->path($e->receipt_path), \App\Support\SafeDownload::headers($mime, $e->receipt_name ?: basename($e->receipt_path), true));
     }
 
     public function pay(Request $r)

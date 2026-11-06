@@ -1302,7 +1302,8 @@ class _OrgTab extends StatelessWidget {
 
   static Color _color(dynamic c) {
     final s = '${c ?? ''}';
-    return s.length == 7 && s.startsWith('#') ? Color(int.parse('FF${s.substring(1)}', radix: 16)) : YColors.blue;
+    final v = s.length == 7 && s.startsWith('#') ? int.tryParse(s.substring(1), radix: 16) : null;
+    return v == null ? YColors.blue : Color(0xFF000000 | v);
   }
 
   Future<void> _edit(BuildContext context, Map<String, dynamic>? d, List<Map<String, dynamic>> deps) async {
@@ -1484,7 +1485,7 @@ class _MembersFormState extends State<_MembersForm> {
         ),
       ]),
       const SizedBox(height: 20),
-      FilledButton(
+      SaveButton(
         onPressed: () async {
           try {
             await context.read<Session>().api.put('tickets/departments/${widget.dep['id']}/members', {

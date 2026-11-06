@@ -38,8 +38,17 @@ class ShopifyClient
     public function call(string $method, string $path, array $data = [], int $try = 0): Response
     {
         $u = str_starts_with($path, 'https://') ? $path : 'https://'.$this->shop.'/admin/api/'.self::VERSION.'/'.ltrim($path, '/');
+        // Le jeton d'accès ne part que vers la boutique elle-même (pagination comprise), sur un serveur public (pas de réseau interne)
+        if (strtolower((string) parse_url($u, PHP_URL_HOST)) !== strtolower((string) parse_url('https://'.$this->shop, PHP_URL_HOST)) || parse_url($u, PHP_URL_PORT) !== parse_url('https://'.$this->shop, PHP_URL_PORT)) {
+            throw new WooException('Adresse refusée : elle ne correspond pas à la boutique Shopify.');
+        }
         try {
-            $r = Http::timeout(40)->connectTimeout(10)->acceptJson()->withHeaders(['X-Shopify-Access-Token' => $this->token])
+            $pin = \App\Support\UrlGuard::pinned($u);
+        } catch (\DomainException $e) {
+            throw new WooException($e->getMessage());
+        }
+        try {
+            $r = Http::timeout(40)->connectTimeout(10)->acceptJson()->withHeaders(['X-Shopify-Access-Token' => $this->token])->withOptions($pin)
                 ->send($method, $u, $method === 'GET' ? ['query' => $data] : ['json' => $data]);
         } catch (ConnectionException) {
             throw new WooException('Boutique Shopify injoignable ('.$this->shop.').');

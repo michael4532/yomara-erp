@@ -155,9 +155,15 @@ class Updater
         } else {
             $status = $this->status(true);
             $latest = $status['latest'] ?? throw new \DomainException($status['error'] ?? 'Aucune mise à jour disponible.');
+            // Réponse du serveur distant : jamais de chemin local (il ferait sauter le contrôle de signature)
+            unset($latest['path']);
             if (! $status['available']) {
                 throw new \DomainException('Le logiciel est déjà à jour (version '.$status['current'].').');
             }
+        }
+        // La version sert de nom de fichier : pas de séparateur de dossier ni de « .. »
+        if (! is_string($latest['version'] ?? null) || ! preg_match('/^[0-9][0-9A-Za-z.+-]{0,40}$/', $latest['version']) || str_contains($latest['version'], '..')) {
+            throw new \DomainException('Numéro de version invalide.');
         }
         $pre = $this->preflight($latest);
         if (! $pre['ok']) {
@@ -172,7 +178,7 @@ class Updater
         try {
             // 1. Téléchargement et intégrité
             $pkg = self::dir().'/yomara-erp-'.$latest['version'].'.zip';
-            if (! empty($latest['path'])) {
+            if ($local) {
                 copy($latest['path'], $pkg);
             } else {
                 $r = Http::timeout(900)->withOptions(['sink' => $pkg])->get($latest['download']);
@@ -184,7 +190,7 @@ class Updater
                 throw new \DomainException('Paquet corrompu (empreinte SHA-256 différente) : téléchargement à refaire.');
             }
             // Paquet téléchargé : il doit être signé par Yomara (clé officielle épinglée dans le code)
-            if (empty($latest['path']) && ! \App\Licensing\LicenseSigner::verify(\App\Licensing\LicenseSigner::releaseMessage((string) $latest['version'], (string) $latest['sha256']), $latest['signature'] ?? null)) {
+            if (! $local && ! \App\Licensing\LicenseSigner::verify(\App\Licensing\LicenseSigner::releaseMessage((string) $latest['version'], (string) $latest['sha256']), $latest['signature'] ?? null)) {
                 throw new \DomainException('Mise à jour refusée : le paquet n\'est pas signé par Yomara Technologies.');
             }
             $info = Publisher::inspect($pkg);

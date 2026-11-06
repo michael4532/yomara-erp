@@ -14,7 +14,8 @@ class MyDayController extends Controller
     {
         $c = app('tenant');
         $u = $r->user();
-        $day = Carbon::parse($r->query('date', now()->toDateString()))->startOfDay();
+        $r->validate(['date' => 'nullable|date', 'month' => 'nullable|date_format:Y-m']); // date invalide : 422, pas d'erreur serveur
+        $day =Carbon::parse($r->query('date', now()->toDateString()))->startOfDay();
         $month = Carbon::parse(($r->query('month') ?: $day->format('Y-m')).'-01')->startOfMonth();
         $out = ['date' => $day->toDateString(), 'events' => [], 'month_days' => (object) [], 'tasks' => [], 'due' => null, 'todos_open' => DB::table('user_todos')->where('user_id', $u->id)->whereNull('done_at')->count()];
 

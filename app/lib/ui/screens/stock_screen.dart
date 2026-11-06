@@ -168,7 +168,7 @@ class _StockScreenState extends State<StockScreen> with SingleTickerProviderStat
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(color: c.withValues(alpha: .10), borderRadius: BorderRadius.circular(8)),
-                    child: Text(tr('${qty(total)} ${p['unit'] ?? ''}'), style: tab.copyWith(color: Color.lerp(c, Colors.black, .2), fontWeight: FontWeight.w700)),
+                    child: Text(tr('${qty(total)} ${p['unit'] ?? ''}'), style: tab.copyWith(color: Theme.of(context).brightness == Brightness.dark ? c : Color.lerp(c, Colors.black, .2), fontWeight: FontWeight.w700)),
                   ),
                   Text(tr(qty(toDouble(p['min_stock']))), style: tab.copyWith(color: hint)),
                   Text(tr(byWh.entries.map((e) => '${warehouses[e.key] ?? 'Défaut'} : ${qty(e.value)}').join(' · ')), style: TextStyle(color: hint, fontSize: 13)),
@@ -322,7 +322,7 @@ class _StockScreenState extends State<StockScreen> with SingleTickerProviderStat
           SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Entrepôt par défaut')), value: isDefault, onChanged: (v) => setS(() => isDefault = v)),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 if (name.text.trim().isEmpty) return;
                 await sync.save('warehouses', {
@@ -446,7 +446,7 @@ class _StockScreenState extends State<StockScreen> with SingleTickerProviderStat
                   label: tr('Date de péremption'),
                   child: OutlinedButton(
                     onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: DateTime.now().add(const Duration(days: 90)), firstDate: DateTime(2000), lastDate: DateTime(2100));
+                      final d = await pickDate(c, initialDate: DateTime.now().add(const Duration(days: 90)), firstDate: DateTime(2000), lastDate: DateTime(2100));
                       if (d != null) setS(() => lotExpiry = isoDate(d));
                     },
                     child: Text(tr(lotExpiry == null ? 'Calculée selon la durée de vie' : dateFr(lotExpiry))),
@@ -471,7 +471,7 @@ class _StockScreenState extends State<StockScreen> with SingleTickerProviderStat
           Field(label: tr('Note'), child: TextField(controller: notes)),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 final q = toDouble(quantity.text);
                 if (q <= 0) return;
@@ -561,7 +561,7 @@ class _StockScreenState extends State<StockScreen> with SingleTickerProviderStat
             padding: const EdgeInsets.all(24),
             child: Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
+              child: SaveButton(
                 onPressed: () async {
                   final ref = 'INV-${isoDate(DateTime.now())}';
                   var n = 0;

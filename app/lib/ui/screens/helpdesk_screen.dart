@@ -730,7 +730,7 @@ Future<void> hdLogTime(BuildContext context, {String? ticketId}) async {
               label: tr('Date'),
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                  final d = await pickDate(ctx, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
                   if (d != null) set(() => date = d);
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -743,7 +743,7 @@ Future<void> hdLogTime(BuildContext context, {String? ticketId}) async {
         SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Facturable (décompté du forfait)')), value: billable, onChanged: (v) => set(() => billable = v)),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: SaveButton(
             onPressed: () async {
               final m = int.tryParse(minutes.text.trim()) ?? 0;
               if (tid == null || m <= 0 || m > 1440) return toast(ctx, tr('Indiquez le ticket et une durée.'), error: true);
@@ -844,7 +844,7 @@ Future<void> newTicket(BuildContext context) async {
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: SaveButton(
             onPressed: () async {
               String? v(String k) => c[k]!.text.trim().isEmpty ? null : c[k]!.text.trim();
               if (v('subject') == null) return toast(ctx, tr('Indiquez l\'objet.'), error: true);
@@ -1015,7 +1015,7 @@ Future<void> editArticle(BuildContext context, [Map<String, dynamic>? a]) async 
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (c['title']!.text.trim().isEmpty || c['body']!.text.trim().isEmpty) return toast(ctx, tr('Titre et contenu obligatoires.'), error: true);
               await sync.save('hd_articles', {
@@ -1250,7 +1250,7 @@ Future<void> editSla(BuildContext context, Map<String, dynamic>? p) async {
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               int m(TextEditingController c) => (toDouble(c.text) * 60).round();
               final targets = {for (final k in hdPriorities.keys) k: {'first': m(ctl[k]!.$1), 'resolve': m(ctl[k]!.$2)}};
@@ -1307,7 +1307,7 @@ Future<void> editCategory(BuildContext context, Map<String, dynamic>? c) async {
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return toast(ctx, tr('Donnez un nom.'), error: true);
               await sync.save('hd_categories', {'id': c?['id'] ?? newId(), 'name': name.text.trim(), 'public': public, 'assignee_id': assignee, 'color': color});
@@ -1351,7 +1351,7 @@ Future<void> editMacro(BuildContext context, Map<String, dynamic>? m) async {
               child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
             ),
           const Spacer(),
-          FilledButton(
+          SaveButton(
             onPressed: () async {
               if (name.text.trim().isEmpty || body.text.trim().isEmpty) return toast(ctx, tr('Nom et texte obligatoires.'), error: true);
               await sync.save('hd_macros', {'id': m?['id'] ?? newId(), 'name': name.text.trim(), 'body': body.text.trim(), 'set_status': status});

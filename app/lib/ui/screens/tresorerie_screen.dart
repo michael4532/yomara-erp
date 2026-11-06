@@ -321,7 +321,7 @@ Future<void> editAccount(BuildContext context, [Map<String, dynamic>? a]) async 
               Expanded(
                 child: OutlinedButton(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                    final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                     if (d != null) set(() => date = d);
                   },
                   child: Text(tr('au ${dateFr(isoDate(date))}')),
@@ -421,7 +421,7 @@ Future<void> editOperation(BuildContext context, {int sign = -1, Map<String, dyn
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                  final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                   if (d != null) set(() => date = d);
                 },
                 child: Text(tr(dateFr(isoDate(date)))),
@@ -491,7 +491,7 @@ Future<void> newTransfer(BuildContext context) async {
             TextField(controller: label, decoration: InputDecoration(labelText: tr('Libellé'), hintText: tr('Alimentation caisse, versement espèces en banque…'))),
             OutlinedButton(
               onPressed: () async {
-                final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                 if (d != null) set(() => date = d);
               },
               child: Text(tr('Le ${dateFr(isoDate(date))}')),
@@ -1157,7 +1157,7 @@ class _ForecastTabState extends State<_ForecastTab> {
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 try {
                   await api.put('tresorerie/forecast-settings', {
@@ -1208,7 +1208,7 @@ class _ForecastTabState extends State<_ForecastTab> {
               ),
               OutlinedButton(
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                  final d = await pickDate(c, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                   if (d != null) set(() => date = d);
                 },
                 child: Text(tr(repeat == 'none' ? 'Le ${dateFr(isoDate(date))}' : 'À partir du ${dateFr(isoDate(date))}')),

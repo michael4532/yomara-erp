@@ -791,7 +791,7 @@ class _RewardsTabState extends State<_RewardsTab> {
                     child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                   ),
                 TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-                FilledButton(
+                SaveButton(
                   onPressed: () async {
                     if (name.text.trim().isEmpty || (int.tryParse(cost.text) ?? 0) <= 0) return;
                     await sync.save('lc_rewards', {
@@ -998,7 +998,7 @@ class _ProgramTabState extends State<_ProgramTab> {
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer le programme'))),
+          child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer le programme'))),
         ),
       ],
     );

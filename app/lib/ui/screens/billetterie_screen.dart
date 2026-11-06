@@ -265,7 +265,7 @@ class _TypeFormState extends State<_TypeForm> {
   late String? _color = t['color'] as String?;
 
   Future<void> _date(bool from) async {
-    final d = await showDatePicker(context: context, initialDate: DateTime.tryParse((from ? _from : _to) ?? '') ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: DateTime.tryParse((from ? _from : _to) ?? '') ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
     if (d != null) setState(() => from ? _from = isoDate(d) : _to = isoDate(d));
   }
 
@@ -333,7 +333,7 @@ class _TypeFormState extends State<_TypeForm> {
         SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Réentrée libre')), subtitle: Text(tr('Sinon, une seule entrée par jour.')), value: _reentry, onChanged: (v) => setState(() => _reentry = v)),
         SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Actif')), value: _active, onChanged: (v) => setState(() => _active = v)),
         Field(label: tr('Description (page de billetterie)'), child: TextField(controller: _desc)),
-        Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: _save, child: Text(tr('Enregistrer')))),
+        Align(alignment: Alignment.centerRight, child: SaveButton(onPressed: _save, child: Text(tr('Enregistrer')))),
       ]);
 }
 
@@ -481,7 +481,7 @@ Future<void> issueBadges(BuildContext context, Map<String, dynamic> event, {Stri
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-          FilledButton.icon(
+          SaveButton(
             onPressed: () async {
               final list = names.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
               if (list.isEmpty) return;
@@ -510,7 +510,7 @@ Future<void> issueBadges(BuildContext context, Map<String, dynamic> event, {Stri
               if (c.mounted) Navigator.pop(c, out);
             },
             icon: const Icon(Icons.print_outlined),
-            label: Text(tr('Créer et imprimer')),
+            child: Text(tr('Créer et imprimer')),
           ),
         ],
       ),

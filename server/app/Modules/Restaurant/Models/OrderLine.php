@@ -118,6 +118,26 @@ class OrderLine extends Model
             }
         } elseif (! $serve) {
             throw new \DomainException('Cette ligne n\'a pas encore été envoyée.');
+        } else {
+            // Ligne pas encore envoyée : on ne la déplace pas vers une commande close, et le prix reste celui de la carte pour le serveur
+            if ($order->id !== $this->order_id && $order->status !== 'open') {
+                throw new \DomainException('Cette commande est déjà réglée ou annulée.');
+            }
+            if (! $manager) {
+                $productId = array_key_exists('product_id', $data) ? $data['product_id'] : $this->product_id;
+                if ((string) $productId !== (string) $this->product_id) {
+                    $product = $productId ? Product::find($productId) : null;
+                    if (! $product) {
+                        throw new \DomainException('Seul un responsable peut ajouter un article hors carte.');
+                    }
+                    $data['unit_price'] = $product->sale_price;
+                    $data['tax_rate'] = $product->tax_rate ?? 0;
+                    $data['description'] = $product->name;
+                } else {
+                    // même article : le prix et la TVA restent ceux enregistrés (carte, ou prix fixé par un responsable)
+                    unset($data['unit_price'], $data['tax_rate']);
+                }
+            }
         }
 
         if ($to !== $from) {

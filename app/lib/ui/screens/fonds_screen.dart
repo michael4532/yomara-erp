@@ -542,7 +542,7 @@ class _FundFormState extends State<_FundForm> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_needed ?? '') ?? DateTime.now().add(const Duration(days: 7)));
+                  final d = await pickDate(context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100), initialDate: DateTime.tryParse(_needed ?? '') ?? DateTime.now().add(const Duration(days: 7)));
                   if (d != null) setState(() => _needed = isoDate(d));
                 },
                 icon: const Icon(Icons.event, size: 18),
@@ -1453,6 +1453,7 @@ class _FondsFormTemplateState extends State<_FondsFormTemplate> {
     setState(() => _busy = true);
     try {
       final r = await api.uploadForm('fonds/form/logo', const {}, 'logo', bytes, files.first.name);
+      if (!mounted) return;
       setState(() {
         f = asMap(r['data']);
         _logoMode = 'custom';
@@ -1470,6 +1471,7 @@ class _FondsFormTemplateState extends State<_FondsFormTemplate> {
     setState(() => _busy = true);
     try {
       final r = await context.read<Session>().api.delete('fonds/form/logo');
+      if (!mounted) return;
       setState(() {
         f = asMap(r['data']);
         _logoMode = '${f['logo_mode'] ?? 'company'}';

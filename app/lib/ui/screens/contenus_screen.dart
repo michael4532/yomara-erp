@@ -133,7 +133,7 @@ class _EditorialCalendarState extends State<_EditorialCalendar> {
         FilledButton.tonalIcon(onPressed: () => move('approved'), icon: const Icon(Icons.verified_outlined, size: 18), label: Text(tr('Valider'))),
       ],
       if ((st == 'approved' || (st != 'published' && st != 'cancelled' && s.can('contenus.validate'))) && (s.can('contenus.manage') || s.can('contenus.validate')))
-        FilledButton.icon(
+        SaveButton(
           onPressed: () async {
             try {
               final r = asMap(((await s.api.post('contenus/posts/${row['id']}/publish')) as Map)['data']);
@@ -148,7 +148,7 @@ class _EditorialCalendarState extends State<_EditorialCalendar> {
             }
           },
           icon: const Icon(Icons.rocket_launch_outlined, size: 18),
-          label: Text(tr('Publier maintenant')),
+          child: Text(tr('Publier maintenant')),
         ),
       if (st == 'approved' && (s.can('contenus.manage') || s.can('contenus.validate')))
         OutlinedButton.icon(onPressed: () => move('published'), icon: const Icon(Icons.public, size: 18), label: Text(tr('Marquer publiée'))),
@@ -212,7 +212,11 @@ class _EditorialCalendarState extends State<_EditorialCalendar> {
     ]);
   }
 
-  Color _color(Map o) => Color(int.parse('FF${'${o['color'] ?? '#64748B'}'.substring(1)}', radix: 16));
+  Color _color(Map o) {
+    final h = '${o['color'] ?? ''}';
+    final v = h.length == 7 && h.startsWith('#') ? int.tryParse(h.substring(1), radix: 16) : null;
+    return Color(0xFF000000 | (v ?? 0x64748B));
+  }
 
   Widget _day(DateTime d, Map<String, List<Map<String, dynamic>>> byDay, Map f, Map nets, DateTime today, bool narrow) {
     final inMonth = d.month == _month.month;

@@ -45,7 +45,7 @@ class Deliverable extends Model
         return [
             'partner_id' => ['required', 'uuid', Rule::exists('partners', 'id')->where('company_id', $c)],
             'pack_id' => ['nullable', 'uuid', Rule::exists('pr_packs', 'id')->where('company_id', $c)],
-            'project_id' => 'nullable|uuid',
+            'project_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('prj_projects')],
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'url' => 'nullable|url|max:500',

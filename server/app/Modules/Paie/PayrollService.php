@@ -144,6 +144,9 @@ class PayrollService
     public function validate(Company $company, PayrollRun $run, int $userId): PayrollRun
     {
         return DB::transaction(function () use ($company, $run, $userId) {
+            if (PayrollRun::whereKey($run->id)->lockForUpdate()->value('status') !== 'draft') {
+                throw new \DomainException('Cette paie est déjà validée.');
+            }
             $this->updateTotals($run);
             $run->update(['status' => 'validated', 'validated_by' => $userId, 'validated_at' => now()]);
             $this->postRun($company, $run->fresh());
@@ -193,6 +196,10 @@ class PayrollService
             throw new \DomainException('Validez la paie avant de la payer.');
         }
         DB::transaction(function () use ($company, $run, $method, $date) {
+            // Deux clics « Payer » simultanés : le second attend le premier puis voit la paie déjà payée (pas de double décaissement)
+            if (PayrollRun::whereKey($run->id)->lockForUpdate()->value('status') !== 'validated') {
+                throw new \DomainException('Validez la paie avant de la payer.');
+            }
             $run->update(['status' => 'paid', 'payment_method' => $method, 'payment_date' => $date, 'paid_at' => now()]);
             $map = Chart::mapping($company);
             $treasury = ['bank_transfer' => $map['bank'], 'cheque' => $map['bank'], 'cash' => $map['cash'], 'mobile_money' => $map['mobile_money']][$method];

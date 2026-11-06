@@ -716,7 +716,7 @@ class _RuleFormState extends State<_RuleForm> {
             label: Text(tr('Supprimer')),
           ),
         const Spacer(),
-        FilledButton(
+        SaveButton(
           onPressed: () async {
             if (_name.text.trim().isEmpty) return toast(context, tr('Donnez un nom au circuit.'), error: true);
             if (_targets.isEmpty) return toast(context, tr('Choisissez au moins un type de document.'), error: true);

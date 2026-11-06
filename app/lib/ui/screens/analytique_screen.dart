@@ -717,12 +717,12 @@ class _BudgetsTabState extends State<_BudgetsTab> {
               const SizedBox(height: 10),
               Row(children: [
                 Expanded(child: OutlinedButton(onPressed: () async {
-                  final d = await showDatePicker(context: dc, initialDate: start, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                  final d = await pickDate(dc, initialDate: start, firstDate: DateTime(2015), lastDate: DateTime(2100));
                   if (d != null) set(() => start = d);
                 }, child: Text(tr('Du ${dateFr(isoDate(start))}')))),
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton(onPressed: () async {
-                  final d = await showDatePicker(context: dc, initialDate: end, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                  final d = await pickDate(dc, initialDate: end, firstDate: DateTime(2015), lastDate: DateTime(2100));
                   if (d != null) set(() => end = d);
                 }, child: Text(tr('au ${dateFr(isoDate(end))}')))),
               ]),
@@ -1260,7 +1260,7 @@ class _AxesTab extends StatelessWidget {
               ]),
               const SizedBox(height: 8),
               OutlinedButton(onPressed: () async {
-                final d = await showDatePicker(context: dc, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
+                final d = await pickDate(dc, initialDate: date, firstDate: DateTime(2015), lastDate: DateTime(2100));
                 if (d != null) set(() => date = d);
               }, child: Text(tr('Date : ${dateFr(isoDate(date))}'))),
               const SizedBox(height: 8),

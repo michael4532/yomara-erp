@@ -74,7 +74,7 @@ class AnalytiqueController extends Controller
 
     public function users()
     {
-        return ['data' => User::where('is_active', true)->orderBy('name')->get(['id', 'name'])];
+        return ['data' => User::where('company_id', app('tenant')->id)->where('is_active', true)->orderBy('name')->get(['id', 'name'])];
     }
 
     // ---------------- Saisies ----------------
@@ -157,7 +157,7 @@ class AnalytiqueController extends Controller
         $v = $r->validate([
             'name' => 'sometimes|string|max:255', 'warn_percent' => 'sometimes|integer|min:1|max:100', 'notes' => 'nullable|string|max:2000',
             'lines' => 'sometimes|array', 'lines.*.kind' => 'in:expense,revenue', 'lines.*.section_id' => 'nullable|uuid',
-            'lines.*.account_prefix' => 'nullable|string|max:20', 'lines.*.label' => 'nullable|string|max:255', 'lines.*.owner_id' => 'nullable|integer',
+            'lines.*.account_prefix' => 'nullable|string|max:20', 'lines.*.label' => 'nullable|string|max:255', 'lines.*.owner_id' => ['nullable', 'integer', \App\Support\TenantRef::of('users')],
             'lines.*.amounts' => 'nullable|array', 'lines.*.total' => 'nullable|numeric|min:0',
         ]);
 

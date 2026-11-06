@@ -77,6 +77,10 @@ class NotesFraisService
         $payable = $this->settings($company)['payable_account'];
 
         return DB::transaction(function () use ($company, $emp, $expenses, $total, $date, $label, $payable, $o) {
+            // Remboursement lancé deux fois en même temps : le second attend le premier et trouve les dépenses déjà remboursées
+            if (Expense::whereIn('id', $expenses->pluck('id'))->where('status', 'approved')->lockForUpdate()->count() !== $expenses->count()) {
+                throw new \DomainException('Seules les dépenses approuvées se remboursent.');
+            }
             $ref = null;
             switch ($o['via']) {
                 case 'treasury':

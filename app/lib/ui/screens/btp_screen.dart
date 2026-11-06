@@ -651,7 +651,7 @@ class _ItemsState extends State<_Items> {
       final r = await context.read<Session>().api.put('btp/sites/${widget.site['id']}/items', {
         'items': [for (final i in _items) {for (final k in ['id', 'lot', 'code', 'designation', 'unit', 'quantity', 'unit_cost', 'unit_price']) k: i[k]}],
       });
-      setState(() => _dirty = false);
+      if (mounted) setState(() => _dirty = false);
       widget.onSaved(r);
       if (mounted) toast(context, tr('Bordereau enregistré.'));
     } catch (e) {
@@ -914,7 +914,7 @@ class _Journal extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
+                      final d = await pickDate(c, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime.now());
                       if (d != null) set(() => date = d);
                     },
                     icon: const Icon(Icons.event, size: 18),

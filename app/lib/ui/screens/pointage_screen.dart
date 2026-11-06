@@ -406,7 +406,7 @@ Future<void> editPunch(BuildContext context, {String? employeeId, DateTime? day}
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, initialDate: date, firstDate: DateTime(2020), lastDate: ptClock());
+                    final d = await pickDate(c, initialDate: date, firstDate: DateTime(2020), lastDate: ptClock());
                     if (d != null) set(() => date = d);
                   },
                   icon: const Icon(Icons.event),
@@ -732,7 +732,7 @@ class _PunchesTabState extends State<_PunchesTab> {
                 IconButton(onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))), icon: const Icon(Icons.chevron_left)),
                 TextButton(
                   onPressed: () async {
-                    final d = await showDatePicker(context: context, initialDate: _day, firstDate: DateTime(2020), lastDate: ptClock());
+                    final d = await pickDate(context, initialDate: _day, firstDate: DateTime(2020), lastDate: ptClock());
                     if (d != null) setState(() => _day = d);
                   },
                   child: Text(tr(dateFr(date)), style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -839,7 +839,7 @@ class _SettingsTabState extends State<_SettingsTab> {
                 ),
               TextButton.icon(
                 onPressed: () async {
-                  final d = await showDatePicker(context: c, initialDate: ptClock(), firstDate: DateTime(2024), lastDate: DateTime(2100));
+                  final d = await pickDate(c, initialDate: ptClock(), firstDate: DateTime(2024), lastDate: DateTime(2100));
                   if (d == null || !c.mounted) return;
                   final l = TextEditingController();
                   final name = await showDialog<String>(

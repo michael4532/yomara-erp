@@ -66,15 +66,18 @@ class KvStore {
 
   Future<void> close() async => _db.close();
 
-  /// Supprime les bases IndexedDB dont le nom commence par [prefix] (données d'une société).
-  static Future<void> deleteByPrefix(String prefix) async {
+  /// Supprime les bases IndexedDB dont le nom commence par [prefix] (données d'une société), sauf celles
+  /// qui correspondent à [except] (espaces des autres personnes du même poste).
+  static Future<void> deleteByPrefix(String prefix, {RegExp? except}) async {
     try {
       final list = (await web.window.indexedDB.databases().toDart).toDart;
       for (final info in list) {
         final name = info.name;
-        if (name.toLowerCase().startsWith(prefix.toLowerCase())) {
+        final lower = name.toLowerCase();
+        if (lower.startsWith(prefix.toLowerCase()) && !(except?.hasMatch(lower) ?? false)) {
           try {
-            await _done(web.window.indexedDB.deleteDatabase(name));
+            // Base encore ouverte dans un autre onglet : la suppression reste « bloquée » ; ne pas figer la déconnexion
+            await _done(web.window.indexedDB.deleteDatabase(name)).timeout(const Duration(seconds: 5));
           } catch (_) {}
         }
       }

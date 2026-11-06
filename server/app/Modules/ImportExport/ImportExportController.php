@@ -12,11 +12,38 @@ class ImportExportController extends Controller
 {
     public function __construct(protected ImportService $imports, protected ExportService $exports) {}
 
+    /** Droits métier nécessaires pour importer chaque type (en plus de import_export.import) : l'import ne doit pas contourner les droits du module. */
+    public const IMPORT_PERMISSIONS = [
+        'partners' => ['core.contacts.manage'],
+        'products' => ['core.products.manage'],
+        'stock' => ['stock.manage'],
+        'invoices' => ['ventes.manage', 'ventes.validate'],
+    ];
+
+    public static function canImport($user, string $entity): bool
+    {
+        foreach (self::IMPORT_PERMISSIONS[$entity] ?? [] as $p) {
+            if (! $user->hasPermission($p)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected function importDef(Request $request, string $entity, int $unknown = 404): array
+    {
+        $def = $this->imports->definitions(app('tenant'))[$entity] ?? abort($unknown, 'Type d\'import inconnu.');
+        abort_unless(static::canImport($request->user(), $entity), 403, 'Vous n\'avez pas le droit de modifier ces données.');
+
+        return $def;
+    }
+
     /** Types importables et exportables pour cette société et cet utilisateur. */
     public function entities(Request $request)
     {
         $u = $request->user();
-        $defs = collect($this->imports->definitions(app('tenant')))->map(fn ($d, $k) => [
+        $defs = collect($this->imports->definitions(app('tenant')))->filter(fn ($d, $k) => static::canImport($u, $k))->map(fn ($d, $k) => [
             'key' => $k, 'label' => $d['label'], 'keys' => $d['keys'],
             'fields' => collect($d['fields'])->map(fn ($f, $name) => ['name' => $name, 'label' => $f[0], 'required' => (bool) ($f[2] ?? false)])->values(),
         ])->values();
@@ -27,9 +54,9 @@ class ImportExportController extends Controller
     }
 
     /** Modèle Excel à remplir (en-têtes reconnus + une ligne d'exemple). */
-    public function template(string $entity)
+    public function template(Request $request, string $entity)
     {
-        $def = $this->imports->definitions(app('tenant'))[$entity] ?? abort(404);
+        $def = $this->importDef($request, $entity);
         $examples = [
             'partners' => ['Maquis Chez Tantie', 'client', 'C001', '07 07 07 07 07', 'contact@tantie.ci', 'Rue des Jardins', 'Cocody', '1234567A', 500000, ''],
             'products' => ['Coca-Cola 33cl', 'COCA33', '5449000000996', 'Boissons', 'produit', 'unité', '', 500, 350, 18, 24, 120, '', 'oui'],
@@ -47,7 +74,7 @@ class ImportExportController extends Controller
     public function analyze(Request $request)
     {
         $v = $request->validate(['entity' => 'required|string', 'file' => 'required|file|max:20480']);
-        $def = $this->imports->definitions(app('tenant'))[$v['entity']] ?? abort(422, 'Type d\'import inconnu.');
+        $def = $this->importDef($request, $v['entity'], 422);
         $file = $request->file('file');
         $ext = strtolower($file->getClientOriginalExtension());
         if ($ext === 'xlsx' && ! class_exists(\ZipArchive::class)) {
@@ -82,7 +109,10 @@ class ImportExportController extends Controller
             'mapping' => 'required|array', 'mapping.*' => 'nullable|integer|min:0',
             'mode' => 'required|in:create,update,upsert', 'key' => 'required|string', 'dry_run' => 'boolean', 'atomic' => 'boolean',
         ]);
-        $def = $this->imports->definitions(app('tenant'))[$job->entity];
+        $def = $this->importDef($request, $job->entity, 422);
+        if ($job->entity === 'products' && isset($v['mapping']['stock']) && ! $request->user()->hasPermission('stock.manage')) {
+            return response()->json(['message' => 'La colonne « Stock actuel » demande le droit de gérer le stock : retirez-la de la correspondance.'], 403);
+        }
         if (! array_key_exists($v['key'], $def['keys'])) {
             return response()->json(['message' => 'Clé de rapprochement inconnue.'], 422);
         }

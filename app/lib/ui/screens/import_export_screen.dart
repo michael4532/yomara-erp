@@ -116,6 +116,7 @@ class _ImportTabState extends State<_ImportTab> {
       final r = await context.read<Session>().api.uploadForm('import_export/analyze', {'entity': _def!['key']}, 'file', await f.readAsBytes(), f.name);
       final a = asMap(r['data']);
       final m = asMap(a['mapping']);
+      if (!mounted) return;
       setState(() {
         _analysis = a;
         _filename = f.name;
@@ -148,7 +149,7 @@ class _ImportTabState extends State<_ImportTab> {
         'dry_run': dry,
         'atomic': _atomic,
       });
-      setState(() => _report = asMap(r['data']));
+      if (mounted) setState(() => _report = asMap(r['data']));
       if (!dry && mounted) await context.read<SyncEngine>().sync();
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -396,7 +397,7 @@ class _ExportTabState extends State<_ExportTab> {
   @override
   Widget build(BuildContext context) {
     Future<void> pick(bool from) async {
-      final d = await showDatePicker(context: context, initialDate: from ? _from : _to, firstDate: DateTime(2015), lastDate: DateTime(2100));
+      final d = await pickDate(context, initialDate: from ? _from : _to, firstDate: DateTime(2015), lastDate: DateTime(2100));
       if (d != null) setState(() => from ? _from = d : _to = d);
     }
 

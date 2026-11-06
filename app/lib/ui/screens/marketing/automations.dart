@@ -1000,7 +1000,7 @@ class _Node extends StatelessWidget {
   Widget build(BuildContext context) => ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 340, minWidth: 220),
         child: Material(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           elevation: selected ? 3 : 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: selected ? YColors.blue : YColors.line, width: selected ? 2 : 1)),
           child: InkWell(

@@ -537,8 +537,11 @@ class MailboxController extends Controller
         if (! empty($d['message_id'])) {
             $this->message($r, (int) $d['message_id']);
         }
-        if (DB::table('mb_outbox')->where('id', $d['id'])->exists()) { // requête rejouée par le poste : déjà traitée
-            return response()->json(['data' => $this->outboxRow(DB::table('mb_outbox')->find($d['id']))], 201);
+        if ($prev = DB::table('mb_outbox')->where('id', $d['id'])->first()) { // requête rejouée par le poste : déjà traitée
+            // l'envoi d'un autre utilisateur (ou d'une autre société) n'est jamais renvoyé
+            abort_unless((int) $prev->company_id === (int) app('tenant')->id && (int) $prev->user_id === (int) $r->user()->id, 422, 'Identifiant d\'envoi déjà utilisé.');
+
+            return response()->json(['data' => $this->outboxRow($prev)], 201);
         }
         try {
             $mail = Composer::build($a, $d, $r->user()); // validation immédiate (destinataires, pièces jointes)
@@ -1219,7 +1222,7 @@ class MailboxController extends Controller
 
     public function saveSettings(Request $r)
     {
-        $d = $r->validate(['microsoft_client_id' => 'nullable|string|max:80', 'microsoft_client_secret' => 'nullable|string|max:300', 'microsoft_tenant' => 'nullable|string|max:80',
+        $d = $r->validate(['microsoft_client_id' => 'nullable|string|max:80', 'microsoft_client_secret' => 'nullable|string|max:300', 'microsoft_tenant' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9.-]+$/'],
             'google_client_id' => 'nullable|string|max:190', 'google_client_secret' => 'nullable|string|max:300', 'retention_days' => 'nullable|integer|min:7|max:3650']);
         $c = app('tenant');
         $vals = ['updated_at' => now()];

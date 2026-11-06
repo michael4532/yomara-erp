@@ -142,7 +142,7 @@ class _MomoTabState extends State<MomoTab> {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 try {
                   final r = await api.post('tresorerie/momo', {'account_id': account, 'text': text.text});

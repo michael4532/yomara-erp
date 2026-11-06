@@ -61,8 +61,11 @@ class SubscriptionService
         foreach (Subscription::where('status', 'active')->where('next_date', '<=', $today)->get() as $s) {
             $guard = 0;
             while ($s->status === 'active' && $s->next_date->toDateString() <= $today && $guard++ < 24) {
-                if (! $this->generate($company, $s)) {
-                    $out['errors']++;
+                if (! $this->generate($company, $s, $today)) {
+                    // échéance déjà facturée par un lancement simultané (ou contrat suspendu entre-temps) : pas une erreur
+                    if ($s->status === 'active' && $s->next_date->toDateString() <= $today) {
+                        $out['errors']++;
+                    }
                     break;
                 }
                 $out['invoices']++;
@@ -74,7 +77,29 @@ class SubscriptionService
     }
 
     /** Facture de l'échéance suivante. */
-    public function generate(Company $company, Subscription $s): ?SalesDocument
+    /** @param string|null $dueBy tâche planifiée : ne facture que si l'échéance relue sous verrou est toujours arrivée à cette date */
+    public function generate(Company $company, Subscription $s, ?string $dueBy = null): ?SalesDocument
+    {
+        // Contrat verrouillé et relu : deux lancements simultanés (bouton + tâche planifiée) ne facturent jamais deux fois la même période
+        [$doc, $periode] = DB::transaction(function () use ($company, $s, $dueBy) {
+            if ($fresh = Subscription::whereKey($s->id)->lockForUpdate()->first()) {
+                $s->setRawAttributes($fresh->getAttributes(), true);
+            }
+            if ($dueBy !== null && ($s->status !== 'active' || $s->next_date->toDateString() > $dueBy)) {
+                return [null, '']; // déjà facturée par l'autre lancement : on ne facture pas la période suivante en avance
+            }
+
+            return $this->generateLocked($company, $s);
+        });
+        if ($doc && $s->auto_send && $doc->status === 'validated') {
+            $this->sendInvoice($company, $s, $doc, $periode);
+        }
+
+        return $doc;
+    }
+
+    /** @return array{0: ?SalesDocument, 1: string} */
+    protected function generateLocked(Company $company, Subscription $s): array
     {
         if ($s->status !== 'active') {
             throw new \DomainException('Ce contrat n\'est pas actif.');
@@ -101,7 +126,7 @@ class SubscriptionService
         if ($res['status'] !== EntityWriter::APPLIED) {
             $s->forceFill(['last_error' => mb_substr($res['message'] ?? 'Facture refusée', 0, 255)])->saveQuietly();
 
-            return null;
+            return [null, $periode];
         }
         $doc = SalesDocument::find($id);
         DB::table('ab_invoices')->insert(['company_id' => $company->id, 'subscription_id' => $s->id, 'document_id' => $id,
@@ -111,11 +136,7 @@ class SubscriptionService
         $ended = ($s->max_invoices && $count >= $s->max_invoices) || ($s->end_date && $next->gt($s->end_date));
         $s->forceFill(['next_date' => $next->toDateString(), 'generated_count' => $count, 'last_invoice_id' => $id, 'last_error' => null, 'status' => $ended ? 'ended' : 'active'])->save();
 
-        if ($s->auto_send && $doc->status === 'validated') {
-            $this->sendInvoice($company, $s, $doc, $periode);
-        }
-
-        return $doc;
+        return [$doc, $periode];
     }
 
     public function sendInvoice(Company $company, Subscription $s, SalesDocument $doc, string $periode): bool

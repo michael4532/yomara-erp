@@ -29,8 +29,9 @@ class AgencesController extends Controller
 
     public function summary(Request $r, BranchService $svc)
     {
-        $from = $r->query('from', now()->startOfYear()->toDateString());
-        $to = $r->query('to', now()->toDateString());
+        $d = $r->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
+        $from = $d['from'] ?? now()->startOfYear()->toDateString();
+        $to = $d['to'] ?? now()->toDateString();
 
         return ['data' => $svc->summary(app('tenant'), $from, $to)];
     }

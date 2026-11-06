@@ -1225,7 +1225,7 @@ class _InterventionFormState extends State<_InterventionForm> {
             label: tr('Date et heure'),
             child: OutlinedButton.icon(
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: _at ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(context, initialDate: _at ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (d == null || !context.mounted) return;
                 final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: _at?.hour ?? 8, minute: _at?.minute ?? 30));
                 setState(() => _at = DateTime(d.year, d.month, d.day, t?.hour ?? 8, t?.minute ?? 30));
@@ -1278,7 +1278,7 @@ class _InterventionFormState extends State<_InterventionForm> {
             child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }
@@ -1451,7 +1451,7 @@ Future<void> editEquipment(BuildContext context, [Map<String, dynamic>? e]) asyn
       final contracts = LocalDb.all('it_contracts').where((k) => k['partner_id'] == partner).toList();
       Widget date(String label, DateTime? v, void Function(DateTime?) on) => OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(context: c, initialDate: v ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+              final d = await pickDate(c, initialDate: v ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
               set(() => on(d));
             },
             icon: const Icon(Icons.event, size: 18),
@@ -1511,7 +1511,7 @@ Future<void> editEquipment(BuildContext context, [Map<String, dynamic>? e]) asyn
                   child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger)),
                 ),
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   if (f['name']!.text.trim().isEmpty) return;
                   try {
@@ -1667,7 +1667,7 @@ Future<void> editContract(BuildContext context, [Map<String, dynamic>? k]) async
   await showFormDialog(context, title: k == null ? 'Nouveau contrat de maintenance' : 'Contrat ${k['number'] ?? ''}', builder: (c) => StatefulBuilder(builder: (c, set) {
       Widget date(String label, DateTime? v, void Function(DateTime?) on) => OutlinedButton.icon(
             onPressed: () async {
-              final d = await showDatePicker(context: c, initialDate: v ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
+              final d = await pickDate(c, initialDate: v ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
               if (d != null) set(() => on(d));
             },
             icon: const Icon(Icons.event, size: 18),
@@ -1738,7 +1738,7 @@ Future<void> editContract(BuildContext context, [Map<String, dynamic>? k]) async
             alignment: Alignment.centerRight,
             child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
               TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   if (partner == null || name.text.trim().isEmpty) {
                     toast(c, tr('Client et intitulé obligatoires.'), error: true);

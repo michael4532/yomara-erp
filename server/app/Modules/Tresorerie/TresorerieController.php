@@ -143,6 +143,10 @@ class TresorerieController extends Controller
             'category' => 'required_if:action,operation|in:'.implode(',', array_keys(Operation::CATEGORIES)), 'label' => 'nullable|string|max:255',
             'document_id' => 'required_if:action,payment|uuid',
         ]);
+        // Rapprochement manuel : uniquement avec un mouvement du même compte (paiement ou opération de cette société)
+        if ($v['action'] === 'match' && ! $this->svc->bookMovements(TreasuryAccount::findOrFail($l->account_id))->contains(fn ($m) => $m['type'] === $v['type'] && (string) $m['id'] === (string) $v['id'])) {
+            return response()->json(['message' => 'Mouvement introuvable sur ce compte.'], 422);
+        }
         try {
             match ($v['action']) {
                 'match' => $this->svc->setMatch($l, $v['type'], $v['id']),

@@ -264,7 +264,7 @@ class ReportService
         }
         try {
             $base = rtrim($s['base_url'] ?: 'https://api.openai.com/v1', '/');
-            $r = Http::withToken((string) $s['key'])->timeout(300)->attach('file', Storage::disk('local')->get($rec->path), 'reunion.webm')
+            $r = Http::withOptions($s['base_url'] ? \App\Support\UrlGuard::pinned($base.'/audio/transcriptions') : [])->withToken((string) $s['key'])->timeout(300)->attach('file', Storage::disk('local')->get($rec->path), 'reunion.webm')
                 ->post($base.'/audio/transcriptions', ['model' => 'whisper-1', 'language' => 'fr', 'response_format' => 'text']);
 
             return $r->successful() ? trim($r->body()) : null;

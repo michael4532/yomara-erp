@@ -46,7 +46,8 @@ const lostReasons = ['Prix trop élevé', 'Budget insuffisant', 'Choix d\'un con
 
 Color _hex(String? c, [Color fallback = YColors.muted]) {
   if (c == null || !c.startsWith('#') || c.length != 7) return fallback;
-  return Color(int.parse('FF${c.substring(1)}', radix: 16));
+  final v = int.tryParse(c.substring(1), radix: 16);
+  return v == null ? fallback : Color(0xFF000000 | v);
 }
 
 List<Map<String, dynamic>> crmStages() => LocalDb.all('crm_stages')..sort((a, b) => ((a['sequence'] as num?) ?? 0).compareTo((b['sequence'] as num?) ?? 0));
@@ -1534,7 +1535,7 @@ class _ActivityFormState extends State<_ActivityForm> {
                     onPressed: !manage
                         ? null
                         : () async {
-                            final d = await showDatePicker(context: context, firstDate: DateTime(2015), lastDate: DateTime(2100), initialDate: due ?? DateTime.now());
+                            final d = await pickDate(context, firstDate: DateTime(2015), lastDate: DateTime(2100), initialDate: due ?? DateTime.now());
                             if (d == null) return;
                             final base = due ?? DateTime(d.year, d.month, d.day, 9);
                             setState(() => _a['due_at'] = DateTime(d.year, d.month, d.day, base.hour, base.minute).toIso8601String());
@@ -1585,7 +1586,7 @@ class _ActivityFormState extends State<_ActivityForm> {
           if (manage)
             Row(
               children: [
-                FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+                SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
                 const Spacer(),
                 if (widget.activity != null)
                   TextButton.icon(

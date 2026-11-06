@@ -462,7 +462,7 @@ class _NotesFieldState extends State<_NotesField> {
         TextButton(
           onPressed: () async {
             await context.read<SyncEngine>().save('rc_applications', {'id': widget.app['id'], 'notes': _c.text.trim().isEmpty ? null : _c.text.trim()});
-            setState(() => _dirty = false);
+            if (mounted) setState(() => _dirty = false);
           },
           child: Text(tr('Enregistrer les notes')),
         ),
@@ -573,7 +573,7 @@ Future<void> hireApplication(BuildContext context, Map<String, dynamic> a) async
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: () async {
-                final x = await showDatePicker(context: d, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final x = await pickDate(d, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100));
                 if (x != null) set(() => date = x);
               },
               icon: const Icon(Icons.event),
@@ -799,7 +799,7 @@ Future<void> editJob(BuildContext context, [Map<String, dynamic>? j]) async {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () async {
-                  final x = await showDatePicker(context: d, initialDate: closes ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
+                  final x = await pickDate(d, initialDate: closes ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime.now(), lastDate: DateTime(2100));
                   set(() => closes = x);
                 },
                 icon: const Icon(Icons.event),
@@ -869,7 +869,7 @@ Future<void> editInterview(BuildContext context, {required String applicationId,
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final x = await showDatePicker(context: d, initialDate: at, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                      final x = await pickDate(d, initialDate: at, firstDate: DateTime(2020), lastDate: DateTime(2100));
                       if (x != null) set(() => at = DateTime(x.year, x.month, x.day, at.hour, at.minute));
                     },
                     icon: const Icon(Icons.event),

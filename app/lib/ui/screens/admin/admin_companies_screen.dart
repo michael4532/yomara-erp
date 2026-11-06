@@ -179,7 +179,7 @@ class _AdminCompaniesScreenState extends State<AdminCompaniesScreen> {
           Field(label: tr('Mot de passe provisoire (8 caractères min.)'), child: TextField(controller: c['owner_password'])),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
+            child: SaveButton(
               onPressed: () async {
                 try {
                   await session.api.post('admin/companies', {
@@ -279,7 +279,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     final session = context.read<Session>();
     try {
       final r = await session.api.put('admin/companies/${widget.companyId}/modules/${m['key']}', body);
-      setState(() => _modules = List<Map<String, dynamic>>.from((r['data'] as List).map((e) => Map<String, dynamic>.from(e))));
+      if (mounted) setState(() => _modules = List<Map<String, dynamic>>.from((r['data'] as List).map((e) => Map<String, dynamic>.from(e))));
       await _load();
       if (session.company['id'] == widget.companyId) await session.refreshBootstrap();
     } catch (e) {
@@ -289,7 +289,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
 
   Future<void> _pickDate(String field) async {
     final current = DateTime.tryParse('${_company?[field] ?? ''}') ?? DateTime.now().add(const Duration(days: 30));
-    final d = await showDatePicker(context: context, initialDate: current, firstDate: DateTime(2020), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: current, firstDate: DateTime(2020), lastDate: DateTime(2100));
     if (d != null) await _update({field: isoDate(d)});
   }
 
@@ -309,7 +309,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
             label: tr('Actif jusqu\'au (vide = sans limite)'),
             child: InkWell(
               onTap: () async {
-                final d = await showDatePicker(context: dc, initialDate: expires ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+                final d = await pickDate(dc, initialDate: expires ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
                 setS(() => expires = d);
               },
               child: InputDecorator(
@@ -529,7 +529,7 @@ class _CompanyModulesEditorState extends State<_CompanyModulesEditor> {
 
   Future<void> _pickExpiry(Map<String, dynamic> m) async {
     final current = DateTime.tryParse('${asMap(m['override'])['expires_at'] ?? ''}');
-    final d = await showDatePicker(context: context, initialDate: current ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: current ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
     if (d != null) await _set(m, {'enabled': true, 'expires_at': isoDate(d)});
   }
 

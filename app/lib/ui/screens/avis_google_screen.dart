@@ -347,7 +347,7 @@ class _ReviewsTabState extends State<_ReviewsTab> {
     setState(() => _busy.add(r['id'] as int));
     try {
       final res = await api.post('avis_google/reviews/${r['id']}/suggest', {'tone': 'chaleureux'});
-      setState(() => (_drafts[r['id'] as int] ??= TextEditingController()).text = '${res['text']}');
+      if (mounted) setState(() => (_drafts[r['id'] as int] ??= TextEditingController()).text = '${res['text']}');
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     } finally {
@@ -774,7 +774,7 @@ class _PostsTabState extends State<_PostsTab> {
               if (type != 'STANDARD')
                 TextButton.icon(
                   onPressed: () async {
-                    final d = await showDatePicker(context: c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now().add(const Duration(days: 7)));
+                    final d = await pickDate(c, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now().add(const Duration(days: 7)));
                     if (d != null) set(() => end = d);
                   },
                   icon: const Icon(Icons.event),
@@ -960,7 +960,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                 onPressed: () async {
                   try {
                     final r = await api.put('avis_google/locations/${loc['id']}', {'description': _desc.text.trim(), 'phone': _phone.text.trim(), if (_site.text.trim().isNotEmpty) 'website': _site.text.trim()});
-                    setState(() => loc = asMap(r['data']));
+                    if (mounted) setState(() => loc = asMap(r['data']));
                     if (context.mounted) toast(context, widget.info['mode'] == 'api' ? 'Fiche Google mise à jour.' : 'Enregistré dans Yomara (connectez la fiche pour la modifier sur Google).');
                   } catch (e) {
                     if (context.mounted) toast(context, errorText(e), error: true);
@@ -993,7 +993,7 @@ class _PlaceSearchState extends State<_PlaceSearch> {
     setState(() => _busy = true);
     try {
       final r = await context.read<Session>().api.post('avis_google/places/search', {'query': _q.text.trim()});
-      setState(() => _res = [for (final x in (r['data'] as List)) asMap(x)]);
+      if (mounted) setState(() => _res = [for (final x in (r['data'] as List)) asMap(x)]);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     } finally {
@@ -1130,7 +1130,7 @@ class _AvisSettingsState extends State<_AvisSettings> {
           alignment: Alignment.centerRight,
           child: Wrap(alignment: WrapAlignment.end, spacing: 10, runSpacing: 8, children: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
-            FilledButton(
+            SaveButton(
               onPressed: () async {
                 try {
                   await api.put('avis_google/settings', {

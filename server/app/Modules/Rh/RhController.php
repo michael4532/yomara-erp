@@ -202,7 +202,7 @@ class RhController extends Controller
         $a = collect((array) $req->attachments)->firstWhere('id', $aid);
         abort_unless($a && \Illuminate\Support\Facades\Storage::disk('local')->exists($a['path']), 404, 'Pièce jointe introuvable.');
 
-        return response(\Illuminate\Support\Facades\Storage::disk('local')->get($a['path']), 200, ['Content-Type' => $a['mime'], 'Content-Disposition' => 'inline; filename="'.addslashes($a['name']).'"']);
+        return response(\Illuminate\Support\Facades\Storage::disk('local')->get($a['path']), 200, \App\Support\SafeDownload::headers($a['mime'] ?? null, (string) $a['name'], true));
     }
 
     /** Message ajouté au fil d'une demande : le salarié, son responsable ou la RH. */

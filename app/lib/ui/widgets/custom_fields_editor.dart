@@ -157,7 +157,7 @@ class _CustomFieldsEditorState extends State<CustomFieldsEditor> {
           onTap: ro
               ? null
               : () async {
-                  final d = await showDatePicker(context: context, initialDate: DateTime.tryParse('$v') ?? DateTime.now(), firstDate: DateTime(1900), lastDate: DateTime(2100));
+                  final d = await pickDate(context, initialDate: DateTime.tryParse('$v') ?? DateTime.now(), firstDate: DateTime(1900), lastDate: DateTime(2100));
                   if (d != null) _set(k, isoDate(d));
                 },
           child: InputDecorator(

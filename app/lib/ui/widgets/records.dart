@@ -55,7 +55,10 @@ class RecordSchema {
 
 List<Map<String, dynamic>> recordOptions(Map f) => [for (final o in (f['options'] as List? ?? const [])) asMap(o)];
 
-Color? _hex(String? h) => h == null || h.length < 7 ? null : Color(int.parse('FF${h.substring(1)}', radix: 16));
+Color? _hex(String? h) {
+  final v = h == null || h.length != 7 || !h.startsWith('#') ? null : int.tryParse(h.substring(1), radix: 16);
+  return v == null ? null : Color(0xFF000000 | v);
+}
 
 Map<String, dynamic>? recordOption(Map f, dynamic v) {
   for (final o in recordOptions(f)) {

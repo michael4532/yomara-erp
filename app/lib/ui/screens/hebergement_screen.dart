@@ -421,7 +421,7 @@ class _ServiceFormState extends State<_ServiceForm> {
 
   Future<void> _date(bool start) async {
     final cur = DateTime.tryParse((start ? _start : _expiry) ?? '') ?? DateTime.now();
-    final d = await showDatePicker(context: context, initialDate: cur, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: cur, firstDate: DateTime(2000), lastDate: DateTime(2100));
     if (d == null) return;
     setState(() {
       if (start) {
@@ -554,7 +554,7 @@ class _ServiceFormState extends State<_ServiceForm> {
             child: Text(tr('Supprimer')),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }

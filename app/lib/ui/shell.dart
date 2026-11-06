@@ -797,7 +797,7 @@ class _AppShellState extends State<AppShell> {
                           canMe: items.any((i) => i.id == 'mon_espace'),
                           onToggleSidebarTheme: () async {
                             await UiPrefs.setFlag('sidebar_light', !SbColors.light);
-                            setState(() {});
+                            if (mounted) setState(() {});
                           },
                         ),
                         Expanded(child: body),

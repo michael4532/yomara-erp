@@ -813,7 +813,7 @@ class _EventFormState extends State<_EventForm> {
   late final List<Map<String, dynamic>> _cats = [for (final c in (e['categories'] as List? ?? const [])) asMap(c)];
 
   Future<void> _date(bool start) async {
-    final d = await showDatePicker(context: context, initialDate: DateTime.tryParse((start ? _start : _end) ?? _start ?? '') ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
+    final d = await pickDate(context, initialDate: DateTime.tryParse((start ? _start : _end) ?? _start ?? '') ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
     if (d != null) setState(() => start ? (_start = isoDate(d), _end ??= isoDate(d)) : _end = isoDate(d));
   }
 
@@ -948,7 +948,7 @@ class _EventFormState extends State<_EventForm> {
             child: Text(tr('Supprimer')),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }
@@ -1067,7 +1067,7 @@ class _SpaceFormState extends State<_SpaceForm> {
             child: Text(tr('Supprimer')),
           ),
         const Spacer(),
-        FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
       ]),
     ]);
   }
@@ -1119,7 +1119,7 @@ Future<void> generateRow(BuildContext context, Map<String, dynamic> event) async
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
-            FilledButton(
+            SaveButton(
               onPressed: () async {
                 try {
                   await sync.sync();
@@ -1216,7 +1216,7 @@ class _PackageFormState extends State<_PackageForm> {
               child: Text(tr('Supprimer')),
             ),
           const Spacer(),
-          FilledButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+          SaveButton(onPressed: _save, child: Text(tr('Enregistrer'))),
         ]),
       ]);
 }
@@ -1412,7 +1412,7 @@ class _BookingFormState extends State<_BookingForm> {
                 onPressed: !editable
                     ? null
                     : () async {
-                        final d = await showDatePicker(context: context, initialDate: DateTime.tryParse(_until ?? '') ?? DateTime.now().add(Duration(days: toDouble(widget.event['option_days'] ?? 7).toInt())), firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100));
+                        final d = await pickDate(context, initialDate: DateTime.tryParse(_until ?? '') ?? DateTime.now().add(Duration(days: toDouble(widget.event['option_days'] ?? 7).toInt())), firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime(2100));
                         if (d != null) setState(() => _until = isoDate(d));
                       },
                 child: Text(tr(_until == null ? 'Automatique (${_n(widget.event['option_days'] ?? 7)} j)' : dateFr(_until))),

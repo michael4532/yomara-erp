@@ -49,14 +49,14 @@ class Tender extends Model
             'lines.*.description' => 'required|string|max:255',
             'lines.*.quantity' => 'required|numeric|gt:0',
             'lines.*.unit' => 'nullable|string|max:30',
-            'lines.*.product_id' => 'nullable|uuid',
+            'lines.*.product_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('products')],
             'deadline' => 'required|date',
             'status' => 'in:draft,open,closed,cancelled',
             'invited' => 'required|array|min:1|max:100',
             'invited.*' => 'uuid',
             'currency' => 'nullable|string|size:3',
             'delivery_place' => 'nullable|string|max:255',
-            'project_id' => 'nullable|uuid',
+            'project_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('prj_projects')],
         ];
     }
 

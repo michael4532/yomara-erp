@@ -109,7 +109,7 @@ class RecordController extends Controller
                 continue;
             }
             $v = $r->query($f['key']);
-            if ($v === null || $v === '') {
+            if ($v === null || $v === '' || ! is_string($v)) {
                 continue;
             }
             if ($f['type'] === 'tags') {
@@ -120,7 +120,7 @@ class RecordController extends Controller
                 $q->whereIn($f['key'], explode(',', (string) $v));
             }
         }
-        if ($s = trim((string) $r->query('q'))) {
+        if ($s = trim(is_string($r->query('q')) ? $r->query('q') : '')) {
             $q->where(function ($w) use ($res, $s) {
                 foreach ($res['search'] as $col) {
                     $w->orWhere($col, 'like', '%'.$s.'%');
@@ -128,10 +128,10 @@ class RecordController extends Controller
             });
         }
         if ($df = $res['date_field'] ?? null) {
-            if ($from = $r->query('from')) {
+            if (is_string($from = $r->query('from')) && $from !== '') {
                 $q->where($df, '>=', $from);
             }
-            if ($to = $r->query('to')) {
+            if (is_string($to = $r->query('to')) && $to !== '') {
                 $q->where($df, '<=', strlen($to) === 10 ? $to.' 23:59:59' : $to);
             }
         }

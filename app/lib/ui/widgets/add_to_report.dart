@@ -32,7 +32,7 @@ Future<void> addToReport(BuildContext context, {required String title, String? m
                     icon: const Icon(Icons.event, size: 18),
                     label: Text(tr(dateFr(isoDate(day)))),
                     onPressed: () async {
-                      final x = await showDatePicker(context: c, initialDate: day, firstDate: DateTime.now().subtract(const Duration(days: 60)), lastDate: DateTime.now().add(const Duration(days: 7)));
+                      final x = await pickDate(c, initialDate: day, firstDate: DateTime.now().subtract(const Duration(days: 60)), lastDate: DateTime.now().add(const Duration(days: 7)));
                       if (x != null) set(() => day = x);
                     },
                   ),

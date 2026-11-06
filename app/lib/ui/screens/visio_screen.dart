@@ -91,7 +91,7 @@ class _VisioScreenState extends State<VisioScreen> {
   String _type = 'meeting';
   String _scope = 'upcoming';
   String _q = '';
-  Timer? _refresh;
+  Timer? _refresh, _debounce;
 
   @override
   void initState() {
@@ -103,6 +103,7 @@ class _VisioScreenState extends State<VisioScreen> {
   @override
   void dispose() {
     _refresh?.cancel();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -246,7 +247,8 @@ class _VisioScreenState extends State<VisioScreen> {
                   child: SearchField(
                     onChanged: (v) {
                       _q = v.trim();
-                      _load(quiet: true);
+                      _debounce?.cancel();
+                      _debounce = Timer(const Duration(milliseconds: 400), () => _load(quiet: true));
                     },
                   ),
                 ),
@@ -563,7 +565,7 @@ class _MeetingFormState extends State<_MeetingForm> {
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(context: context, initialDate: _start, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
+    final d = await pickDate(context, initialDate: _start, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_start));
     setState(() => _start = DateTime(d.year, d.month, d.day, t?.hour ?? _start.hour, t?.minute ?? _start.minute));

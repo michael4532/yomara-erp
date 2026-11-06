@@ -608,6 +608,7 @@ class EmailBuilderState extends State<EmailBuilder> with SingleTickerProviderSta
               final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['html', 'htm']);
               if (r.isEmpty) return;
               final text = utf8.decode(await r.first.readAsBytes(), allowMalformed: true);
+              if (!mounted) return;
               setState(() {
                 _html.text = text;
                 d.html = text;
@@ -620,7 +621,7 @@ class EmailBuilderState extends State<EmailBuilder> with SingleTickerProviderSta
           TextButton.icon(
             onPressed: () async {
               await _convertToHtml();
-              setState(() {});
+              if (mounted) setState(() {});
               widget.onChanged?.call();
             },
             icon: const Icon(Icons.transform),

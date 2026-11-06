@@ -89,6 +89,8 @@ class PurchaseReceipt extends Model
             if ($qty > $remaining + 0.0005) {
                 throw new \DomainException('« '.$line->description.' » : '.$qty.' reçus pour '.max(0, round($line->quantity - ($done[$line->id] ?? 0), 3)).' restant à recevoir.');
             }
+            $done[$line->id] = round(($done[$line->id] ?? 0) + $qty, 3); // même ligne répétée dans la réception : cumulée
+
             $clean[] = array_filter(['order_line_id' => $line->id, 'product_id' => $line->product_id, 'description' => $line->description, 'quantity' => $qty, 'unit' => $line->unit,
                 'unit_factor' => (float) ($line->unit_factor ?: 1) != 1.0 ? (float) $line->unit_factor : null,
                 'lots' => \App\Modules\Lots\LotService::cleanSpec($l['lots'] ?? null)], fn ($v) => $v !== null);

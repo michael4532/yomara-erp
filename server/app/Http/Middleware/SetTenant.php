@@ -21,7 +21,10 @@ class SetTenant
         }
 
         $company = null;
-        if ($user->is_super_admin && $request->hasHeader('X-Company-Id')) {
+        // Une clé d'API reste attachée à la société de son créateur, même s'il est super admin (une clé fuitée n'ouvre pas toutes les sociétés)
+        $token = method_exists($user, 'currentAccessToken') ? $user->currentAccessToken() : null;
+        $apiKey = $token instanceof \Laravel\Sanctum\PersonalAccessToken && str_starts_with((string) $token->name, 'api:');
+        if ($user->is_super_admin && ! $apiKey && $request->hasHeader('X-Company-Id')) {
             $company = Company::find($request->header('X-Company-Id'));
         }
         $company ??= $user->company;

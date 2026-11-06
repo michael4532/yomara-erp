@@ -254,7 +254,7 @@ class _ComposeViewState extends State<ComposeView> {
     if (url == null) return;
     if (_mode != 'html') await _switchMode('html');
     insertAtCursor(_html, '<img src="$url" alt="" style="max-width:100%;height:auto;border:0">');
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _insertSkeleton() {
@@ -345,7 +345,7 @@ class _ComposeViewState extends State<ComposeView> {
 
   Future<void> _schedule() async {
     final now = DateTime.now();
-    final d = await showDatePicker(context: context, firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: now);
+    final d = await pickDate(context, firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: now);
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))));
     if (t == null) return;

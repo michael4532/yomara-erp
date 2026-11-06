@@ -270,7 +270,7 @@ class _ConnectDialogState extends State<_ConnectDialog> {
     if (files.isEmpty) return;
     final f = files.first;
     final bytes = await f.readAsBytes();
-    setState(() => _files[kind] = (bytes, f.name));
+    if (mounted) setState(() => _files[kind] = (bytes, f.name));
   }
 
   Future<void> _analyze() async {
@@ -468,7 +468,7 @@ class _PreviewDialogState extends State<_PreviewDialog> {
               Expanded(child: Text(tr(_since == null ? 'Toutes les factures, quelle que soit leur date' : 'Factures à partir du ${dateFr(_since!.toIso8601String())}'))),
               TextButton(
                 onPressed: () async {
-                  final d = await showDatePicker(context: context, firstDate: DateTime(2000), lastDate: DateTime.now(), initialDate: _since ?? DateTime(DateTime.now().year - 1));
+                  final d = await pickDate(context, firstDate: DateTime(2000), lastDate: DateTime.now(), initialDate: _since ?? DateTime(DateTime.now().year - 1));
                   setState(() => _since = d);
                 },
                 child: Text(tr(_since == null ? 'Limiter' : 'Changer')),

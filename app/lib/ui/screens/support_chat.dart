@@ -351,6 +351,7 @@ class _NewConversationState extends State<_NewConversation> {
   bool _busy = false;
 
   Future<void> _send() async {
+    if (_busy) return;
     if (_subject.text.trim().isEmpty || _body.text.trim().isEmpty) {
       toast(context, tr('Indiquez un sujet et votre message.'), error: true);
       return;
@@ -470,7 +471,7 @@ class _SupportThreadState extends State<SupportThread> {
 
   Future<void> _send({String? status}) async {
     final t = _input.text.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
       final r = asMap(await context.read<Session>().api.post('${widget.path}/messages', {'body': t, 'after': _last, 'status': ?status}));
@@ -704,7 +705,7 @@ class _ContactsFormState extends State<_ContactsForm> {
             children: [
               TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
               const SizedBox(width: 8),
-              FilledButton(
+              SaveButton(
                 onPressed: () async {
                   try {
                     await context.read<Session>().api.put('support/contacts', {'user_ids': _sel.toList()});
@@ -739,7 +740,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
   String _status = 'active';
   String _q = '';
   int? _open;
-  Timer? _timer;
+  Timer? _timer, _debounce;
 
   @override
   void initState() {
@@ -751,6 +752,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -791,7 +793,8 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
               SearchField(
                 onChanged: (v) {
                   _q = v.trim();
-                  _load();
+                  _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 400), _load);
                 },
                 hint: tr('Rechercher un sujet…'),
               ),
