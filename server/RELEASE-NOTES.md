@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.30 — nouveau style de l'application
+- Menu latéral bleu nuit par défaut (le menu clair reste disponible dans le menu du compte) : sections « Vue d'ensemble » et « Espaces de travail », élément actif surligné avec le trait jaune, « Modules & tarifs » et « Paramètres » en bas, carte de l'utilisateur (nom, rôle) qui ouvre le compte.
+- En-têtes de page : fil d'Ariane « Espace / Écran », grand titre avec sa pastille d'icône ; la barre du haut ne répète plus le titre.
+- Indicateurs en cartes plus lisibles (grande icône, grand chiffre, variation en pastille verte ou rouge), toutes à la même hauteur ; cartes du tableau de bord toutes blanches.
+- Onglets soulignés en bleu, tableaux avec en-têtes en minuscules et lignes plus aérées, initiales en ronds, étiquettes de statut pastel (Client en vert, Prospect en orange, Fournisseur en bleu).
+- Formulaires de création et de modification (nouveau contact, opportunité, produit…) dans un panneau qui s'ouvre sur la droite, au lieu d'une fenêtre au milieu de l'écran ; boutons « Entreprise / Particulier » et autres choix exclusifs en bleu nuit.
+- CRM : indicateurs du pipeline (opportunités ouvertes, montant, prévision pondérée, taux de conversion), colonnes avec nombre et total, cartes avec montant, prochaine action, « Relance en retard » et initiales du commercial, bouton « Ajouter » en bas de chaque étape (l'opportunité est créée dans cette étape).
+
 ## 0.99.29 — puces de filtre lisibles dans les logiciels, accueil du site
 - Logiciels Windows, Mac, Linux et applications : les puces de filtre non sélectionnées (Commandes, Boîte de réception, listes…) s'affichaient vides ; leur texte est de nouveau visible. Applications en version 1.0.1.
 - Site : titre de l'accueil fixe (plus de texte qui défile), bouton « Télécharger » à côté de « Créer mon entreprise », bouton WhatsApp à gauche (la discussion reste à droite).

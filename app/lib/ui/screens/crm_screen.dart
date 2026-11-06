@@ -203,17 +203,21 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
       children: [
         PageHeader(
           title: tr('CRM'),
-          subtitle: tr('Opportunités, relances et prévisions · fonctionne hors ligne'),
+          subtitle: tr('Suivez vos opportunités et vos prochaines actions.'),
           actions: [
             if (manage) ...[
-              OutlinedButton.icon(onPressed: () => editActivity(context), icon: const Icon(Icons.add_alarm), label: Text(tr('Activité'))),
-              FilledButton.icon(onPressed: () => editLead(context), icon: const Icon(Icons.add), label: Text(tr('Opportunité'))),
+              OutlinedButton.icon(onPressed: () => editActivity(context), icon: const Icon(Icons.add), label: Text(tr('Activité'))),
+              FilledButton.icon(onPressed: () => editLead(context), icon: const Icon(Icons.add), label: Text(tr('Nouvelle opportunité'))),
             ],
           ],
         ),
+        ValueListenableBuilder(
+          valueListenable: LocalDb.listen('crm_leads'),
+          builder: (context, _, _) => _PipelineKpis(mine: _mine ? me : null),
+        ),
         TabBar(
           controller: _tabs,
-          isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8),
+          isScrollable: true, padding: EdgeInsets.symmetric(horizontal: narrow ? 8 : 16),
           tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: tr('Pipeline')),
@@ -346,10 +350,10 @@ class _Pipeline extends StatelessWidget {
                 onWillAcceptWithDetails: (d) => manage && d.data['stage_id'] != st['id'],
                 onAcceptWithDetails: (d) => moveLead(context, d.data, st),
                 builder: (context, candidate, _) => Container(
-                  width: 290,
-                  margin: const EdgeInsets.only(right: 12),
+                  width: 296,
+                  margin: const EdgeInsets.only(right: 14),
                   decoration: BoxDecoration(
-                    color: candidate.isNotEmpty ? color.withValues(alpha: .10) : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .45),
+                    color: candidate.isNotEmpty ? color.withValues(alpha: .10) : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: .04) : const Color(0xFFEFF2F7)),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: candidate.isNotEmpty ? color : Colors.transparent, width: 2),
                   ),
@@ -359,20 +363,26 @@ class _Pipeline extends StatelessWidget {
                     children: [
                       Container(height: 4, color: color),
                       Container(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
-                                Expanded(
-                                  child: Text(tr('${st['name']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                                Flexible(
+                                  child: Text(tr('${st['name']}'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -.2)),
                                 ),
-                                StatusChip('${rows.length}', color: color),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                                  decoration: BoxDecoration(color: Theme.of(context).hintColor.withValues(alpha: .12), borderRadius: BorderRadius.circular(8)),
+                                  child: Text('${rows.length}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(tr(st['kind'] == 'open' ? '${money(total, cur)} · ${st['probability']} %' : money(total, cur)), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+                            const SizedBox(height: 4),
+                            Text(tr(st['kind'] == 'open' ? 'Total : ${compactMoney(total, cur)} · ${st['probability']} %' : 'Total : ${compactMoney(total, cur)}'),
+                                style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
                           ],
                         ),
                       ),
@@ -382,7 +392,7 @@ class _Pipeline extends StatelessWidget {
                                 child: Text(tr(manage ? 'Glissez une carte ici' : '—'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                               )
                             : ListView.builder(
-                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                                 itemCount: rows.length,
                                 itemBuilder: (_, i) {
                                   final card = _LeadCard(lead: rows[i], next: nextActivity(rows[i]['id'] as String, activities), stages: stages, manage: manage);
@@ -407,6 +417,20 @@ class _Pipeline extends StatelessWidget {
                                 },
                               ),
                       ),
+                      if (manage && st['kind'] == 'open')
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.surface,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(color: Theme.of(context).dividerColor),
+                            ),
+                            onPressed: () => editLead(context, null, st['id']),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(tr('Ajouter')),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -415,6 +439,44 @@ class _Pipeline extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// Montant court pour les en-têtes de colonnes : 6,2 M F CFA, 850 k F CFA.
+String compactMoney(double v, String cur) {
+  final unit = cur == 'XOF' || cur == 'XAF' ? 'F CFA' : cur;
+  if (v.abs() >= 1e6) return '${(v / 1e6).toStringAsFixed(v.abs() >= 1e7 ? 0 : 1).replaceAll('.', ',').replaceAll(RegExp(r',0$'), '')} M $unit';
+  if (v.abs() >= 1e4) return '${(v / 1e3).round()} k $unit';
+  return money(v, cur);
+}
+
+/// Indicateurs du pipeline (au-dessus des onglets) : opportunités ouvertes, montant, prévision pondérée, conversion.
+class _PipelineKpis extends StatelessWidget {
+  const _PipelineKpis({this.mine});
+
+  final int? mine;
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = context.read<Session>().currency;
+    final stages = {for (final st in crmStages()) st['id']: st};
+    final leads = LocalDb.all('crm_leads').where((l) => mine == null || l['owner_id'] == mine).toList();
+    String kind(Map<String, dynamic> l) => '${stages[l['stage_id']]?['kind'] ?? l['status'] ?? 'open'}';
+    final open = leads.where((l) => kind(l) == 'open').toList();
+    final amount = open.fold<double>(0, (s, l) => s + toDouble(l['expected_revenue']));
+    final weighted = open.fold<double>(0, (s, l) {
+      final p = toDouble(l['probability'] ?? stages[l['stage_id']]?['probability']);
+      return s + toDouble(l['expected_revenue']) * p / 100;
+    });
+    final won = leads.where((l) => kind(l) == 'won').length, lost = leads.where((l) => kind(l) == 'lost').length;
+    final rate = won + lost == 0 ? null : (won * 100 / (won + lost)).round();
+    if (MediaQuery.of(context).size.width < 700 && leads.isEmpty) return const SizedBox.shrink();
+    return StatStrip(tiles: [
+      StatTile(label: tr('Opportunités ouvertes'), value: '${open.length}', icon: Icons.track_changes_rounded, color: YColors.blue),
+      StatTile(label: tr('Montant du pipeline'), value: money(amount, cur), icon: Icons.paid_outlined, color: const Color(0xFFEA8A0B)),
+      StatTile(label: tr('Prévision pondérée'), value: money(weighted, cur), icon: Icons.bar_chart_rounded, color: const Color(0xFF4F46E5)),
+      StatTile(label: tr('Taux de conversion'), value: rate == null ? '—' : '$rate %', icon: Icons.percent_rounded, color: YColors.success),
+    ]);
   }
 }
 
@@ -428,20 +490,25 @@ class _LeadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cur = context.read<Session>().currency;
+    final s = context.read<Session>();
+    final cur = s.currency;
     final hint = Theme.of(context).hintColor;
     final due = _dt(next?['due_at']);
     final late = due != null && due.isBefore(DateTime.now());
-    final who = [lead['company_name'], lead['contact_name']].where((e) => e != null && '$e'.isNotEmpty).join(' · ');
+    final who = '${lead['company_name'] ?? ''}'.trim().isNotEmpty ? '${lead['company_name']}' : '${lead['contact_name'] ?? ''}';
     final priority = (lead['priority'] as num?)?.toInt() ?? 0;
+    final users = {for (final u in (LocalDb.state().get('crm_users') as List? ?? const [])) '${asMap(u)['id']}': '${asMap(u)['name']}', '${s.user['id']}': '${s.user['name'] ?? ''}'};
+    final owner = users['${lead['owner_id']}'] ?? '';
+    final today = DateUtils.isSameDay(due, DateTime.now());
+    final when = due == null ? '' : (today ? tr('Aujourd\'hui') : DateFormat('d MMM', I18n.dateLocale).format(due));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => editLead(context, lead),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -449,8 +516,10 @@ class _LeadCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(tr('${lead['title']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text(tr('${lead['title']}'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: -.2)),
                   ),
+                  if (priority > 1)
+                    Padding(padding: const EdgeInsets.only(left: 4, top: 1), child: Row(mainAxisSize: MainAxisSize.min, children: [for (var i = 0; i < priority; i++) const Icon(Icons.star_rounded, size: 14, color: YColors.yellow)])),
                   if (lead['_local'] == true)
                     Tooltip(
                       message: tr('En attente de synchronisation'),
@@ -461,34 +530,52 @@ class _LeadCard extends StatelessWidget {
               if (who.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    tr(who),
-                    style: TextStyle(color: hint, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(tr(who), style: TextStyle(color: hint, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               const SizedBox(height: 8),
+              Text(tr(money(toDouble(lead['expected_revenue']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, letterSpacing: -.3)),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  Text(tr(money(toDouble(lead['expected_revenue']), cur)), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  const Spacer(),
-                  for (var i = 0; i < 3; i++) Icon(i < priority ? Icons.star_rounded : Icons.star_outline_rounded, size: 16, color: i < priority ? YColors.yellow : hint.withValues(alpha: .4)),
+                  if (next == null)
+                    Expanded(child: Text(tr('Aucune action prévue'), style: TextStyle(color: hint, fontSize: 12.5)))
+                  else if (late)
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFFFFF1DC), borderRadius: BorderRadius.circular(8)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.error_rounded, size: 15, color: Color(0xFFE8890C)),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text(tr('Relance en retard'), overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600))),
+                        ]),
+                        ),
+                      ),
+                    )
+                  else ...[
+                    Icon(Icons.calendar_today_outlined, size: 15, color: hint),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        tr([activityTypes[next!['type']] ?? '${next!['subject']}', when].where((e) => e.isNotEmpty).join(' · ')),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: hint, fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                  if (owner.isNotEmpty) Tooltip(message: owner, child: InitialsAvatar(owner, size: 28)),
                 ],
               ),
-              if (next != null || lead['quote_id'] != null || ((lead['score'] as num?) ?? 0) > 0) ...[
-                const SizedBox(height: 6),
+              if (lead['quote_id'] != null || ((lead['score'] as num?) ?? 0) > 0) ...[
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: [
                     LeadScoreTag(lead: lead),
-                    if (next != null)
-                      _MiniTag(
-                        icon: activityIcons[next!['type']] ?? Icons.event,
-                        label: due == null ? '${next!['subject']}' : DateFormat('dd/MM HH:mm', I18n.dateLocale).format(due),
-                        color: late ? YColors.danger : YColors.blue,
-                      ),
                     if (lead['quote_id'] != null) _MiniTag(icon: Icons.request_quote_outlined, label: tr('Devis'), color: YColors.success),
                   ],
                 ),
@@ -905,9 +992,9 @@ String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 // Fiche opportunité
 // ===========================================================================
 
-Future<void> editLead(BuildContext context, [Map<String, dynamic>? lead]) async {
+Future<void> editLead(BuildContext context, [Map<String, dynamic>? lead, dynamic stageId]) async {
   final nav = Navigator.of(context);
-  final res = await showFormDialog<Map<String, dynamic>>(context, title: lead == null ? 'Nouvelle opportunité' : '${lead['title']}', builder: (c) => _LeadForm(lead: lead));
+  final res = await showFormDialog<Map<String, dynamic>>(context, title: lead == null ? 'Nouvelle opportunité' : '${lead['title']}', builder: (c) => _LeadForm(lead: lead, stageId: stageId));
   final quote = res?['quote'];
   if (quote is Map<String, dynamic>) {
     // Le devis s'ouvre une fois la fiche fermée
@@ -916,9 +1003,10 @@ Future<void> editLead(BuildContext context, [Map<String, dynamic>? lead]) async 
 }
 
 class _LeadForm extends StatefulWidget {
-  const _LeadForm({this.lead});
+  const _LeadForm({this.lead, this.stageId});
 
   final Map<String, dynamic>? lead;
+  final dynamic stageId;
 
   @override
   State<_LeadForm> createState() => _LeadFormState();
@@ -945,7 +1033,7 @@ class _LeadFormState extends State<_LeadForm> {
         ? Map<String, dynamic>.from(widget.lead!)
         : {
             'id': newId(),
-            'stage_id': stages.where((x) => x['kind'] == 'open').firstOrNull?['id'],
+            'stage_id': widget.stageId ?? stages.where((x) => x['kind'] == 'open').firstOrNull?['id'],
             'owner_id': s.user['id'],
             'priority': 1,
             'source': null,

@@ -31,7 +31,7 @@ void main() {
     await _open(t, Map<String, dynamic>.from(jsonDecode(_employee)));
     expect(find.text('Koné Awa'), findsOneWidget);
     expect(find.text('01/01/2022'), findsOneWidget); // date affichée au format français
-    await t.scrollUntilVisible(find.textContaining('Parts fiscales retenues : 3,0'), 200, scrollable: find.descendant(of: find.byType(Dialog), matching: find.byType(Scrollable)).first);
+    await t.scrollUntilVisible(find.textContaining('Parts fiscales retenues : 3,0'), 200, scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first); // formulaire du panneau latéral
     expect(find.textContaining('Parts fiscales retenues : 3,0'), findsOneWidget);
   });
 

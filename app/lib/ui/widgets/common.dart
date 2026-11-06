@@ -219,29 +219,43 @@ class PageHeader extends StatelessWidget {
     final ic = icon ?? nav?.icon;
     final accent = nav?.accent ?? YColors.blue;
     final theme = Theme.of(context);
+    // Fil d'Ariane « Espace / Écran » au-dessus du titre
+    final crumb = nav != null && nav.group.isNotEmpty && nav.group != title
+        ? Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(text: tr(nav.group), style: TextStyle(color: theme.hintColor)),
+                TextSpan(text: '   /   ', style: TextStyle(color: theme.hintColor.withValues(alpha: .6))),
+                TextSpan(text: tr(title), style: TextStyle(color: theme.textTheme.titleMedium?.color, fontWeight: FontWeight.w600)),
+              ]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14),
+            ),
+          )
+        : null;
     final titleBlock = Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
       if (ic != null && !narrow) ...[
         Container(
-          width: 46,
-          height: 46,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            gradient: LinearGradient(colors: [accent, Color.lerp(accent, Colors.white, .28)!], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            boxShadow: [BoxShadow(color: accent.withValues(alpha: .28), blurRadius: 14, offset: const Offset(0, 6))],
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(colors: [Color.lerp(accent, Colors.white, .22)!, accent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            boxShadow: [BoxShadow(color: accent.withValues(alpha: .25), blurRadius: 16, offset: const Offset(0, 6))],
           ),
-          child: Icon(ic, color: Colors.white, size: 23),
+          child: Icon(ic, color: Colors.white, size: 25),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
       ],
       Flexible(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          if (nav != null && nav.group.isNotEmpty)
-            Text(tr(nav.group.toUpperCase()), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.1, color: accent)),
-          Text(tr(title), style: theme.textTheme.headlineSmall),
+          Text(tr(title), style: theme.textTheme.headlineSmall?.copyWith(fontSize: narrow ? 23 : 28, letterSpacing: -.7, height: 1.15)),
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.only(top: 3),
-              child: Text(tr(subtitle!), style: TextStyle(color: theme.hintColor, fontSize: 13.5)),
+              child: Text(tr(subtitle!), style: TextStyle(color: theme.hintColor, fontSize: 14.5)),
             ),
         ]),
       ),
@@ -250,13 +264,17 @@ class PageHeader extends StatelessWidget {
       offset: 8,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(narrow ? 16 : 24, narrow ? 16 : 22, narrow ? 16 : 24, 14),
+        padding: EdgeInsets.fromLTRB(narrow ? 16 : 28, narrow ? 14 : 20, narrow ? 16 : 28, 16),
         child: narrow
             ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ?crumb,
                 titleBlock,
                 if (actions.isNotEmpty) ...[const SizedBox(height: 12), Wrap(spacing: 8, runSpacing: 8, children: actions)],
               ])
-            : Row(children: [Expanded(child: titleBlock), ...actions.expand((a) => [const SizedBox(width: 8), a])]),
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                ?crumb,
+                Row(children: [Expanded(child: titleBlock), ...actions.expand((a) => [const SizedBox(width: 10), a])]),
+              ]),
       ),
     );
   }
@@ -306,32 +324,46 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     final icon = this.icon ?? (autoIcon ? kpiIcon(label) : null);
+    final d = (detail ?? '').trim();
+    // Variation (« +12 % », « ↑ … », « -3 % ») : pastille verte ou rouge, comme sur le tableau de bord
+    final up = RegExp(r'^(\+|↑|▲)').hasMatch(d);
+    final down = RegExp(r'^(-\s?\d|−|↓|▼)').hasMatch(d);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           child: Row(children: [
             if (icon != null) ...[
               Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: color.withValues(alpha: .11), borderRadius: BorderRadius.circular(11)),
-                child: Icon(icon, color: color, size: 21),
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: color.withValues(alpha: .11), borderRadius: BorderRadius.circular(13)),
+                child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
             ],
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(tr(label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12.5, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
+                Text(tr(label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 13.5, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 3),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(tr(value), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -.4, color: valueColor, fontFeatures: const [FontFeature.tabularFigures()])),
+                  child: Text(tr(value), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -.6, color: valueColor, fontFeatures: const [FontFeature.tabularFigures()])),
                 ),
-                Text(tr(detail ?? ' '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12)),
+                if (up || down)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: (up ? YColors.success : YColors.danger).withValues(alpha: .11), borderRadius: BorderRadius.circular(8)),
+                    child: Text(tr(d), maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Color.lerp(up ? YColors.success : YColors.danger, Colors.black, .15), fontSize: 12, fontWeight: FontWeight.w600)),
+                  )
+                else
+                  // Une ligne réservée même sans détail : toutes les cartes d'une rangée ont la même hauteur
+                  Text(tr(d.isEmpty ? ' ' : d), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12.5)),
               ]),
             ),
           ]),
@@ -448,7 +480,7 @@ class InitialsAvatar extends StatelessWidget {
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: c.withValues(alpha: .12), borderRadius: BorderRadius.circular(size * .32)),
+      decoration: BoxDecoration(color: c.withValues(alpha: .12), shape: BoxShape.circle),
       child: Text(tr(ini), style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: size * .38)),
     );
   }
@@ -517,12 +549,11 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.fromLTRB(8, 3, 10, 3),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.fromLTRB(icon != null ? 8 : 10, 4, 10, 4),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.11), borderRadius: BorderRadius.circular(8)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) Icon(icon, size: 13, color: color) else Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Flexible(child: Text(tr(label), overflow: TextOverflow.ellipsis, style: TextStyle(color: Color.lerp(color, Colors.black, .18), fontSize: 12, fontWeight: FontWeight.w600))),
+          if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 6)],
+          Flexible(child: Text(tr(label), overflow: TextOverflow.ellipsis, style: TextStyle(color: Color.lerp(color, Colors.black, .18), fontSize: 12.5, fontWeight: FontWeight.w600))),
         ]),
       );
 }
@@ -631,7 +662,7 @@ class ResponsiveList<T> extends StatelessWidget {
               showCheckboxColumn: false,
               columnSpacing: 24,
               horizontalMargin: 20,
-              columns: [for (final col in columns) DataColumn(label: Text(tr(col.toUpperCase())))],
+              columns: [for (final col in columns) DataColumn(label: Text(tr(col)))],
               rows: [
                 for (final it in items)
                   DataRow(onSelectChanged: onTap == null ? null : (_) => onTap!(it), cells: [for (final w in cells(it)) DataCell(ConstrainedBox(constraints: const BoxConstraints(maxWidth: 340), child: w))]),
@@ -814,20 +845,45 @@ Future<T?> showFormDialog<T>(BuildContext context, {required String title, requi
       builder: (c) => Scaffold(appBar: AppBar(title: Text(tr(title))), body: builder(c)),
     ));
   }
-  return showDialog<T>(
+  return showSidePanel<T>(context, title: title, subtitle: subtitle, icon: icon, width: maxWidth, builder: builder);
+}
+
+/// Panneau latéral droit (formulaires de création et de modification) : pleine hauteur, glisse depuis la droite.
+Future<T?> showSidePanel<T>(BuildContext context, {required String title, required Widget Function(BuildContext) builder, double width = 520, String? subtitle, IconData? icon}) {
+  final theme = Theme.of(context);
+  final dark = theme.brightness == Brightness.dark;
+  return showGeneralDialog<T>(
     context: context,
-    builder: (c) => Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: 820),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          DialogHeader(title: Text(tr(title)), subtitle: subtitle, icon: icon == null ? null : Icon(icon), onClose: () => Navigator.pop(c)),
-          Divider(height: 1, color: Theme.of(c).brightness == Brightness.dark ? Colors.white10 : const Color(0xFFEDF1F7)),
-          Flexible(child: builder(c)),
-        ]),
+    barrierDismissible: true,
+    barrierLabel: tr('Fermer'),
+    barrierColor: (dark ? Colors.black : YColors.night).withValues(alpha: .28),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (c, _, _) => Align(
+      alignment: Alignment.centerRight,
+      child: Material(
+        color: theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+        elevation: 16,
+        shadowColor: Colors.black.withValues(alpha: .3),
+        clipBehavior: Clip.antiAlias,
+        borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+        child: SizedBox(
+          width: (width < 480 ? 480.0 : width).clamp(0, MediaQuery.of(c).size.width - 40).toDouble(),
+          height: double.infinity,
+          child: SafeArea(
+            left: false,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              DialogHeader(title: Text(tr(title)), subtitle: subtitle, icon: icon == null ? null : Icon(icon), onClose: () => Navigator.pop(c), padding: const EdgeInsets.fromLTRB(24, 22, 16, 16)),
+              Divider(height: 1, color: dark ? Colors.white10 : const Color(0xFFEDF1F7)),
+              Expanded(child: Align(alignment: Alignment.topCenter, child: builder(c))),
+            ]),
+          ),
+        ),
       ),
     ),
+    transitionBuilder: (c, a, _, child) {
+      final curve = CurvedAnimation(parent: a, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+      return SlideTransition(position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(curve), child: child);
+    },
   );
 }
 

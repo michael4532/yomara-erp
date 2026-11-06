@@ -165,10 +165,11 @@ ThemeData buildTheme(Brightness brightness) {
       textStyle: const TextStyle(color: Colors.white, fontSize: 12),
       waitDuration: const Duration(milliseconds: 400),
     ),
+    // Choix exclusifs (Entreprise / Particulier…) : bouton actif bleu nuit, coins arrondis
     segmentedButtonTheme: SegmentedButtonThemeData(style: SegmentedButton.styleFrom(
-      shape: const StadiumBorder(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       side: BorderSide(color: dark ? Colors.white24 : YColors.line),
-      selectedBackgroundColor: scheme.primary,
+      selectedBackgroundColor: dark ? scheme.primary : const Color(0xFF17213A),
       selectedForegroundColor: Colors.white,
       backgroundColor: dark ? const Color(0xFF162238) : Colors.white,
       foregroundColor: dark ? Colors.white70 : YColors.inkSoft,
@@ -176,21 +177,18 @@ ThemeData buildTheme(Brightness brightness) {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       visualDensity: VisualDensity.compact,
     )),
-    // Onglets en « pastilles » (plus modernes que le simple soulignement)
+    // Onglets : fond bleu clair et trait bleu sous l'onglet actif
     tabBarTheme: TabBarThemeData(
       indicatorSize: TabBarIndicatorSize.tab,
       splashBorderRadius: BorderRadius.circular(10),
-      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 18),
       dividerColor: dark ? Colors.white12 : YColors.line,
       labelColor: scheme.primary,
       unselectedLabelColor: dark ? Colors.white60 : YColors.muted,
       labelStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 14),
       unselectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w500, fontSize: 14),
       overlayColor: WidgetStatePropertyAll(scheme.primary.withValues(alpha: .05)),
-      indicator: ShapeDecoration(
-        color: scheme.primary.withValues(alpha: dark ? .22 : .09),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: scheme.primary.withValues(alpha: .25))),
-      ),
+      indicator: TabUnderlineFill(color: scheme.primary, fill: scheme.primary.withValues(alpha: dark ? .20 : .08)),
       indicatorAnimation: TabIndicatorAnimation.elastic,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary, linearTrackColor: scheme.primary.withValues(alpha: .12)),
@@ -249,14 +247,44 @@ ThemeData buildTheme(Brightness brightness) {
     ),
     dividerTheme: DividerThemeData(color: dark ? Colors.white12 : YColors.line, space: 1),
     dataTableTheme: DataTableThemeData(
-      headingRowColor: WidgetStatePropertyAll(dark ? const Color(0xFF14203A) : YColors.subtle),
-      headingRowHeight: 46,
-      headingTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: dark ? Colors.white60 : YColors.muted, fontSize: 12, letterSpacing: .3),
-      dataTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: dark ? Colors.white.withValues(alpha: .9) : YColors.ink),
-      dataRowMinHeight: 54,
-      dataRowMaxHeight: 60,
+      headingRowColor: WidgetStatePropertyAll(dark ? const Color(0xFF14203A) : const Color(0xFFF3F5F9)),
+      headingRowHeight: 50,
+      headingTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: dark ? Colors.white70 : YColors.inkSoft, fontSize: 13.5),
+      dataTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 14.5, color: dark ? Colors.white.withValues(alpha: .9) : YColors.ink),
+      dataRowMinHeight: 58,
+      dataRowMaxHeight: 64,
       dividerThickness: .6,
       dataRowColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.hovered) ? scheme.primary.withValues(alpha: .04) : null),
     ),
   );
+}
+
+/// Indicateur d'onglet : fond teinté arrondi en haut et trait de couleur en bas.
+class TabUnderlineFill extends Decoration {
+  const TabUnderlineFill({required this.color, required this.fill, this.thickness = 2.5});
+
+  final Color color;
+  final Color fill;
+  final double thickness;
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _TabUnderlineFillPainter(this);
+}
+
+class _TabUnderlineFillPainter extends BoxPainter {
+  _TabUnderlineFillPainter(this.d);
+
+  final TabUnderlineFill d;
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size;
+    if (size == null) return;
+    final r = (offset & size).deflate(2).translate(0, 2);
+    canvas.drawRRect(RRect.fromRectAndCorners(r, topLeft: const Radius.circular(10), topRight: const Radius.circular(10)), Paint()..color = d.fill);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(r.left, r.bottom - d.thickness, r.width, d.thickness), Radius.circular(d.thickness)),
+      Paint()..color = d.color,
+    );
+  }
 }

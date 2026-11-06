@@ -110,7 +110,7 @@ class _PartnersScreenState extends State<PartnersScreen> {
             final all = LocalDb.all('partners');
             final cur = context.read<Session>().currency;
             final hint = Theme.of(context).hintColor;
-            Color typeColor(String? t) => t == 'supplier' ? const Color(0xFF0D9488) : (t == 'both' ? const Color(0xFF9333EA) : (t == 'prospect' ? const Color(0xFFD97706) : YColors.blue));
+            Color typeColor(String? t) => t == 'supplier' ? YColors.blue : (t == 'both' ? const Color(0xFF9333EA) : (t == 'prospect' ? const Color(0xFFD97706) : YColors.success));
 
             final lists = {for (final l in LocalDb.all('pl_lists')) '${l['id']}': '${l['name']}'};
             final base = all.where((p) {

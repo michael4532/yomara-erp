@@ -647,7 +647,7 @@ class _AppShellState extends State<AppShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuide());
     }
     final wide = MediaQuery.of(context).size.width >= 1000;
-    SbColors.light = Theme.of(context).brightness == Brightness.light && !UiPrefs.flag('sidebar_dark');
+    SbColors.light = Theme.of(context).brightness == Brightness.light && UiPrefs.flag('sidebar_light');
 
     final suspended = session.bootstrap?['suspended'] as String?;
     final expiring = [for (final m in (session.bootstrap?['expiring_modules'] as List? ?? const [])) asMap(m)];
@@ -795,7 +795,7 @@ class _AppShellState extends State<AppShell> {
                           canSettings: items.any((i) => i.id == 'settings'),
                           canMe: items.any((i) => i.id == 'mon_espace'),
                           onToggleSidebarTheme: () async {
-                            await UiPrefs.setFlag('sidebar_dark', SbColors.light);
+                            await UiPrefs.setFlag('sidebar_light', !SbColors.light);
                             setState(() {});
                           },
                         ),
@@ -883,16 +883,16 @@ class _AppShellState extends State<AppShell> {
 /// Couleurs du menu latéral : clair (par défaut) ou sombre (thème sombre, ou préférence « menu sombre »).
 class SbColors {
   static bool light = true;
-  static Color get bg => light ? Colors.white : YColors.night;
+  static Color get bg => light ? Colors.white : const Color(0xFF17213A);
   static Color get text => light ? const Color(0xFF15233F) : Colors.white;
-  static Color get sub => light ? const Color(0xFF6B7A94) : const Color(0xFF9FB0D4);
-  static Color get icon => light ? const Color(0xFF5B6B85) : const Color(0xFFB9C6E4);
-  static Color get label => light ? const Color(0xFF33415C) : const Color(0xFFD5DEF2);
-  static Color get muted => light ? const Color(0xFF8A97AD) : const Color(0xFF7F8FB3);
+  static Color get sub => light ? const Color(0xFF6B7A94) : const Color(0xFF94A3C4);
+  static Color get icon => light ? const Color(0xFF5B6B85) : const Color(0xFFC3CDE3);
+  static Color get label => light ? const Color(0xFF33415C) : const Color(0xFFE6ECF7);
+  static Color get muted => light ? const Color(0xFF8A97AD) : const Color(0xFF8391AF);
   static Color get fill => light ? const Color(0xFFF2F5FA) : Colors.white.withValues(alpha: .07);
-  static Color get sel => light ? YColors.blue.withValues(alpha: .09) : Colors.white.withValues(alpha: .12);
+  static Color get sel => light ? YColors.blue.withValues(alpha: .09) : const Color(0xFF26324F);
   static Color get accent => light ? YColors.blue : YColors.yellow;
-  static Color get border => light ? YColors.line : Colors.white24;
+  static Color get border => light ? YColors.line : Colors.white.withValues(alpha: .10);
 }
 
 /// Menu latéral : tableau de bord, favoris, puis les espaces de travail repliables ; mode réduit (icônes).
@@ -925,12 +925,18 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
     final byId = {for (final it in items) it.id: it};
-    final placed = <String>{};
+    // En bas du menu : modules & tarifs, paramètres (comme sur les maquettes)
+    final pinned = [
+      for (final id in [byId.containsKey('store') ? 'store' : 'license', 'settings'])
+        if (byId[id] != null) byId[id]!,
+    ];
+    final pinnedIds = {for (final p in pinned) p.id};
+    final placed = <String>{...pinnedIds};
     final groups = <(NavGroup, List<NavItem>)>[];
     for (final g in navGroups) {
       final its = [
         for (final id in g.ids)
-          if (byId[id] != null && id != 'dashboard') byId[id]!,
+          if (byId[id] != null && id != 'dashboard' && (rail || !pinnedIds.contains(id))) byId[id]!,
       ];
       placed.addAll(g.ids);
       if (its.isNotEmpty) groups.add((g, its));
@@ -972,7 +978,7 @@ class _Sidebar extends StatelessWidget {
                         style: TextStyle(color: SbColors.text, fontWeight: FontWeight.w700),
                       ),
                       Text(
-                        tr((session.user['name'] as String?) ?? ''),
+                        tr('Yomara ERP'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: SbColors.sub, fontSize: 12),
@@ -1028,7 +1034,10 @@ class _Sidebar extends StatelessWidget {
         children.add(_RailMenu(icon: g.icon, label: g.label, items: its, current: current, onSelect: onSelect));
       }
     } else {
-      if (dash != null) children.add(_NavTile(item: dash, selected: current == 'dashboard', onTap: () => onSelect('dashboard')));
+      if (dash != null) {
+        children.add(const _SectionTitle('Vue d\'ensemble'));
+        children.add(_NavTile(item: dash, selected: current == 'dashboard', onTap: () => onSelect('dashboard')));
+      }
       if (favs.isNotEmpty) {
         children.add(const _SectionTitle('Favoris'));
         for (final it in favs) {
@@ -1072,9 +1081,7 @@ class _Sidebar extends StatelessWidget {
               color: SbColors.bg,
               border: const Border(right: BorderSide(color: YColors.line)),
             )
-          : const BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0D1F44), YColors.night, Color(0xFF081430)]),
-            ),
+          : BoxDecoration(color: SbColors.bg),
       child: SafeArea(
         child: Column(
           children: [
@@ -1091,9 +1098,17 @@ class _Sidebar extends StatelessWidget {
             Expanded(
               child: ListView(padding: const EdgeInsets.only(bottom: 12), children: children),
             ),
-            if (!rail)
-              const Padding(padding: EdgeInsets.fromLTRB(12, 4, 12, 4), child: SyncBadge())
-            else
+            if (!rail) ...[
+              Divider(height: 1, indent: 18, endIndent: 18, color: SbColors.border),
+              const SizedBox(height: 6),
+              for (final it in pinned)
+                _NavTile(
+                  item: it.id == 'store' || it.id == 'license' ? NavItem(it.id, tr('Modules & tarifs'), Icons.view_in_ar_outlined, it.builder) : it,
+                  selected: it.id == current,
+                  onTap: () => onSelect(it.id),
+                ),
+              const _UserCard(),
+            ] else
               const Padding(padding: EdgeInsets.all(6), child: SyncBadge(compact: true)),
             if (onToggleRail != null && rail)
               Align(
@@ -1105,6 +1120,51 @@ class _Sidebar extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte de l'utilisateur en bas du menu : initiales, nom, rôle ; ouvre le compte.
+class _UserCard extends StatelessWidget {
+  const _UserCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<Session>();
+    final name = '${s.user['name'] ?? ''}'.trim();
+    final initials = name.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2).map((w) => w[0].toUpperCase()).join();
+    final role = s.isSuperAdmin ? tr('Super administrateur') : tr('${s.user['role'] ?? s.user['email'] ?? ''}');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Material(
+        color: SbColors.light ? const Color(0xFFF4F6FA) : const Color(0xFF212C47),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _accountSheet(context),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: SbColors.border)),
+            child: Row(children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: YColors.blue),
+                child: Text(initials.isEmpty ? '?' : initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: SbColors.text, fontWeight: FontWeight.w700, fontSize: 14)),
+                  if (role.isNotEmpty) Text(role, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: SbColors.sub, fontSize: 12)),
+                ]),
+              ),
+              Icon(Icons.chevron_right_rounded, color: SbColors.muted, size: 20),
+            ]),
+          ),
         ),
       ),
     );
@@ -1181,19 +1241,13 @@ class _GroupHeader extends StatelessWidget {
                   child: Text(
                     tr(group.label),
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: active ? SbColors.text : SbColors.label, fontWeight: active ? FontWeight.w700 : FontWeight.w600, fontSize: 14),
+                    style: TextStyle(color: active ? SbColors.text : SbColors.label, fontWeight: active ? FontWeight.w700 : FontWeight.w500, fontSize: 14.5),
                   ),
                 ),
-                if (!open)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                    decoration: BoxDecoration(color: SbColors.fill, borderRadius: BorderRadius.circular(10)),
-                    child: Text(tr('$count'), style: TextStyle(color: SbColors.sub, fontSize: 11)),
-                  ),
                 AnimatedRotation(
-                  turns: open ? .25 : 0,
+                  turns: open ? .5 : 0,
                   duration: const Duration(milliseconds: 200),
-                  child: Icon(Icons.chevron_right, size: 18, color: SbColors.muted),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: SbColors.muted),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -1316,15 +1370,7 @@ class _NavTileState extends State<_NavTile> {
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            gradient: sel
-                ? LinearGradient(
-                    colors: [
-                      SbColors.sel,
-                      SbColors.sel.withValues(alpha: SbColors.light ? .04 : .03),
-                    ],
-                  )
-                : null,
-            color: sel ? null : (_hover ? SbColors.fill : Colors.transparent),
+            color: sel ? SbColors.sel : (_hover ? SbColors.fill : Colors.transparent),
           ),
           child: Material(
             type: MaterialType.transparency,
@@ -1343,7 +1389,7 @@ class _NavTileState extends State<_NavTile> {
                       margin: EdgeInsets.only(right: widget.indent ? 10 : 13),
                       decoration: BoxDecoration(color: SbColors.accent, borderRadius: BorderRadius.circular(3)),
                     ),
-                    Icon(widget.item.icon, size: widget.indent ? 18 : 20, color: sel ? SbColors.accent : SbColors.icon),
+                    Icon(widget.item.icon, size: widget.indent ? 18 : 20, color: sel ? (SbColors.light ? SbColors.accent : Colors.white) : SbColors.icon),
                     SizedBox(width: widget.indent ? 12 : 16),
                     Expanded(
                       child: Text(
@@ -1352,7 +1398,7 @@ class _NavTileState extends State<_NavTile> {
                         style: TextStyle(
                           fontSize: widget.indent ? 13.5 : 14,
                           color: sel ? (SbColors.light ? YColors.blue : Colors.white) : (_hover ? SbColors.text : SbColors.label),
-                          fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
                     ),
@@ -1475,7 +1521,6 @@ class _TopBar extends StatelessWidget {
     final hint = Theme.of(context).hintColor;
     final name = (session.user['name'] as String?) ?? '';
     final initials = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2).map((w) => w[0].toUpperCase()).join();
-    final group = item.id == 'dashboard' ? null : groupOf(item.id);
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1491,23 +1536,8 @@ class _TopBar extends StatelessWidget {
             icon: Icon(rail ? Icons.menu : Icons.menu_open, color: hint),
           ),
           const SizedBox(width: 6),
-          if (group != null) ...[
-            Icon(group.icon, size: 17, color: hint),
-            const SizedBox(width: 6),
-            Text(tr(group.label), style: TextStyle(color: hint, fontSize: 13.5)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(Icons.chevron_right, size: 18, color: hint),
-            ),
-          ],
-          Expanded(
-            flex: 2,
-            child: Text(
-              tr(item.label),
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-            ),
-          ),
+          // Fil d'Ariane et titre : dans l'en-tête de chaque page
+          const Spacer(flex: 2),
           Expanded(
             flex: 3,
             child: Align(

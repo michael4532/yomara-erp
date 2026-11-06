@@ -225,17 +225,17 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = primary ? Colors.white : Theme.of(context).colorScheme.onSurface;
-    final sub = primary ? Colors.white.withValues(alpha: .8) : Theme.of(context).hintColor;
+    // Toutes les cartes en blanc (style des maquettes) ; la première garde seulement une icône bleue pleine
+    final hero = primary; // première carte : icône bleue pleine
+    final fg = Theme.of(context).colorScheme.onSurface;
+    final sub = Theme.of(context).hintColor;
     return Material(
-      color: primary ? null : Theme.of(context).cardColor,
+      color: Theme.of(context).cardColor,
       borderRadius: BorderRadius.circular(18),
       child: Ink(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: primary ? const LinearGradient(colors: [Color(0xFF1F6FEB), Color(0xFF1453C4)], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-          border: primary ? null : Border.all(color: dark ? Colors.white12 : YColors.line),
-          boxShadow: primary ? [BoxShadow(color: YColors.blue.withValues(alpha: .28), blurRadius: 22, offset: const Offset(0, 10))] : null,
+          border: Border.all(color: dark ? Colors.white12 : YColors.line),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -247,13 +247,16 @@ class _KpiCard extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(
-                  padding: EdgeInsets.all(compact ? 6 : 8),
-                  decoration: BoxDecoration(color: primary ? Colors.white.withValues(alpha: .16) : YColors.blue.withValues(alpha: .08), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, size: compact ? 16 : 18, color: primary ? Colors.white : YColors.blue),
+                  width: compact ? 34 : 42,
+                  height: compact ? 34 : 42,
+                  decoration: BoxDecoration(color: hero ? YColors.blue : YColors.blue.withValues(alpha: .09), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(icon, size: compact ? 17 : 21, color: hero ? Colors.white : YColors.blue),
                 ),
-                SizedBox(width: compact ? 8 : 10),
-                Expanded(child: Text(tr(title), maxLines: compact ? 2 : 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: sub, fontSize: compact ? 12 : 13, fontWeight: FontWeight.w600, height: 1.25))),
-                if (!compact) Icon(Icons.north_east, size: 16, color: sub),
+                SizedBox(width: compact ? 8 : 12),
+                Expanded(child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(tr(title), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: sub, fontSize: compact ? 12 : 14, fontWeight: FontWeight.w600, height: 1.25)),
+                )),
               ]),
               SizedBox(height: compact ? 10 : 16),
               Tooltip(
@@ -270,15 +273,13 @@ class _KpiCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: primary
-                          ? Colors.white.withValues(alpha: .16)
-                          : (ch.neutral ? YColors.blue : (ch.good ? YColors.success : YColors.danger)).withValues(alpha: .1),
+                      color: (ch.neutral ? YColors.blue : (ch.good ? YColors.success : YColors.danger)).withValues(alpha: .1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (!ch.neutral) ...[
                         Icon(ch.good ? Icons.arrow_upward : Icons.arrow_downward, size: 12,
-                            color: primary ? Colors.white : (ch.good ? YColors.success : YColors.danger)),
+                            color: (ch.good ? YColors.success : YColors.danger)),
                         const SizedBox(width: 3),
                       ],
                       Flexible(
@@ -288,7 +289,7 @@ class _KpiCard extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: primary ? Colors.white : (ch.neutral ? YColors.blue : (ch.good ? YColors.success : YColors.danger)))),
+                              color: (ch.neutral ? YColors.blue : (ch.good ? YColors.success : YColors.danger)))),
                       ),
                     ]),
                   ),
