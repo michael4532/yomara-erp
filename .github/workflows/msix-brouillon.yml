@@ -1,0 +1,36 @@
+# Yomara ERP — range le paquet MSIX d'une compilation dans une publication BROUILLON (privée),
+# pour le récupérer sans passer par le stockage temporaire des « artifacts ».
+#
+# Copyright © 2026 Yomara Technologies — licence AGPL-3.0 (voir LICENSE et NOTICE.md).
+name: MSIX vers brouillon de publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Numéro de la compilation « Paquet Microsoft Store (MSIX) »"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  brouillon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msix
+          path: dist
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publication brouillon
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN: ${{ github.event.inputs.run_id }}
+        run: |
+          F=$(ls dist/*.msix | head -1)
+          TAG="msix-$RUN"
+          gh release delete "$TAG" -R "$GITHUB_REPOSITORY" -y 2>/dev/null || true
+          gh release create "$TAG" "$F" -R "$GITHUB_REPOSITORY" --draft --title "MSIX $(basename "$F")" --notes "Paquet Microsoft Store (brouillon privé)."
