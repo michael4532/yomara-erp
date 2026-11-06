@@ -16,8 +16,14 @@ REPO="${YOMARA_REPO:-michael4532/yomara-erp}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${MSIX_OUT:-$ROOT/sorties/msix}"
 
-command -v gh >/dev/null 2>&1 || { echo "Installez GitHub CLI : brew install gh, puis gh auth login" >&2; exit 1; }
-gh auth status >/dev/null 2>&1 || { echo "Connectez-vous d'abord : gh auth login" >&2; exit 1; }
+if ! command -v gh >/dev/null 2>&1; then
+  if command -v brew >/dev/null 2>&1; then echo "Installation de GitHub CLI (une seule fois)…"; brew install gh
+  else echo "Installez GitHub CLI : https://cli.github.com (ou brew install gh)" >&2; exit 1; fi
+fi
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Connexion à GitHub (une seule fois) : choisissez GitHub.com, HTTPS, puis « Login with a web browser »."
+  gh auth login --hostname github.com --git-protocol https --web
+fi
 
 V="$(gh api "repos/$REPO/contents/app/pubspec.yaml" -H 'Accept: application/vnd.github.raw' | grep -E '^version:' | awk '{print $2}' | cut -d+ -f1)"
 echo "Yomara ERP $V — paquet Microsoft Store ($V.0)"

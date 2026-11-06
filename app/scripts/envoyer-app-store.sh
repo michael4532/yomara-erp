@@ -4,6 +4,10 @@
 #   ./scripts/envoyer-app-store.sh          → Mac et iPhone
 #   ./scripts/envoyer-app-store.sh mac      → Mac seulement
 #   ./scripts/envoyer-app-store.sh iphone   → iPhone seulement
+#   ./scripts/envoyer-app-store.sh mac-pkg  → Mac : crée seulement le fichier .pkg à envoyer
+#                                             (avec Transporter ou plus tard), sans l'envoyer
+#   ./scripts/envoyer-app-store.sh iphone-ipa → iPhone : crée seulement le fichier .ipa
+#   (dossier du fichier : SORTIE=/chemin, par défaut build/appstore/fichiers)
 #
 # Prérequis (une seule fois) :
 #   - Xcode connecté à votre compte Apple Developer (Xcode › Réglages › Comptes) ;
@@ -14,12 +18,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 WHAT="${1:-tout}"
+DEST=upload
+case "$WHAT" in mac-pkg) WHAT=mac; DEST=export ;; iphone-ipa) WHAT=iphone; DEST=export ;; esac
+SORTIE="${SORTIE:-$ROOT/build/appstore/fichiers}"
 [ "$(uname)" = "Darwin" ] || { echo "L'envoi sur l'App Store se fait depuis un Mac." >&2; exit 1; }
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2; exit 1; }
 command -v xcodebuild >/dev/null 2>&1 || { echo "Xcode n'est pas installé." >&2; exit 1; }
 
 VERSION="$(grep -E '^version:' pubspec.yaml | awk '{print $2}')"
-echo "Yomara ERP $VERSION — envoi sur App Store Connect"
+if [ "$DEST" = export ]; then echo "Yomara ERP $VERSION — création du fichier pour App Store Connect"; else echo "Yomara ERP $VERSION — envoi sur App Store Connect"; fi
 
 TEAMFILE="$HOME/.yomara-keys/apple-team-id"
 TEAM="${APPLE_TEAM_ID:-$(cat "$TEAMFILE" 2>/dev/null || true)}"
@@ -46,7 +53,7 @@ export_plist() { # $1 = fichier, envoi direct sur App Store Connect
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>method</key><string>app-store-connect</string>
-  <key>destination</key><string>upload</string>
+  <key>destination</key><string>$DEST</string>
   <key>teamID</key><string>$TEAM</string>
   <key>signingStyle</key><string>automatic</string>
   <key>uploadSymbols</key><true/>
@@ -54,7 +61,7 @@ export_plist() { # $1 = fichier, envoi direct sur App Store Connect
 PL
 }
 
-mkdir -p build/appstore
+mkdir -p build/appstore; rm -rf build/appstore/mac build/ios/ipa
 flutter pub get >/dev/null
 ok=()
 
@@ -82,6 +89,20 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "iphone" ]; then
   ok+=("iPhone")
 fi
 
+if [ "$DEST" = export ]; then
+  mkdir -p "$SORTIE"
+  V="$(echo "$VERSION" | tr '+' '-')"
+  for f in build/appstore/mac/*.pkg; do
+    if [ -f "$f" ]; then cp "$f" "$SORTIE/Yomara-ERP-mac-$V.pkg"; echo "Fichier Mac : $SORTIE/Yomara-ERP-mac-$V.pkg"; fi
+  done
+  for f in build/ios/ipa/*.ipa; do
+    if [ -f "$f" ]; then cp "$f" "$SORTIE/Yomara-ERP-ios-$V.ipa"; echo "Fichier iPhone : $SORTIE/Yomara-ERP-ios-$V.ipa"; fi
+  done
+  echo
+  echo "Pour l'envoyer : app Transporter (Mac App Store, gratuite) › connectez-vous › glissez le fichier › Livrer."
+  open -R "$SORTIE" 2>/dev/null || true
+  exit 0
+fi
 echo
 echo "Envoyé sur App Store Connect : ${ok[*]}"
 echo "Dans 10 à 30 minutes, la version apparaît dans App Store Connect › votre app › TestFlight, puis"
