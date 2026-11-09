@@ -36,6 +36,9 @@ const _icons = <String, IconData>{
   'sensya': Icons.auto_awesome,
 };
 
+/// Statistiques d'une publication : le serveur peut renvoyer une liste vide au lieu d'un objet.
+Map<String, dynamic> _statsOf(dynamic v) => v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
 void openUrl(String u) => safeLaunchUrl(Uri.parse(u), mode: LaunchMode.externalApplication);
 
 Color _hex(dynamic v, [Color fallback = YColors.blue]) {
@@ -174,7 +177,7 @@ class _SocialScreenState extends State<SocialScreen> {
     final counts = rawCounts is Map ? Map<String, dynamic>.from(rawCounts) : <String, dynamic>{};
     final tabs = <(String, Widget)>[
       ('Planificateur', _Planner(key: ValueKey('planner$_rev'), networks: _networks, onOpen: _open, onCreate: canWrite ? (d) => _compose(null, d) : null)),
-      ('Publications', _PostList(key: ValueKey('list$_rev'), networks: _networks, onOpen: _open, pending: (counts['pending'] as num?)?.toInt() ?? 0)),
+      ('Publications', _PostList(key: const ValueKey('list'), rev: _rev, networks: _networks, onOpen: _open, pending: (counts['pending'] as num?)?.toInt() ?? 0)),
       if (_can['inbox'] == true) ('Boîte de réception', SocialInboxTab(canSetup: _can['accounts'] == true || _can['publish'] == true)),
       ('Studio visuel', SocialStudioTab(canWrite: canWrite, onCreated: canWrite && _accounts.isNotEmpty ? (m) => _compose({'media': [m], 'body': ''}) : null)),
       ('Comptes', _AccountsTab(networks: _networks, accounts: _accounts, can: _can, onChanged: _load)),
@@ -315,12 +318,12 @@ class _PostTile extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(verbatim('# ${p['campaign']}'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                         ],
-                        if ((p['stats']?['likes'] ?? 0) + (p['stats']?['comments'] ?? 0) > 0) ...[
+                        if (((_statsOf(p['stats'])['likes'] as num?) ?? 0) + ((_statsOf(p['stats'])['comments'] as num?) ?? 0) > 0) ...[
                           const SizedBox(width: 8),
                           Icon(Icons.favorite_border, size: 14, color: Theme.of(context).hintColor),
-                          Text(' ${p['stats']['likes']}  ', style: const TextStyle(fontSize: 12)),
+                          Text(' ${_statsOf(p['stats'])['likes'] ?? 0}  ', style: const TextStyle(fontSize: 12)),
                           Icon(Icons.mode_comment_outlined, size: 14, color: Theme.of(context).hintColor),
-                          Text(' ${p['stats']['comments']}', style: const TextStyle(fontSize: 12)),
+                          Text(' ${_statsOf(p['stats'])['comments'] ?? 0}', style: const TextStyle(fontSize: 12)),
                         ],
                       ],
                     ),
@@ -572,10 +575,13 @@ class _PlannerState extends State<_Planner> {
 // ---------------------------------------------------------------------------
 
 class _PostList extends StatefulWidget {
-  const _PostList({super.key, required this.networks, required this.onOpen, required this.pending});
+  const _PostList({super.key, required this.networks, required this.onOpen, required this.pending, this.rev = 0});
   final List<Map<String, dynamic>> networks;
   final void Function(Map<String, dynamic>) onOpen;
   final int pending;
+
+  /// Change après une action (validation, suppression…) : la liste se recharge sans perdre filtres, recherche et sélection.
+  final int rev;
 
   @override
   State<_PostList> createState() => _PostListState();
@@ -639,9 +645,15 @@ class _PostListState extends State<_PostList> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant _PostList old) {
+    super.didUpdateWidget(old);
+    if (old.rev != widget.rev) _load();
+  }
+
   Future<void> _load() async {
     try {
-      final r = await context.read<Session>().api.get('social/posts', query: {if (_q.isNotEmpty) 'q': _q, 'limit': '500'});
+      final r = await context.read<Session>().api.get('social/posts', query: {'limit': '500'});
       if (!mounted) return;
       setState(() => _rows = [for (final p in (r['data'] as List)) Map<String, dynamic>.from(p as Map)]);
     } catch (e) {
@@ -654,10 +666,17 @@ class _PostListState extends State<_PostList> {
     return st.isEmpty || st.contains(p['status']);
   }
 
+  bool _inQuery(Map<String, dynamic> p) {
+    final q = _q.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final hay = [p['title'], p['body'], p['campaign'], for (final t in (p['targets'] as List? ?? const [])) (t as Map)['account']].join(' ').toLowerCase();
+    return q.split(RegExp(r'\s+')).every(hay.contains);
+  }
+
   bool _inNet(Map<String, dynamic> p) => _net == null || (p['targets'] as List? ?? const []).any((t) => (t as Map)['network'] == _net);
 
   List<Map<String, dynamic>> get _visible {
-    final l = (_rows ?? const <Map<String, dynamic>>[]).where((p) => _inFilter(p, _filter) && _inNet(p)).toList();
+    final l = (_rows ?? const <Map<String, dynamic>>[]).where((p) => _inFilter(p, _filter) && _inNet(p) && _inQuery(p)).toList();
     if (_filter == 'upcoming') l.sort((a, b) => '${a['scheduled_at'] ?? ''}'.compareTo('${b['scheduled_at'] ?? ''}'));
     return l;
   }
@@ -686,9 +705,9 @@ class _PostListState extends State<_PostList> {
       Map<String, dynamic>? sel;
       if (wide && list.isNotEmpty) sel = list.firstWhere((p) => p['id'] == _selected, orElse: () => list.first);
       final nets = <String>{for (final p in rows ?? const <Map<String, dynamic>>[]) for (final x in (p['targets'] as List? ?? const [])) '${(x as Map)['network']}'}.toList()..sort();
-      final views = list.fold<num>(0, (a, p) => a + ((p['stats']?['views'] as num?) ?? 0));
-      final likes = list.fold<num>(0, (a, p) => a + ((p['stats']?['likes'] as num?) ?? 0));
-      final comments = list.fold<num>(0, (a, p) => a + ((p['stats']?['comments'] as num?) ?? 0));
+      final views = list.fold<num>(0, (a, p) => a + ((_statsOf(p['stats'])['views'] as num?) ?? 0));
+      final likes = list.fold<num>(0, (a, p) => a + ((_statsOf(p['stats'])['likes'] as num?) ?? 0));
+      final comments = list.fold<num>(0, (a, p) => a + ((_statsOf(p['stats'])['comments'] as num?) ?? 0));
 
       final toolbar = Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
@@ -707,17 +726,18 @@ class _PostListState extends State<_PostList> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-              child: SearchField(
+          Builder(builder: (context) {
+            final search = SearchField(
                 hint: tr('Rechercher un texte, une campagne…'),
+                // Recherche dans les publications déjà chargées : pas de nouvel appel au serveur à chaque frappe
                 onChanged: (v) {
-                  _q = v;
                   _debounce?.cancel();
-                  _debounce = Timer(const Duration(milliseconds: 400), _load);
+                  _debounce = Timer(const Duration(milliseconds: 200), () {
+                    if (mounted) setState(() => _q = v);
+                  });
                 },
-              ),
-            ),
+              );
+            final tools = <Widget>[
             if (nets.length > 1) ...[
               const SizedBox(width: 8),
               PopupMenuButton<String>(
@@ -755,7 +775,12 @@ class _PostListState extends State<_PostList> {
               selected: {_grid},
               onSelectionChanged: (v) => setState(() => _grid = v.first),
             ),
-          ]),
+            ];
+            // Téléphone : la recherche sur toute la largeur, les filtres en dessous
+            return MediaQuery.sizeOf(context).width < 520
+                ? Column(children: [search, const SizedBox(height: 8), Row(children: [...tools.skipWhile((w) => w is SizedBox), const Spacer()])])
+                : Row(children: [Expanded(child: search), ...tools]);
+          }),
           if (list.isNotEmpty && (views + likes + comments) > 0) ...[
             const SizedBox(height: 10),
             Wrap(spacing: 18, runSpacing: 6, children: [
@@ -778,7 +803,7 @@ class _PostListState extends State<_PostList> {
           onRefresh: _load,
           child: GridView.builder(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 300, mainAxisExtent: 300, crossAxisSpacing: 12, mainAxisSpacing: 12),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: MediaQuery.sizeOf(context).width < 520 ? 600 : 300, mainAxisExtent: 300, crossAxisSpacing: 12, mainAxisSpacing: 12),
             itemCount: list.length,
             itemBuilder: (_, i) => _PostCard(p: list[i], networks: widget.networks, grid: true, selected: wide && sel?['id'] == list[i]['id'], onTap: () => wide ? setState(() => _selected = list[i]['id'] as int) : widget.onOpen(list[i]), onOpen: () => widget.onOpen(list[i])),
           ),
@@ -787,7 +812,8 @@ class _PostListState extends State<_PostList> {
         final children = <Widget>[];
         String? last;
         for (final p in list) {
-          final label = _dayLabel(_dt(p['published_at']) ?? _dt(p['scheduled_at']) ?? _dt(p['created_at']));
+          // Même ordre que le serveur (programmée, sinon publiée, sinon créée) : pas d'en-tête de jour en double
+          final label = _dayLabel(_dt(p['scheduled_at']) ?? _dt(p['published_at']) ?? _dt(p['created_at']));
           if (label != last) {
             children.add(Padding(padding: const EdgeInsets.fromLTRB(4, 12, 4, 6), child: Text(tr(label), style: TextStyle(color: t.hintColor, fontWeight: FontWeight.w700, fontSize: 12.5))));
             last = label;
@@ -897,7 +923,7 @@ class _Cover extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       child: Stack(fit: StackFit.expand, children: [
         if (url != null)
-          Image.network(url, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _CoverFallback())
+          Image.network(url, fit: BoxFit.cover, cacheWidth: 640, errorBuilder: (_, _, _) => const _CoverFallback())
         else if (hasMedia)
           const _CoverFallback()
         else
@@ -948,7 +974,7 @@ class _PostCard extends StatelessWidget {
     final rest = title.isNotEmpty ? body : body.split('\n').skip(1).join(' ');
     final targets = [for (final x in (p['targets'] as List? ?? const [])) Map<String, dynamic>.from(x as Map)];
     final accounts = {for (final x in targets) '${x['account'] ?? ''}'}.where((e) => e.isNotEmpty).toList();
-    final stats = Map<String, dynamic>.from(p['stats'] as Map? ?? const {});
+    final stats = _statsOf(p['stats']);
     final hint = t.hintColor;
 
     final status = Row(mainAxisSize: MainAxisSize.min, children: [
@@ -961,22 +987,28 @@ class _PostCard extends StatelessWidget {
       ],
     ]);
 
-    final footer = Row(children: [
+    // Wrap : sur téléphone, les statistiques passent à la ligne au lieu de déborder
+    final footer = Wrap(spacing: 4, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
       for (final n in {for (final x in targets) '${x['network']}'}.take(5))
-        Padding(padding: const EdgeInsets.only(right: 4), child: _NetBadge(n, color: _hex(networks.firstWhere((x) => x['key'] == n, orElse: () => const {})['color']), size: 20)),
-      if (accounts.isNotEmpty) ...[
-        const SizedBox(width: 4),
-        Flexible(child: Text(verbatim(accounts.join(', ')), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12))),
-      ] else
-        const Spacer(),
-      if (accounts.isNotEmpty) const SizedBox(width: 8),
+        _NetBadge(n, color: _hex(networks.firstWhere((x) => x['key'] == n, orElse: () => const {})['color']), size: 20),
+      if (accounts.isNotEmpty)
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 220),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 6),
+            child: Text(verbatim(accounts.join(', ')), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12)),
+          ),
+        ),
       for (final (k, ic) in [('views', Icons.visibility_outlined), ('likes', Icons.favorite_border), ('comments', Icons.mode_comment_outlined)])
-        if (((stats[k] as num?) ?? 0) > 0) ...[
-          const SizedBox(width: 10),
-          Icon(ic, size: 14, color: hint),
-          const SizedBox(width: 3),
-          Text(_compact(stats[k] as num), style: TextStyle(fontSize: 12, color: hint, fontWeight: FontWeight.w600)),
-        ],
+        if (((stats[k] as num?) ?? 0) > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(ic, size: 14, color: hint),
+              const SizedBox(width: 3),
+              Text(_compact(stats[k] as num), style: TextStyle(fontSize: 12, color: hint, fontWeight: FontWeight.w600)),
+            ]),
+          ),
     ]);
 
     final menu = PopupMenuButton<String>(
@@ -1086,12 +1118,13 @@ class _PostPreviewState extends State<_PostPreview> {
     final net = '${tg?['network'] ?? ''}';
     final accent = _hex(widget.networks.firstWhere((x) => x['key'] == net, orElse: () => const {})['color']);
     final variants = p['variants'] is Map ? Map<String, dynamic>.from(p['variants'] as Map) : const <String, dynamic>{};
-    final text = '${variants[net] ?? p['body'] ?? ''}';
+    final v = variants[net];
+    final text = '${(v is Map ? v['text'] : v) ?? p['body'] ?? ''}';
     final title = '${p['title'] ?? ''}'.trim();
     final when = _dt(tg?['published_at']) ?? _dt(p['published_at']) ?? _dt(p['scheduled_at']);
     final name = '${tg?['account'] ?? 'Votre compte'}';
     final avatar = '${tg?['avatar_url'] ?? ''}';
-    final stats = Map<String, dynamic>.from((tg?['stats'] as Map?) ?? (p['stats'] as Map?) ?? const {});
+    final stats = tg?['stats'] is Map ? _statsOf(tg!['stats']) : _statsOf(p['stats']);
     final url = '${tg?['url'] ?? ''}';
     final media = [for (final m in (p['media'] as List? ?? const [])) Map<String, dynamic>.from(m as Map)];
     final yt = _youtubeThumb(p);
@@ -1141,7 +1174,7 @@ class _PostPreviewState extends State<_PostPreview> {
                         radius: 19,
                         backgroundColor: accent.withValues(alpha: .15),
                         backgroundImage: avatar.startsWith('http') ? NetworkImage(avatar) : null,
-                        child: avatar.startsWith('http') ? null : Text(name.characters.first.toUpperCase(), style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+                        child: avatar.startsWith('http') ? null : Text(name.isEmpty ? '?' : name.characters.first.toUpperCase(), style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
                       ),
                       if (net.isNotEmpty) Positioned(right: -3, bottom: -3, child: _NetBadge(net, color: accent, size: 17)),
                     ]),

@@ -159,6 +159,14 @@ class LocalDb {
     }
   }
 
+  /// Fermeture complète avant de quitter l'application (relance après une mise à jour).
+  static Future<void> closeAll() async {
+    try {
+      await closeTenant();
+      await meta.close();
+    } catch (_) {}
+  }
+
   static Future<void> closeTenant() async {
     for (final b in _boxes.values) {
       await b.close();

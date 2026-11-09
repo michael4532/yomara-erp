@@ -33,7 +33,6 @@ on:
         default: "windows,macos,linux"
 
 env:
-  SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
   SB_FLUTTER: "3.47.9"
   MODE: ${{ inputs.mode }}
   RELEASE_VERSION: ${{ inputs.release_version }}
@@ -53,12 +52,13 @@ jobs:
         with: { cache: true }
       # Flutter classique : seulement pour « dart run msix » (le logiciel lui-même est compilé par Shorebird)
       - uses: subosito/flutter-action@v2
-        with: { channel: stable, cache: true }
+        with: { channel: stable, flutter-version: '3.47.9', cache: true }
       - name: Version
         shell: pwsh
         run: |
           $full = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value
           if ($env:RELEASE_VERSION) { $full = $env:RELEASE_VERSION }
+          if ($full -notmatch '^\d+\.\d+\.\d+\+\d+$') { Write-Error "Version invalide : $full (forme 1.0.5+7)"; exit 1 }
           $v = $full.Split('+')[0]; $b = $full.Split('+')[1]
           "APP_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
           "FULL_VERSION=$full" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -66,10 +66,12 @@ jobs:
       - name: Correctif
         if: env.MODE == 'correctif'
         shell: bash
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird patch windows --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
         shell: bash
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird release windows --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
       - name: Signer l'application (si certificat)
         if: env.MODE == 'version' && env.HAS_CERT == 'true'
@@ -122,18 +124,20 @@ jobs:
       - name: Version
         run: |
           FULL=$(grep -E '^version:' pubspec.yaml | awk '{print $2}'); [ -n "$RELEASE_VERSION" ] && FULL="$RELEASE_VERSION"
+          [[ "$FULL" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]] || { echo "Version invalide : $FULL (forme 1.0.5+7)"; exit 1; }
           echo "FULL_VERSION=$FULL" >> "$GITHUB_ENV"; echo "APP_VERSION=${FULL%%+*}" >> "$GITHUB_ENV"; echo "BUILD_NUMBER=${FULL##*+}" >> "$GITHUB_ENV"
       # Comme sur le Mac de développement : CocoaPods (Swift Package Manager : conflit firebase / google_sign_in)
-      - run: shorebird flutter config --no-enable-swift-package-manager || true
-      - name: Signature ad hoc (sans certificat)
-        if: env.HAS_CERT != 'true'
+      # Compilation toujours en signature locale : packaging/macos/build.sh signe ensuite avec le certificat s'il est fourni
+      - name: Signature locale pour la compilation
         run: |
           sed -i '' -e 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "-";/g' -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' -e 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
       - name: Correctif
         if: env.MODE == 'correctif'
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird patch macos --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird release macos --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
       - name: Certificat Apple (si fourni)
         if: env.MODE == 'version' && env.HAS_CERT == 'true'
@@ -171,12 +175,15 @@ jobs:
       - name: Version
         run: |
           FULL=$(grep -E '^version:' pubspec.yaml | awk '{print $2}'); [ -n "$RELEASE_VERSION" ] && FULL="$RELEASE_VERSION"
+          [[ "$FULL" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]] || { echo "Version invalide : $FULL (forme 1.0.5+7)"; exit 1; }
           echo "FULL_VERSION=$FULL" >> "$GITHUB_ENV"; echo "APP_VERSION=${FULL%%+*}" >> "$GITHUB_ENV"; echo "BUILD_NUMBER=${FULL##*+}" >> "$GITHUB_ENV"
       - name: Correctif
         if: env.MODE == 'correctif'
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird patch linux --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
+        env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: shorebird release linux --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
       - name: appimagetool
         if: env.MODE == 'version'
@@ -197,7 +204,7 @@ jobs:
 
   publish:
     needs: [windows, macos, linux]
-    if: always() && inputs.mode == 'version' && !contains(needs.*.result, 'failure')
+    if: always() && inputs.mode == 'version' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     env:
       HAS_SERVER: ${{ secrets.YOMARA_SERVER != '' }}

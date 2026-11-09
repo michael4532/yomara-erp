@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/mail_alerts.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -347,6 +348,7 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _logout({required bool remote, bool? wipe}) async {
+    MailAlerts.clear(); // les alertes de messagerie ne passent pas à la personne suivante
     if (remote) {
       // Les modifications non envoyées restent stockées localement
       try {

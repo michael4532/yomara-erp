@@ -1,3 +1,4 @@
+import 'auto_update.dart';
 import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 
@@ -29,6 +30,7 @@ class _VisioFrameState extends State<VisioFrame> {
   @override
   void initState() {
     super.initState();
+    AutoUpdate.hold.value++; // pas de rechargement automatique pendant ce travail
     _frame = web.HTMLIFrameElement()
       ..src = widget.url
       ..allow = 'camera; microphone; display-capture; autoplay; fullscreen; clipboard-write; speaker-selection'
@@ -51,6 +53,7 @@ class _VisioFrameState extends State<VisioFrame> {
 
   @override
   void dispose() {
+    AutoUpdate.hold.value--;
     popupDepth.removeListener(_guard);
     if (_listener != null) web.window.removeEventListener('message', _listener);
     _frame.src = 'about:blank';

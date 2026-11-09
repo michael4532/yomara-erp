@@ -1640,6 +1640,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 10, 4),
             child: Row(
               children: [
+                // Sur téléphone, les actions défilent horizontalement au lieu de déborder
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
                 tb(Icons.arrow_back_rounded, 'Fermer', () => setState(() => (_openId = null, _open = null))),
                 const SizedBox(width: 4),
                 tb(Icons.archive_outlined, 'Archiver', () => _bulk('archive')),
@@ -1662,7 +1667,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     itemBuilder: (_) => _moreItems(m),
                   ),
                 if (multi) Padding(padding: const EdgeInsets.only(left: 6), child: chip('${_selected.length} sélectionné(s)', p.accent)),
-                const Spacer(),
+                    ]),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: p.line),

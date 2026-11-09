@@ -60,7 +60,8 @@ if veut msix; then
       EN_LIGNE="$(gh api "repos/$SB_REPO/contents/app/pubspec.yaml" -H 'Accept: application/vnd.github.raw' 2>/dev/null | grep -E '^version:' | awk '{print $2}')"
       if [ "$EN_LIGNE" != "$NOUVELLE" ]; then
         echo "Attention : GitHub a la version « $EN_LIGNE » et non « $NOUVELLE » : Windows, DMG Mac et Linux sont sautés."
-        echo "Demandez la publication des sources en $NOUVELLE, puis relancez avec SANS=\"android ios mac\"."
+        echo "Demandez à Claude de publier les sources en $NOUVELLE, puis lancez seulement cette partie :"
+        echo "   SANS=\"android ios mac\" ./scripts/construire-stores.sh $NOUVELLE"
         ko+=("Windows/Linux/DMG (sources GitHub pas en $NOUVELLE)")
       else
         echo; echo "=================== Windows, DMG Mac, Linux : construction Shorebird lancée sur GitHub (journal : $LOGS/microsoft.log)"

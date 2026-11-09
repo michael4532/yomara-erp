@@ -804,7 +804,9 @@ class EmailBuilderState extends State<EmailBuilder> with SingleTickerProviderSta
       isScrollControlled: true,
       showDragHandle: true,
       builder: (c) => SizedBox(height: MediaQuery.of(c).size.height * .75, child: StatefulBuilder(builder: (c, _) => _sidePanel(true))),
-    ).then((_) => setState(() {}));
+    ).then((_) {
+          if (mounted) setState(() {});
+        });
   }
 
   // ---------------------------------------------------------------- canevas

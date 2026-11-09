@@ -528,7 +528,9 @@ class _AutomationScreenState extends State<AutomationScreen> {
     setState(() => _selected = path);
     if (narrow) {
       showAdaptiveSheet(context: context, isScrollControlled: true, showDragHandle: true, builder: (_) => SizedBox(height: MediaQuery.of(context).size.height * .7, child: StatefulBuilder(builder: (c, _) => _panel(true))))
-          .then((_) => setState(() {}));
+          .then((_) {
+          if (mounted) setState(() {});
+        });
     }
   }
 

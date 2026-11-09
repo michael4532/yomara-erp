@@ -6,26 +6,32 @@ bool reloadApp() => false;
 Future<bool> hardReloadApp(String version) async => false;
 
 
-Uri pingUri() => Uri();
+Uri pingUri(String server) => Uri();
+
+String? reloadMarker() => null;
+
+void setReloadMarker(String v) {}
 
 bool get pageHidden => false;
 
-void onVisibilityChange(void Function() f) {}
+void Function() onVisibilityChange(void Function() f) => () {};
 
 /// Ordinateur : relance l'application (pour appliquer une mise à jour téléchargée). Téléphone : impossible, renvoie faux.
-Future<bool> restartApp() async {
+/// La base locale est fermée d'abord, et la nouvelle instance démarre après un court délai, une fois celle-ci quittée
+/// (sinon elle trouverait la base encore verrouillée et afficherait « déjà ouverte »).
+Future<bool> restartApp({Future<void> Function()? beforeExit}) async {
   if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return false;
   try {
-    var exe = Platform.resolvedExecutable;
-    if (Platform.isMacOS) {
-      // …/Yomara ERP.app/Contents/MacOS/yomara_erp → relance du paquet .app
-      final i = exe.indexOf('.app/');
-      if (i > 0) {
-        await Process.start('open', ['-n', exe.substring(0, i + 4)], mode: ProcessStartMode.detached);
-        exit(0);
-      }
+    final exe = Platform.environment['APPIMAGE'] ?? Platform.resolvedExecutable; // AppImage : le fichier lui-même, pas son point de montage temporaire
+    if (Platform.isWindows) {
+      await Process.start('cmd', ['/c', 'timeout /t 2 /nobreak >nul & start "" "$exe"'], mode: ProcessStartMode.detached);
+    } else if (Platform.isMacOS && exe.contains('.app/')) {
+      final app = exe.substring(0, exe.indexOf('.app/') + 4);
+      await Process.start('/bin/sh', ['-c', 'sleep 2; open -n "\$0"', app], mode: ProcessStartMode.detached);
+    } else {
+      await Process.start('/bin/sh', ['-c', 'sleep 2; exec "\$0"', exe], mode: ProcessStartMode.detached);
     }
-    await Process.start(exe, const [], mode: ProcessStartMode.detached);
+    if (beforeExit != null) await beforeExit();
     exit(0);
   } catch (_) {
     return false;

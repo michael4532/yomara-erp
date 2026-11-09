@@ -1,6 +1,16 @@
 # Notes de version
 
 ## 0.99.38 — barre du bas personnalisable
+Audit avant mise à jour
+- Mise à jour automatique (navigateur) : jamais de rechargement pendant une saisie, un message en rédaction ou une réunion vidéo, ni quand l'onglet est en arrière-plan (le compte à rebours attend) ; « Plus tard » est respecté jusqu'à la prochaine ouverture ; un onglet ne bloque plus la mise à jour des autres ; les paramètres de l'adresse (lien d'invitation…) sont conservés.
+- Applications installées : redémarrage après mise à jour fiable (base locale fermée avant la relance, AppImage Linux).
+- Alertes de nouveaux e-mails effacées à la déconnexion (ordinateur partagé).
+- Fenêtres centrées sur tablette : l'espace du clavier n'est plus compté deux fois.
+- Messagerie sur téléphone : la barre d'actions du message défile au lieu de déborder.
+- Publications : recherche instantanée sans rappel du serveur, filtres conservés après une validation, texte propre à chaque réseau affiché correctement, plus d'erreur quand un réseau ne renvoie aucune statistique, cartes et grille adaptées au téléphone, recherche sur toute la largeur.
+- Google Business : toutes les fiches sont récupérées (comptes et établissements au-delà de la première page), message plus juste quand Google limite l'accès, détail technique gardé dans le journal du serveur.
+- TikTok : plus de lien de vidéo invalide quand le nom d'utilisateur n'est pas fourni.
+- Constructions : mises à jour à distance Mac (DMG) signées correctement, version Mac App Store sans l'exception inutile, réglages Swift Package Manager appliqués partout.
 - Téléphone : chacun choisit les raccourcis de la barre du bas (jusqu'à 3, dans l'ordre voulu) entre « Accueil » et « Plus », qui restent fixes. Restez appuyé sur la barre, ou menu › Barre du bas. Le choix suit l'utilisateur sur tous ses appareils ; « Par défaut » revient au choix automatique.
 
 ## 0.99.37 — Google Business et TikTok

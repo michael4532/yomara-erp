@@ -4,13 +4,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import '../../core/config.dart';
 import '../../core/local_db.dart';
 import '../../files/reload.dart';
 import '../../i18n/i18n.dart';
+import '../../state/session.dart';
 import 'app_update.dart' show compareVersions;
+import 'popup_guard.dart';
 
 /// Mise à jour automatique de l'interface, pour tout le monde (pas seulement l'administrateur) :
 /// - navigateur : dès que le serveur annonce une version plus récente, le cache de l'ancienne interface est vidé
@@ -22,6 +25,9 @@ import 'app_update.dart' show compareVersions;
 class AutoUpdate extends StatefulWidget {
   const AutoUpdate({super.key, required this.child});
   final Widget child;
+
+  /// Travail en cours à ne pas interrompre (message en rédaction, réunion vidéo…) : le rechargement attend.
+  static final ValueNotifier<int> hold = ValueNotifier<int>(0);
 
   @override
   State<AutoUpdate> createState() => _AutoUpdateState();
@@ -39,11 +45,15 @@ class _AutoUpdateState extends State<AutoUpdate> {
   // Créé seulement dans les applications installées (dans le navigateur, il écrit un message inutile dans la console)
   late final ShorebirdUpdater _updater = ShorebirdUpdater();
 
+  void Function()? _unlisten;
+
   @override
   void initState() {
     super.initState();
+    // L'application vient d'être (re)construite : les fenêtres ouvertes auparavant n'existent plus
+    popupDepth.value = 0;
     if (kIsWeb) {
-      onVisibilityChange(_onVisibility);
+      _unlisten = onVisibilityChange(_onVisibility);
       _timer = Timer.periodic(const Duration(minutes: 3), (_) => _checkWeb());
       Future.delayed(const Duration(seconds: 3), _checkWeb);
     } else if (_updater.isAvailable) {
@@ -54,6 +64,7 @@ class _AutoUpdateState extends State<AutoUpdate> {
 
   @override
   void dispose() {
+    _unlisten?.call();
     _timer?.cancel();
     _tick?.cancel();
     super.dispose();
@@ -61,30 +72,31 @@ class _AutoUpdateState extends State<AutoUpdate> {
 
   // ---------- Navigateur ----------
 
+  /// Saisie ou fenêtre ouverte, message en rédaction, réunion vidéo : on n'interrompt pas.
+  bool get _held => popupDepth.value > 0 || AutoUpdate.hold.value > 0;
+
   void _onVisibility() {
-    if (pageHidden && _later && _version.isNotEmpty) {
-      _reload();
-    } else if (!pageHidden) {
-      _checkWeb();
-    }
+    if (!pageHidden) _checkWeb();
   }
 
   Future<void> _checkWeb() async {
-    if (_busy || _banner == _Banner.webCountdown) return;
+    if (_busy || _later || _banner == _Banner.webCountdown) return;
     try {
-      final r = await http.get(pingUri(), headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 15));
+      final server = mounted ? context.read<Session>().serverUrl : '';
+      final r = await http.get(pingUri(server), headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 15));
       if (r.statusCode != 200) return;
       final v = '${(jsonDecode(r.body) as Map)['version'] ?? ''}';
       if (v.isEmpty || compareVersions(v, AppConfig.appVersion) <= 0) return;
-      // Déjà rechargé pour cette version sans obtenir la nouvelle interface (serveur pas encore complet) : on n'insiste pas
-      if (LocalDb.meta.get('web_reload_for') == v) return;
+      // Cet onglet a déjà été rechargé pour cette version sans obtenir la nouvelle interface (serveur pas encore complet) : on n'insiste pas
+      if (reloadMarker() == v) return;
       _version = v;
-      if (_later) return;
-      if (pageHidden || DateTime.now().difference(_started) < const Duration(seconds: 45)) {
+      // À l'ouverture, rien n'est encore en cours : nouvelle version tout de suite
+      if (DateTime.now().difference(_started) < const Duration(seconds: 45)) {
         _reload();
         return;
       }
-      if (!mounted) return;
+      // Onglet en arrière-plan : on attend que la personne revienne, pour ne jamais recharger sans qu'elle le voie
+      if (pageHidden || !mounted) return;
       setState(() {
         _banner = _Banner.webCountdown;
         _left = 20;
@@ -92,6 +104,7 @@ class _AutoUpdateState extends State<AutoUpdate> {
       _tick?.cancel();
       _tick = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return t.cancel();
+        if (_held || pageHidden) return setState(() {}); // compte à rebours en pause
         if (_left <= 1) {
           t.cancel();
           _reload();
@@ -108,10 +121,12 @@ class _AutoUpdateState extends State<AutoUpdate> {
     if (_busy || _version.isEmpty) return;
     _busy = true;
     _tick?.cancel();
-    await LocalDb.meta.put('web_reload_for', _version);
+    setReloadMarker(_version);
     await hardReloadApp(_version);
   }
 
+  /// « Plus tard » : plus de rechargement automatique dans cet onglet (la nouvelle version arrive à la prochaine ouverture,
+  /// ou par le bouton « Nouvelle interface » de la barre du haut).
   void _postpone() {
     _tick?.cancel();
     setState(() {
@@ -146,11 +161,13 @@ class _AutoUpdateState extends State<AutoUpdate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_banner == _Banner.none) return widget.child;
+    if (_banner == _Banner.none) return Stack(children: [widget.child]);
     final web = _banner == _Banner.webCountdown;
     final title = web ? tr('Nouvelle version de Yomara ERP ($_version)') : tr('Mise à jour téléchargée');
     final text = web
-        ? tr('Mise à jour automatique dans $_left s. Vos données et vos saisies en attente sont conservées.')
+        ? (_held
+            ? tr('Mise à jour dès que vous aurez terminé (fenêtre ouverte ou message en cours).')
+            : tr('Mise à jour automatique dans $_left s. Vos données et vos saisies en attente sont conservées.'))
         : (_desktop ? tr('Redémarrez l\'application pour l\'utiliser.') : tr('Elle s\'appliquera à la prochaine ouverture de l\'application.'));
     return Stack(children: [
       widget.child,
@@ -167,7 +184,7 @@ class _AutoUpdateState extends State<AutoUpdate> {
                 text: text,
                 progress: web ? (20 - _left) / 20 : null,
                 primary: web ? tr('Mettre à jour maintenant') : (_desktop ? tr('Redémarrer') : null),
-                onPrimary: web ? _reload : () => restartApp(),
+                onPrimary: web ? _reload : () => restartApp(beforeExit: LocalDb.closeAll),
                 secondary: tr('Plus tard'),
                 onSecondary: web ? _postpone : () => setState(() {
                       _later = true;

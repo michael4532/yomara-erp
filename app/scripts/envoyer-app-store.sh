@@ -75,6 +75,12 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "mac" ]; then
   echo; echo "== Mac App Store"
   fix_project macos/Runner.xcodeproj/project.pbxproj
   grep -q "DEVELOPMENT_TEAM = $TEAM;" macos/Runner.xcodeproj/project.pbxproj || set_team macos/Runner.xcodeproj/project.pbxproj
+  # Version Mac App Store : pas de mises à jour à distance, donc pas d'exception « mémoire exécutable » (Shorebird),
+  # retirée le temps de la construction puis remise
+  ENT=macos/Runner/Release.entitlements
+  cp "$ENT" build/appstore/Release.entitlements.bak
+  trap 'cp build/appstore/Release.entitlements.bak "$ENT" 2>/dev/null' EXIT
+  /usr/libexec/PlistBuddy -c "Delete :com.apple.security.cs.allow-unsigned-executable-memory" "$ENT" 2>/dev/null || true
   # Compilation Flutter (version store : achats masqués), puis archive Xcode et envoi
   flutter build macos --release --dart-define=APP_STORE=true
   export_plist build/appstore/ExportMac.plist

@@ -30,7 +30,7 @@
     <p class="meta">Dernière mise à jour : 9 novembre 2026</p>
 
     <h2>Le service</h2>
-    <p>{{ $appName }} est un logiciel de gestion d'entreprise édité par {{ $who }}, Côte d'Ivoire{{ $contact['address'] ? ' ('.$contact['address'].')' : '' }}. Il comprend des fonctions de base et des modules (ventes, caisse, stock, comptabilité, paie, réseaux sociaux…) que chaque entreprise active selon ses besoins. En créant un compte ou en utilisant l'application, vous acceptez ces conditions ainsi que notre <a href="/confidentialite">politique de confidentialité</a>.</p>
+    <p>{{ $appName }} est un logiciel de gestion d'entreprise édité par {{ $who }}, Abidjan, Côte d'Ivoire{{ $contact['address'] ? ' ('.$contact['address'].')' : '' }}. Il comprend des fonctions de base et des modules (ventes, caisse, stock, comptabilité, paie, réseaux sociaux…) que chaque entreprise active selon ses besoins. En créant un compte ou en utilisant l'application, vous acceptez ces conditions ainsi que notre <a href="/confidentialite">politique de confidentialité</a>.</p>
 
     <h2>Votre compte</h2>
     <ul>

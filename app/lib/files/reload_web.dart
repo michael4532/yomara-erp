@@ -23,21 +23,41 @@ Future<bool> hardReloadApp(String version) async {
       await r.unregister().toDart;
     }
   } catch (_) {}
-  // Adresse différente : le navigateur ne peut pas resservir l'ancienne page depuis son cache HTTP
+  // Adresse différente (paramètre v) : le navigateur ne peut pas resservir l'ancienne page depuis son cache.
+  // Les autres paramètres de l'adresse (lien d'invitation, jeton…) sont conservés.
   final l = web.window.location;
-  l.replace('${l.pathname}?v=${Uri.encodeQueryComponent(version)}${l.hash}');
+  final u = Uri.parse(l.href);
+  final next = u.replace(queryParameters: {...u.queryParameters, 'v': version});
+  l.replace(next.toString());
   return true;
 }
 
 
-/// Adresse de vérification de version : le serveur qui sert cette interface (…/app/ → …/api/ping).
-Uri pingUri() => Uri.base.resolve('../api/ping');
+/// Adresse de vérification de version : le serveur de l'application, sinon celui qui sert cette interface (…/app/ → …/api/ping).
+Uri pingUri(String server) => server.isNotEmpty ? Uri.parse('$server/api/ping') : Uri.base.resolve('../api/ping');
+
+/// Version pour laquelle cet onglet a déjà été rechargé (propre à l'onglet : un autre onglet ne bloque pas celui-ci).
+String? reloadMarker() {
+  try {
+    return web.window.sessionStorage.getItem('yomara_reload_for');
+  } catch (_) {
+    return null;
+  }
+}
+
+void setReloadMarker(String v) {
+  try {
+    web.window.sessionStorage.setItem('yomara_reload_for', v);
+  } catch (_) {}
+}
 
 bool get pageHidden => web.document.visibilityState == 'hidden';
 
-/// Appelé quand l'onglet est masqué ou réaffiché.
-void onVisibilityChange(void Function() f) {
-  web.document.addEventListener('visibilitychange', ((web.Event _) => f()).toJS);
+/// Appelé quand l'onglet est masqué ou réaffiché ; renvoie la fonction qui retire l'écoute.
+void Function() onVisibilityChange(void Function() f) {
+  final js = ((web.Event _) => f()).toJS;
+  web.document.addEventListener('visibilitychange', js);
+  return () => web.document.removeEventListener('visibilitychange', js);
 }
 
-Future<bool> restartApp() async => false;
+Future<bool> restartApp({Future<void> Function()? beforeExit}) async => false;

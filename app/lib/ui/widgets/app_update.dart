@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config.dart';
-import '../../core/local_db.dart';
 import '../../files/reload.dart';
 import '../../state/session.dart';
 import '../theme.dart';
@@ -109,7 +108,7 @@ class _UpdateButtonState extends State<UpdateButton> {
     }
     // 1. Interface web plus ancienne que le serveur : un simple rechargement suffit
     // (si un rechargement pour cette version n'a rien changé — interface du serveur pas encore à jour —, le bouton ne revient pas)
-    if (kIsWeb && compareVersions(serverVersion, AppConfig.appVersion) > 0 && LocalDb.meta.get('web_reload_for') != serverVersion) {
+    if (kIsWeb && compareVersions(serverVersion, AppConfig.appVersion) > 0 && reloadMarker() != serverVersion) {
       return _Pill(
         compact: widget.compact,
         color: YColors.blue,
@@ -117,7 +116,7 @@ class _UpdateButtonState extends State<UpdateButton> {
         label: tr('Nouvelle interface'),
         tooltip: tr('Yomara ERP $serverVersion est installé : rechargez pour l\'utiliser.'),
         onTap: () async {
-          await LocalDb.meta.put('web_reload_for', serverVersion);
+          setReloadMarker(serverVersion);
           await hardReloadApp(serverVersion);
         },
       );

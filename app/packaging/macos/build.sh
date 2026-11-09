@@ -9,9 +9,9 @@ test -d "$APP" || { echo "Compilez d'abord : flutter build macos --release"; exi
 mkdir -p "$OUT"
 cp "$ROOT/LICENSE" "$ROOT/NOTICE.md" "$APP/Contents/Resources/"
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
-  codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGN_IDENTITY" "$APP"
+  codesign --force --deep --options runtime --timestamp --preserve-metadata=entitlements --sign "$MACOS_SIGN_IDENTITY" "$APP"
 else
-  codesign --force --deep --sign - "$APP"   # sans certificat Apple : macOS demandera « Ouvrir quand même »
+  codesign --force --deep --preserve-metadata=entitlements --sign - "$APP"   # sans certificat Apple : macOS demandera « Ouvrir quand même »
 fi
 STAGE="$(mktemp -d)"; cp -R "$APP" "$STAGE/"; ln -s /Applications "$STAGE/Applications"; cp "$ROOT/LICENSE" "$STAGE/LICENSE.txt"
 DMG="$OUT/Yomara-ERP-macOS-v$V.dmg"

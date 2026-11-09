@@ -47,9 +47,10 @@ Future<T?> showAdaptiveSheet<T>({
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxW, maxHeight: size.height * .86),
         child: SheetAsDialog(
+          // Le Dialog laisse déjà la place au clavier : on ne la compte pas une seconde fois dans le contenu
           child: MediaQuery.removeViewInsets(
             context: c,
-            removeBottom: false,
+            removeBottom: true,
             child: Padding(padding: const EdgeInsets.only(top: 14), child: Builder(builder: builder)),
           ),
         ),

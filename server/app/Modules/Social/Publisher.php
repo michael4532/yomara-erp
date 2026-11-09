@@ -586,7 +586,7 @@ class Publisher
         $r = Http::withToken($this->oauth->token($acc))->timeout(15)->post('https://open.tiktokapis.com/v2/post/publish/status/fetch/', ['publish_id' => substr($target->external_id, 8)]);
         $status = $r->json('data.status');
         if ($status === 'PUBLISH_COMPLETE' && ($vid = $r->json('data.publicaly_available_post_id.0'))) {
-            DB::table('so_targets')->where('id', $target->id)->update(['external_id' => (string) $vid, 'url' => 'https://www.tiktok.com/@'.$acc->username.'/video/'.$vid]);
+            DB::table('so_targets')->where('id', $target->id)->update(['external_id' => (string) $vid, 'url' => $acc->username ? 'https://www.tiktok.com/@'.$acc->username.'/video/'.$vid : null]);
         } elseif ($status === 'FAILED') {
             DB::table('so_targets')->where('id', $target->id)->update(['status' => 'failed', 'error' => 'TikTok : '.mb_substr((string) $r->json('data.fail_reason'), 0, 400)]);
         }

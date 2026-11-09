@@ -392,7 +392,7 @@ class _InboxAccountsState extends State<_InboxAccounts> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(tr('Comptes suivis dans la boîte de réception'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),

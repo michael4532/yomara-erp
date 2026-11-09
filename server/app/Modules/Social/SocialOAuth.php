@@ -265,19 +265,33 @@ class SocialOAuth
         }
         $gbp = 0;
         $why = null;
-        $accs = Http::withToken($tok)->timeout(20)->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts');
-        if (! $accs->ok()) {
-            $why = self::gbpReason($accs);
-        }
-        foreach ($accs->ok() ? (array) $accs->json('accounts') : [] as $a) {
-            $locs = Http::withToken($tok)->timeout(20)->get('https://mybusinessbusinessinformation.googleapis.com/v1/'.$a['name'].'/locations', ['readMask' => 'name,title', 'pageSize' => 100]);
-            if (! $locs->ok()) {
-                $why ??= self::gbpReason($locs);
+        // Tous les comptes et toutes les fiches (réponses paginées par Google)
+        $accounts = [];
+        $page = null;
+        do {
+            $accs = Http::withToken($tok)->timeout(20)->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', array_filter(['pageSize' => 20, 'pageToken' => $page]));
+            if (! $accs->ok()) {
+                $why = self::gbpReason($accs);
+                break;
             }
-            foreach ($locs->ok() ? (array) $locs->json('locations') : [] as $l) {
-                $out[] = self::store($c, $u, 'gbp', $a['name'].'/'.$l['name'], (string) ($l['title'] ?? 'Établissement'), $creds, ['kind' => 'location']);
-                $gbp++;
-            }
+            array_push($accounts, ...(array) $accs->json('accounts'));
+            $page = $accs->json('nextPageToken');
+        } while ($page && count($accounts) < 500);
+        foreach ($accounts as $a) {
+            $page = null;
+            do {
+                $locs = Http::withToken($tok)->timeout(20)->get('https://mybusinessbusinessinformation.googleapis.com/v1/'.$a['name'].'/locations',
+                    array_filter(['readMask' => 'name,title', 'pageSize' => 100, 'pageToken' => $page]));
+                if (! $locs->ok()) {
+                    $why ??= self::gbpReason($locs);
+                    break;
+                }
+                foreach ((array) $locs->json('locations') as $l) {
+                    $out[] = self::store($c, $u, 'gbp', $a['name'].'/'.$l['name'], (string) ($l['title'] ?? 'Établissement'), $creds, ['kind' => 'location']);
+                    $gbp++;
+                }
+                $page = $locs->json('nextPageToken');
+            } while ($page && $gbp < 1000);
         }
         if (! $gbp) {
             $why ??= 'aucune fiche d\'établissement n\'est gérée par ce compte Google (vérifiez sur business.google.com que ce compte est propriétaire ou gestionnaire de la fiche).';
@@ -295,16 +309,18 @@ class SocialOAuth
         $m = (string) ($res->json('error.message') ?? '');
         $status = (string) ($res->json('error.status') ?? '');
         if ($res->status() === 429 || $status === 'RESOURCE_EXHAUSTED' || str_contains($m, 'Quota')) {
-            return 'Google n\'a pas encore ouvert l\'accès aux API Business Profile pour cette application (quota à 0). '
-                .'Il faut en faire la demande à Google (formulaire « Business Profile API access request ») depuis le projet Google Cloud ; '
-                .'une fois l\'accès accordé, reconnectez le compte.';
+            return 'Google limite l\'accès aux API Business Profile pour cette application. Si l\'accès n\'a pas encore été accordé (quota à 0), '
+                .'il faut en faire la demande à Google (formulaire « Business Profile API access request ») depuis le projet Google Cloud ; '
+                .'sinon, la limite de requêtes est momentanément atteinte : réessayez dans quelques minutes.';
         }
         if (str_contains($m, 'has not been used') || str_contains($m, 'is disabled') || $status === 'PERMISSION_DENIED' && str_contains($m, 'API')) {
             return 'les API « My Business Account Management » et « My Business Business Information » ne sont pas activées dans le projet Google Cloud de l\'application. '
                 .'Activez-les (APIs et services › Bibliothèque), puis reconnectez le compte.';
         }
+        // Détail technique (peut contenir des identifiants du projet) : dans le journal du serveur, pas à l'écran
+        report(new \RuntimeException('Google Business Profile '.$res->status().' : '.mb_substr($m, 0, 500)));
 
-        return 'Google refuse l\'accès aux fiches ('.$res->status().($m ? ' : '.mb_substr($m, 0, 200) : '').').';
+        return 'Google refuse l\'accès aux fiches (erreur '.$res->status().'). Réessayez plus tard ou vérifiez les droits du compte sur business.google.com.';
     }
 
     // ------------------------------------------------------------------ rafraîchissement

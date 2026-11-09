@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/auto_update.dart';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -92,6 +93,7 @@ class _ComposeViewState extends State<ComposeView> {
   @override
   void initState() {
     super.initState();
+    AutoUpdate.hold.value++; // pas de rechargement automatique pendant ce travail
     final sendable = s.accounts.where((a) => a['status'] != 'paused').toList();
     _accountId = (o != null ? o!['account_id'] as int? : null) ?? (sendable.isNotEmpty ? sendable.first['id'] as int : (s.accounts.isNotEmpty ? s.accounts.first['id'] as int : null));
     if (widget.to != null) _to.addAll(widget.to!);
@@ -210,6 +212,7 @@ class _ComposeViewState extends State<ComposeView> {
 
   @override
   void dispose() {
+    AutoUpdate.hold.value--;
     _quill.removeListener(_watchMention);
     _html.dispose();
     _quill.dispose();
