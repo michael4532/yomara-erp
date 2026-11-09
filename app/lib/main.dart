@@ -162,7 +162,11 @@ class _StartError extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Text('Yomara ERP ne peut pas ouvrir ses données', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
                 const SizedBox(height: 8),
-                const Text("L'application est peut-être déjà ouverte dans une autre fenêtre. Fermez-la, puis relancez Yomara ERP.", textAlign: TextAlign.center),
+                Text(
+                    detail.contains('errno = 24') || detail.contains('Too many open files')
+                        ? "Le système limite le nombre de fichiers que l'application peut ouvrir. Installez la dernière version de Yomara ERP, puis relancez-la."
+                        : "L'application est peut-être déjà ouverte dans une autre fenêtre. Fermez-la, puis relancez Yomara ERP.",
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 12),
                 SelectableText(detail, style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
               ]),

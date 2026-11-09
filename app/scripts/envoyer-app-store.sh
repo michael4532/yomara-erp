@@ -17,6 +17,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# Ancienne compilation Mac non modifiable (souvent : un .pkg installé s'est posé dessus, fichiers de root) :
+# on la met de côté au lieu d'échouer.
+if [ -d build/macos ] && find build/macos ! -writable -print -quit 2>/dev/null | grep -q .; then
+  A="$ROOT/build-ancien-$(date +%Y%m%d-%H%M%S)"
+  mv build/macos "$A" && echo "Ancienne compilation Mac non modifiable déplacée dans : $A (à supprimer à la main)"
+fi
 WHAT="${1:-tout}"
 DEST=upload
 case "$WHAT" in mac-pkg) WHAT=mac; DEST=export ;; iphone-ipa) WHAT=iphone; DEST=export ;; esac

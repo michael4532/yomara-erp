@@ -12,6 +12,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# Ancienne compilation Mac non modifiable (souvent : un .pkg installé s'est posé dessus, fichiers de root) :
+# on la met de côté au lieu d'échouer.
+if [ -d build/macos ] && find build/macos ! -writable -print -quit 2>/dev/null | grep -q .; then
+  A="$ROOT/build-ancien-$(date +%Y%m%d-%H%M%S)"
+  mv build/macos "$A" && echo "Ancienne compilation Mac non modifiable déplacée dans : $A (à supprimer à la main)"
+fi
 [ "$(uname)" = "Darwin" ] || { echo "L'application macOS se construit sur un Mac." >&2; exit 1; }
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2; exit 1; }
 command -v xcodebuild >/dev/null 2>&1 || { echo "Xcode n'est pas installé (App Store › Xcode)." >&2; exit 1; }
