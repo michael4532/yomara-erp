@@ -227,7 +227,7 @@ class SocialOAuth
             'code' => $code, 'grant_type' => 'authorization_code', 'redirect_uri' => $redirect]);
         ($t->ok() && $t->json('access_token')) || $this->err($t, 'TikTok');
         $tok = (string) $t->json('access_token');
-        $me = Http::withToken($tok)->timeout(20)->get('https://open.tiktokapis.com/v2/user/info/', ['fields' => 'open_id,display_name,avatar_url,username']);
+        $me = Http::withToken($tok)->timeout(20)->get('https://open.tiktokapis.com/v2/user/info/', ['fields' => 'open_id,display_name,avatar_url']);
 
         return [self::store($c, $u, 'tiktok', (string) $t->json('open_id'), (string) ($me->json('data.user.display_name') ?: 'TikTok'),
             ['provider' => 'tiktok', 'access_token' => $tok, 'refresh_token' => $t->json('refresh_token'), 'expires_at' => self::exp($t)],

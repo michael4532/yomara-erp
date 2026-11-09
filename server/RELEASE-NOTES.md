@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.37 — Google Business et TikTok
+- Google Business Profile : si Google refuse l'accès aux fiches (accès API pas encore accordé, API non activées, aucune fiche gérée par le compte), la page de connexion l'explique clairement au lieu d'indiquer seulement « connecté » pour YouTube.
+- TikTok : la connexion ne demande plus que les informations couvertes par l'autorisation de base (nom affiché, photo), pour éviter un refus.
+- Applications : mises à jour à distance (Shorebird) activées pour les prochaines versions installées.
+
 ## 0.99.36 — mises à jour automatiques
 - Navigateur : quand le serveur est mis à jour, l'application web vide son cache et se recharge toute seule dans la nouvelle version (aussitôt à l'ouverture ou si l'onglet est en arrière-plan ; sinon après un compte à rebours de 20 s, avec « Plus tard »). Connexion et saisies hors ligne en attente sont conservées.
 - Serveur : l'interface web n'est plus gardée en cache par les navigateurs sans vérification (en-têtes Cache-Control).
