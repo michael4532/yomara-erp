@@ -18,7 +18,8 @@ sb_actif || { echo "Mises à jour à distance pas encore activées : lancez d'ab
 
 V="$(grep -E '^version:' pubspec.yaml | awk '{print $2}')"
 APPV="$(grep -E "appVersion = '" lib/core/config.dart | sed -E "s/.*'(.*)'.*/\1/")"
-echo "Correctif Yomara ERP $APPV pour les applications installées en version $V"
+VB="$(sb_version_bureau)"
+echo "Correctif Yomara ERP $APPV pour les applications installées : Android et iPhone $V, Windows / Mac DMG / Linux $VB"
 echo
 
 # GitHub (Windows, Mac DMG, Linux) compile les sources publiées : elles doivent être celles de ce Mac
@@ -28,8 +29,8 @@ if veut github; then
   RAW() { gh api "repos/$SB_REPO/contents/app/$1" -H 'Accept: application/vnd.github.raw' 2>/dev/null; }
   GV="$(RAW pubspec.yaml | grep -E '^version:' | awk '{print $2}')"
   GA="$(RAW lib/core/config.dart | grep -E "appVersion = '" | sed -E "s/.*'(.*)'.*/\1/")"
-  if [ "$GV" != "$V" ] || [ "$GA" != "$APPV" ]; then
-    echo "Attention : GitHub a les sources $GA ($GV), ce Mac $APPV ($V)."
+  if [ "$GA" != "$APPV" ]; then
+    echo "Attention : GitHub a les sources $GA, ce Mac $APPV."
     echo "Windows, Mac DMG et Linux sont sautés ; publiez d'abord les sources, puis : SANS=\"android ios\" $0"
     SANS="$SANS github "
   fi
@@ -42,7 +43,7 @@ LOGS="$(cd .. && pwd)/sorties/correctifs/$APPV"; mkdir -p "$LOGS"
 ok=(); ko=(); GH_PID=""
 if veut github; then
   echo "=================== Windows, Mac DMG, Linux : correctif lancé sur GitHub (journal : $LOGS/github.log)"
-  ./scripts/shorebird-github.sh correctif "$V" >"$LOGS/github.log" 2>&1 &
+  ./scripts/shorebird-github.sh correctif "$VB" >"$LOGS/github.log" 2>&1 &
   GH_PID=$!
 fi
 etape() {

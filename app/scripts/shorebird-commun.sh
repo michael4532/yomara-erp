@@ -6,6 +6,10 @@
 # Version de Flutter utilisée par Shorebird : la même pour toutes les versions et tous les correctifs.
 SB_FLUTTER="${SB_FLUTTER:-3.47.9}"
 SB_REPO="${YOMARA_REPO:-michael4532/yomara-erp}"
+
+# Version de base des logiciels Windows, Mac DMG et Linux (construits sur GitHub), qui peut différer
+# de celle d'Android et iPhone (pubspec.yaml) : écrite par construire-stores, lue par publier-correctif.
+sb_version_bureau() { cat "${ROOT:-.}/scripts/version-bureau.txt" 2>/dev/null || grep -E '^version:' "${ROOT:-.}/pubspec.yaml" | awk '{print $2}'; }
 [ -d "$HOME/.shorebird/bin" ] && export PATH="$HOME/.shorebird/bin:$PATH"
 
 sb_actif() {

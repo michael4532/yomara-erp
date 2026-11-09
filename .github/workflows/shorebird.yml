@@ -67,7 +67,10 @@ jobs:
         if: env.MODE == 'correctif'
         shell: bash
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird patch windows --release-version="$FULL_VERSION" --track=stable
+        # Le correctif est construit avec le numéro de la version de base visée (pubspec peut être plus récent)
+        run: |
+          sed -i -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
+          shorebird patch windows --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
         shell: bash
@@ -134,7 +137,9 @@ jobs:
       - name: Correctif
         if: env.MODE == 'correctif'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird patch macos --release-version="$FULL_VERSION" --track=stable
+        run: |
+          sed -i '' -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
+          shorebird patch macos --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
@@ -180,7 +185,9 @@ jobs:
       - name: Correctif
         if: env.MODE == 'correctif'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird patch linux --release-version="$FULL_VERSION" --track=stable
+        run: |
+          sed -i -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
+          shorebird patch linux --release-version="$FULL_VERSION" --track=stable
       - name: Version de base
         if: env.MODE == 'version'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
