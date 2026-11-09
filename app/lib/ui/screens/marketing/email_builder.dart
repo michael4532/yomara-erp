@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -798,7 +799,7 @@ class EmailBuilderState extends State<EmailBuilder> with SingleTickerProviderSta
 
   void _openSheet(int tab) {
     _side.index = tab;
-    showModalBottomSheet(
+    showAdaptiveSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

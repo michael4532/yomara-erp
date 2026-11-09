@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -34,6 +35,8 @@ const _icons = <String, IconData>{
   'bluesky': Icons.cloud_outlined,
   'sensya': Icons.auto_awesome,
 };
+
+void openUrl(String u) => safeLaunchUrl(Uri.parse(u), mode: LaunchMode.externalApplication);
 
 Color _hex(dynamic v, [Color fallback = YColors.blue]) {
   final s = '${v ?? ''}'.replaceAll('#', '');
@@ -145,7 +148,7 @@ class _SocialScreenState extends State<SocialScreen> {
   }
 
   Future<void> _open(Map<String, dynamic> p) async {
-    final changed = await showModalBottomSheet<bool>(
+    final changed = await showAdaptiveSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -578,19 +581,50 @@ class _PostList extends StatefulWidget {
   State<_PostList> createState() => _PostListState();
 }
 
+/// Miniature d'une vidéo YouTube publiée, tirée du lien de la publication.
+String? _youtubeThumb(Map<String, dynamic> p) {
+  for (final t in (p['targets'] as List? ?? const [])) {
+    final u = '${(t as Map)['url'] ?? ''}';
+    final m = RegExp(r'(?:youtu\.be/|v=|shorts/|embed/)([\w-]{11})').firstMatch(u);
+    if (m != null) return 'https://i.ytimg.com/vi/${m.group(1)}/hqdefault.jpg';
+  }
+  return null;
+}
+
+/// Image à montrer pour une publication : première image, sinon miniature YouTube.
+String? _cover(Map<String, dynamic> p) {
+  final media = (p['media'] as List? ?? const []);
+  for (final m in media) {
+    if ((m as Map)['kind'] == 'image') return '${m['url']}';
+  }
+  return _youtubeThumb(p);
+}
+
+bool _hasVideo(Map<String, dynamic> p) => (p['media'] as List? ?? const []).any((m) => (m as Map)['kind'] == 'video');
+
+String _compact(num n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1).replaceAll('.', ',')} M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')} k';
+  return '$n';
+}
+
 class _PostListState extends State<_PostList> {
-  late String _filter = widget.pending > 0 ? 'pending' : 'upcoming';
+  String _filter = 'all';
   String _q = '';
+  String? _net;
+  bool _grid = false;
+  int? _selected;
   List<Map<String, dynamic>>? _rows;
   Timer? _debounce;
 
+  // « Toutes » d'abord, puis les catégories
   static const _filters = {
-    'upcoming': ('À venir', ['scheduled', 'pending', 'publishing']),
-    'pending': ('À valider', ['pending']),
-    'draft': ('Brouillons', ['draft']),
-    'published': ('Publiées', ['published', 'partial']),
-    'failed': ('Échecs', ['failed', 'partial']),
-    'all': ('Toutes', <String>[]),
+    'all': ('Toutes', <String>[], Icons.all_inbox_outlined),
+    'upcoming': ('À venir', ['scheduled', 'pending', 'publishing'], Icons.schedule),
+    'pending': ('À valider', ['pending'], Icons.fact_check_outlined),
+    'draft': ('Brouillons', ['draft'], Icons.edit_note),
+    'published': ('Publiées', ['published', 'partial'], Icons.check_circle_outline),
+    'failed': ('Échecs', ['failed', 'partial'], Icons.error_outline),
   };
 
   @override
@@ -606,68 +640,613 @@ class _PostListState extends State<_PostList> {
   }
 
   Future<void> _load() async {
-    final st = _filters[_filter]!.$2;
     try {
-      final r = await context.read<Session>().api.get('social/posts', query: {if (st.isNotEmpty) 'status[]': st, if (_q.isNotEmpty) 'q': _q, 'order': _filter == 'upcoming' ? 'asc' : 'desc'});
-      if (mounted) setState(() => _rows = [for (final p in (r['data'] as List)) Map<String, dynamic>.from(p as Map)]);
+      final r = await context.read<Session>().api.get('social/posts', query: {if (_q.isNotEmpty) 'q': _q, 'limit': '500'});
+      if (!mounted) return;
+      setState(() => _rows = [for (final p in (r['data'] as List)) Map<String, dynamic>.from(p as Map)]);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }
   }
 
+  bool _inFilter(Map<String, dynamic> p, String f) {
+    final st = _filters[f]!.$2;
+    return st.isEmpty || st.contains(p['status']);
+  }
+
+  bool _inNet(Map<String, dynamic> p) => _net == null || (p['targets'] as List? ?? const []).any((t) => (t as Map)['network'] == _net);
+
+  List<Map<String, dynamic>> get _visible {
+    final l = (_rows ?? const <Map<String, dynamic>>[]).where((p) => _inFilter(p, _filter) && _inNet(p)).toList();
+    if (_filter == 'upcoming') l.sort((a, b) => '${a['scheduled_at'] ?? ''}'.compareTo('${b['scheduled_at'] ?? ''}'));
+    return l;
+  }
+
+  Color _netColor(String n) => _hex(widget.networks.firstWhere((x) => x['key'] == n, orElse: () => const {})['color']);
+
+  static String _dayLabel(DateTime? d) {
+    if (d == null) return 'Sans date';
+    final now = DateTime.now();
+    final day = DateTime(d.year, d.month, d.day);
+    final diff = day.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (diff == 0) return 'Aujourd\'hui';
+    if (diff == -1) return 'Hier';
+    if (diff == 1) return 'Demain';
+    final s = DateFormat(d.year == now.year ? 'EEEE d MMMM' : 'EEEE d MMMM yyyy', 'fr').format(d);
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-          child: Row(
+    final rows = _rows;
+    final t = Theme.of(context);
+    return LayoutBuilder(builder: (context, box) {
+      final wide = box.maxWidth >= 1050;
+      final list = _visible;
+      Map<String, dynamic>? sel;
+      if (wide && list.isNotEmpty) sel = list.firstWhere((p) => p['id'] == _selected, orElse: () => list.first);
+      final nets = <String>{for (final p in rows ?? const <Map<String, dynamic>>[]) for (final x in (p['targets'] as List? ?? const [])) '${(x as Map)['network']}'}.toList()..sort();
+      final views = list.fold<num>(0, (a, p) => a + ((p['stats']?['views'] as num?) ?? 0));
+      final likes = list.fold<num>(0, (a, p) => a + ((p['stats']?['likes'] as num?) ?? 0));
+      final comments = list.fold<num>(0, (a, p) => a + ((p['stats']?['comments'] as num?) ?? 0));
+
+      final toolbar = Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(
+            runSpacing: 8,
             children: [
-              for (final f in _filters.entries)
+              for (final f in _filters.entries) _FilterPill(
+                icon: f.value.$3,
+                label: tr(f.value.$1),
+                count: rows?.where((p) => _inFilter(p, f.key) && _inNet(p)).length,
+                alert: f.key == 'pending' || f.key == 'failed',
+                selected: _filter == f.key,
+                onTap: () => setState(() => _filter = f.key),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: SearchField(
+                hint: tr('Rechercher un texte, une campagne…'),
+                onChanged: (v) {
+                  _q = v;
+                  _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 400), _load);
+                },
+              ),
+            ),
+            if (nets.length > 1) ...[
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: tr('Filtrer par réseau'),
+                onSelected: (v) => setState(() => _net = v == '' ? null : v),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: '', child: Text(tr('Tous les réseaux'))),
+                  for (final n in nets)
+                    PopupMenuItem(
+                      value: n,
+                      child: Row(children: [_NetBadge(n, color: _netColor(n), size: 22), const SizedBox(width: 10), Text(verbatim('${widget.networks.firstWhere((x) => x['key'] == n, orElse: () => {'label': n})['label']}'))]),
+                    ),
+                ],
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(border: Border.all(color: t.dividerColor), borderRadius: BorderRadius.circular(12), color: t.cardColor),
+                  child: Row(children: [
+                    _net == null ? Icon(Icons.filter_list, size: 18, color: t.hintColor) : _NetBadge(_net!, color: _netColor(_net!), size: 20),
+                    const SizedBox(width: 6),
+                    Text(tr(_net == null ? 'Réseaux' : 'Filtré'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const Icon(Icons.arrow_drop_down),
+                  ]),
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              segments: [
+                ButtonSegment(value: false, icon: const Icon(Icons.view_agenda_outlined, size: 18), tooltip: tr('Liste')),
+                ButtonSegment(value: true, icon: const Icon(Icons.grid_view_rounded, size: 18), tooltip: tr('Grille')),
+              ],
+              selected: {_grid},
+              onSelectionChanged: (v) => setState(() => _grid = v.first),
+            ),
+          ]),
+          if (list.isNotEmpty && (views + likes + comments) > 0) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 18, runSpacing: 6, children: [
+              _Kpi(icon: Icons.article_outlined, value: '${list.length}', label: tr(list.length > 1 ? 'publications' : 'publication')),
+              if (views > 0) _Kpi(icon: Icons.visibility_outlined, value: _compact(views), label: tr('vues')),
+              _Kpi(icon: Icons.favorite_border, value: _compact(likes), label: tr('j\'aime')),
+              _Kpi(icon: Icons.mode_comment_outlined, value: _compact(comments), label: tr('commentaires')),
+            ]),
+          ],
+        ]),
+      );
+
+      Widget body;
+      if (rows == null) {
+        body = const Center(child: CircularProgressIndicator());
+      } else if (list.isEmpty) {
+        body = EmptyState(icon: Icons.inbox_outlined, title: tr('Aucune publication'), message: tr(_q.isNotEmpty || _net != null ? 'Aucun résultat pour cette recherche.' : 'Les publications de cette catégorie apparaîtront ici.'));
+      } else if (_grid) {
+        body = RefreshIndicator(
+          onRefresh: _load,
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 300, mainAxisExtent: 300, crossAxisSpacing: 12, mainAxisSpacing: 12),
+            itemCount: list.length,
+            itemBuilder: (_, i) => _PostCard(p: list[i], networks: widget.networks, grid: true, selected: wide && sel?['id'] == list[i]['id'], onTap: () => wide ? setState(() => _selected = list[i]['id'] as int) : widget.onOpen(list[i]), onOpen: () => widget.onOpen(list[i])),
+          ),
+        );
+      } else {
+        final children = <Widget>[];
+        String? last;
+        for (final p in list) {
+          final label = _dayLabel(_dt(p['published_at']) ?? _dt(p['scheduled_at']) ?? _dt(p['created_at']));
+          if (label != last) {
+            children.add(Padding(padding: const EdgeInsets.fromLTRB(4, 12, 4, 6), child: Text(tr(label), style: TextStyle(color: t.hintColor, fontWeight: FontWeight.w700, fontSize: 12.5))));
+            last = label;
+          }
+          children.add(_PostCard(p: p, networks: widget.networks, selected: wide && sel?['id'] == p['id'], onTap: () => wide ? setState(() => _selected = p['id'] as int) : widget.onOpen(p), onOpen: () => widget.onOpen(p)));
+        }
+        body = RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 96), children: children));
+      }
+
+      final main = Column(children: [toolbar, Expanded(child: body)]);
+      if (!wide) return main;
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: main),
+        SizedBox(
+          width: box.maxWidth >= 1300 ? 420 : 380,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 14, 16, 88),
+            child: sel == null
+                ? const SizedBox.shrink()
+                : _PostPreview(key: ValueKey(sel['id']), p: sel, networks: widget.networks, onOpen: () => widget.onOpen(sel!)),
+          ),
+        ),
+      ]);
+    });
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({required this.icon, required this.label, required this.count, required this.selected, required this.onTap, this.alert = false});
+  final IconData icon;
+  final String label;
+  final int? count;
+  final bool selected;
+  final bool alert;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final hot = alert && (count ?? 0) > 0;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Material(
+        color: selected ? YColors.blue : t.cardColor,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: selected ? YColors.blue : t.dividerColor)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (MediaQuery.sizeOf(context).width >= 1600 || MediaQuery.sizeOf(context).width < 1050) ...[Icon(icon, size: 16, color: selected ? Colors.white : t.hintColor), const SizedBox(width: 6)],
+              Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: selected ? Colors.white : null)),
+              if (count != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: selected ? Colors.white.withValues(alpha: .22) : (hot ? YColors.danger.withValues(alpha: .12) : t.hintColor.withValues(alpha: .1)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('$count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: selected ? Colors.white : (hot ? YColors.danger : t.hintColor))),
+                ),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Kpi extends StatelessWidget {
+  const _Kpi({required this.icon, required this.value, required this.label});
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context).hintColor;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 16, color: hint),
+      const SizedBox(width: 5),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(color: hint, fontSize: 13)),
+    ]);
+  }
+}
+
+/// Visuel d'une publication : image, miniature YouTube ou vidéo, avec pictogramme de lecture.
+class _Cover extends StatelessWidget {
+  const _Cover({required this.p, this.radius = 12, this.playSize = 22});
+  final Map<String, dynamic> p;
+  final double radius;
+  final double playSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = _cover(p);
+    final video = _hasVideo(p);
+    final hasMedia = (p['media'] as List? ?? const []).isNotEmpty || url != null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Stack(fit: StackFit.expand, children: [
+        if (url != null)
+          Image.network(url, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _CoverFallback())
+        else if (hasMedia)
+          const _CoverFallback()
+        else
+          Container(
+            decoration: BoxDecoration(gradient: LinearGradient(colors: [YColors.blue.withValues(alpha: .14), YColors.blue.withValues(alpha: .04)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+            child: Icon(Icons.notes_rounded, color: YColors.blue.withValues(alpha: .7), size: playSize * 1.3),
+          ),
+        if (video)
+          Center(
+            child: Container(
+              padding: EdgeInsets.all(playSize * .25),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: .55), shape: BoxShape.circle),
+              child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: playSize),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+class _CoverFallback extends StatelessWidget {
+  const _CoverFallback();
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0E1E45), Color(0xFF1D4FBF)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      );
+}
+
+/// Carte d'une publication dans la liste (ligne) ou la grille.
+class _PostCard extends StatelessWidget {
+  const _PostCard({required this.p, required this.networks, required this.onTap, required this.onOpen, this.selected = false, this.grid = false});
+  final Map<String, dynamic> p;
+  final List<Map<String, dynamic>> networks;
+  final VoidCallback onTap;
+  final VoidCallback onOpen;
+  final bool selected;
+  final bool grid;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final st = '${p['status']}';
+    final color = _statusColors[st] ?? YColors.muted;
+    final when = _dt(p['published_at']) ?? _dt(p['scheduled_at']);
+    final title = '${p['title'] ?? ''}'.trim();
+    final body = '${p['body'] ?? ''}'.trim();
+    final head = title.isNotEmpty ? title : body.split('\n').first;
+    final rest = title.isNotEmpty ? body : body.split('\n').skip(1).join(' ');
+    final targets = [for (final x in (p['targets'] as List? ?? const [])) Map<String, dynamic>.from(x as Map)];
+    final accounts = {for (final x in targets) '${x['account'] ?? ''}'}.where((e) => e.isNotEmpty).toList();
+    final stats = Map<String, dynamic>.from(p['stats'] as Map? ?? const {});
+    final hint = t.hintColor;
+
+    final status = Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Text(tr('${p['status_label']}'), style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12.5)),
+      if (when != null) ...[
+        Text('  ·  ', style: TextStyle(color: hint, fontSize: 12.5)),
+        Flexible(child: Text(DateFormat(grid ? 'd MMM · HH:mm' : 'EEE d MMM · HH:mm', 'fr').format(when), overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12.5))),
+      ],
+    ]);
+
+    final footer = Row(children: [
+      for (final n in {for (final x in targets) '${x['network']}'}.take(5))
+        Padding(padding: const EdgeInsets.only(right: 4), child: _NetBadge(n, color: _hex(networks.firstWhere((x) => x['key'] == n, orElse: () => const {})['color']), size: 20)),
+      if (accounts.isNotEmpty) ...[
+        const SizedBox(width: 4),
+        Flexible(child: Text(verbatim(accounts.join(', ')), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12))),
+      ] else
+        const Spacer(),
+      if (accounts.isNotEmpty) const SizedBox(width: 8),
+      for (final (k, ic) in [('views', Icons.visibility_outlined), ('likes', Icons.favorite_border), ('comments', Icons.mode_comment_outlined)])
+        if (((stats[k] as num?) ?? 0) > 0) ...[
+          const SizedBox(width: 10),
+          Icon(ic, size: 14, color: hint),
+          const SizedBox(width: 3),
+          Text(_compact(stats[k] as num), style: TextStyle(fontSize: 12, color: hint, fontWeight: FontWeight.w600)),
+        ],
+    ]);
+
+    final menu = PopupMenuButton<String>(
+      tooltip: tr('Actions'),
+      icon: Icon(Icons.more_horiz, color: hint),
+      onSelected: (v) {
+        if (v == 'open') onOpen();
+        if (v.startsWith('http')) openUrl(v);
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'open', child: Row(children: [const Icon(Icons.open_in_full, size: 18), const SizedBox(width: 10), Text(tr('Voir le détail'))])),
+        for (final x in targets.where((x) => '${x['url'] ?? ''}'.startsWith('http')))
+          PopupMenuItem(value: '${x['url']}', child: Row(children: [const Icon(Icons.open_in_new, size: 18), const SizedBox(width: 10), Text(tr('Voir sur ${x['network_label'] ?? x['network']}'))])),
+      ],
+    );
+
+    final decoration = BoxDecoration(
+      color: t.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: selected ? YColors.blue : t.dividerColor.withValues(alpha: .6), width: selected ? 1.6 : 1),
+      boxShadow: selected ? [BoxShadow(color: YColors.blue.withValues(alpha: .12), blurRadius: 18, offset: const Offset(0, 6))] : null,
+    );
+
+    if (grid) {
+      return Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: decoration,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(height: 140, width: double.infinity, child: _Cover(p: p, playSize: 28)),
+                const SizedBox(height: 10),
+                status,
+                const SizedBox(height: 6),
+                Text(verbatim(head), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, height: 1.3)),
+                const Spacer(),
+                footer,
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: decoration,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            onDoubleTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(width: 96, height: 96, child: _Cover(p: p)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    status,
+                    const SizedBox(height: 6),
+                    Text(verbatim(head), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                    if (rest.trim().isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(verbatim(rest.replaceAll('\n', ' ')), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 13, height: 1.35)),
+                    ],
+                    const SizedBox(height: 10),
+                    footer,
+                  ]),
+                ),
+                menu,
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Aperçu à droite : la publication telle qu'elle apparaît sur le réseau choisi, avec ses résultats.
+class _PostPreview extends StatefulWidget {
+  const _PostPreview({super.key, required this.p, required this.networks, required this.onOpen});
+  final Map<String, dynamic> p;
+  final List<Map<String, dynamic>> networks;
+  final VoidCallback onOpen;
+
+  @override
+  State<_PostPreview> createState() => _PostPreviewState();
+}
+
+class _PostPreviewState extends State<_PostPreview> {
+  int _i = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final p = widget.p;
+    final hint = t.hintColor;
+    final targets = [for (final x in (p['targets'] as List? ?? const [])) Map<String, dynamic>.from(x as Map)];
+    final tg = targets.isEmpty ? null : targets[_i.clamp(0, targets.length - 1)];
+    final net = '${tg?['network'] ?? ''}';
+    final accent = _hex(widget.networks.firstWhere((x) => x['key'] == net, orElse: () => const {})['color']);
+    final variants = p['variants'] is Map ? Map<String, dynamic>.from(p['variants'] as Map) : const <String, dynamic>{};
+    final text = '${variants[net] ?? p['body'] ?? ''}';
+    final title = '${p['title'] ?? ''}'.trim();
+    final when = _dt(tg?['published_at']) ?? _dt(p['published_at']) ?? _dt(p['scheduled_at']);
+    final name = '${tg?['account'] ?? 'Votre compte'}';
+    final avatar = '${tg?['avatar_url'] ?? ''}';
+    final stats = Map<String, dynamic>.from((tg?['stats'] as Map?) ?? (p['stats'] as Map?) ?? const {});
+    final url = '${tg?['url'] ?? ''}';
+    final media = [for (final m in (p['media'] as List? ?? const [])) Map<String, dynamic>.from(m as Map)];
+    final yt = _youtubeThumb(p);
+    final tStatus = '${tg?['status'] ?? p['status']}';
+    final tColor = _statusColors[tStatus] ?? YColors.muted;
+
+    return Container(
+      decoration: BoxDecoration(color: t.cardColor, borderRadius: BorderRadius.circular(18), border: Border.all(color: t.dividerColor.withValues(alpha: .6))),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+          child: Row(children: [
+            Text(tr('Aperçu'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            const Spacer(),
+            TextButton.icon(onPressed: widget.onOpen, icon: const Icon(Icons.open_in_full, size: 16), label: Text(tr('Détail et actions'))),
+          ]),
+        ),
+        if (targets.length > 1)
+          SizedBox(
+            height: 40,
+            child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12), children: [
+              for (var i = 0; i < targets.length; i++)
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
-                    label: Text(tr(f.value.$1) + (f.key == 'pending' && widget.pending > 0 ? ' (${widget.pending})' : '')),
-                    selected: _filter == f.key,
-                    onSelected: (_) {
-                      setState(() {
-                        _filter = f.key;
-                        _rows = null;
-                      });
-                      _load();
-                    },
+                    avatar: _NetBadge('${targets[i]['network']}', color: _hex(widget.networks.firstWhere((x) => x['key'] == targets[i]['network'], orElse: () => const {})['color']), size: 18),
+                    label: Text(verbatim('${targets[i]['network_label'] ?? targets[i]['network']}')),
+                    selected: _i == i,
+                    onSelected: (_) => setState(() => _i = i),
                   ),
                 ),
-            ],
+            ]),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-          child: SearchField(
-            hint: tr('Rechercher un texte, une campagne…'),
-            onChanged: (v) {
-              _q = v;
-              _debounce?.cancel();
-              _debounce = Timer(const Duration(milliseconds: 400), _load);
-            },
-          ),
-        ),
         Expanded(
-          child: _rows == null
-              ? const Center(child: CircularProgressIndicator())
-              : _rows!.isEmpty
-              ? EmptyState(icon: Icons.inbox_outlined, title: tr('Aucune publication'), message: tr('Les publications de cette catégorie apparaîtront ici.'))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
-                    children: [for (final p in _rows!) _PostTile(p: p, networks: widget.networks, onTap: () => widget.onOpen(p))],
-                  ),
+          child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), children: [
+            // Maquette de la publication
+            Container(
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: t.dividerColor.withValues(alpha: .7)), color: t.brightness == Brightness.dark ? const Color(0xFF0F1729) : Colors.white),
+              clipBehavior: Clip.antiAlias,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                  child: Row(children: [
+                    Stack(clipBehavior: Clip.none, children: [
+                      CircleAvatar(
+                        radius: 19,
+                        backgroundColor: accent.withValues(alpha: .15),
+                        backgroundImage: avatar.startsWith('http') ? NetworkImage(avatar) : null,
+                        child: avatar.startsWith('http') ? null : Text(name.characters.first.toUpperCase(), style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+                      ),
+                      if (net.isNotEmpty) Positioned(right: -3, bottom: -3, child: _NetBadge(net, color: accent, size: 17)),
+                    ]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(verbatim(name), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                        Text(
+                          [if ('${tg?['username'] ?? ''}'.isNotEmpty) '@${tg!['username']}', if (when != null) DateFormat('d MMM yyyy · HH:mm', 'fr').format(when)].join('  ·  '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: hint, fontSize: 12),
+                        ),
+                      ]),
+                    ),
+                  ]),
                 ),
+                if (net == 'youtube' && title.isNotEmpty)
+                  Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text(verbatim(title), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5))),
+                if (media.isNotEmpty || yt != null)
+                  media.length > 1
+                      ? _MediaGrid(media: media)
+                      : AspectRatio(
+                          aspectRatio: net == 'youtube' || _hasVideo(p) ? 16 / 9 : 1.2,
+                          child: InkWell(onTap: url.startsWith('http') ? () => openUrl(url) : null, child: _Cover(p: p, radius: 0, playSize: 36)),
+                        ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: _ExpandableText(text: text, accent: accent),
+                ),
+                Divider(height: 1, color: t.dividerColor.withValues(alpha: .6)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(children: [
+                    for (final (k, ic) in [('views', Icons.visibility_outlined), ('likes', Icons.thumb_up_alt_outlined), ('comments', Icons.mode_comment_outlined), ('shares', Icons.reply_outlined)]) ...[
+                      Icon(ic, size: 16, color: hint),
+                      const SizedBox(width: 4),
+                      Text(_compact((stats[k] as num?) ?? 0), style: TextStyle(color: hint, fontWeight: FontWeight.w600, fontSize: 12.5)),
+                      const SizedBox(width: 16),
+                    ],
+                  ]),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 14),
+            // Résultat par compte
+            for (final x in targets)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  _NetBadge('${x['network']}', color: _hex(widget.networks.firstWhere((n) => n['key'] == x['network'], orElse: () => const {})['color']), size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(verbatim('${x['account'] ?? x['network_label']}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      if ('${x['error'] ?? ''}'.isNotEmpty) Text(verbatim('${x['error']}'), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: YColors.danger, fontSize: 12)),
+                    ]),
+                  ),
+                  StatusChip(tr(switch ('${x['status']}') { 'published' => 'Publiée', 'failed' => 'Échec', 'pending' || 'queued' => 'En attente', 'publishing' => 'En cours', _ => '${x['status']}' }), color: _statusColors['${x['status']}'] ?? tColor),
+                  if ('${x['url'] ?? ''}'.startsWith('http')) IconButton(tooltip: tr('Voir sur le réseau'), visualDensity: VisualDensity.compact, onPressed: () => openUrl('${x['url']}'), icon: const Icon(Icons.open_in_new, size: 18)),
+                ]),
+              ),
+            if (p['user_name'] != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(tr('Rédigée par ${p['user_name']}'), style: TextStyle(color: hint, fontSize: 12))),
+          ]),
         ),
-      ],
+        if (url.startsWith('http'))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: FilledButton.icon(
+              onPressed: () => openUrl(url),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(tr('Voir sur ${tg?['network_label'] ?? 'le réseau'}')),
+            ),
+          ),
+      ]),
     );
+  }
+}
+
+class _ExpandableText extends StatefulWidget {
+  const _ExpandableText({required this.text, required this.accent});
+  final String text;
+  final Color accent;
+
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final long = widget.text.length > 280 || '\n'.allMatches(widget.text).length > 5;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (!long || _all)
+        _RichPreview(text: widget.text, accent: widget.accent)
+      else
+        ShaderMask(
+          shaderCallback: (r) => const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black, Colors.black, Colors.transparent], stops: [0, .7, 1]).createShader(r),
+          blendMode: BlendMode.dstIn,
+          child: SizedBox(height: 132, child: ClipRect(child: OverflowBox(alignment: Alignment.topLeft, maxHeight: double.infinity, child: _RichPreview(text: widget.text, accent: widget.accent)))),
+        ),
+      if (long) TextButton(style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact), onPressed: () => setState(() => _all = !_all), child: Text(tr(_all ? 'Afficher moins' : 'Afficher plus'))),
+    ]);
   }
 }
 
@@ -755,7 +1334,9 @@ class _PostSheetState extends State<_PostSheet> {
       child: SafeArea(
         child: p == null
             ? const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()))
-            : DraggableScrollableSheet(
+            : SheetAsDialog.of(context)
+                ? ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: _body(context, p))
+                : DraggableScrollableSheet(
                 expand: false,
                 initialChildSize: .8,
                 maxChildSize: .95,
@@ -2875,7 +3456,7 @@ class _StatsTabState extends State<_StatsTab> {
             _PostTile(
               p: Map<String, dynamic>.from(p as Map),
               networks: widget.networks,
-              onTap: () => showModalBottomSheet<void>(
+              onTap: () => showAdaptiveSheet<void>(
                 context: context,
                 isScrollControlled: true,
                 showDragHandle: true,

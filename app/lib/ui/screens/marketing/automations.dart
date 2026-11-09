@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -526,7 +527,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
   void _select(String path, bool narrow) {
     setState(() => _selected = path);
     if (narrow) {
-      showModalBottomSheet(context: context, isScrollControlled: true, showDragHandle: true, builder: (_) => SizedBox(height: MediaQuery.of(context).size.height * .7, child: StatefulBuilder(builder: (c, _) => _panel(true))))
+      showAdaptiveSheet(context: context, isScrollControlled: true, showDragHandle: true, builder: (_) => SizedBox(height: MediaQuery.of(context).size.height * .7, child: StatefulBuilder(builder: (c, _) => _panel(true))))
           .then((_) => setState(() {}));
     }
   }

@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -1406,7 +1407,7 @@ class DeliveryActions extends StatelessWidget {
 // ======================================================================
 
 Future<void> showProofSheet(BuildContext context, Map<String, dynamic> d) async {
-  await showModalBottomSheet(
+  await showAdaptiveSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

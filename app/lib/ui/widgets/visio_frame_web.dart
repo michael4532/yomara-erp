@@ -4,6 +4,8 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
+import 'popup_guard.dart';
+
 bool get visioEmbedded => true;
 
 int _seq = 0;
@@ -36,15 +38,20 @@ class _VisioFrameState extends State<VisioFrame> {
       ..style.height = '100%'
       ..style.background = '#0B1220';
     ui_web.platformViewRegistry.registerViewFactory(_type, (int id) => _frame);
+    popupDepth.addListener(_guard);
+    _guard();
     _listener = ((web.MessageEvent e) {
       final d = e.data.dartify();
-      if (d is Map && d['type'] == 'yomara-visio' && d['event'] == 'left') widget.onLeft?.call();
+      if (d is Map && d['type'] == 'yomara-visio' && d['event'] == 'left') {
+        widget.onLeft?.call();
+      }
     }).toJS;
     web.window.addEventListener('message', _listener);
   }
 
   @override
   void dispose() {
+    popupDepth.removeListener(_guard);
     if (_listener != null) web.window.removeEventListener('message', _listener);
     _frame.src = 'about:blank';
     super.dispose();
@@ -52,4 +59,8 @@ class _VisioFrameState extends State<VisioFrame> {
 
   @override
   Widget build(BuildContext context) => HtmlElementView(viewType: _type);
+
+  // Un panneau ou une fenêtre recouvre le cadre : il ne doit pas recevoir les clics destinés au panneau
+  void _guard() =>
+      _frame.style.pointerEvents = popupDepth.value > 0 ? 'none' : 'auto';
 }

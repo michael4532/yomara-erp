@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -448,7 +449,7 @@ Future<void> _spaceSheet(BuildContext context, Map<String, dynamic> event, Map<S
   final b = occ['${s['id']}'];
   final st = evSpaceStatus(s, occ);
   final cur = '${event['currency'] ?? session.currency}';
-  await showModalBottomSheet(
+  await showAdaptiveSheet(
     context: context,
     showDragHandle: true,
     builder: (c) => SafeArea(

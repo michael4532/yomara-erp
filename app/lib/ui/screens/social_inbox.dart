@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -67,7 +68,7 @@ class _SocialInboxTabState extends State<SocialInboxTab> {
   }
 
   Future<void> _accounts() async {
-    await showModalBottomSheet<void>(context: context, showDragHandle: true, isScrollControlled: true, builder: (_) => _InboxAccounts(d: _d!, onChanged: _load));
+    await showAdaptiveSheet<void>(context: context, showDragHandle: true, isScrollControlled: true, builder: (_) => _InboxAccounts(d: _d!, onChanged: _load));
     _load();
   }
 

@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -853,7 +854,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
 // ======================================================================
 
 Future<void> showFinishSheet(BuildContext context, Map<String, dynamic> i) async {
-  await showModalBottomSheet(
+  await showAdaptiveSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

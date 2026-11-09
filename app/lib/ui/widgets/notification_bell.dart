@@ -16,6 +16,7 @@ import '../theme.dart';
 import '../navigation.dart' show ShellNav;
 import 'announcement_dialog.dart';
 import 'common.dart';
+import 'mail_alerts.dart';
 import '../../i18n/i18n.dart';
 
 /// Cloche des notifications (tickets, rapports, commandes…), rafraîchie chaque minute.
@@ -38,10 +39,16 @@ class _NotificationBellState extends State<NotificationBell> {
     super.initState();
     _load();
     _timer = Timer.periodic(const Duration(seconds: 60), (_) => _load());
+    MailAlerts.items.addListener(_mail);
+  }
+
+  void _mail() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    MailAlerts.items.removeListener(_mail);
     _timer?.cancel();
     super.dispose();
   }
@@ -74,6 +81,7 @@ class _NotificationBellState extends State<NotificationBell> {
         alignment: Alignment.centerRight,
         child: _NotificationsPanel(
           items: _items,
+          mails: MailAlerts.items.value,
           onReadAll: () async {
             await api.post('notifications/read');
             _load();
@@ -83,6 +91,17 @@ class _NotificationBellState extends State<NotificationBell> {
       transitionBuilder: (c, a, b, child) => SlideTransition(position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)), child: child),
     );
     if (picked == null || !mounted) return;
+    if (picked['__mail'] != null) {
+      final m = Map<String, dynamic>.from(picked['__mail'] as Map);
+      final open = MailAlerts.opener;
+      if (open != null) {
+        open(m);
+      } else {
+        MailAlerts.remove(m);
+        ShellNav.of(context)?.go('mailbox');
+      }
+      return;
+    }
     api.post('notifications/${picked['id']}/read').then((_) => _load()).catchError((_) {});
     if (picked['module'] == 'announcement') {
       await showAnnouncement(context, picked);
@@ -117,12 +136,13 @@ class _NotificationBellState extends State<NotificationBell> {
 
   @override
   Widget build(BuildContext context) {
+    final total = _unread + MailAlerts.items.value.length;
     return IconButton(
       tooltip: tr('Notifications'),
       onPressed: _open,
       icon: Badge(
-        isLabelVisible: _unread > 0,
-        label: Text(tr(_unread > 99 ? '99+' : '$_unread')),
+        isLabelVisible: total > 0,
+        label: Text(total > 99 ? '99+' : '$total'),
         child: Icon(Icons.notifications_outlined, color: widget.light ? const Color(0xFFD5DEF2) : null),
       ),
     );
@@ -131,8 +151,9 @@ class _NotificationBellState extends State<NotificationBell> {
 
 
 class _NotificationsPanel extends StatefulWidget {
-  const _NotificationsPanel({required this.items, required this.onReadAll});
+  const _NotificationsPanel({required this.items, required this.onReadAll, this.mails = const []});
   final List<Map<String, dynamic>> items;
+  final List<Map<String, dynamic>> mails;
   final Future<void> Function() onReadAll;
 
   @override
@@ -141,6 +162,7 @@ class _NotificationsPanel extends StatefulWidget {
 
 class _NotificationsPanelState extends State<_NotificationsPanel> {
   bool _unreadOnly = false;
+  late List<Map<String, dynamic>> _mails = widget.mails;
 
   static IconData _icon(String? m) => switch (m) {
         'tickets' || 'helpdesk' => Icons.confirmation_number_outlined,
@@ -159,7 +181,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final width = MediaQuery.sizeOf(context).width;
-    final unread = widget.items.where((n) => n['read_at'] == null).length;
+    final unread = widget.items.where((n) => n['read_at'] == null).length + _mails.length;
     final list = widget.items.where((n) => !_unreadOnly || n['read_at'] == null).toList();
     final today = DateTime.now().toIso8601String().substring(0, 10);
     final groups = <String, List<Map<String, dynamic>>>{};
@@ -219,6 +241,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
                       TextButton(
                         style: TextButton.styleFrom(foregroundColor: Colors.white),
                         onPressed: () async {
+                          MailAlerts.clear();
                           await widget.onReadAll();
                           if (context.mounted) Navigator.pop(context);
                         },
@@ -229,7 +252,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
               ]),
             ),
             Expanded(
-              child: list.isEmpty
+              child: list.isEmpty && _mails.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -248,6 +271,19 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
                       ),
                     )
                   : ListView(padding: const EdgeInsets.fromLTRB(12, 10, 12, 24), children: [
+                      if (_mails.isNotEmpty)
+                        _MailSection(
+                          mails: _mails,
+                          onOpen: (m) => Navigator.pop(context, {'__mail': m}),
+                          onDismiss: (m) => setState(() {
+                            MailAlerts.remove(m);
+                            _mails = MailAlerts.items.value;
+                          }),
+                          onClear: () => setState(() {
+                            MailAlerts.clear();
+                            _mails = const [];
+                          }),
+                        ),
                       for (final g in groups.entries) ...[
                         Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 6), child: Text(tr(g.key), style: TextStyle(color: t.hintColor, fontWeight: FontWeight.w700, fontSize: 12.5))),
                         for (final n in g.value)
@@ -285,6 +321,107 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
                           ),
                       ],
                     ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Nouveaux e-mails reçus pendant que la messagerie est ouverte : carte en tête du panneau des notifications.
+class _MailSection extends StatelessWidget {
+  const _MailSection({required this.mails, required this.onOpen, required this.onDismiss, required this.onClear});
+  final List<Map<String, dynamic>> mails;
+  final void Function(Map<String, dynamic>) onOpen;
+  final void Function(Map<String, dynamic>) onDismiss;
+  final VoidCallback onClear;
+
+  static const _palette = [Color(0xFF1D4FBF), Color(0xFF0F8A6C), Color(0xFFB4462B), Color(0xFF7A3FC4), Color(0xFFB07A00), Color(0xFF2B7A99)];
+
+  static String _when(dynamic d) {
+    final t = DateTime.tryParse('${d ?? ''}')?.toLocal();
+    if (t == null) return '';
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 1) return 'à l\'instant';
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24 && t.day == DateTime.now().day) return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return dateTimeFr(d);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final dark = t.brightness == Brightness.dark;
+    final shown = mails.take(6).toList();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF16223B) : const Color(0xFFF3F7FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: YColors.blue.withValues(alpha: .14)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 4, 4),
+          child: Row(children: [
+            const Icon(Icons.mark_email_unread_outlined, size: 18, color: YColors.blue),
+            const SizedBox(width: 8),
+            Text(tr('Nouveaux e-mails'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: YColors.blue, borderRadius: BorderRadius.circular(10)),
+              child: Text('${mails.length}', style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
+            ),
+            const Spacer(),
+            TextButton(onPressed: onClear, child: Text(tr('Effacer'))),
+          ]),
+        ),
+        for (final m in shown) _tile(context, m),
+        if (mails.length > shown.length)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Text(tr('et ${mails.length - shown.length} autre(s) dans la boîte mail'), style: TextStyle(color: t.hintColor, fontSize: 12)),
+          )
+        else
+          const SizedBox(height: 6),
+      ]),
+    );
+  }
+
+  Widget _tile(BuildContext context, Map<String, dynamic> m) {
+    final t = Theme.of(context);
+    final name = '${m['from_name'] ?? ''}'.trim().isNotEmpty ? '${m['from_name']}'.trim() : '${m['from_email'] ?? 'Expéditeur inconnu'}';
+    final subject = '${m['subject'] ?? ''}'.trim().isEmpty ? tr('(sans objet)') : '${m['subject']}';
+    final snippet = '${m['snippet'] ?? ''}'.trim();
+    final color = _palette[name.codeUnits.fold<int>(0, (a, b) => a + b) % _palette.length];
+    return Dismissible(
+      key: ValueKey('mail-${m['id'] ?? name}-${m['date']}'),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDismiss(m),
+      background: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 18), child: Icon(Icons.done_all, color: t.hintColor)),
+      child: InkWell(
+        onTap: () => onOpen(m),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: color.withValues(alpha: .14),
+              child: Text(name.isEmpty ? '?' : name.characters.first.toUpperCase(), style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5))),
+                  Text(_when(m['date']), style: TextStyle(color: t.hintColor, fontSize: 11.5)),
+                ]),
+                Text(subject, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                if (snippet.isNotEmpty) Text(snippet, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.hintColor, fontSize: 12)),
+              ]),
             ),
           ]),
         ),

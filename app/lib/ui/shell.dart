@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -2016,7 +2017,7 @@ class _SubscriptionBanner extends StatelessWidget {
 
 
 /// Menu du compte sur mobile (toucher le nom en haut du menu) : déconnexion et suppression du compte.
-Future<void> _accountSheet(BuildContext context) => showModalBottomSheet<void>(
+Future<void> _accountSheet(BuildContext context) => showAdaptiveSheet<void>(
   context: context,
   showDragHandle: true,
   builder: (c) {

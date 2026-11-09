@@ -70,12 +70,13 @@ class _MailAssistBarState extends State<MailAssistBar> {
             avatar: Icon(icon, size: 16, color: _accent),
             label: Text(tr(label)),
             onPressed: _busy ? null : onTap,
-            side: BorderSide(color: _accent.withValues(alpha: .25)),
+            visualDensity: VisualDensity.compact,
+            shape: StadiumBorder(side: BorderSide(color: _accent.withValues(alpha: .25))),
             backgroundColor: _accent.withValues(alpha: .05),
           ),
         );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

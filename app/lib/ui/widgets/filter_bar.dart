@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -117,7 +118,7 @@ class FilterBar extends StatelessWidget {
     final activeCount = values.values.where((v) => v != null && v.isNotEmpty).length + (period != null ? 1 : 0);
     Widget filtersButton() => _FiltersButton(
           count: activeCount,
-          onTap: () => showModalBottomSheet<void>(
+          onTap: () => showAdaptiveSheet<void>(
             context: context,
             showDragHandle: true,
             isScrollControlled: true,

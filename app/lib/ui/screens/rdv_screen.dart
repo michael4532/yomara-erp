@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -30,7 +31,7 @@ DateTime? _dt(dynamic v) => v == null ? null : DateTime.tryParse('$v')?.toLocal(
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 String _dur(int m) => m >= 60 ? '${m ~/ 60} h${m % 60 == 0 ? '' : ' ${(m % 60).toString().padLeft(2, '0')}'}' : '$m min';
 
-void openAppointment(BuildContext context, String id) => showModalBottomSheet(
+void openAppointment(BuildContext context, String id) => showAdaptiveSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

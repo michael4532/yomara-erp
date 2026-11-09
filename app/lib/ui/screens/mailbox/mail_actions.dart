@@ -50,12 +50,12 @@ class MailActionsBar extends StatelessWidget {
     final fmt = DateFormat('EEE d MMM', 'fr_FR');
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 2, 20, 12),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      margin: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F8FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE6FB)),
+        color: Theme.of(context).brightness == Brightness.dark ? YColors.blue.withValues(alpha: .10) : const Color(0xFFF5F8FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? YColors.blue.withValues(alpha: .25) : const Color(0xFFDCE6FB)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (invite != null) ...[

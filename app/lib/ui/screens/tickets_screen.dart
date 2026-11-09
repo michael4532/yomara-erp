@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -573,7 +574,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   }
 
   Future<void> _assign(List<Map<String, dynamic>> members) async {
-    final id = await showModalBottomSheet<int>(
+    final id = await showAdaptiveSheet<int>(
       context: context,
       builder: (c) => SafeArea(
         child: ListView(shrinkWrap: true, children: [

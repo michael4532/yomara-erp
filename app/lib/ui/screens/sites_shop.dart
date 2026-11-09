@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -182,7 +183,7 @@ class _ShopTabState extends State<ShopTab> {
     ];
   }
 
-  Future<void> _detail(Map<String, dynamic> o, String cur, bool manage) => showModalBottomSheet(
+  Future<void> _detail(Map<String, dynamic> o, String cur, bool manage) => showAdaptiveSheet(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,

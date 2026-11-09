@@ -14,6 +14,7 @@ import 'ui/screens/intro_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
+import 'ui/widgets/popup_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +63,7 @@ class YomaraErpApp extends StatelessWidget {
       valueListenable: I18n.current,
       builder: (context, lang, _) => MaterialApp(
       key: ValueKey(lang),
+      navigatorObservers: [PopupGuardObserver()],
       title: (session.bootstrap?['app']?['name'] as String?) ?? 'Yomara ERP',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),

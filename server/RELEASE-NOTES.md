@@ -1,5 +1,14 @@
 # Notes de version
 
+## 0.99.35 — messagerie et Publications modernisées, fenêtres centrées
+- Messagerie : nouvel affichage (dossiers, liste, lecture), plus clair et plus lisible, en clair et en sombre.
+- Nouveaux e-mails : ils apparaissent dans la cloche de notifications en haut (expéditeur, objet, heure), au lieu d'une barre en bas de l'écran ; un clic ouvre le message.
+- Sur ordinateur et tablette, les panneaux qui montaient du bas de l'écran (détail d'une publication, choix, formulaires courts…) s'ouvrent en fenêtre centrée ; sur téléphone rien ne change.
+- Réseaux sociaux › Publications : filtre « Toutes » en premier avec le nombre par statut, recherche, filtre par réseau, vue liste ou grille, totaux (vues, j'aime, commentaires), vignettes (y compris la miniature YouTube) et aperçu à droite tel que sur le réseau, avec le résultat par compte.
+- Ma journée : section « Terminées » qui montre ce qui a été fait.
+- Messagerie et Visio dans le navigateur : un clic sur un panneau ou un menu ouvert par-dessus un e-mail n'ouvre plus le lien de l'e-mail situé dessous.
+- TikTok : la connexion demande aussi le droit de publier des vidéos.
+
 ## 0.99.34 — pages légales pour les réseaux sociaux, Mac
 - Nouvelle page « Conditions d'utilisation » (/conditions), liée en pied de page et dans le plan du site : demandée par YouTube, TikTok et Pinterest.
 - Politique de confidentialité : section « Réseaux sociaux connectés » (données reçues, usage, conservation, déconnexion) et encadré Services API YouTube (conditions YouTube, règles de Google, retrait de l'accès).

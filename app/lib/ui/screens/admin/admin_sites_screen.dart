@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -270,7 +271,7 @@ class _AdminSitesScreenState extends State<AdminSitesScreen> {
     );
   }
 
-  Future<void> _siteMenu(Map<String, dynamic> s) => showModalBottomSheet(
+  Future<void> _siteMenu(Map<String, dynamic> s) => showAdaptiveSheet(
         context: context,
         showDragHandle: true,
         builder: (c) => SafeArea(

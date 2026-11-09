@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -41,7 +42,7 @@ class _PaieScreenState extends State<PaieScreen> with SingleTickerProviderStateM
   Future<void> _newRun() async {
     final now = DateTime.now();
     final choices = [for (var i = -1; i <= 2; i++) DateTime(now.year, now.month - i)];
-    final picked = await showModalBottomSheet<DateTime>(
+    final picked = await showAdaptiveSheet<DateTime>(
       context: context,
       builder: (c) => SafeArea(
         child: Column(

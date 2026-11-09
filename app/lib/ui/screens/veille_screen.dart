@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
@@ -143,7 +144,7 @@ List<Widget> competitorActions(BuildContext dialog, Map<String, dynamic> row, Vo
       OutlinedButton.icon(
         icon: const Icon(Icons.campaign_outlined, size: 18),
         label: Text(tr('Ses publicités en ligne')),
-        onPressed: () => showModalBottomSheet<void>(
+        onPressed: () => showAdaptiveSheet<void>(
           context: dialog,
           showDragHandle: true,
           builder: (c) => SafeArea(

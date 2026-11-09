@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -2661,7 +2662,7 @@ List<Widget> _contactButtons(Map<String, dynamic> c, {bool dark = false}) {
 }
 
 Future<void> _contactSheet(BuildContext context, Map<String, dynamic> contact) {
-  return showModalBottomSheet(
+  return showAdaptiveSheet(
     context: context,
     builder: (c) => SafeArea(
       child: Padding(

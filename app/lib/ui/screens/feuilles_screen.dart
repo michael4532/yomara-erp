@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -109,7 +110,7 @@ class _MyWeekState extends State<_MyWeek> {
       if (session.hasModule('helpdesk') && (session.can('helpdesk.agent') || session.can('helpdesk.manage'))) ('Temps sur un ticket', Icons.support_agent, () => hdLogTime(context)),
     ];
     if (options.isEmpty) return toast(context, tr('Aucune source de temps disponible pour votre compte.'), error: true);
-    final pick = await showModalBottomSheet<int>(
+    final pick = await showAdaptiveSheet<int>(
       context: context,
       builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [for (var i = 0; i < options.length; i++) ListTile(leading: Icon(options[i].$2), title: Text(tr(options[i].$1)), onTap: () => Navigator.pop(ctx, i))])),
     );

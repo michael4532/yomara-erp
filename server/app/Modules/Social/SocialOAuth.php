@@ -22,7 +22,7 @@ class SocialOAuth
         'threads' => 'threads_basic,threads_content_publish,threads_manage_insights',
         'linkedin' => 'openid profile w_member_social',
         'x' => 'tweet.read tweet.write users.read media.write offline.access',
-        'tiktok' => 'user.info.basic,video.publish,video.upload',
+        'tiktok' => 'user.info.basic,video.publish',
         'pinterest' => 'boards:read,pins:read,pins:write,user_accounts:read',
         'google' => 'openid email https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/business.manage',
     ];

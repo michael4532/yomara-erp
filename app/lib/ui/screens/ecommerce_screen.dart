@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -372,7 +373,7 @@ class _OrdersState extends State<_Orders> {
     );
   }
 
-  Future<void> _detail(Map<String, dynamic> o) => showModalBottomSheet(
+  Future<void> _detail(Map<String, dynamic> o) => showAdaptiveSheet(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,

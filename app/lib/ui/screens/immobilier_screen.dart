@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -780,7 +781,7 @@ class _LeaseDialogState extends State<_LeaseDialog> {
 // Fiche d'un bail
 // ---------------------------------------------------------------------------
 
-Future<void> _leaseSheet(BuildContext context, int id, bool manage, VoidCallback onChanged) => showModalBottomSheet(
+Future<void> _leaseSheet(BuildContext context, int id, bool manage, VoidCallback onChanged) => showAdaptiveSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

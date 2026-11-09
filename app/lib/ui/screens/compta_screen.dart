@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import '../../core/json.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -118,7 +119,7 @@ class _ComptaScreenState extends State<ComptaScreen> with SingleTickerProviderSt
 
   Future<void> _pickPeriod() async {
     final presets = [Period.thisMonth(), Period.lastMonth(), Period.thisYear(), Period.lastYear()];
-    final choice = await showModalBottomSheet<Object>(
+    final choice = await showAdaptiveSheet<Object>(
       context: context,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [

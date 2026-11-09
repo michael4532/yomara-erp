@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -876,7 +877,7 @@ class _OrderScreenState extends State<OrderScreen> {
     final s = context.read<Session>();
     final st = '${l['status']}';
     final paid = rsPaid(widget.id)['${l['id']}'] ?? 0;
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showAdaptiveSheet<String>(
       context: context,
       builder: (c) => SafeArea(
         child: Column(
