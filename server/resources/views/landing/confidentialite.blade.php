@@ -27,7 +27,7 @@
 
 <div class="wrap">
   <article class="legal-doc">
-    <p class="meta">Dernière mise à jour : 4 novembre 2026</p>
+    <p class="meta">Dernière mise à jour : 9 novembre 2026</p>
 
     <h2>Qui sommes-nous</h2>
     <p>{{ $appName }} est un logiciel de gestion d'entreprise édité par {{ $who }}, Abidjan, Côte d'Ivoire{{ $contact['address'] ? ' ('.$contact['address'].')' : '' }}. Pour toute question sur vos données :
@@ -59,6 +59,19 @@
 
     <h2>Avec qui elles sont partagées</h2>
     <p>Uniquement avec les prestataires nécessaires au service, et seulement pour ce service : hébergement des serveurs, envoi des e-mails, messages WhatsApp et notifications (Firebase Cloud Messaging de Google), prestataires de paiement (Mobile Money, carte) lorsque vous encaissez ou payez, et les services que votre entreprise choisit de connecter (par exemple Google, WooCommerce ou un stockage de sauvegarde). Nous ne partageons pas vos données à des fins publicitaires.</p>
+
+    <h2 id="reseaux-sociaux">Réseaux sociaux connectés (YouTube, Google, Facebook, Instagram, LinkedIn, TikTok…)</h2>
+    <p>Le module <b>Réseaux sociaux</b> permet à une entreprise de connecter ses propres comptes pour y publier ses contenus depuis {{ $appName }}. La connexion se fait sur la page officielle du réseau, avec l'accord explicite de la personne qui connecte le compte ; nous ne voyons jamais son mot de passe.</p>
+    <ul>
+      <li><b>Données reçues :</b> l'identifiant et le nom du compte, de la chaîne ou de la page, la photo de profil, et une clé d'accès (jeton) permettant de publier pour ce compte. Pour YouTube : la liste des vidéos publiées depuis {{ $appName }} et leurs statistiques publiques (vues, « J'aime », commentaires).</li>
+      <li><b>Utilisation :</b> uniquement publier les contenus que l'entreprise programme, afficher ses comptes et les statistiques de ses publications dans son espace. Ces données ne sont ni vendues, ni partagées avec des tiers, ni utilisées pour de la publicité.</li>
+      <li><b>Conservation :</b> les jetons sont chiffrés sur nos serveurs. Les statistiques sont actualisées régulièrement ; les données reçues d'un réseau sont supprimées au plus tard 30 jours après la déconnexion du compte ou à la demande de l'entreprise.</li>
+      <li><b>Déconnexion :</b> à tout moment dans Réseaux sociaux › Comptes › Déconnecter, ce qui supprime immédiatement les jetons enregistrés.</li>
+    </ul>
+    <div class="box" id="youtube">
+      <b>Services API YouTube</b>
+      <p style="margin:6px 0 0">{{ $appName }} utilise les Services API YouTube pour publier des vidéos et afficher leurs statistiques. En connectant une chaîne YouTube, vous acceptez les <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">Conditions d'utilisation de YouTube</a>. Les données sont aussi traitées selon les <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Règles de confidentialité de Google</a>. Vous pouvez à tout moment retirer l'accès de {{ $appName }} à votre compte Google depuis la <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">page des autorisations de sécurité de Google</a>.</p>
+    </div>
 
     <h2>Sécurité</h2>
     <p>Les échanges sont chiffrés (HTTPS). Les mots de passe sont enregistrés chiffrés. Chaque utilisateur n'accède qu'aux modules et données autorisés par son entreprise. Les données sont sauvegardées chaque jour.</p>

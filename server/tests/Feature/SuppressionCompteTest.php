@@ -12,6 +12,10 @@ class SuppressionCompteTest extends TestCase
     public function test_pages_publiques(): void
     {
         $this->get('/confidentialite')->assertOk()->assertSee('Politique de confidentialité')->assertSee('/suppression-compte');
+        // Exigences YouTube API : conditions YouTube, règles Google, révocation de l'accès
+        $this->get('/confidentialite')->assertSee('https://www.youtube.com/t/terms', false)->assertSee('https://policies.google.com/privacy', false)->assertSee('https://myaccount.google.com/permissions', false);
+        $this->get('/conditions')->assertOk()->assertSee('Conditions d\'utilisation', false)->assertSee('https://www.youtube.com/t/terms', false);
+        $this->get('/sitemap.xml')->assertSee('/conditions', false);
         $this->get('/suppression-compte')->assertOk()->assertSee('Supprimer mon compte');
     }
 

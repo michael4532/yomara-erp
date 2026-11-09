@@ -28,6 +28,7 @@ Route::middleware('weblang')->group(function () {
     });
     // Confidentialité et suppression de compte (Google Play / App Store) : disponibles aussi sur une installation sur serveur
     Route::get('confidentialite', [\App\Http\Controllers\AccountDeletionController::class, 'privacy']);
+    Route::get('conditions', [\App\Http\Controllers\AccountDeletionController::class, 'terms']);
     Route::get('suppression-compte', [\App\Http\Controllers\AccountDeletionController::class, 'form']);
     Route::post('suppression-compte', [\App\Http\Controllers\AccountDeletionController::class, 'submit'])->middleware('throttle:5,10');
     Route::get('modules', [\App\Http\Controllers\LandingController::class, 'modulesPage']);
@@ -41,7 +42,7 @@ Route::get('robots.txt', fn () => response("User-agent: *\nDisallow: /api/\nDisa
 // Plan du site pour les moteurs de recherche (pages publiques du site de présentation)
 Route::get('sitemap.xml', function () {
     $base = rtrim((string) config('app.url'), '/');
-    $pages = ['/', '/modules', '/tarifs', '/telecharger', '/contact', '/inscription', '/confidentialite'];
+    $pages = ['/', '/modules', '/tarifs', '/telecharger', '/contact', '/inscription', '/confidentialite', '/conditions'];
     $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n".'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
     foreach ($pages as $p) {
         $xml .= '<url><loc>'.e($base.($p === '/' ? '/' : $p)).'</loc><changefreq>weekly</changefreq><priority>'.($p === '/' ? '1.0' : '0.7').'</priority></url>';

@@ -188,6 +188,7 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);margin-top:44px;padding-
         <a href="/contact">Demander un module sur mesure</a>
         <a href="/contact#faq">Questions fréquentes</a>
         <a href="/confidentialite">Confidentialité</a>
+        <a href="/conditions">Conditions d'utilisation</a>
         <a href="/suppression-compte">Supprimer mon compte</a>
       </div>
       <div>

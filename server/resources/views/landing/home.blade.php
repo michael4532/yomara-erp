@@ -158,6 +158,8 @@
       <div class="fact rv"><h3>Internet coupe, vous continuez.</h3><p>Le logiciel installé garde une copie de vos données. Vous vendez, encaissez et saisissez ; tout se synchronise au retour du réseau.</p></div>
       <div class="fact rv"><h3>Vos factures certifiées par la DGI.</h3><p>Facture normalisée (FNE) envoyée à la validation, QR code imprimé, avoirs liés à la facture d'origine.</p></div>
       <div class="fact rv"><h3>Une comptabilité SYSCOHADA.</h3><p>Plan comptable révisé, écritures générées par les ventes, les achats et la caisse, états financiers prêts pour votre expert-comptable.</p></div>
+      <div class="fact rv"><h3>Publiez sur tous vos réseaux.</h3><p>Un seul calendrier pour programmer vos publications, vos vidéos et vos statistiques, sur les comptes de votre entreprise.</p><div class="tags"><span>Facebook</span><span>Instagram</span><span>YouTube</span><span>LinkedIn</span><span>TikTok</span></div></div>
+      <div class="fact rv"><h3>Une paie aux règles locales.</h3><p>Bulletins pour la Côte d'Ivoire, l'UEMOA et la CEMAC, déclarations sociales et paiement des salaires depuis le même outil.</p></div>
     </div>
   </div>
 </section>

@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.34 — pages légales pour les réseaux sociaux, Mac
+- Nouvelle page « Conditions d'utilisation » (/conditions), liée en pied de page et dans le plan du site : demandée par YouTube, TikTok et Pinterest.
+- Politique de confidentialité : section « Réseaux sociaux connectés » (données reçues, usage, conservation, déconnexion) et encadré Services API YouTube (conditions YouTube, règles de Google, retrait de l'accès).
+- Page d'accueil : publication sur les réseaux sociaux et paie aux règles locales.
+- Applications Mac, iPhone et Linux : la limite de fichiers ouverts est relevée au démarrage (corrige « Too many open files » au lancement sur Mac) ; message d'erreur plus clair si cela se reproduisait.
+
 ## 0.99.33 — audit complet : failles et bugs corrigés
 Sécurité serveur
 - Mise à jour : un paquet venant du serveur de mises à jour est toujours contrôlé par sa signature Yomara ; numéro de version vérifié.

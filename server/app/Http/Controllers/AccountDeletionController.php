@@ -40,6 +40,11 @@ class AccountDeletionController extends Controller
         return view('landing.confidentialite', $this->common());
     }
 
+    public function terms()
+    {
+        return view('landing.conditions', $this->common());
+    }
+
     public function form()
     {
         return view('landing.suppression', $this->common() + ['scopes' => self::SCOPES]);
