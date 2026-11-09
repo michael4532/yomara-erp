@@ -32,6 +32,13 @@ command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2;
 command -v xcodebuild >/dev/null 2>&1 || { echo "Xcode n'est pas installé." >&2; exit 1; }
 
 VERSION="$(grep -E '^version:' pubspec.yaml | awk '{print $2}')"
+# Numéro de build imposé pour Apple (BUILD_NUMBER=9 ./…) sans toucher à pubspec.yaml
+# (pubspec reste la version enregistrée chez Shorebird pour Android, iPhone et ordinateurs)
+BUILDARG=()
+if [ -n "${BUILD_NUMBER:-}" ]; then
+  VERSION="${VERSION%%+*}+$BUILD_NUMBER"
+  BUILDARG=(--build-number="$BUILD_NUMBER")
+fi
 if [ "$DEST" = export ]; then echo "Yomara ERP $VERSION — création du fichier pour App Store Connect"; else echo "Yomara ERP $VERSION — envoi sur App Store Connect"; fi
 
 TEAMFILE="$HOME/.yomara-keys/apple-team-id"
@@ -82,7 +89,7 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "mac" ]; then
   trap 'cp build/appstore/Release.entitlements.bak "$ENT" 2>/dev/null' EXIT
   /usr/libexec/PlistBuddy -c "Delete :com.apple.security.cs.allow-unsigned-executable-memory" "$ENT" 2>/dev/null || true
   # Compilation Flutter (version store : achats masqués), puis archive Xcode et envoi
-  flutter build macos --release --dart-define=APP_STORE=true
+  flutter build macos --release --dart-define=APP_STORE=true ${BUILDARG[@]+"${BUILDARG[@]}"}
   export_plist build/appstore/ExportMac.plist
   xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=macOS' \
     -archivePath build/appstore/YomaraERP-mac.xcarchive DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic -allowProvisioningUpdates archive
@@ -97,7 +104,7 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "iphone" ]; then
   grep -q "DEVELOPMENT_TEAM = $TEAM;" ios/Runner.xcodeproj/project.pbxproj || set_team ios/Runner.xcodeproj/project.pbxproj
   export_plist build/appstore/ExportIos.plist
   (cd ios && pod install >/dev/null 2>&1 || (cd ios && pod install --repo-update))
-  flutter build ipa --release --dart-define=APP_STORE=true --export-options-plist=build/appstore/ExportIos.plist
+  flutter build ipa --release --dart-define=APP_STORE=true ${BUILDARG[@]+"${BUILDARG[@]}"} --export-options-plist=build/appstore/ExportIos.plist
   ok+=("iPhone")
 fi
 
