@@ -1,0 +1,222 @@
+# Yomara ERP — logiciels Windows, macOS (DMG) et Linux avec mises à jour à distance (Shorebird).
+#
+#   mode « version »   : construit les logiciels et les enregistre chez Shorebird comme version de base
+#                        (installateur Windows, ZIP, paquet Microsoft Store MSIX, DMG Mac, paquets Linux),
+#                        puis les dépose sur le serveur Yomara (page « Télécharger ») si les secrets sont fournis.
+#   mode « correctif » : envoie un correctif à une version déjà publiée ; les logiciels installés le reçoivent
+#                        en arrière-plan et l'appliquent au redémarrage.
+#
+# Lancé depuis le Mac par CONSTRUIRE_TOUS_LES_STORES (version) et PUBLIER-CORRECTIF (correctif),
+# ou à la main : onglet Actions › « Mises à jour à distance (Shorebird) » › Run workflow.
+# Secret nécessaire : SHOREBIRD_TOKEN (clé d'un compte de service Shorebird, rôle Developer).
+# Secrets facultatifs : les mêmes que « Applications (Windows, macOS, Linux) » (signature, YOMARA_SERVER…).
+#
+# Copyright © 2026 Yomara Technologies — licence AGPL-3.0 (voir LICENSE et NOTICE.md).
+name: Mises à jour à distance (Shorebird)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "version ou correctif"
+        required: true
+        default: correctif
+        type: choice
+        options: [correctif, version]
+      release_version:
+        description: "Version visée, ex. 1.0.2+4 (correctif : obligatoire ; version : vide = pubspec.yaml)"
+        required: false
+        default: ""
+      plateformes:
+        description: "Plateformes (windows, macos, linux), séparées par des virgules"
+        required: false
+        default: "windows,macos,linux"
+
+env:
+  SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+  SB_FLUTTER: "3.47.9"
+  MODE: ${{ inputs.mode }}
+  RELEASE_VERSION: ${{ inputs.release_version }}
+
+jobs:
+  windows:
+    if: contains(inputs.plateformes, 'windows')
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      HAS_CERT: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shorebirdtech/setup-shorebird@v1
+        with: { cache: true }
+      # Flutter classique : seulement pour « dart run msix » (le logiciel lui-même est compilé par Shorebird)
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Version
+        shell: pwsh
+        run: |
+          $full = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)').Matches[0].Groups[1].Value
+          if ($env:RELEASE_VERSION) { $full = $env:RELEASE_VERSION }
+          $v = $full.Split('+')[0]; $b = $full.Split('+')[1]
+          "APP_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "FULL_VERSION=$full" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "BUILD_NUMBER=$b" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Correctif
+        if: env.MODE == 'correctif'
+        shell: bash
+        run: shorebird patch windows --release-version="$FULL_VERSION" --track=stable
+      - name: Version de base
+        if: env.MODE == 'version'
+        shell: bash
+        run: shorebird release windows --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+      - name: Signer l'application (si certificat)
+        if: env.MODE == 'version' && env.HAS_CERT == 'true'
+        env: { WINDOWS_CERT_PFX: '${{ secrets.WINDOWS_CERT_PFX }}', WINDOWS_CERT_PASSWORD: '${{ secrets.WINDOWS_CERT_PASSWORD }}' }
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERT_PFX))
+          $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
+          & $st sign /f cert.pfx /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 build\windows\x64\runner\Release\yomara_erp.exe
+      - name: Installateur, ZIP et paquet Microsoft Store (même logiciel)
+        if: env.MODE == 'version'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" packaging\windows\yomara-erp.iss
+          Compress-Archive -Path build\windows\x64\runner\Release\*, ..\LICENSE, ..\NOTICE.md -DestinationPath "dist\Yomara-ERP-windows-x64-v$env:APP_VERSION.zip"
+          dart run msix:create --store --build-windows false --version "$env:APP_VERSION.0" --output-path dist --output-name "Yomara-ERP-$env:APP_VERSION-store"
+      - name: Signer l'installateur (si certificat)
+        if: env.MODE == 'version' && env.HAS_CERT == 'true'
+        env: { WINDOWS_CERT_PASSWORD: '${{ secrets.WINDOWS_CERT_PASSWORD }}' }
+        shell: pwsh
+        run: |
+          $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
+          & $st sign /f cert.pfx /p $env:WINDOWS_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "dist\Yomara-ERP-Setup-v$env:APP_VERSION-x64.exe"
+      - name: Sommes de contrôle
+        if: env.MODE == 'version'
+        shell: pwsh
+        run: |
+          $lines = @(Get-ChildItem dist -File | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" })
+          $lines | Out-File -Encoding ascii "dist\SHA256SUMS-windows-v$env:APP_VERSION.txt"
+      - uses: actions/upload-artifact@v4
+        if: env.MODE == 'version'
+        with: { name: windows, path: 'app/dist/*' }
+      - uses: actions/upload-artifact@v4
+        if: env.MODE == 'version'
+        with: { name: msix, path: 'app/dist/*.msix' }
+
+  macos:
+    if: contains(inputs.plateformes, 'macos')
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      HAS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shorebirdtech/setup-shorebird@v1
+        with: { cache: true }
+      - name: Version
+        run: |
+          FULL=$(grep -E '^version:' pubspec.yaml | awk '{print $2}'); [ -n "$RELEASE_VERSION" ] && FULL="$RELEASE_VERSION"
+          echo "FULL_VERSION=$FULL" >> "$GITHUB_ENV"; echo "APP_VERSION=${FULL%%+*}" >> "$GITHUB_ENV"; echo "BUILD_NUMBER=${FULL##*+}" >> "$GITHUB_ENV"
+      # Comme sur le Mac de développement : CocoaPods (Swift Package Manager : conflit firebase / google_sign_in)
+      - run: shorebird flutter config --no-enable-swift-package-manager || true
+      - name: Signature ad hoc (sans certificat)
+        if: env.HAS_CERT != 'true'
+        run: |
+          sed -i '' -e 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "-";/g' -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' -e 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/g' macos/Runner.xcodeproj/project.pbxproj
+      - name: Correctif
+        if: env.MODE == 'correctif'
+        run: shorebird patch macos --release-version="$FULL_VERSION" --track=stable
+      - name: Version de base
+        if: env.MODE == 'version'
+        run: shorebird release macos --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+      - name: Certificat Apple (si fourni)
+        if: env.MODE == 'version' && env.HAS_CERT == 'true'
+        env: { MACOS_CERT_P12: '${{ secrets.MACOS_CERT_P12 }}', MACOS_CERT_PASSWORD: '${{ secrets.MACOS_CERT_PASSWORD }}' }
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain && security default-keychain -s build.keychain && security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+      - name: Signature, DMG
+        if: env.MODE == 'version'
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: packaging/macos/build.sh "$APP_VERSION" dist
+      - uses: actions/upload-artifact@v4
+        if: env.MODE == 'version'
+        with: { name: macos, path: 'app/dist/*' }
+
+  linux:
+    if: contains(inputs.plateformes, 'linux')
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: app
+    env:
+      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev libjsoncpp-dev libfuse2
+      - uses: shorebirdtech/setup-shorebird@v1
+        with: { cache: true }
+      - name: Version
+        run: |
+          FULL=$(grep -E '^version:' pubspec.yaml | awk '{print $2}'); [ -n "$RELEASE_VERSION" ] && FULL="$RELEASE_VERSION"
+          echo "FULL_VERSION=$FULL" >> "$GITHUB_ENV"; echo "APP_VERSION=${FULL%%+*}" >> "$GITHUB_ENV"; echo "BUILD_NUMBER=${FULL##*+}" >> "$GITHUB_ENV"
+      - name: Correctif
+        if: env.MODE == 'correctif'
+        run: shorebird patch linux --release-version="$FULL_VERSION" --track=stable
+      - name: Version de base
+        if: env.MODE == 'version'
+        run: shorebird release linux --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+      - name: appimagetool
+        if: env.MODE == 'version'
+        run: |
+          curl -sSfL -o /usr/local/bin/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          sudo chmod +x /usr/local/bin/appimagetool
+      - name: Clé GPG (si fournie)
+        if: env.MODE == 'version' && env.HAS_GPG == 'true'
+        env: { GPG_PRIVATE_KEY: '${{ secrets.GPG_PRIVATE_KEY }}' }
+        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Paquets .tar.gz, .deb, AppImage
+        if: env.MODE == 'version'
+        env: { GPG_KEY_ID: '${{ secrets.GPG_KEY_ID }}' }
+        run: packaging/linux/build.sh "$APP_VERSION" dist
+      - uses: actions/upload-artifact@v4
+        if: env.MODE == 'version'
+        with: { name: linux, path: 'app/dist/*' }
+
+  publish:
+    needs: [windows, macos, linux]
+    if: always() && inputs.mode == 'version' && !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    env:
+      HAS_SERVER: ${{ secrets.YOMARA_SERVER != '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Dépôt sur le serveur Yomara (page « Télécharger »)
+        if: env.HAS_SERVER == 'true'
+        env: { YOMARA_SERVER: '${{ secrets.YOMARA_SERVER }}', YOMARA_API_TOKEN: '${{ secrets.YOMARA_API_TOKEN }}' }
+        run: |
+          for f in dist/*; do
+            name=$(basename "$f"); id=$(date +%s%N | sha1sum | cut -c1-24)
+            split -b 8m -d "$f" "/tmp/part-$id-"
+            parts=(/tmp/part-$id-*); total=${#parts[@]}; i=0
+            for p in "${parts[@]}"; do
+              curl -sSf -H "Authorization: Bearer $YOMARA_API_TOKEN" -H "Accept: application/json" \
+                -F upload_id=$id -F index=$i -F total=$total -F name="$name" -F chunk=@"$p" \
+                "$YOMARA_SERVER/api/admin/downloads" > /dev/null
+              i=$((i+1))
+            done
+            echo "Déposé : $name"
+          done

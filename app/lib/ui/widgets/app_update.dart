@@ -118,7 +118,7 @@ class _UpdateButtonState extends State<UpdateButton> {
         tooltip: tr('Yomara ERP $serverVersion est installé : rechargez pour l\'utiliser.'),
         onTap: () async {
           await LocalDb.meta.put('web_reload_for', serverVersion);
-          reloadApp();
+          await hardReloadApp(serverVersion);
         },
       );
     }

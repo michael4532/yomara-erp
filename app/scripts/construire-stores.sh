@@ -14,6 +14,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/shorebird-commun.sh"
 [ "$(uname)" = "Darwin" ] || { echo "Cette commande se lance sur un Mac (iPhone et Mac ne se construisent que sur Mac)." >&2; exit 1; }
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2; exit 1; }
 SANS=" ${SANS:-} "
@@ -53,9 +54,24 @@ if veut msix; then
     gh auth login --hostname github.com --git-protocol https --web
   fi
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    echo; echo "=================== Microsoft Store : compilation lancée sur GitHub (journal : $LOGS/microsoft.log)"
-    MSIX_VERSION="$V" MSIX_OUT="$SORTIE" ./scripts/generer-msix.sh >"$LOGS/microsoft.log" 2>&1 &
-    MSIX_PID=$!
+    if sb_actif; then
+      # Mises à jour à distance : Windows (installateur + MSIX), DMG Mac et Linux construits par Shorebird sur GitHub.
+      # GitHub compile les sources publiées : la version doit déjà y être (pubspec.yaml du dépôt).
+      EN_LIGNE="$(gh api "repos/$SB_REPO/contents/app/pubspec.yaml" -H 'Accept: application/vnd.github.raw' 2>/dev/null | grep -E '^version:' | awk '{print $2}')"
+      if [ "$EN_LIGNE" != "$NOUVELLE" ]; then
+        echo "Attention : GitHub a la version « $EN_LIGNE » et non « $NOUVELLE » : Windows, DMG Mac et Linux sont sautés."
+        echo "Demandez la publication des sources en $NOUVELLE, puis relancez avec SANS=\"android ios mac\"."
+        ko+=("Windows/Linux/DMG (sources GitHub pas en $NOUVELLE)")
+      else
+        echo; echo "=================== Windows, DMG Mac, Linux : construction Shorebird lancée sur GitHub (journal : $LOGS/microsoft.log)"
+        ./scripts/shorebird-github.sh version "$NOUVELLE" "$SORTIE" >"$LOGS/microsoft.log" 2>&1 &
+        MSIX_PID=$!
+      fi
+    else
+      echo; echo "=================== Microsoft Store : compilation lancée sur GitHub (journal : $LOGS/microsoft.log)"
+      MSIX_VERSION="$V" MSIX_OUT="$SORTIE" ./scripts/generer-msix.sh >"$LOGS/microsoft.log" 2>&1 &
+      MSIX_PID=$!
+    fi
   else
     ko+=("Microsoft (GitHub CLI non connecté)")
   fi

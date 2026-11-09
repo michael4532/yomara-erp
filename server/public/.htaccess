@@ -14,6 +14,17 @@
     ExpiresByType image/webp "access plus 30 days"
 </IfModule>
 
+# Interface web (app/, scan/) : le navigateur revérifie auprès du serveur à chaque ouverture (réponse 304 sans
+# changement, quelques octets), pour qu'une mise à jour du serveur soit visible tout de suite.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|js|mjs|json|webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <FilesMatch "^(offline-sw|flutter_service_worker)\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

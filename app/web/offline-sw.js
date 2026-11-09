@@ -1,6 +1,6 @@
 // Yomara ERP — cache de l'application web pour un démarrage hors ligne.
 // Les appels /api ne sont jamais mis en cache (les données hors ligne vivent dans IndexedDB).
-const CACHE = 'yomara-erp-shell-v2';
+const CACHE = 'yomara-erp-shell-v3';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', 'index.html', 'flutter_bootstrap.js', 'main.dart.js', 'manifest.json'])).catch(() => {}));

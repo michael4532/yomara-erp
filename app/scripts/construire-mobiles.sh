@@ -11,6 +11,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+. "$ROOT/scripts/shorebird-commun.sh"
 cd "$ROOT"
 WHAT="${1:-tout}"
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé (https://docs.flutter.dev/get-started/install)." >&2; exit 1; }
@@ -32,10 +33,15 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "android" ]; then
   fi
   STORE="$(grep -E '^storeFile=' android/key.properties | cut -d= -f2-)"
   [ -f "$STORE" ] || { echo "Le keystore indiqué dans android/key.properties est introuvable : $STORE" >&2; exit 1; }
-  echo "== Android : APK signé"
-  flutter build apk --release
-  echo "== Android : App Bundle signé (Google Play)"
-  flutter build appbundle --release
+  if sb_actif; then
+    echo "== Android : App Bundle et APK signés, enregistrés comme version de base des mises à jour à distance"
+    shorebird release android --flutter-version="$SB_FLUTTER" --artifact apk
+  else
+    echo "== Android : APK signé"
+    flutter build apk --release
+    echo "== Android : App Bundle signé (Google Play)"
+    flutter build appbundle --release
+  fi
   cp build/app/outputs/flutter-apk/app-release.apk "$OUT/yomara-erp-$NAME.apk"
   cp build/app/outputs/bundle/release/app-release.aab "$OUT/yomara-erp-$NAME.aab"
   # Vérifie la signature (empreinte SHA-256 du certificat)
@@ -65,17 +71,7 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "ios" ]; then
       perl -pi -e 's/^(\s*)(PRODUCT_BUNDLE_IDENTIFIER = com\.yomaratechnologies\.yomaraerp;)/$1DEVELOPMENT_TEAM = '"$TEAM"';\n$1$2/' "$PBX"
     fi
     PLIST="$ROOT/build/ExportOptions.plist"
-    mkdir -p "$ROOT/build"
-    cat > "$PLIST" <<PL
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>method</key><string>app-store-connect</string>
-  <key>teamID</key><string>$TEAM</string>
-  <key>signingStyle</key><string>automatic</string>
-  <key>uploadSymbols</key><true/>
-</dict></plist>
-PL
+    sb_export_ios "$PLIST" "$TEAM"
     # Xcode 26 réenregistre le projet dans un format que CocoaPods ne lit pas encore
     # (« Type checking error: got Array for attribute shellScript ») : on le remet au format classique.
     for P in ios/Runner.xcodeproj/project.pbxproj macos/Runner.xcodeproj/project.pbxproj; do
@@ -84,7 +80,11 @@ PL
     done
     echo "== iPhone : IPA signé (App Store Connect)"
     (cd ios && pod install --repo-update >/dev/null 2>&1 || pod install)
-    flutter build ipa --release --export-options-plist="$PLIST"
+    if sb_actif; then
+      shorebird release ios --flutter-version="$SB_FLUTTER" --export-options-plist="$PLIST"
+    else
+      flutter build ipa --release --export-options-plist="$PLIST"
+    fi
     IPA="$(ls build/ios/ipa/*.ipa | head -1)"
     cp "$IPA" "$OUT/yomara-erp-$NAME.ipa"
     echo "Envoi sur l'App Store : ouvrez l'app « Transporter » et déposez $OUT/yomara-erp-$NAME.ipa"

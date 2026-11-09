@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.36 — mises à jour automatiques
+- Navigateur : quand le serveur est mis à jour, l'application web vide son cache et se recharge toute seule dans la nouvelle version (aussitôt à l'ouverture ou si l'onglet est en arrière-plan ; sinon après un compte à rebours de 20 s, avec « Plus tard »). Connexion et saisies hors ligne en attente sont conservées.
+- Serveur : l'interface web n'est plus gardée en cache par les navigateurs sans vérification (en-têtes Cache-Control).
+- Applications installées (Android, iPhone, Windows, Mac, Linux) : prêtes pour les mises à jour à distance (Shorebird). Une fois activées, chaque nouvelle version leur arrive en arrière-plan sans store ni réinstallation, puis s'applique au redémarrage (bouton « Redémarrer » sur ordinateur).
+- Commandes Mac : ACTIVER-MISES-A-JOUR-A-DISTANCE (une seule fois) et PUBLIER-CORRECTIF (à chaque mise à jour) ; CONSTRUIRE_TOUS_LES_STORES enregistre les versions de base.
+
 ## 0.99.35 — messagerie et Publications modernisées, fenêtres centrées
 - Messagerie : nouvel affichage (dossiers, liste, lecture), plus clair et plus lisible, en clair et en sombre.
 - Nouveaux e-mails : ils apparaissent dans la cloche de notifications en haut (expéditeur, objet, heure), au lieu d'une barre en bas de l'écran ; un clic ouvre le message.

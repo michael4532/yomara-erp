@@ -23,7 +23,7 @@ String clientPlatform() {
 class AppConfig {
   static const appName = 'Yomara ERP';
   /// Version de cette application (identique à pubspec.yaml et à config/erp.php du serveur).
-  static const appVersion = '0.99.35';
+  static const appVersion = '0.99.36';
 
   /// Version Mac App Store : construite avec --dart-define=APP_STORE=true (commande Envoyer-sur-App-Store).
   static const appStoreBuild = bool.fromEnvironment('APP_STORE');

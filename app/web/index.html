@@ -84,6 +84,8 @@
     })();
   </script>
   <!-- pdf.js servi par le serveur Yomara (aperçus et éditeur PDF), sans dépendre d'un CDN -->
+  <!-- Après une mise à jour automatique : retire le « ?v=… » de l'adresse avant le démarrage de l'application -->
+  <script>try { if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}</script>
   <script>window.dartPdfJsBaseUrl = new URL('pdfjs/', document.baseURI).href;</script>
   <script src="flutter_bootstrap.js" async></script>
   <script>

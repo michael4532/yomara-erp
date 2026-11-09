@@ -1,3 +1,4 @@
+import 'package:yomara_erp/ui/widgets/auto_update.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -64,6 +65,7 @@ class YomaraErpApp extends StatelessWidget {
       builder: (context, lang, _) => MaterialApp(
       key: ValueKey(lang),
       navigatorObservers: [PopupGuardObserver()],
+      builder: (context, child) => AutoUpdate(child: child ?? const SizedBox.shrink()),
       title: (session.bootstrap?['app']?['name'] as String?) ?? 'Yomara ERP',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
