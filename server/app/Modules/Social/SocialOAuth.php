@@ -17,6 +17,9 @@ class SocialOAuth
 {
     public const GRAPH = 'https://graph.facebook.com/v21.0';
 
+    /** Remarques à afficher après la connexion (ex. YouTube connecté mais fiche Google Business inaccessible). */
+    public array $notes = [];
+
     public const SCOPES = [
         'meta' => 'pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,instagram_basic,instagram_content_publish,business_management',
         'threads' => 'threads_basic,threads_content_publish,threads_manage_insights',
@@ -260,16 +263,48 @@ class SocialOAuth
             $out[] = self::store($c, $u, 'youtube', (string) $ch['id'], (string) ($ch['snippet']['title'] ?? 'YouTube'), $creds,
                 ['kind' => 'channel', 'username' => $ch['snippet']['customUrl'] ?? null, 'avatar' => $ch['snippet']['thumbnails']['default']['url'] ?? null]);
         }
+        $gbp = 0;
+        $why = null;
         $accs = Http::withToken($tok)->timeout(20)->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts');
+        if (! $accs->ok()) {
+            $why = self::gbpReason($accs);
+        }
         foreach ($accs->ok() ? (array) $accs->json('accounts') : [] as $a) {
             $locs = Http::withToken($tok)->timeout(20)->get('https://mybusinessbusinessinformation.googleapis.com/v1/'.$a['name'].'/locations', ['readMask' => 'name,title', 'pageSize' => 100]);
+            if (! $locs->ok()) {
+                $why ??= self::gbpReason($locs);
+            }
             foreach ($locs->ok() ? (array) $locs->json('locations') : [] as $l) {
                 $out[] = self::store($c, $u, 'gbp', $a['name'].'/'.$l['name'], (string) ($l['title'] ?? 'Établissement'), $creds, ['kind' => 'location']);
+                $gbp++;
             }
         }
-        $out ?: $this->fail('Aucune chaîne YouTube ni fiche Google Business trouvée sur ce compte Google.');
+        if (! $gbp) {
+            $why ??= 'aucune fiche d\'établissement n\'est gérée par ce compte Google (vérifiez sur business.google.com que ce compte est propriétaire ou gestionnaire de la fiche).';
+            $note = 'Google Business Profile : '.$why;
+            $out ?: $this->fail($note);
+            $this->notes[] = $note;
+        }
 
         return $out;
+    }
+
+    /** Raison lisible d'un refus des API Google Business Profile. */
+    protected static function gbpReason($res): string
+    {
+        $m = (string) ($res->json('error.message') ?? '');
+        $status = (string) ($res->json('error.status') ?? '');
+        if ($res->status() === 429 || $status === 'RESOURCE_EXHAUSTED' || str_contains($m, 'Quota')) {
+            return 'Google n\'a pas encore ouvert l\'accès aux API Business Profile pour cette application (quota à 0). '
+                .'Il faut en faire la demande à Google (formulaire « Business Profile API access request ») depuis le projet Google Cloud ; '
+                .'une fois l\'accès accordé, reconnectez le compte.';
+        }
+        if (str_contains($m, 'has not been used') || str_contains($m, 'is disabled') || $status === 'PERMISSION_DENIED' && str_contains($m, 'API')) {
+            return 'les API « My Business Account Management » et « My Business Business Information » ne sont pas activées dans le projet Google Cloud de l\'application. '
+                .'Activez-les (APIs et services › Bibliothèque), puis reconnectez le compte.';
+        }
+
+        return 'Google refuse l\'accès aux fiches ('.$res->status().($m ? ' : '.mb_substr($m, 0, 200) : '').').';
     }
 
     // ------------------------------------------------------------------ rafraîchissement

@@ -19,6 +19,12 @@ command -v shorebird >/dev/null 2>&1 || { echo "Installation de Shorebird imposs
 echo; echo "== Connexion à Shorebird (le navigateur s'ouvre ; créez le compte si besoin)"
 shorebird login || exit 1
 
+# Fichiers de configuration locaux (chemin de Flutter, SDK Android) régénérés pour ce Mac avant l'enregistrement
+if command -v flutter >/dev/null 2>&1; then
+  echo; echo "== Préparation du projet (flutter pub get)"
+  flutter pub get >/dev/null || flutter pub get
+fi
+
 if [ ! -f shorebird.yaml ]; then
   echo; echo "== Enregistrement de l'application « Yomara ERP » chez Shorebird"
   shorebird init || exit 1

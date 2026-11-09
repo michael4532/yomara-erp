@@ -29,6 +29,7 @@ class OAuthCallbackController extends Controller
             }
         }
         $color = $ok ? '#12A150' : '#D93025';
+        $notes = collect($o->notes)->map(fn ($n) => '<p style="text-align:left;background:#FFF6E5;border:1px solid #F5C26B;border-radius:12px;padding:12px 14px;color:#7A4B00;line-height:1.45;font-size:14px">'.e($n).'</p>')->implode('');
         $items = collect($list)->map(fn ($a) => '<li style="margin:4px 0"><b>'.e($a['label']).'</b> — '.e($a['name']).'</li>')->implode('');
 
         return response('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Réseaux sociaux</title></head>'
@@ -36,8 +37,8 @@ class OAuthCallbackController extends Controller
             .'<div style="background:#fff;border-radius:18px;padding:32px;max-width:480px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.08)">'
             .'<div style="width:64px;height:64px;border-radius:50%;background:'.$color.'1A;color:'.$color.';font-size:34px;line-height:64px;margin:0 auto 14px">'.($ok ? '✓' : '!').'</div>'
             .'<h2 style="margin:0 0 8px;color:#0B1B3A">'.($ok ? 'Comptes connectés' : 'Connexion impossible').'</h2>'
-            .'<p style="color:#5B6B85;line-height:1.5">'.$msg.'</p>'.($items ? '<ul style="text-align:left;color:#0B1B3A;padding-left:20px">'.$items.'</ul>' : '')
-            .($ok ? '<script>setTimeout(function(){try{window.close()}catch(e){}},4000)</script>' : '')
+            .'<p style="color:#5B6B85;line-height:1.5">'.$msg.'</p>'.($items ? '<ul style="text-align:left;color:#0B1B3A;padding-left:20px">'.$items.'</ul>' : '').$notes
+            .($ok && ! $notes ? '<script>setTimeout(function(){try{window.close()}catch(e){}},4000)</script>' : '')
             .'</div></body></html>', $ok ? 200 : 422)->header('Content-Type', 'text/html; charset=utf-8')->header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'");
     }
 }

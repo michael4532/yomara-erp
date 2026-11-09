@@ -6,6 +6,9 @@
 	<true/>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- Mises à jour à distance (Shorebird) -->
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.security.network.server</key>
