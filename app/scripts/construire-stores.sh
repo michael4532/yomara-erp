@@ -92,7 +92,7 @@ veut mac     && etape "Mac PKG"            env SORTIE="$SORTIE" ./scripts/envoye
 if [ -n "$MSIX_PID" ]; then
   echo; echo "=================== Microsoft Store : attente de GitHub…"
   if wait "$MSIX_PID"; then
-    if sb_actif; then echo "$NOUVELLE" > "$ROOT/scripts/version-bureau.txt"; fi
+    if sb_actif; then echo "$NOUVELLE" > "$ROOT/scripts/version-bureau.txt"; echo oui > "$ROOT/scripts/icones-bureau.txt"; fi
     ok+=("Microsoft MSIX"); else ko+=("Microsoft MSIX"); tail -5 "$LOGS/microsoft.log"; fi
 fi
 

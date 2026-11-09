@@ -43,19 +43,19 @@ LOGS="$(cd .. && pwd)/sorties/correctifs/$APPV"; mkdir -p "$LOGS"
 ok=(); ko=(); GH_PID=""
 if veut github; then
   echo "=================== Windows, Mac DMG, Linux : correctif lancé sur GitHub (journal : $LOGS/github.log)"
-  ./scripts/shorebird-github.sh correctif "$VB" >"$LOGS/github.log" 2>&1 &
+  ICONES="$( [ -n "$(sb_icones bureau)" ] && echo oui || echo non )" ./scripts/shorebird-github.sh correctif "$VB" >"$LOGS/github.log" 2>&1 &
   GH_PID=$!
 fi
 etape() {
   echo; echo "=================== $1"
   if "${@:2}" 2>&1 | tee "$LOGS/$(echo "$1" | tr ' ' '-' | tr '[:upper:]' '[:lower:]').log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then ok+=("$1"); else ko+=("$1"); fi
 }
-veut android && etape "Android" shorebird patch android --release-version="$V" --track=stable
+veut android && etape "Android" shorebird patch android --release-version="$V" --track=stable -- $(sb_icones mobile)
 if veut ios && [ "$(uname)" = Darwin ]; then
   TEAM="${APPLE_TEAM_ID:-$(cat "$HOME/.yomara-keys/apple-team-id" 2>/dev/null || true)}"
   if [ -n "$TEAM" ]; then
     sb_export_ios "$ROOT/build/ExportOptions.plist" "$TEAM"
-    etape "iPhone" shorebird patch ios --release-version="$V" --track=stable --export-options-plist="$ROOT/build/ExportOptions.plist"
+    etape "iPhone" shorebird patch ios --release-version="$V" --track=stable --export-options-plist="$ROOT/build/ExportOptions.plist" -- $(sb_icones mobile)
   else
     ko+=("iPhone (Team ID Apple inconnu : lancez une fois Construire-iphone-signe)")
   fi

@@ -27,6 +27,10 @@ on:
         description: "Version visée, ex. 1.0.2+4 (correctif : obligatoire ; version : vide = pubspec.yaml)"
         required: false
         default: ""
+      icones_completes:
+        description: "La version de base visée a été construite avec la police d'icônes complète"
+        required: false
+        default: "oui"
       plateformes:
         description: "Plateformes (windows, macos, linux), séparées par des virgules"
         required: false
@@ -70,12 +74,12 @@ jobs:
         # Le correctif est construit avec le numéro de la version de base visée (pubspec peut être plus récent)
         run: |
           sed -i -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
-          shorebird patch windows --release-version="$FULL_VERSION" --track=stable
+          shorebird patch windows --release-version="$FULL_VERSION" --track=stable $( [ "${{ inputs.icones_completes }}" = oui ] && echo "-- --no-tree-shake-icons" )
       - name: Version de base
         if: env.MODE == 'version'
         shell: bash
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird release windows --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+        run: shorebird release windows --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER" -- --no-tree-shake-icons
       - name: Signer l'application (si certificat)
         if: env.MODE == 'version' && env.HAS_CERT == 'true'
         env: { WINDOWS_CERT_PFX: '${{ secrets.WINDOWS_CERT_PFX }}', WINDOWS_CERT_PASSWORD: '${{ secrets.WINDOWS_CERT_PASSWORD }}' }
@@ -139,11 +143,11 @@ jobs:
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: |
           sed -i '' -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
-          shorebird patch macos --release-version="$FULL_VERSION" --track=stable
+          shorebird patch macos --release-version="$FULL_VERSION" --track=stable $( [ "${{ inputs.icones_completes }}" = oui ] && echo "-- --no-tree-shake-icons" )
       - name: Version de base
         if: env.MODE == 'version'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird release macos --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+        run: shorebird release macos --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER" -- --no-tree-shake-icons
       - name: Certificat Apple (si fourni)
         if: env.MODE == 'version' && env.HAS_CERT == 'true'
         env: { MACOS_CERT_P12: '${{ secrets.MACOS_CERT_P12 }}', MACOS_CERT_PASSWORD: '${{ secrets.MACOS_CERT_PASSWORD }}' }
@@ -187,11 +191,11 @@ jobs:
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
         run: |
           sed -i -E "s/^version: .*/version: $FULL_VERSION/" pubspec.yaml
-          shorebird patch linux --release-version="$FULL_VERSION" --track=stable
+          shorebird patch linux --release-version="$FULL_VERSION" --track=stable $( [ "${{ inputs.icones_completes }}" = oui ] && echo "-- --no-tree-shake-icons" )
       - name: Version de base
         if: env.MODE == 'version'
         env: { SHOREBIRD_TOKEN: '${{ secrets.SHOREBIRD_TOKEN }}' }
-        run: shorebird release linux --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER"
+        run: shorebird release linux --flutter-version="$SB_FLUTTER" --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER" -- --no-tree-shake-icons
       - name: appimagetool
         if: env.MODE == 'version'
         run: |

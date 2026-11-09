@@ -7,6 +7,13 @@
 SB_FLUTTER="${SB_FLUTTER:-3.47.9}"
 SB_REPO="${YOMARA_REPO:-michael4532/yomara-erp}"
 
+# Police d'icônes complète dans chaque version et chaque correctif : un correctif qui utilise une nouvelle
+# icône n'est alors jamais refusé (« asset changes : MaterialIcons-Regular.otf »).
+SB_ICONES="--no-tree-shake-icons"
+# Les versions de base construites avant cette règle ont la police réduite : leurs correctifs doivent faire pareil.
+# scripts/icones-mobile.txt et scripts/icones-bureau.txt valent « oui » une fois la version de base reconstruite.
+sb_icones() { [ "$(cat "${ROOT:-.}/scripts/icones-$1.txt" 2>/dev/null)" = oui ] && echo "$SB_ICONES"; }
+
 # Version de base des logiciels Windows, Mac DMG et Linux (construits sur GitHub), qui peut différer
 # de celle d'Android et iPhone (pubspec.yaml) : écrite par construire-stores, lue par publier-correctif.
 sb_version_bureau() { cat "${ROOT:-.}/scripts/version-bureau.txt" 2>/dev/null || grep -E '^version:' "${ROOT:-.}/pubspec.yaml" | awk '{print $2}'; }

@@ -13,7 +13,7 @@ gh auth status >/dev/null 2>&1 || gh auth login --hostname github.com --git-prot
 
 echo "GitHub : $MODE $V ($PLATEFORMES)"
 AVANT="$(gh run list -R "$SB_REPO" -w shorebird.yml -L 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
-gh workflow run shorebird.yml -R "$SB_REPO" --ref main -f mode="$MODE" -f release_version="$V" -f plateformes="$PLATEFORMES"
+gh workflow run shorebird.yml -R "$SB_REPO" --ref main -f mode="$MODE" -f release_version="$V" -f plateformes="$PLATEFORMES" -f icones_completes="${ICONES:-oui}"
 RUN=""
 for _ in $(seq 1 30); do
   sleep 5

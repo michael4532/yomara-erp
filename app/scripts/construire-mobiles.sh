@@ -35,12 +35,12 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "android" ]; then
   [ -f "$STORE" ] || { echo "Le keystore indiqué dans android/key.properties est introuvable : $STORE" >&2; exit 1; }
   if sb_actif; then
     echo "== Android : App Bundle et APK signés, enregistrés comme version de base des mises à jour à distance"
-    shorebird release android --flutter-version="$SB_FLUTTER" --artifact apk
+    shorebird release android --flutter-version="$SB_FLUTTER" --artifact apk -- $SB_ICONES && echo oui > "$ROOT/scripts/icones-mobile.txt"
   else
     echo "== Android : APK signé"
-    flutter build apk --release
+    flutter build apk --release $SB_ICONES
     echo "== Android : App Bundle signé (Google Play)"
-    flutter build appbundle --release
+    flutter build appbundle --release $SB_ICONES
   fi
   cp build/app/outputs/flutter-apk/app-release.apk "$OUT/yomara-erp-$NAME.apk"
   cp build/app/outputs/bundle/release/app-release.aab "$OUT/yomara-erp-$NAME.aab"
@@ -81,9 +81,9 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "ios" ]; then
     echo "== iPhone : IPA signé (App Store Connect)"
     (cd ios && pod install --repo-update >/dev/null 2>&1 || pod install)
     if sb_actif; then
-      shorebird release ios --flutter-version="$SB_FLUTTER" --export-options-plist="$PLIST"
+      shorebird release ios --flutter-version="$SB_FLUTTER" --export-options-plist="$PLIST" -- $SB_ICONES
     else
-      flutter build ipa --release --export-options-plist="$PLIST"
+      flutter build ipa --release $SB_ICONES --export-options-plist="$PLIST"
     fi
     IPA="$(ls build/ios/ipa/*.ipa | head -1)"
     cp "$IPA" "$OUT/yomara-erp-$NAME.ipa"
