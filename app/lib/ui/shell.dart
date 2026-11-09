@@ -498,6 +498,12 @@ class _AppShellState extends State<AppShell> {
     final defaults = s.isSuperAdmin
         ? ['admin_console', 'admin_livechat', 'admin_support', 'admin_companies', 'admin_comms']
         : ['mailbox', 'mon_espace', 'pos', 'agenda', 'tickets', 'ventes', 'crm', 'interventions', 'helpdesk', 'whatsapp', 'stock', 'contacts'];
+    // Choix de l'utilisateur (barre du bas personnalisée), sinon favoris puis écrans clés de son poste
+    final custom = [for (final id in UiPrefs.list('nav_bottom')) if (!_fixedTabs.contains(id) && byId.containsKey(id)) id].take(3).toList();
+    if (custom.isNotEmpty) {
+      final first = s.isSuperAdmin && byId.containsKey('admin_console') ? 'admin_console' : 'dashboard';
+      return [if (byId.containsKey(first)) byId[first]!, for (final id in custom) byId[id]!];
+    }
     final picks = <String>[];
     for (final id in [..._favorites, ...defaults]) {
       if (picks.length == 3) break;
@@ -512,6 +518,27 @@ class _AppShellState extends State<AppShell> {
       return [byId['admin_console']!, for (final id in rest) byId[id]!];
     }
     return [if (byId.containsKey('dashboard')) byId['dashboard']!, for (final id in picks) byId[id]!];
+  }
+
+  /// Toujours présents dans la barre du bas (non modifiables) : l'accueil (ou la console) et « Plus ».
+  static const _fixedTabs = {'dashboard', 'admin_console'};
+
+  /// Personnalisation de la barre du bas (téléphone) : jusqu'à 3 raccourcis entre « Accueil » et « Plus ».
+  Future<void> _editBottomBar(List<NavItem> items, Session s) async {
+    final current = _mobileTabs(items, s).where((t) => !_fixedTabs.contains(t.id)).map((t) => t.id).toList();
+    final saved = await showAdaptiveSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _BottomBarEditor(
+        items: [for (final i in items) if (!_fixedTabs.contains(i.id)) i],
+        selected: current,
+        first: s.isSuperAdmin ? 'Console' : 'Accueil',
+      ),
+    );
+    if (saved == null || !mounted) return;
+    await UiPrefs.save('nav_bottom', saved);
+    if (mounted) setState(() {});
   }
 
   static const _shortLabels = {
@@ -775,6 +802,10 @@ class _AppShellState extends State<AppShell> {
       onSearch: _palette,
       rail: wide && _rail,
       onToggleRail: wide ? _toggleRail : null,
+      onCustomizeBar: wide ? null : () {
+        _scaffold.currentState?.closeDrawer();
+        _editBottomBar(items, session);
+      },
     );
     final shell = ShellNav(
       go: _go,
@@ -832,7 +863,9 @@ class _AppShellState extends State<AppShell> {
                 if (tabs.length < 2) return const SizedBox.shrink();
                 final idx = tabs.indexWhere((t) => t.id == item.id);
                 final theme = Theme.of(context);
-                return DecoratedBox(
+                return GestureDetector(
+                  onLongPress: () => _editBottomBar(items, session),
+                  child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: theme.cardColor,
                     border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: .35))),
@@ -858,6 +891,7 @@ class _AppShellState extends State<AppShell> {
                     for (final t in tabs) NavigationDestination(icon: Icon(t.icon), label: shortLabel(t)),
                     NavigationDestination(icon: const Icon(Icons.apps_rounded), label: tr('Plus')),
                   ],
+                  ),
                   ),
                   ),
                 );
@@ -910,6 +944,7 @@ class _Sidebar extends StatelessWidget {
     required this.onSearch,
     required this.rail,
     this.onToggleRail,
+    this.onCustomizeBar,
   });
 
   final List<NavItem> items;
@@ -922,6 +957,9 @@ class _Sidebar extends StatelessWidget {
   final VoidCallback onSearch;
   final bool rail;
   final VoidCallback? onToggleRail;
+
+  /// Téléphone : personnaliser la barre du bas
+  final VoidCallback? onCustomizeBar;
 
   @override
   Widget build(BuildContext context) {
@@ -1109,6 +1147,8 @@ class _Sidebar extends StatelessWidget {
                   selected: it.id == current,
                   onTap: () => onSelect(it.id),
                 ),
+              if (onCustomizeBar != null)
+                _NavTile(item: NavItem('bottom_bar', tr('Barre du bas'), Icons.tune_rounded, (_) => const SizedBox()), selected: false, onTap: onCustomizeBar!),
               const _UserCard(),
             ] else
               const Padding(padding: EdgeInsets.all(6), child: SyncBadge(compact: true)),
@@ -2140,3 +2180,190 @@ Future<void> chooseAppearance(BuildContext context) async {
   await LocalDb.meta.put('theme_mode', v);
   ThemePrefs.load(v);
 }
+
+
+/// Choix des raccourcis de la barre du bas : ordre modifiable, recherche dans tous les écrans accessibles.
+class _BottomBarEditor extends StatefulWidget {
+  const _BottomBarEditor({required this.items, required this.selected, required this.first});
+  final List<NavItem> items;
+  final List<String> selected;
+  final String first;
+
+  @override
+  State<_BottomBarEditor> createState() => _BottomBarEditorState();
+}
+
+class _BottomBarEditorState extends State<_BottomBarEditor> {
+  static const max = 3;
+  late final List<String> _sel = [...widget.selected];
+  String _q = '';
+
+  NavItem? _item(String id) {
+    for (final i in widget.items) {
+      if (i.id == id) return i;
+    }
+    return null;
+  }
+
+  void _toggle(String id) => setState(() {
+        if (_sel.contains(id)) {
+          _sel.remove(id);
+        } else if (_sel.length < max) {
+          _sel.add(id);
+        }
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final q = _q.trim().toLowerCase();
+    final list = [for (final i in widget.items) if (q.isEmpty || i.label.toLowerCase().contains(q) || (i.section ?? '').toLowerCase().contains(q)) i];
+    Widget slot(IconData icon, String label, {bool fixed = false, VoidCallback? onRemove}) => Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: fixed ? cs.surfaceContainerHighest.withValues(alpha: .5) : YColors.blue.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Stack(clipBehavior: Clip.none, children: [
+              Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(icon, size: 22, color: fixed ? cs.onSurfaceVariant : YColors.blue),
+                  const SizedBox(height: 4),
+                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: fixed ? cs.onSurfaceVariant : YColors.blue)),
+                ]),
+              ),
+              if (fixed) Positioned(top: -4, right: 0, child: Icon(Icons.lock_outline_rounded, size: 13, color: cs.onSurfaceVariant)),
+              if (onRemove != null)
+                Positioned(
+                  top: -6,
+                  right: -4,
+                  child: InkWell(
+                    onTap: onRemove,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(color: cs.surface, shape: BoxShape.circle, border: Border.all(color: cs.outlineVariant)),
+                      child: const Icon(Icons.close_rounded, size: 13),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        );
+    Widget empty() => Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            height: 58,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outlineVariant)),
+            child: Icon(Icons.add_rounded, color: cs.outline),
+          ),
+        );
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .8,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Text(tr('Barre du bas'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+              child: Text(tr('Choisissez jusqu\'à 3 raccourcis entre « ${widget.first} » et « Plus ». Restez appuyé sur un raccourci pour le déplacer.'),
+                  style: TextStyle(color: cs.onSurfaceVariant, height: 1.35)),
+            ),
+            // Aperçu de la barre
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                slot(widget.first == 'Console' ? Icons.space_dashboard_outlined : Icons.dashboard_outlined, tr(widget.first), fixed: true),
+                for (final id in _sel)
+                  if (_item(id) != null) slot(_item(id)!.icon, _AppShellState.shortLabel(_item(id)!), onRemove: () => _toggle(id)),
+                for (var i = _sel.length; i < max; i++) empty(),
+                slot(Icons.apps_rounded, tr('Plus'), fixed: true),
+              ]),
+            ),
+            if (_sel.length >= max)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: Text(tr('Retirez un raccourci (×) pour en choisir un autre.'), style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
+              ),
+            if (_sel.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                child: SizedBox(
+                  height: 44,
+                  child: ReorderableListView(
+                    scrollDirection: Axis.horizontal,
+                    buildDefaultDragHandles: false,
+                    onReorderItem: (a, b) => setState(() => _sel.insert(b, _sel.removeAt(a))),
+                    children: [
+                      for (var i = 0; i < _sel.length; i++)
+                        ReorderableDelayedDragStartListener(
+                          key: ValueKey(_sel[i]),
+                          index: i,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Chip(
+                              avatar: Icon(Icons.drag_indicator_rounded, size: 16, color: cs.onSurfaceVariant),
+                              label: Text('${i + 1}. ${_item(_sel[i])?.label ?? _sel[i]}'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+              child: TextField(
+                onChanged: (v) => setState(() => _q = v),
+                decoration: InputDecoration(
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  hintText: tr('Rechercher un écran'),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: list.length,
+                itemBuilder: (_, i) {
+                  final it = list[i];
+                  final on = _sel.contains(it.id);
+                  final full = !on && _sel.length >= max;
+                  return ListTile(
+                    dense: true,
+                    enabled: !full,
+                    leading: Icon(it.icon, color: on ? YColors.blue : null),
+                    title: Text(it.label, style: TextStyle(fontWeight: on ? FontWeight.w700 : FontWeight.w500)),
+                    subtitle: it.section == null ? null : Text(tr(it.section!)),
+                    trailing: Icon(on ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded, color: on ? YColors.blue : cs.outline),
+                    onTap: full ? null : () => _toggle(it.id),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Row(children: [
+                TextButton(onPressed: () => Navigator.pop(context, <String>[]), child: Text(tr('Par défaut'))),
+                const Spacer(),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+                const SizedBox(width: 8),
+                FilledButton(onPressed: _sel.isEmpty ? null : () => Navigator.pop(context, [..._sel]), child: Text(tr('Enregistrer'))),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,5 +1,8 @@
 # Notes de version
 
+## 0.99.38 — barre du bas personnalisable
+- Téléphone : chacun choisit les raccourcis de la barre du bas (jusqu'à 3, dans l'ordre voulu) entre « Accueil » et « Plus », qui restent fixes. Restez appuyé sur la barre, ou menu › Barre du bas. Le choix suit l'utilisateur sur tous ses appareils ; « Par défaut » revient au choix automatique.
+
 ## 0.99.37 — Google Business et TikTok
 - Google Business Profile : si Google refuse l'accès aux fiches (accès API pas encore accordé, API non activées, aucune fiche gérée par le compte), la page de connexion l'explique clairement au lieu d'indiquer seulement « connecté » pour YouTube.
 - TikTok : la connexion ne demande plus que les informations couvertes par l'autorisation de base (nom affiché, photo), pour éviter un refus.
