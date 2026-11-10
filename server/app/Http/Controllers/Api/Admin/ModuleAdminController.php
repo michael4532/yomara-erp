@@ -74,7 +74,8 @@ class ModuleAdminController extends Controller
     /**
      * Aligne les tarifs sur les formules : un module inclus dans une formule gratuite devient gratuit ;
      * un module vendu sans prix reçoit le prix de son palier (Essentiel, Standard, Premium ; annuel = 10 mois,
-     * achat définitif = 24 mois). Les modules déjà tarifés et les tarifs accordés à une société ne bougent pas.
+     * achat définitif = 24 mois) ; les modules Standard et Premium sont ramenés au prix de leur palier.
+     * Les autres modules déjà tarifés et les tarifs accordés à une société ne bougent pas.
      * « apply » absent : aperçu seulement.
      */
     public function alignPrices(Request $request, ModuleRegistry $registry)
@@ -89,6 +90,9 @@ class ModuleAdminController extends Controller
                     $toFree[] = $m;
                 }
             } elseif ($m->billing_mode === 'free' || (float) $m->price_monthly <= 0) {
+                $toPrice[] = $m;
+            } elseif (($tier = PricingGrid::tierOf($m->key)) !== 'essentiel' && (float) $m->price_monthly !== (float) PricingGrid::TIERS[$tier]['price']) {
+                // Modules coûteux pour la plateforme (SMS, WhatsApp, e-mailing…, visio, IA) : toujours au prix de leur palier
                 $toPrice[] = $m;
             }
         }

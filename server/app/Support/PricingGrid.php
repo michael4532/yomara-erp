@@ -22,7 +22,7 @@ class PricingGrid
     /** Paliers de prix des modules vendus à l'unité (F CFA par mois, annuel = 10 mois). */
     public const TIERS = [
         'essentiel' => ['label' => 'Essentiel', 'price' => 5000],
-        'standard' => ['label' => 'Standard', 'price' => 10000],
+        'standard' => ['label' => 'Standard', 'price' => 30000],
         'premium' => ['label' => 'Premium', 'price' => 25000],
     ];
 

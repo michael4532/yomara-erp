@@ -111,7 +111,7 @@ class AdminModulesScreen extends StatelessWidget {
                               const SizedBox(height: 16),
                             ],
                             if (priced.isNotEmpty) ...[
-                              Text(tr('Reçoivent un prix (modules vendus sans prix) : ${priced.length}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                              Text(tr('Reçoivent un prix (sans prix, ou palier Standard / Premium) : ${priced.length}'), style: const TextStyle(fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
                               for (final m in priced)
                                 Padding(
@@ -122,7 +122,7 @@ class AdminModulesScreen extends StatelessWidget {
                                   ]),
                                 ),
                               const SizedBox(height: 8),
-                              Text(tr('Annuel = 10 mois, achat définitif = 24 mois, essai 14 jours. Les modules déjà tarifés et les tarifs accordés à une société ne changent pas.'), style: TextStyle(color: hint, fontSize: 12)),
+                              Text(tr('Annuel = 10 mois, achat définitif = 24 mois, essai 14 jours. Les autres modules déjà tarifés et les tarifs accordés à une société ne changent pas.'), style: TextStyle(color: hint, fontSize: 12)),
                             ],
                           ]),
                         ),

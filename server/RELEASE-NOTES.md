@@ -2,7 +2,7 @@
 
 ## 0.99.40 — tarifs alignés sur la formule gratuite
 
-- Super admin › Modules & tarifs › « Aligner les tarifs » : les modules inclus dans une formule gratuite passent en Gratuit, les modules vendus sans prix reçoivent le prix de leur palier (Essentiel 5 000, Standard 10 000, Premium 25 000 F CFA / mois ; annuel = 10 mois, achat définitif = 24 mois, essai 14 jours). Aperçu avant d'appliquer ; les modules déjà tarifés ne changent pas.
+- Super admin › Modules & tarifs › « Aligner les tarifs » : les modules inclus dans une formule gratuite passent en Gratuit, les modules vendus sans prix reçoivent le prix de leur palier (Essentiel 5 000, Standard 30 000, Premium 25 000 F CFA / mois ; annuel = 10 mois, achat définitif = 24 mois, essai 14 jours) ; les modules Standard (SMS, WhatsApp, e-mailing, site vitrine, boutique, boîte mail…) et Premium sont ramenés au prix de leur palier. Aperçu avant d'appliquer ; les autres modules déjà tarifés ne changent pas.
 - Ma configuration : un module de la formule gratuite n'est plus compté comme « sans prix ».
 - Réunions : la salle prévient l'application quand on la quitte (applications 1.0.9).
 

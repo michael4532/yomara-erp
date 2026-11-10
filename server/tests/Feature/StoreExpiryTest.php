@@ -88,5 +88,6 @@ class StoreExpiryTest extends TestCase
         $this->assertSame(['free', 0.0], [$crm->billing_mode, (float) $crm->price_monthly]);
         $this->assertSame(['both', 25000.0, 250000.0], [$visio->billing_mode, (float) $visio->price_monthly, (float) $visio->price_yearly]);
         $this->assertSame(7000.0, (float) \App\Models\Module::where('key', 'paie')->value('price_monthly')); // déjà tarifé : inchangé
+        $this->assertSame(30000.0, (float) \App\Models\Module::where('key', 'sms')->value('price_monthly')); // palier Standard : SMS à 30 000
     }
 }
