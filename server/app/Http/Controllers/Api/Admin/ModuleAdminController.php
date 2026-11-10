@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\CompanyModule;
 use App\Models\Module;
 use App\Support\ModuleRegistry;
+use App\Support\PricingGrid;
 use Illuminate\Http\Request;
 
 /**
@@ -68,6 +69,54 @@ class ModuleAdminController extends Controller
         ActivityLog::record('admin.module.bulk_price', null, $v + ['modules' => $n]);
 
         return $this->index() + ['updated' => $n];
+    }
+
+    /**
+     * Aligne les tarifs sur les formules : un module inclus dans une formule gratuite devient gratuit ;
+     * un module vendu sans prix reçoit le prix de son palier (Essentiel, Standard, Premium ; annuel = 10 mois,
+     * achat définitif = 24 mois). Les modules déjà tarifés et les tarifs accordés à une société ne bougent pas.
+     * « apply » absent : aperçu seulement.
+     */
+    public function alignPrices(Request $request, ModuleRegistry $registry)
+    {
+        $free = \App\Models\Plan::where('is_active', true)->where(fn ($q) => $q->where('is_free', true)->orWhere('price_monthly', '<=', 0))->get()
+            ->flatMap(fn ($p) => (array) $p->modules)->unique()->values()->all();
+        $defaults = config('erp_store.defaults', []);
+        $toFree = $toPrice = [];
+        foreach (Module::where('is_core', false)->orderBy('sort')->get() as $m) {
+            if (in_array($m->key, $free, true)) {
+                if ($m->billing_mode !== 'free' || (float) $m->price_monthly > 0 || (float) $m->price_one_time > 0) {
+                    $toFree[] = $m;
+                }
+            } elseif ($m->billing_mode === 'free' || (float) $m->price_monthly <= 0) {
+                $toPrice[] = $m;
+            }
+        }
+        $preview = [
+            'to_free' => array_map(fn ($m) => ['key' => $m->key, 'name' => $m->name], $toFree),
+            'to_price' => array_map(function ($m) {
+                $tier = PricingGrid::tierOf($m->key);
+
+                return ['key' => $m->key, 'name' => $m->name, 'tier' => PricingGrid::TIERS[$tier]['label'], 'price_monthly' => PricingGrid::TIERS[$tier]['price']];
+            }, $toPrice),
+        ];
+        if (! $request->boolean('apply')) {
+            return $preview;
+        }
+        foreach ($toFree as $m) {
+            $m->update(['billing_mode' => 'free', 'price_monthly' => 0, 'price_yearly' => 0, 'price_one_time' => 0]);
+        }
+        foreach ($toPrice as $m) {
+            $p = (float) PricingGrid::TIERS[PricingGrid::tierOf($m->key)]['price'];
+            $m->update([
+                'billing_mode' => $defaults['billing_mode'] ?? 'both', 'price_monthly' => $p, 'price_yearly' => $p * 10,
+                'price_one_time' => $p * ($defaults['one_time_months'] ?? 24), 'trial_days' => $m->trial_days ?: ($defaults['trial_days'] ?? 14),
+            ]);
+        }
+        $registry->flush();
+        ActivityLog::record('admin.module.align_prices', null, ['free' => count($toFree), 'priced' => count($toPrice)]);
+
+        return $this->index() + ['free' => count($toFree), 'priced' => count($toPrice)];
     }
 
     /** Réinscrit les modules du code dans le catalogue (après une mise à jour). */

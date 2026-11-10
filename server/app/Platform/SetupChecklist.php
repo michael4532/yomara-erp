@@ -74,8 +74,11 @@ class SetupChecklist
             $add('Offre', 'trial', 'Durée de l\'essai gratuit', (int) ($offer['standard_days'] ?? 0) > 0, 'recommended',
                 'Réglez la durée de l\'essai (ex. 30 jours) et, si vous voulez, une offre limitée dans le temps.', 'admin_plans', null,
                 ($offer['promo_active'] ?? false) ? 'Offre en cours : '.$offer['days'].' jours ('.($offer['promo_label'] ?: 'promotion').').' : ($offer['standard_days'] ?? 0).' jours d\'essai.');
-            $unpriced = Module::where('is_core', false)->where('is_active', true)->where('in_store', true)->where(fn ($q) => $q->whereNull('price_monthly')->orWhere('price_monthly', '<=', 0))->count();
-            $add('Offre', 'prices', 'Prix des modules', $unpriced === 0, 'recommended', $unpriced.' module(s) vendu(s) sans prix mensuel.', 'admin_modules', null, 'Tous les modules en vente ont un prix.');
+            // Sans prix : ni tarifé, ni inclus dans une formule gratuite (ceux-là sont gratuits à dessein)
+            $freeKeys = \App\Models\Plan::where('is_active', true)->where(fn ($q) => $q->where('is_free', true)->orWhere('price_monthly', '<=', 0))->get()->flatMap(fn ($p) => (array) $p->modules)->unique()->all();
+            $unpriced = Module::where('is_core', false)->where('is_active', true)->where('in_store', true)->whereNotIn('key', $freeKeys)
+                ->where(fn ($q) => $q->where('billing_mode', 'free')->orWhereNull('price_monthly')->orWhere('price_monthly', '<=', 0))->count();
+            $add('Offre', 'prices', 'Prix des modules', $unpriced === 0, 'recommended', $unpriced.' module(s) vendu(s) sans prix : Modules & tarifs › « Aligner les tarifs ».', 'admin_modules', null, 'Tous les modules en vente ont un prix (ceux de la formule gratuite sont gratuits).');
             $auto = Schema::hasTable('platform_automations') ? DB::table('platform_automations')->where('is_active', true)->count() : 0;
             $add('Offre', 'automations', 'Relances automatiques (fin d\'essai, impayés…)', $auto > 0, 'recommended', 'Activez les relances : elles transforment les essais en abonnements.', 'admin_comms', null, $auto.' relance(s) active(s).');
         }

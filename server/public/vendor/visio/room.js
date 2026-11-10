@@ -846,6 +846,7 @@
       h('p', { class: 'note', text: isHost() ? 'Le compte rendu (présence, transcription, résumé et actions) est préparé automatiquement et envoyé aux participants.' : 'Merci de votre participation.' })
     ));
     try { window.parent && window.parent !== window && window.parent.postMessage({ type: 'yomara-visio', event: 'left' }, '*'); } catch (e) {}
+    try { window.flutter_inappwebview && window.flutter_inappwebview.callHandler('visio', 'left'); } catch (e) {}
   }
   window.addEventListener('pagehide', function () {
     if (S.joined && !S.ended && navigator.sendBeacon) { var f = new FormData(); f.append('t', S.token); navigator.sendBeacon(V.api + '/leave', f); }

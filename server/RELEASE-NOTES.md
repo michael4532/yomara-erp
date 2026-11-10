@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.40 — tarifs alignés sur la formule gratuite
+
+- Super admin › Modules & tarifs › « Aligner les tarifs » : les modules inclus dans une formule gratuite passent en Gratuit, les modules vendus sans prix reçoivent le prix de leur palier (Essentiel 5 000, Standard 10 000, Premium 25 000 F CFA / mois ; annuel = 10 mois, achat définitif = 24 mois, essai 14 jours). Aperçu avant d'appliquer ; les modules déjà tarifés ne changent pas.
+- Ma configuration : un module de la formule gratuite n'est plus compté comme « sans prix ».
+- Réunions : la salle prévient l'application quand on la quitte (applications 1.0.9).
+
 ## 0.99.39 — signatures en image, recherche façon Outlook, e-mail de bienvenue, campagnes repensées, contrats de travail dans Mon espace
 - Signatures : nouveau mode « Image » (bannière ou carte de visite à la place du texte, largeur réglable de 200 à 800 px, lien au clic facultatif) ; chaque ligne du générateur peut être retirée (×) ; les images insérées en HTML sont à taille réelle (600 px, adaptées à l'écran) au lieu de 160 px.
 - Recherche dans la messagerie : dans toutes les boîtes par défaut (ou seulement le dossier ouvert), « Meilleurs résultats » puis « Tous les résultats », dossier de chaque message (Boîte de réception, Éléments envoyés…), étiquette « Brouillon » et mots recherchés surlignés.

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/json.dart';
 import '../../../state/session.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
@@ -82,6 +83,63 @@ class AdminModulesScreen extends StatelessWidget {
                 },
                 icon: const Icon(Icons.sell_outlined),
                 label: Text(tr('Tarif unique')),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  try {
+                    final p = asMap(await session.api.post('admin/modules/align-prices'));
+                    final free = [for (final m in (p['to_free'] as List? ?? const [])) asMap(m)];
+                    final priced = [for (final m in (p['to_price'] as List? ?? const [])) asMap(m)];
+                    if (!context.mounted) return;
+                    if (free.isEmpty && priced.isEmpty) {
+                      toast(context, tr('Les tarifs sont déjà alignés : rien à changer.'));
+                      return;
+                    }
+                    final hint = Theme.of(context).hintColor;
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => YAlertDialog(
+                        title: Text(tr('Aligner les tarifs')),
+                        content: SizedBox(
+                          width: 480,
+                          height: 420,
+                          child: ListView(children: [
+                            if (free.isNotEmpty) ...[
+                              Text(tr('Deviennent gratuits (inclus dans la formule gratuite) : ${free.length}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 6),
+                              Text(free.map((m) => tr('${m['name']}')).join(', '), style: TextStyle(color: hint, fontSize: 13)),
+                              const SizedBox(height: 16),
+                            ],
+                            if (priced.isNotEmpty) ...[
+                              Text(tr('Reçoivent un prix (modules vendus sans prix) : ${priced.length}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 6),
+                              for (final m in priced)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(children: [
+                                    Expanded(child: Text(tr('${m['name']}'), style: const TextStyle(fontSize: 13))),
+                                    Text(tr('${m['tier']} · ${money(toDouble(m['price_monthly']), session.currency)} / mois'), style: TextStyle(color: hint, fontSize: 13)),
+                                  ]),
+                                ),
+                              const SizedBox(height: 8),
+                              Text(tr('Annuel = 10 mois, achat définitif = 24 mois, essai 14 jours. Les modules déjà tarifés et les tarifs accordés à une société ne changent pas.'), style: TextStyle(color: hint, fontSize: 12)),
+                            ],
+                          ]),
+                        ),
+                        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Annuler'))), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Appliquer')))],
+                      ),
+                    );
+                    if (ok != true) return;
+                    final r = asMap(await session.api.post('admin/modules/align-prices', {'apply': true}));
+                    if (context.mounted) toast(context, tr('${r['free']} module(s) gratuits, ${r['priced']} module(s) tarifés.'));
+                    reload();
+                    await session.refreshBootstrap();
+                  } catch (e) {
+                    if (context.mounted) toast(context, errorText(e), error: true);
+                  }
+                },
+                icon: const Icon(Icons.auto_fix_high_outlined),
+                label: Text(tr('Aligner les tarifs')),
               ),
               OutlinedButton.icon(
                 onPressed: () async {

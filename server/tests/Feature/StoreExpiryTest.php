@@ -68,4 +68,25 @@ class StoreExpiryTest extends TestCase
         $this->assertEquals([12000, 120000, 288000], [(float) $crm->price_monthly, (float) $crm->price_yearly, (float) $crm->price_one_time]);
         $this->assertEquals(0, (float) Module::where('key', 'core')->value('price_monthly'));
     }
+
+    public function test_super_admin_aligns_prices_on_the_free_plan(): void
+    {
+        [, , $admin] = $this->makeCompany('Yomara', 'entreprise', superAdmin: true);
+        \App\Models\Plan::updateOrCreate(['code' => 'gratuit'], ['name' => 'Gratuit', 'price_monthly' => 0, 'is_free' => true, 'is_active' => true, 'modules' => ['ventes', 'crm']]);
+        \App\Models\Module::where('key', 'crm')->update(['billing_mode' => 'both', 'price_monthly' => 5000, 'price_one_time' => 120000]);
+        \App\Models\Module::where('key', 'visio')->update(['billing_mode' => 'free', 'price_monthly' => 0]);
+        \App\Models\Module::where('key', 'paie')->update(['billing_mode' => 'both', 'price_monthly' => 7000]);
+
+        $preview = $this->api($admin)->postJson('/api/admin/modules/align-prices')->assertOk()->json();
+        $this->assertContains('crm', array_column($preview['to_free'], 'key'));
+        $this->assertContains('visio', array_column($preview['to_price'], 'key'));
+        $this->assertSame(5000, (int) \App\Models\Module::where('key', 'crm')->value('price_monthly')); // aperçu : rien ne change
+
+        $this->api($admin)->postJson('/api/admin/modules/align-prices', ['apply' => true])->assertOk();
+        $crm = \App\Models\Module::where('key', 'crm')->first();
+        $visio = \App\Models\Module::where('key', 'visio')->first();
+        $this->assertSame(['free', 0.0], [$crm->billing_mode, (float) $crm->price_monthly]);
+        $this->assertSame(['both', 25000.0, 250000.0], [$visio->billing_mode, (float) $visio->price_monthly, (float) $visio->price_yearly]);
+        $this->assertSame(7000.0, (float) \App\Models\Module::where('key', 'paie')->value('price_monthly')); // déjà tarifé : inchangé
+    }
 }

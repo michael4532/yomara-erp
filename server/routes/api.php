@@ -423,6 +423,7 @@ Route::middleware('installed')->group(function () {
             Route::get('modules', [ModuleAdminController::class, 'index']);
             Route::post('modules/refresh', [ModuleAdminController::class, 'refresh']);
             Route::post('modules/bulk-price', [ModuleAdminController::class, 'bulkPrice']);
+            Route::post('modules/align-prices', [ModuleAdminController::class, 'alignPrices']);
             Route::put('modules/{key}', [ModuleAdminController::class, 'update']);
 
             Route::get('plans', [PlanAdminController::class, 'index']);
