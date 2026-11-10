@@ -36,8 +36,10 @@ if veut github; then
   fi
 fi
 
-read -r -p "Publier ce correctif pour tous les utilisateurs ? (o/N) " R
-[[ "$R" =~ ^[oOyY] ]] || exit 0
+if [ "${OUI:-}" != 1 ]; then
+  read -r -p "Publier ce correctif pour tous les utilisateurs ? (o/N) " R
+  [[ "$R" =~ ^[oOyY] ]] || exit 0
+fi
 
 LOGS="$(cd .. && pwd)/sorties/correctifs/$APPV"; mkdir -p "$LOGS"
 ok=(); ko=(); GH_PID=""
