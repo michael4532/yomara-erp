@@ -22,6 +22,9 @@ return [
         'mac_store' => env('ERP_STORE_MAC', 'https://apps.apple.com/app/id6831012647'),
         'windows_store' => env('ERP_STORE_MICROSOFT', 'https://apps.microsoft.com/detail/9P92L2X189ZD'),
     ],
+    // Lien d'une réunion ouvert dans un navigateur de téléphone ou d'ordinateur : bouton « Ouvrir dans l'application »
+    // (yomara://). À activer quand les applications 1.0.9 ou plus récentes sont publiées sur les stores.
+    'app_deeplinks' => (bool) env('ERP_APP_DEEPLINKS', false),
     // Dépôt public du code source (édition libre AGPL), utilisé si l'administration n'en indique pas
     'source_repository' => env('ERP_SOURCE_REPOSITORY'),
 

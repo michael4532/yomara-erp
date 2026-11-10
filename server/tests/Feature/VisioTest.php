@@ -83,7 +83,9 @@ class VisioTest extends TestCase
         // Bob voit la réunion, un autre membre non
         $bobApi = fn () => $this->api($bob->createToken('t')->plainTextToken);
         $this->assertCount(1, $bobApi()->getJson('/api/visio')->assertOk()->json('meetings'));
-        $this->get('/visio/'.$code)->assertOk()->assertSee('VISIO', false);
+        $this->get('/visio/'.$code)->assertOk()->assertSee('VISIO', false)
+            // Lien ouvert dans un navigateur : proposition de l'application, lien du store selon l'appareil
+            ->assertSee('id="get-app"', false)->assertSee('apps.microsoft.com', false)->assertSee('deeplinks = false', false);
 
         // L'organisateur entre : ZEGOCLOUD (priorité 1) est choisi
         $j = $this->room($hostToken)->postJson("/api/visio-room/$code/join", [])->assertOk()->json();

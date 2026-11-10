@@ -55,7 +55,8 @@ class RoomController extends Controller
             return redirect('/webinaire/'.$m->slug);
         }
 
-        return response()->view('visio.room', ['c' => $c, 'm' => $m, 'token' => $p?->token, 'name' => $p?->name, 'ver' => config('erp.version')])
+        return response()->view('visio.room', ['c' => $c, 'm' => $m, 'token' => $p?->token, 'name' => $p?->name, 'ver' => config('erp.version'),
+            'stores' => \App\Http\Controllers\LandingController::welcomeStoreLinks(), 'deeplinks' => (bool) config('erp.app_deeplinks')])
             ->header('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self), fullscreen=(self)');
     }
 

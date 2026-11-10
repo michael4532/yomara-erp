@@ -37,7 +37,9 @@ const _optionLabels = {
 /// Ouvre la salle : dans l'application (navigateur) ou dans le navigateur par défaut (applications de bureau et mobiles).
 Future<void> openVisioRoom(BuildContext context, String url, String title) async {
   if (!visioEmbedded) {
-    await safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    // « app=1 » : la page de la salle ne propose pas d'ouvrir l'application, on en vient
+    final u = Uri.parse(url);
+    await safeLaunchUrl(u.replace(queryParameters: {...u.queryParameters, 'app': '1'}), mode: LaunchMode.externalApplication);
     return;
   }
   await Navigator.of(context).push(

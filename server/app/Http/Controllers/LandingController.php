@@ -510,6 +510,20 @@ class LandingController extends Controller
      *
      * @return list<array{platform: string, label: string, url: string}>
      */
+    /** Fiches des stores (celles enregistrées par l'administration, sinon les officielles), par clé : android_store, ios, windows_store, mac_store. */
+    public static function welcomeStoreLinks(): array
+    {
+        $saved = self::stores();
+        $out = self::officialStoreLinks();
+        foreach (self::STORE_KEYS as $k => $key) {
+            if ($saved[$k] ?? null) {
+                $out[$key] = $saved[$k];
+            }
+        }
+
+        return $out;
+    }
+
     public static function welcomeApps(string $url): array
     {
         $saved = self::stores();
