@@ -1158,61 +1158,64 @@ class _RhContractsTabState extends State<RhContractsTab> {
     );
   }
 
-  Future<void> _open(Map<String, dynamic> r) async {
-    final s = context.read<Session>();
-    Map<String, dynamic> c;
-    try {
-      c = asMap(asMap(await s.api.get('rh/contracts/${r['source']}/${r['id']}'))['data']);
-    } catch (e) {
-      if (mounted) toast(context, errorText(e), error: true);
-      return;
-    }
-    if (!mounted) return;
-    await showFormDialog(context, title: '${r['title']}', maxWidth: 760, builder: (dc) {
-      final body = '${c['body'] ?? ''}'.trim();
-      return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
-        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          StatusChip('${r['status_label']}', color: Color(0xFF000000 | (int.tryParse('${r['status_color']}'.replaceAll('#', ''), radix: 16) ?? 0x64748B))),
-          Text(tr('${r['employee'] ?? ''} · ${r['source'] == 'juridique' ? 'rédigé par le juriste' : 'émis par la RH'}'), style: TextStyle(color: Theme.of(dc).hintColor)),
-        ]),
-        const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          if (body.isNotEmpty)
-            OutlinedButton.icon(
-              onPressed: () async {
-                final bytes = await rhDocumentPdf(
-                  company: s.company,
-                  doc: {'type': 'contract', 'title': '${c['title']}', 'number': r['reference'], 'date': r['date'], 'body': body, 'status': r['status'] == 'cancelled' ? 'cancelled' : 'issued'},
-                  employeeName: '${r['employee'] ?? ''}',
-                  signatory: s.companySettings['rh_signatory'] as String?,
-                  signatoryTitle: s.companySettings['rh_signatory_title'] as String?,
-                );
-                await Printing.layoutPdf(name: '${c['title']}', onLayout: (_) async => bytes);
-              },
-              icon: const Icon(Icons.print_outlined, size: 18),
-              label: Text(tr('Imprimer / PDF')),
-            ),
-          if ('${c['file_url'] ?? ''}'.startsWith('http'))
-            FilledButton.tonalIcon(onPressed: () => safeLaunchUrl(Uri.parse('${c['file_url']}')), icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Contrat signé'))),
-        ]),
-        const SizedBox(height: 16),
-        if (body.isEmpty)
-          Text(tr('Le texte du contrat n\'est pas enregistré dans le logiciel.'), style: TextStyle(color: Theme.of(dc).hintColor))
-        else
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Theme.of(dc).colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
-            child: SelectableText(body.replaceAll('**', ''), style: const TextStyle(height: 1.5)),
-          ),
-        if ('${c['notes'] ?? ''}'.trim().isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(tr('Remarques : ${c['notes']}'), style: TextStyle(color: Theme.of(dc).hintColor)),
-        ],
-        const SizedBox(height: 8),
-        Text(tr('Consultation seule : le contrat se modifie dans l\'espace du juriste ou dans les documents RH.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
-      ]);
-    });
+  Future<void> _open(Map<String, dynamic> r) => openEmployeeContract(context, r, 'rh/contracts/${r['source']}/${r['id']}');
+}
+
+/// Contrat de travail en consultation seule (texte, impression / PDF, contrat signé) : RH et salarié dans « Mon espace ».
+Future<void> openEmployeeContract(BuildContext context, Map<String, dynamic> r, String path, {bool self = false}) async {
+  final s = context.read<Session>();
+  Map<String, dynamic> c;
+  try {
+    c = asMap(asMap(await s.api.get(path))['data']);
+  } catch (e) {
+    if (context.mounted) toast(context, errorText(e), error: true);
+    return;
   }
+  if (!context.mounted) return;
+  await showFormDialog(context, title: '${r['title']}', maxWidth: 760, builder: (dc) {
+    final body = '${c['body'] ?? ''}'.trim();
+    return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
+      Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        StatusChip('${r['status_label']}', color: Color(0xFF000000 | (int.tryParse('${r['status_color']}'.replaceAll('#', ''), radix: 16) ?? 0x64748B))),
+        Text(tr('${r['employee'] ?? ''} · ${r['source'] == 'juridique' ? 'rédigé par le juriste' : 'émis par la RH'}'), style: TextStyle(color: Theme.of(dc).hintColor)),
+      ]),
+      const SizedBox(height: 12),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        if (body.isNotEmpty)
+          OutlinedButton.icon(
+            onPressed: () async {
+              final bytes = await rhDocumentPdf(
+                company: s.company,
+                doc: {'type': 'contract', 'title': '${c['title']}', 'number': r['reference'], 'date': r['date'], 'body': body, 'status': r['status'] == 'cancelled' ? 'cancelled' : 'issued'},
+                employeeName: '${r['employee'] ?? ''}',
+                signatory: s.companySettings['rh_signatory'] as String?,
+                signatoryTitle: s.companySettings['rh_signatory_title'] as String?,
+              );
+              await Printing.layoutPdf(name: '${c['title']}', onLayout: (_) async => bytes);
+            },
+            icon: const Icon(Icons.print_outlined, size: 18),
+            label: Text(tr('Imprimer / PDF')),
+          ),
+        if ('${c['file_url'] ?? ''}'.startsWith('http'))
+          FilledButton.tonalIcon(onPressed: () => safeLaunchUrl(Uri.parse('${c['file_url']}')), icon: const Icon(Icons.open_in_new, size: 18), label: Text(tr('Contrat signé'))),
+      ]),
+      const SizedBox(height: 16),
+      if (body.isEmpty)
+        Text(tr('Le texte du contrat n\'est pas enregistré dans le logiciel.'), style: TextStyle(color: Theme.of(dc).hintColor))
+      else
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Theme.of(dc).colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
+          child: SelectableText(body.replaceAll('**', ''), style: const TextStyle(height: 1.5)),
+        ),
+      if (!self && '${c['notes'] ?? ''}'.trim().isNotEmpty) ...[
+        const SizedBox(height: 12),
+        Text(tr('Remarques : ${c['notes']}'), style: TextStyle(color: Theme.of(dc).hintColor)),
+      ],
+      const SizedBox(height: 8),
+      Text(tr(self ? 'Une question sur votre contrat ? Adressez-vous au service RH ou au juriste.' : 'Consultation seule : le contrat se modifie dans l\'espace du juriste ou dans les documents RH.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12)),
+    ]);
+  });
 }
 
 

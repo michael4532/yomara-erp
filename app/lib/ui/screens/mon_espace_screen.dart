@@ -12,6 +12,7 @@ import '../widgets/common.dart';
 import 'notes_frais_screen.dart' show MyExpensesCard;
 import 'pointage_screen.dart' show SelfPunchCard;
 import 'rh_documents_screen.dart' show MyDocumentsCard;
+import 'rh_positions_screen.dart' show openEmployeeContract;
 import 'rh_requests_screen.dart' show MyRequestsCard;
 import 'talents_screen.dart' show MyReviewsCard;
 import 'rh_screen.dart';
@@ -28,6 +29,7 @@ class MonEspaceScreen extends StatefulWidget {
 
 class _MonEspaceScreenState extends State<MonEspaceScreen> {
   List<Map<String, dynamic>>? _slips;
+  List<Map<String, dynamic>> _contracts = const [];
   Object? _slipError;
 
   @override
@@ -40,7 +42,9 @@ class _MonEspaceScreenState extends State<MonEspaceScreen> {
     try {
       final r = await context.read<Session>().api.get('rh/me');
       if (r['linked'] == false) throw ApiException('${r['message']}');
-      if (mounted) setState(() => (_slips = [for (final p in (r['payslips'] as List)) asMap(p)], _slipError = null));
+      if (mounted) {
+        setState(() => (_slips = [for (final p in (r['payslips'] as List)) asMap(p)], _contracts = [for (final c in (r['contracts'] as List? ?? const [])) asMap(c)], _slipError = null));
+      }
     } catch (e) {
       if (mounted) setState(() => _slipError = e);
     }
@@ -239,6 +243,28 @@ class _MonEspaceScreenState extends State<MonEspaceScreen> {
                         ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: leavesCard), const SizedBox(width: 12), Expanded(child: slipsCard)])
                         : Column(children: [leavesCard, const SizedBox(height: 12), slipsCard]);
                   }),
+                  if (_contracts.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      title: tr('Mes contrats de travail'),
+                      child: Column(children: [
+                        for (final c in _contracts)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(c['status'] == 'to_sign' ? Icons.draw_outlined : Icons.description_outlined, color: YColors.blue),
+                            title: Text(tr('${c['title']}')),
+                            subtitle: Text(tr([
+                              if (c['start_date'] != null) 'Depuis le ${dateFr(c['start_date'])}',
+                              if (c['end_date'] != null) 'jusqu\'au ${dateFr(c['end_date'])}',
+                              if (c['signed_on'] != null) 'signé le ${dateFr(c['signed_on'])}',
+                              if (c['status'] == 'to_sign') 'à signer : rapprochez-vous du service RH',
+                            ].join(' · '))),
+                            trailing: StatusChip('${c['status_label']}', color: Color(0xFF000000 | (int.tryParse('${c['status_color']}'.replaceAll('#', ''), radix: 16) ?? 0x64748B))),
+                            onTap: () => openEmployeeContract(context, c, 'rh/me/contracts/${c['id']}', self: true),
+                          ),
+                      ]),
+                    ),
+                  ],
                   if (LocalDb.hasEntity('rh_documents')) ...[
                     const SizedBox(height: 12),
                     MyDocumentsCard(employeeId: '${e['id']}'),

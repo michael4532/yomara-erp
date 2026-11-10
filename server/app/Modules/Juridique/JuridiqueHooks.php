@@ -78,6 +78,26 @@ class JuridiqueHooks
         return $data;
     }
 
+    /** Contrat de travail relié à un salarié : il le reçoit dans « Mon espace » dès qu'il est à signer ou en vigueur. */
+    public const EMPLOYEE_VISIBLE = ['to_sign', 'active', 'expired', 'terminated'];
+
+    public function saved(string $res, array $row, ?array $old, User $u): void
+    {
+        if ($res !== 'contracts' || ($row['kind'] ?? null) !== 'employment' || empty($row['employee_id']) || ! Schema::hasTable('rh_employees')) {
+            return;
+        }
+        $shown = in_array($row['status'] ?? null, ['to_sign', 'active'], true);
+        $was = $old && ($old['employee_id'] ?? null) === $row['employee_id'] && in_array($old['status'] ?? null, ['to_sign', 'active'], true) && ($old['status'] ?? null) === $row['status'];
+        if (! $shown || $was) {
+            return;
+        }
+        $userId = DB::table('rh_employees')->where('company_id', $row['company_id'])->where('id', $row['employee_id'])->value('user_id');
+        if ($userId) {
+            AppNotification::send((int) $row['company_id'], [$userId], 'juridique', $row['status'] === 'to_sign' ? 'Votre contrat de travail est prêt à signer' : 'Votre contrat de travail est disponible',
+                '« '.$row['title'].' » : consultez-le dans Mon espace.', 'mon_espace', (string) $row['id'], $u->id);
+        }
+    }
+
     /** Variables d'un contrat pour les modèles. */
     public function fields(Company $c, array $contract): array
     {

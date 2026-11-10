@@ -18,7 +18,7 @@ return [
                 ['key' => 'kind', 'label' => 'Type', 'type' => 'select', 'default' => 'service', 'list' => true, 'half' => true, 'filter' => true, 'options' => H::KINDS],
                 ['key' => 'status', 'label' => 'Statut', 'type' => 'select', 'default' => 'draft', 'list' => true, 'half' => true, 'filter' => true, 'options' => H::CONTRACT_STATUSES],
                 ['key' => 'partner_id', 'label' => 'Client / fournisseur', 'type' => 'partner', 'half' => true],
-                ['key' => 'employee_id', 'label' => 'Salarié', 'type' => 'employee', 'half' => true, 'show_if' => ['kind' => ['employment']]],
+                ['key' => 'employee_id', 'label' => 'Salarié', 'type' => 'employee', 'half' => true, 'show_if' => ['kind' => ['employment']], 'hint' => 'Il retrouve son contrat dans « Mon espace » dès qu\'il est « À signer » ou « En vigueur ».'],
                 ['key' => 'counterparty', 'label' => 'Autre partie', 'hint' => 'Si elle n\'est pas dans vos contacts', 'list' => true],
                 ['key' => 'reference', 'label' => 'Référence', 'half' => true],
                 ['key' => 'signed_on', 'label' => 'Signé le', 'type' => 'date', 'half' => true],

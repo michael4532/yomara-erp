@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -76,5 +77,35 @@ class RhPositionsTest extends TestCase
         $id = $res['data'][0]['id'];
         $this->assertSame('Article 1 : engagement', $rhApi()->getJson("/api/rh/contracts/juridique/$id")->assertOk()->json('data.body'));
         $this->assertCount(1, $rhApi()->getJson("/api/rh/employees/$emp/dossier")->json('contracts'));
+    }
+
+    public function test_lawyer_employment_contract_reaches_the_employee_space(): void
+    {
+        [$company, , $token] = $this->makeCompany('Clinique Akwaba');
+        $role = Role::withoutGlobalScopes()->where('company_id', $company->id)->where('name', 'Salarié')->value('id');
+        $kofi = User::create(['company_id' => $company->id, 'name' => 'Kofi', 'email' => 'kofi@akwaba.ci', 'password' => 'secret123', 'role_id' => $role]);
+        $kofiApi = fn () => $this->api($kofi->createToken('t')->plainTextToken);
+        $emp = $this->uuid();
+        $this->api($token)->postJson('/api/sync/push', ['mutations' => [['id' => $this->uuid(), 'op' => 'upsert', 'entity' => 'rh_employees', 'record_id' => $emp,
+            'data' => ['first_name' => 'Kofi', 'last_name' => 'Yao', 'contract_type' => 'CDI', 'hire_date' => now()->toDateString(), 'user_id' => $kofi->id]]]])->assertOk();
+
+        // Brouillon du juriste : pas encore visible par le salarié
+        $id = $this->api($token)->postJson('/api/juridique/records/contracts', ['title' => 'CDI aide-soignant', 'kind' => 'employment', 'status' => 'draft', 'employee_id' => $emp, 'body' => 'Article 1 : engagement', 'notes' => 'Note interne'])
+            ->assertCreated()->json('data.id');
+        $this->assertSame([], $kofiApi()->getJson('/api/rh/me')->assertOk()->json('contracts'));
+        $kofiApi()->getJson("/api/rh/me/contracts/$id")->assertNotFound();
+
+        // À signer : le salarié est prévenu et le lit dans Mon espace (sans les remarques internes)
+        $this->api($token)->putJson("/api/juridique/records/contracts/$id", ['status' => 'to_sign'])->assertOk();
+        $this->assertTrue(AppNotification::withoutGlobalScopes()->where('user_id', $kofi->id)->where('title', 'Votre contrat de travail est prêt à signer')->exists());
+        $mine = $kofiApi()->getJson('/api/rh/me')->assertOk()->json('contracts');
+        $this->assertSame(['CDI aide-soignant', 'À signer'], [$mine[0]['title'], $mine[0]['status_label']]);
+        $c = $kofiApi()->getJson("/api/rh/me/contracts/$id")->assertOk()->json('data');
+        $this->assertSame('Article 1 : engagement', $c['body']);
+        $this->assertArrayNotHasKey('notes', $c);
+
+        // Le contrat d'un collègue reste inaccessible
+        $other = DB::table('jr_contracts')->insertGetId(['company_id' => $company->id, 'title' => 'CDD Awa', 'kind' => 'employment', 'status' => 'active', 'employee_id' => $this->uuid(), 'created_at' => now(), 'updated_at' => now()]);
+        $kofiApi()->getJson("/api/rh/me/contracts/$other")->assertNotFound();
     }
 }

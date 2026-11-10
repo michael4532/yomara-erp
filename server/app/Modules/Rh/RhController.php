@@ -421,7 +421,39 @@ class RhController extends Controller
                 ->map(fn ($p) => ['id' => $p->id, 'period' => $p->run->period, 'label' => $p->run->label, 'status' => $p->run->status, 'payment_date' => $p->run->payment_date, 'gross' => $p->gross, 'net' => $p->net])
             : collect();
 
-        return ['employee' => $e, 'leave_balance' => self::balances(collect([$e]))[$e->id] ?? 0, 'payslips' => $slips];
+        return ['employee' => $e, 'leave_balance' => self::balances(collect([$e]))[$e->id] ?? 0, 'payslips' => $slips, 'contracts' => $this->selfContracts($e)];
+    }
+
+    /** Contrats de travail rédigés par le juriste pour ce salarié (à signer, en vigueur, échus, résiliés ; pas les brouillons). */
+    protected function selfContracts(Employee $e): array
+    {
+        $c = app('tenant');
+        if (! $c->hasModule('juridique') || ! \Illuminate\Support\Facades\Schema::hasTable('jr_contracts')) {
+            return [];
+        }
+        $statuses = \App\Modules\Juridique\JuridiqueHooks::CONTRACT_STATUSES;
+
+        return \Illuminate\Support\Facades\DB::table('jr_contracts')->where('company_id', $c->id)->where('kind', 'employment')->where('employee_id', $e->id)
+            ->whereIn('status', \App\Modules\Juridique\JuridiqueHooks::EMPLOYEE_VISIBLE)->orderByDesc('start_date')->orderByDesc('id')->get()
+            ->map(fn ($x) => [
+                'source' => 'juridique', 'id' => (string) $x->id, 'title' => $x->title, 'reference' => $x->reference, 'employee' => $e->full_name,
+                'status' => $x->status, 'status_label' => $statuses[$x->status][0] ?? $x->status, 'status_color' => $statuses[$x->status][1] ?? '#64748B',
+                'date' => $x->signed_on ?? $x->start_date, 'signed_on' => $x->signed_on, 'start_date' => $x->start_date, 'end_date' => $x->end_date,
+                'has_text' => filled($x->body), 'has_file' => filled($x->file_url),
+            ])->all();
+    }
+
+    /** Un contrat de travail du salarié connecté (texte et lien du contrat signé). */
+    public function selfContract(Request $request, int $id)
+    {
+        $e = $this->me($request);
+        $c = app('tenant');
+        abort_unless($c->hasModule('juridique') && \Illuminate\Support\Facades\Schema::hasTable('jr_contracts'), 404);
+        $x = \Illuminate\Support\Facades\DB::table('jr_contracts')->where('company_id', $c->id)->where('kind', 'employment')->where('employee_id', $e->id)
+            ->whereIn('status', \App\Modules\Juridique\JuridiqueHooks::EMPLOYEE_VISIBLE)->where('id', $id)->first();
+        abort_unless($x, 404, 'Contrat introuvable.');
+
+        return ['data' => ['title' => $x->title, 'body' => $x->body, 'file_url' => $x->file_url]];
     }
 
     /** Bulletin du salarié connecté (données complètes pour le PDF). */

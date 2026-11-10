@@ -1,9 +1,10 @@
 # Notes de version
 
-## 0.99.39 — signatures en image, recherche façon Outlook, e-mail de bienvenue, campagnes repensées
+## 0.99.39 — signatures en image, recherche façon Outlook, e-mail de bienvenue, campagnes repensées, contrats de travail dans Mon espace
 - Signatures : nouveau mode « Image » (bannière ou carte de visite à la place du texte, largeur réglable de 200 à 800 px, lien au clic facultatif) ; chaque ligne du générateur peut être retirée (×) ; les images insérées en HTML sont à taille réelle (600 px, adaptées à l'écran) au lieu de 160 px.
 - Recherche dans la messagerie : dans toutes les boîtes par défaut (ou seulement le dossier ouvert), « Meilleurs résultats » puis « Tous les résultats », dossier de chaque message (Boîte de réception, Éléments envoyés…), étiquette « Brouillon » et mots recherchés surlignés.
 - E-mail de bienvenue : logo Yomara et toutes les applications (Microsoft Store, Mac App Store, Google Play, App Store, plus les fichiers à télécharger quand ils sont sur le serveur).
+- Juridique › Contrat de travail : le juriste choisit le salarié ; dès que le contrat passe « À signer » ou « En vigueur », le salarié est prévenu et le retrouve dans Mon espace › Mes contrats de travail (texte, impression / PDF, contrat signé ; les brouillons et les remarques internes restent privés).
 - Super admin › Nouvelle campagne : étapes numérotées (Destinataires, Canaux, Message, Quand ?), choix en tuiles au lieu des listes, compteurs sociétés / personnes / e-mails, aperçu en direct de la notification et de l'e-mail à droite (grand écran) avec récapitulatif, et résumé de l'envoi dans la barre du bas.
 
 ## 0.99.38 — barre du bas personnalisable

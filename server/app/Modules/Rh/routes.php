@@ -8,6 +8,7 @@ Route::middleware('perm:rh.self,rh.view,rh.manage')->group(function () {
     Route::get('me', [RhController::class, 'self']);
     Route::put('me', [RhController::class, 'updateSelf']);
     Route::get('me/payslips/{id}', [RhController::class, 'selfPayslip'])->whereNumber('id');
+    Route::get('me/contracts/{id}', [RhController::class, 'selfContract'])->whereNumber('id');
 });
 
 Route::middleware('perm:rh.view,rh.manage')->group(function () {
