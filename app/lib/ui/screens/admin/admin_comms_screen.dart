@@ -523,6 +523,14 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
   void initState() {
     super.initState();
     if (!_isAuto) _refreshCount();
+    // Aperçu en direct : suit la saisie
+    for (final c in [_name, _subject, _preheader, _title, _body, _html, _ctaLabel]) {
+      c.addListener(_onText);
+    }
+  }
+
+  void _onText() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -675,22 +683,63 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
     if (t != null) setState(() => _recurrence = {..._recurrence, 'time': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}'});
   }
 
-  Widget _section(String title, IconData icon, List<Widget> children, {String? subtitle}) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(children: [
-                Icon(icon, size: 20, color: YColors.blue),
-                const SizedBox(width: 8),
-                Expanded(child: Text(tr(title), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))),
+  Widget _section(String title, IconData icon, List<Widget> children, {String? subtitle, int? step}) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: .35)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
+              child: step == null ? Icon(icon, size: 18, color: YColors.blue) : Text('$step', style: const TextStyle(color: YColors.blue, fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr(title), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+                if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 3), child: Text(tr(subtitle), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.5, height: 1.35))),
               ]),
-              if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(tr(subtitle), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5))),
-              const SizedBox(height: 14),
-              ...children,
-            ]),
-          ),
+            ),
+            if (step != null) Padding(padding: const EdgeInsets.only(top: 7), child: Icon(icon, size: 19, color: cs.outline)),
+          ]),
+          const SizedBox(height: 16),
+          ...children,
+        ]),
+      ),
+    );
+  }
+
+  /// Grille de tuiles : [cols] colonnes sur grand écran, une seule sur téléphone.
+  Widget _grid(int cols, List<Widget> Function(double width) tiles) => LayoutBuilder(builder: (context, c) {
+        final n = c.maxWidth < 460 ? 1 : (c.maxWidth < 640 ? (cols > 2 ? 2 : cols) : cols);
+        final w = (c.maxWidth - (n - 1) * 10) / n;
+        return Wrap(spacing: 10, runSpacing: 10, children: tiles(w.floorToDouble()));
+      });
+
+  Widget _stat(String value, String label, IconData icon) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .06), borderRadius: BorderRadius.circular(14)),
+          child: Row(children: [
+            Icon(icon, size: 20, color: YColors.blue),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.1)),
+                Text(tr(label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+              ]),
+            ),
+          ]),
         ),
       );
 
@@ -710,6 +759,122 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
     ]);
   }
 
+  String _segLabel() {
+    final segments = asMap(widget.meta['segments']);
+    return tr('${segments['${_audience['segment']}'] ?? 'Toutes les sociétés clientes'}');
+  }
+
+  String _whenLabel() => switch (_scheduleMode) {
+        'once' => _sendAt == null ? tr('Date à choisir') : tr('Le ${dateTimeFr(_sendAt!.toIso8601String())}'),
+        'recurring' => tr(_schedule({'schedule': 'recurring', 'recurrence': _recurrence})),
+        _ => tr('Envoi immédiat'),
+      };
+
+  static String _plain(String s) => s
+      .replaceAllMapped(RegExp(r'\[([^\]]*)\]\([^)]*\)'), (m) => m[1] ?? '')
+      .replaceAll('**', '')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+
+  /// Aperçu en direct (colonne de droite sur grand écran) : la notification et l'e-mail tels qu'ils se présentent, au fil de la saisie.
+  Widget _livePreview(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hint = cs.onSurfaceVariant;
+    final notif = _channels.contains('notification');
+    final email = _channels.contains('email');
+    final body = _plain(_body.text);
+    final title = _title.text.trim().isNotEmpty ? _title.text.trim() : _subject.text.trim();
+    final border = Border.all(color: Theme.of(context).dividerColor.withValues(alpha: .4));
+    Widget label(String t) => Padding(padding: const EdgeInsets.only(top: 18, bottom: 8), child: Text(tr(t), style: TextStyle(color: hint, fontSize: 12.5, fontWeight: FontWeight.w700)));
+    Widget empty(String t) => Text(tr(t), style: TextStyle(color: cs.outline, fontStyle: FontStyle.italic, fontSize: 13));
+    Widget recap(IconData i, String t) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(i, size: 17, color: hint),
+            const SizedBox(width: 10),
+            Expanded(child: Text(t, style: const TextStyle(fontSize: 13, height: 1.35))),
+          ]),
+        );
+    return ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 40), children: [
+      Row(children: [
+        const Icon(Icons.visibility_outlined, size: 20, color: YColors.blue),
+        const SizedBox(width: 8),
+        Text(tr('Aperçu en direct'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      ]),
+      const SizedBox(height: 4),
+      Text(tr('Les variables comme {{prenom}} sont remplacées pour chaque destinataire.'), style: TextStyle(color: hint, fontSize: 12.5)),
+      if (!notif && !email) ...[const SizedBox(height: 18), empty('Choisissez au moins un canal.')],
+      if (notif) ...[
+        label('Notification dans l\'application'),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14), border: border, boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4))]),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            CircleAvatar(radius: 18, backgroundColor: YColors.blue.withValues(alpha: .12), child: const Icon(Icons.campaign_outlined, size: 19, color: YColors.blue)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                title.isEmpty ? empty('Titre de la notification') : Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                if (body.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 3), child: Text(body, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12.5, height: 1.35))),
+                Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr('À l\'instant'), style: TextStyle(color: cs.outline, fontSize: 11))),
+              ]),
+            ),
+          ]),
+        ),
+      ],
+      if (email) ...[
+        label('E-mail'),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14), border: border),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              color: cs.surfaceContainerHighest.withValues(alpha: .5),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text(tr('Yomara ERP'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                  const Spacer(),
+                  Text(tr('maintenant'), style: TextStyle(color: cs.outline, fontSize: 11)),
+                ]),
+                const SizedBox(height: 4),
+                _subject.text.trim().isEmpty ? empty('Objet de l\'e-mail') : Text(_subject.text.trim(), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                if (_preheader.text.trim().isNotEmpty) Text(_preheader.text.trim(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: hint, fontSize: 12)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                switch (_format) {
+                  'design' => recap(Icons.dashboard_customize_outlined, tr('Composé dans l\'onglet « Conception » (${_design.blocks.length} bloc(s)).')),
+                  'html' => recap(Icons.code_rounded, tr('E-mail en HTML personnalisé (${_html.text.length} caractères).')),
+                  _ => body.isEmpty ? empty('Le texte du message apparaît ici.') : Text(body, maxLines: 14, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.45)),
+                },
+                if (_ctaLabel.text.trim().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(color: YColors.blue, borderRadius: BorderRadius.circular(10)),
+                      child: Text(_ctaLabel.text.trim(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+      ],
+      const SizedBox(height: 14),
+      OutlinedButton.icon(onPressed: _busy ? null : _preview, icon: const Icon(Icons.preview_outlined, size: 18), label: Text(tr('Aperçu personnalisé pour une société'))),
+      label('Récapitulatif'),
+      if (!_isAuto) recap(Icons.apartment_rounded, _segLabel()),
+      recap(Icons.badge_outlined, tr(_recipients == 'all' ? 'Tous les utilisateurs de chaque société' : 'Administrateurs de chaque société')),
+      if (!_isAuto && _count != null) recap(Icons.groups_2_outlined, tr('${_count!['companies']} société(s), ${_count!['users']} personne(s), ${_count!['emails']} adresse(s) e-mail')),
+      recap(Icons.send_outlined, [if (notif) tr('Notification'), if (email) tr('E-mail')].join(' + ').ifEmpty(tr('Aucun canal'))),
+      if (!_isAuto) recap(Icons.schedule_rounded, _whenLabel()),
+    ]);
+  }
+
   Widget _settings(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     final segments = asMap(widget.meta['segments']);
@@ -717,15 +882,44 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
     final seg = '${_audience['segment']}';
     final email = _channels.contains('email');
     final notif = _channels.contains('notification');
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+    var step = 0;
+    final narrowForm = MediaQuery.sizeOf(context).width < 540;
+    void setRecipients(String v) {
+      setState(() => _recipients = v);
+      if (!_isAuto) _refreshCount();
+    }
+
+    final recipientTiles = _grid(2, (w) => [
+          _OptionTile(width: w, icon: Icons.admin_panel_settings_outlined, title: tr('Administrateurs'), subtitle: tr('Les responsables de chaque société'), selected: _recipients == 'admins', onTap: () => setRecipients('admins')),
+          _OptionTile(width: w, icon: Icons.groups_outlined, title: tr('Tous les utilisateurs'), subtitle: tr('Toutes les personnes ayant un compte'), selected: _recipients == 'all', onTap: () => setRecipients('all')),
+        ]);
+
+    final form = ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
       children: [
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 820),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (!_isAuto)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
+                  child: TextField(
+                    controller: _name,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                    decoration: InputDecoration(
+                      hintText: tr('Nom de la campagne'),
+                      helperText: tr('Pour la retrouver dans la liste ; les destinataires ne le voient pas. Ex. Promo de novembre −20 %'),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
               if (_isAuto)
-                _section('Relance', Icons.autorenew_rounded, [
+                _section('Relance', Icons.autorenew_rounded, step: ++step, [
                   Field(label: 'Nom', child: TextField(controller: _name)),
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     SizedBox(width: 130, child: Field(label: 'Délai (jours)', child: TextField(controller: _days, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly]))),
@@ -733,130 +927,152 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
                     Expanded(child: Padding(padding: const EdgeInsets.only(top: 34), child: Text(tr('${_src['days_label'] ?? 'jours'}'), style: TextStyle(color: hint)))),
                   ]),
                   SwitchListTile(contentPadding: EdgeInsets.zero, value: _active, onChanged: (v) => setState(() => _active = v), title: Text(tr('Relance active')), subtitle: Text(tr('Vérifiée toutes les heures ; chaque société la reçoit une seule fois par occasion.'))),
-                ])
-              else ...[
-                _section('Destinataires', Icons.groups_2_outlined, [
-                  Field(
-                    label: 'Sociétés',
-                    child: DropdownButtonFormField<String>(
-                      initialValue: segments.containsKey(seg) ? seg : 'all',
-                      isExpanded: true,
-                      items: [for (final e in segments.entries) DropdownMenuItem(value: e.key, child: Text(tr('${e.value}')))],
-                      onChanged: (v) {
-                        setState(() => _audience = {..._audience, 'segment': v});
-                        _refreshCount();
-                      },
-                    ),
-                  ),
-                  if (seg == 'plans')
+                ]),
+              if (_isAuto)
+                _section('Destinataires', Icons.groups_2_outlined, step: ++step, [recipientTiles])
+              else
+                _section('Destinataires', Icons.groups_2_outlined, step: ++step, subtitle: 'Quelles sociétés clientes, et qui dans chacune d\'elles.', [
+                  Text(tr('Sociétés'), style: TextStyle(color: hint, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  if (narrowForm)
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      for (final p in plans)
-                        FilterChip(
-                          label: Text(tr('${p['name']}')),
-                          selected: (_audience['plans'] as List? ?? const []).contains(p['code']),
-                          onSelected: (on) {
-                            final cur = {...List<String>.from(_audience['plans'] as List? ?? const [])};
-                            on ? cur.add('${p['code']}') : cur.remove('${p['code']}');
-                            setState(() => _audience = {..._audience, 'plans': cur.toList()});
+                      for (final e in segments.entries)
+                        ChoiceChip(
+                          avatar: Icon(_segIcons[e.key] ?? Icons.apartment_rounded, size: 17),
+                          showCheckmark: false,
+                          label: Text(tr('${e.value}')),
+                          selected: seg == e.key,
+                          onSelected: (_) {
+                            setState(() => _audience = {..._audience, 'segment': e.key});
                             _refreshCount();
                           },
                         ),
-                    ]),
+                    ])
+                  else
+                  _grid(3, (w) => [
+                        for (final e in segments.entries)
+                          _OptionTile(
+                            width: w,
+                            dense: true,
+                            icon: _segIcons[e.key] ?? Icons.apartment_rounded,
+                            title: tr('${e.value}'),
+                            selected: seg == e.key,
+                            onTap: () {
+                              setState(() => _audience = {..._audience, 'segment': e.key});
+                              _refreshCount();
+                            },
+                          ),
+                      ]),
+                  if (seg == 'plans')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Wrap(spacing: 8, runSpacing: 8, children: [
+                        for (final p in plans)
+                          FilterChip(
+                            label: Text(tr('${p['name']}')),
+                            selected: (_audience['plans'] as List? ?? const []).contains(p['code']),
+                            onSelected: (on) {
+                              final cur = {...List<String>.from(_audience['plans'] as List? ?? const [])};
+                              on ? cur.add('${p['code']}') : cur.remove('${p['code']}');
+                              setState(() => _audience = {..._audience, 'plans': cur.toList()});
+                              _refreshCount();
+                            },
+                          ),
+                      ]),
+                    ),
                   if (['expiring', 'inactive', 'new'].contains(seg))
-                    SizedBox(
-                      width: 280,
-                      child: Field(
-                        label: seg == 'expiring' ? 'Se termine dans les … jours' : seg == 'inactive' ? 'Sans connexion depuis … jours' : 'Inscrites depuis moins de … jours',
-                        child: TextField(controller: _days, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], onChanged: (_) => _refreshCount()),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          width: 300,
+                          child: Field(
+                            label: seg == 'expiring' ? 'Se termine dans les … jours' : seg == 'inactive' ? 'Sans connexion depuis … jours' : 'Inscrites depuis moins de … jours',
+                            child: TextField(controller: _days, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], onChanged: (_) => _refreshCount()),
+                          ),
+                        ),
                       ),
                     ),
                   if (seg == 'companies')
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _pickCompanies,
-                        icon: const Icon(Icons.checklist_rounded),
-                        label: Text(tr('Choisir les sociétés (${(_audience['company_ids'] as List? ?? const []).length})')),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.tonalIcon(
+                          onPressed: _pickCompanies,
+                          icon: const Icon(Icons.checklist_rounded),
+                          label: Text(tr('Choisir les sociétés (${(_audience['company_ids'] as List? ?? const []).length})')),
+                        ),
                       ),
                     ),
+                  const SizedBox(height: 18),
+                  Text(tr('Dans chaque société'), style: TextStyle(color: hint, fontSize: 12.5, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(value: 'admins', icon: const Icon(Icons.admin_panel_settings_outlined), label: Text(tr('Administrateurs'))),
-                      ButtonSegment(value: 'all', icon: const Icon(Icons.groups_outlined), label: Text(tr('Tous les utilisateurs'))),
-                    ],
-                    selected: {_recipients},
-                    onSelectionChanged: (s) {
-                      setState(() => _recipients = s.first);
-                      _refreshCount();
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .07), borderRadius: BorderRadius.circular(12)),
-                    child: _count == null
-                        ? Text(tr('Calcul des destinataires…'), style: TextStyle(color: hint))
-                        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(tr('${_count!['companies']} société(s) · ${_count!['users']} personne(s) · ${_count!['emails']} adresse(s) e-mail'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                            if (_list(_count!['sample']).isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(tr('Dont ${_list(_count!['sample']).map((s) => s['name']).join(', ')}${toInt(_count!['companies']) > 8 ? '…' : ''}'), style: TextStyle(color: hint, fontSize: 12.5)),
-                              ),
-                          ]),
-                  ),
+                  recipientTiles,
+                  const SizedBox(height: 16),
+                  if (_count == null)
+                    Text(tr('Calcul des destinataires…'), style: TextStyle(color: hint))
+                  else ...[
+                    Row(children: [
+                      _stat('${_count!['companies']}', 'société(s)', Icons.apartment_rounded),
+                      const SizedBox(width: 10),
+                      _stat('${_count!['users']}', 'personne(s)', Icons.person_outline_rounded),
+                      const SizedBox(width: 10),
+                      _stat('${_count!['emails']}', 'adresse(s) e-mail', Icons.alternate_email_rounded),
+                    ]),
+                    if (_list(_count!['sample']).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(tr('Dont ${_list(_count!['sample']).map((s) => s['name']).join(', ')}${toInt(_count!['companies']) > 8 ? '…' : ''}'), style: TextStyle(color: hint, fontSize: 12.5)),
+                      ),
+                  ],
                 ]),
-                _section('Nom de la campagne', Icons.label_outline, [TextField(controller: _name, decoration: InputDecoration(hintText: tr('Ex. Promo de novembre −20 %')))]),
-              ],
-              if (_isAuto)
-                _section('Destinataires', Icons.groups_2_outlined, [
-                  SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(value: 'admins', label: Text(tr('Administrateurs'))),
-                      ButtonSegment(value: 'all', label: Text(tr('Tous les utilisateurs'))),
-                    ],
-                    selected: {_recipients},
-                    onSelectionChanged: (s) => setState(() => _recipients = s.first),
-                  ),
-                ]),
-              _section('Canaux', Icons.send_outlined, [
-                Wrap(spacing: 10, runSpacing: 10, children: [
-                  FilterChip(
-                    avatar: const Icon(Icons.notifications_active_outlined, size: 18),
-                    label: Text(tr('Notification dans l\'application')),
-                    selected: notif,
-                    onSelected: (v) => setState(() => v ? _channels.add('notification') : _channels.remove('notification')),
-                  ),
-                  FilterChip(
-                    avatar: const Icon(Icons.alternate_email_rounded, size: 18),
-                    label: Text(tr('E-mail')),
-                    selected: email,
-                    onSelected: (v) => setState(() => v ? _channels.add('email') : _channels.remove('email')),
-                  ),
-                ]),
-              ], subtitle: 'La notification apparaît dans la cloche de l\'application (ordinateur et téléphone) ; un clic ouvre le message complet.'),
-              _section('Message', Icons.edit_note_rounded, [
+              _section('Canaux', Icons.send_outlined, step: ++step, subtitle: 'Un seul ou les deux. La notification apparaît dans la cloche de l\'application (ordinateur et téléphone) ; un clic ouvre le message complet.', [
+                _grid(2, (w) => [
+                      _OptionTile(
+                        width: w,
+                        check: true,
+                        icon: Icons.notifications_active_outlined,
+                        title: tr('Notification dans l\'application'),
+                        subtitle: tr('Visible à la prochaine connexion'),
+                        selected: notif,
+                        onTap: () => setState(() => notif ? _channels.remove('notification') : _channels.add('notification')),
+                      ),
+                      _OptionTile(
+                        width: w,
+                        check: true,
+                        icon: Icons.alternate_email_rounded,
+                        title: tr('E-mail'),
+                        subtitle: tr('Envoyé dans la boîte de réception'),
+                        selected: email,
+                        onTap: () => setState(() => email ? _channels.remove('email') : _channels.add('email')),
+                      ),
+                    ]),
+              ]),
+              _section('Message', Icons.edit_note_rounded, step: ++step, [
                 if (notif) Field(label: 'Titre de la notification', child: TextField(controller: _title, decoration: InputDecoration(hintText: tr('Ex. −20 % sur l\'abonnement annuel')))),
                 if (email) ...[
                   Field(label: 'Objet de l\'e-mail', child: TextField(controller: _subject, decoration: InputDecoration(hintText: tr('Ex. {{prenom}}, −20 % pour {{entreprise}}')))),
                   Field(label: 'Texte d\'aperçu (facultatif)', child: TextField(controller: _preheader, decoration: InputDecoration(hintText: tr('Affiché après l\'objet dans la boîte de réception')))),
                 ],
-                Field(
-                  label: 'Format',
-                  child: SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(value: 'text', icon: const Icon(Icons.notes_rounded), label: Text(tr('Texte'))),
-                      ButtonSegment(value: 'design', icon: const Icon(Icons.dashboard_customize_outlined), label: Text(tr('Design'))),
-                      ButtonSegment(value: 'html', icon: const Icon(Icons.code_rounded), label: Text(tr('HTML'))),
-                    ],
-                    selected: {_format},
-                    onSelectionChanged: (s) => setState(() => _format = s.first),
+                if (email)
+                  Field(
+                    label: 'Mise en forme de l\'e-mail',
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(value: 'text', icon: const Icon(Icons.notes_rounded), label: Text(tr('Texte'))),
+                        ButtonSegment(value: 'design', icon: const Icon(Icons.dashboard_customize_outlined), label: Text(tr('Design'))),
+                        ButtonSegment(value: 'html', icon: const Icon(Icons.code_rounded), label: Text(tr('HTML'))),
+                      ],
+                      selected: {_format},
+                      onSelectionChanged: (s) => setState(() => _format = s.first),
+                    ),
                   ),
-                ),
                 if (_format == 'text' || !email)
                   Field(
-                    label: _format == 'text' ? 'Message' : 'Texte de la notification',
+                    label: _format == 'text' || !email ? 'Message' : 'Texte de la notification',
                     child: TextField(
                       controller: _body,
                       minLines: 6,
@@ -895,21 +1111,20 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
                 _variables(),
               ]),
               if (!_isAuto)
-                _section('Quand ?', Icons.schedule_rounded, [
-                  SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(value: 'now', icon: const Icon(Icons.bolt_rounded), label: Text(tr('Maintenant'))),
-                      ButtonSegment(value: 'once', icon: const Icon(Icons.event_outlined), label: Text(tr('Programmer'))),
-                      ButtonSegment(value: 'recurring', icon: const Icon(Icons.repeat_rounded), label: Text(tr('Récurrente'))),
-                    ],
-                    selected: {_scheduleMode},
-                    onSelectionChanged: (s) => setState(() => _scheduleMode = s.first),
-                  ),
+                _section('Quand ?', Icons.schedule_rounded, step: ++step, [
+                  _grid(3, (w) => [
+                        for (final m in const [
+                          ('now', Icons.bolt_rounded, 'Maintenant', 'Dès que vous validez'),
+                          ('once', Icons.event_outlined, 'Programmer', 'À la date et l\'heure choisies'),
+                          ('recurring', Icons.repeat_rounded, 'Récurrente', 'Chaque jour, semaine ou mois'),
+                        ])
+                          _OptionTile(width: w, icon: m.$2, title: tr(m.$3), subtitle: tr(m.$4), selected: _scheduleMode == m.$1, onTap: () => setState(() => _scheduleMode = m.$1)),
+                      ]),
                   const SizedBox(height: 12),
                   if (_scheduleMode == 'once')
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(onPressed: _pickDate, icon: const Icon(Icons.event_outlined), label: Text(tr(_sendAt == null ? 'Choisir la date et l\'heure' : 'Le ${dateTimeFr(_sendAt!.toIso8601String())}'))),
+                      child: FilledButton.tonalIcon(onPressed: _pickDate, icon: const Icon(Icons.event_outlined), label: Text(tr(_sendAt == null ? 'Choisir la date et l\'heure' : 'Le ${dateTimeFr(_sendAt!.toIso8601String())}'))),
                     ),
                   if (_scheduleMode == 'recurring')
                     Wrap(spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
@@ -961,13 +1176,29 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
         ),
       ],
     );
+    return LayoutBuilder(builder: (context, c) {
+      if (c.maxWidth < 1180) return form;
+      return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(child: form),
+        Container(
+          width: 400,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerLowest,
+            border: Border(left: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: .35))),
+          ),
+          child: _livePreview(context),
+        ),
+      ]);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final design = _format == 'design' && _channels.contains('email');
     final narrow = MediaQuery.sizeOf(context).width < 700;
+    final wide = MediaQuery.sizeOf(context).width >= 1000;
     final primaryLabel = _isAuto ? 'Enregistrer' : switch (_scheduleMode) { 'once' => 'Programmer', 'recurring' => 'Activer la récurrence', _ => 'Envoyer maintenant' };
+    final hint = Theme.of(context).hintColor;
     return Scaffold(
       appBar: AppBar(
         title: Text(tr(_isAuto ? 'Relance : ${_src['name']}' : (_src['id'] == null ? 'Nouvelle campagne' : 'Modifier la campagne'))),
@@ -986,23 +1217,109 @@ class _ComposerState extends State<_Composer> with SingleTickerProviderStateMixi
           : _settings(context),
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          decoration: BoxDecoration(color: Theme.of(context).cardColor, border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: .4)))),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: .4))),
+            boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 16, offset: Offset(0, -4))],
+          ),
           child: Row(children: [
             if (!narrow) ...[
               OutlinedButton.icon(onPressed: _busy ? null : _preview, icon: const Icon(Icons.visibility_outlined), label: Text(tr('Aperçu'))),
               const SizedBox(width: 8),
               OutlinedButton.icon(onPressed: _busy ? null : _test, icon: const Icon(Icons.outgoing_mail), label: Text(tr('M\'envoyer un test'))),
             ],
-            const Spacer(),
+            if (wide && !_isAuto && _count != null)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    tr('${_count!['companies']} société(s) · ${_whenLabel()}'),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: hint, fontSize: 13),
+                  ),
+                ),
+              )
+            else
+              const Spacer(),
             if (!_isAuto) TextButton(onPressed: _busy ? null : () => _save(), child: Text(tr('Brouillon'))),
             const SizedBox(width: 8),
             FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 46), padding: const EdgeInsets.symmetric(horizontal: 22)),
               onPressed: _busy ? null : () => _save(launch: !_isAuto),
               icon: _busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : Icon(_isAuto ? Icons.check_rounded : Icons.send_rounded),
               label: Text(tr(primaryLabel)),
             ),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+const _segIcons = <String, IconData>{
+  'all': Icons.apartment_rounded,
+  'free': Icons.money_off_rounded,
+  'paid': Icons.workspace_premium_outlined,
+  'trial': Icons.science_outlined,
+  'plans': Icons.layers_outlined,
+  'expiring': Icons.hourglass_bottom_rounded,
+  'inactive': Icons.bedtime_outlined,
+  'new': Icons.fiber_new_outlined,
+  'referrers': Icons.handshake_outlined,
+  'companies': Icons.checklist_rounded,
+};
+
+extension on String {
+  String ifEmpty(String other) => isEmpty ? other : this;
+}
+
+/// Tuile de choix (un seul choix : rond ; plusieurs : case à cocher).
+class _OptionTile extends StatelessWidget {
+  const _OptionTile({required this.icon, required this.title, this.subtitle, required this.selected, required this.onTap, this.check = false, this.dense = false, this.width});
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool selected, check, dense;
+  final VoidCallback onTap;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = selected ? YColors.blue : cs.onSurfaceVariant;
+    final radius = BorderRadius.circular(14);
+    return SizedBox(
+      width: width,
+      height: dense ? 58 : null,
+      child: Material(
+        color: selected ? YColors.blue.withValues(alpha: .07) : Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: radius, side: BorderSide(color: selected ? YColors.blue : Theme.of(context).dividerColor.withValues(alpha: .55), width: selected ? 1.6 : 1)),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(14, dense ? 6 : 13, 12, dense ? 6 : 13),
+            child: Row(crossAxisAlignment: subtitle == null ? CrossAxisAlignment.center : CrossAxisAlignment.start, children: [
+              Icon(icon, size: dense ? 19 : 22, color: color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: selected ? FontWeight.w700 : FontWeight.w600, fontSize: dense ? 13 : 14, color: selected ? YColors.blue : null)),
+                  if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant, height: 1.3))),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                check ? (selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded) : (selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded),
+                size: 20,
+                color: selected ? YColors.blue : cs.outline,
+              ),
+            ]),
+          ),
         ),
       ),
     );

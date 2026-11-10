@@ -5,7 +5,10 @@
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F4FA;padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden">
   <tr><td style="background:#2E6BE6;background-image:linear-gradient(135deg,#2E6BE6,#7C3AED);padding:30px 32px;color:#ffffff">
-    <div style="font-size:14px;opacity:.85;font-weight:600">{{ $appName }}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;padding-right:10px"><img src="{{ $url }}/brand/mark-512.png" width="40" height="40" alt="{{ $appName }}" style="display:block;width:40px;height:40px;border-radius:10px;border:0"></td>
+      <td style="vertical-align:middle;font-size:16px;font-weight:700;color:#ffffff">{{ $appName }}</td>
+    </tr></table>
     <div style="font-size:24px;font-weight:800;margin-top:6px">Bienvenue, {{ $name }} !</div>
     <div style="font-size:15px;opacity:.9;margin-top:4px">L'espace de {{ $company }} est prêt.</div>
   </td></tr>
@@ -25,13 +28,18 @@
     <p style="margin:22px 0 10px;font-size:15px;font-weight:700">Deux façons d'utiliser {{ $appName }} :</p>
     <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6"><b>🌐 En ligne</b>, sans rien installer :</p>
     <p style="margin:0 0 20px"><a href="{{ $url }}/app/" style="display:inline-block;background:#2E6BE6;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px">Ouvrir {{ $appName }}</a></p>
-    <p style="margin:0 0 8px;font-size:14.5px;line-height:1.6"><b>💻 Sur vos appareils</b>, pour travailler même sans internet :</p>
-    <p style="margin:0 0 20px;font-size:14px;line-height:2">
-      @foreach($platforms as $k => $label)
-        @if($downloads[$k] ?? null)<a href="{{ $url }}/telecharger/{{ $k }}" style="color:#2E6BE6;font-weight:700;text-decoration:none;margin-right:14px">⬇ {{ $label }}</a>@endif
+    <p style="margin:0 0 10px;font-size:14.5px;line-height:1.6"><b>💻 Sur vos appareils</b>, pour travailler même sans internet (vos données se synchronisent au retour du réseau) :</p>
+    @if(!empty($apps))
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E9F2;border-radius:12px;font-size:14px;margin:0 0 20px">
+      @foreach($apps as $i => $a)
+      <tr>
+        <td style="padding:11px 16px;color:#0B1530;font-weight:700;{{ $i > 0 ? 'border-top:1px solid #E5E9F2;' : '' }}">{{ $a['platform'] }}</td>
+        <td align="right" style="padding:11px 16px;{{ $i > 0 ? 'border-top:1px solid #E5E9F2;' : '' }}"><a href="{{ $a['url'] }}" style="display:inline-block;background:#EEF3FF;color:#1E40AF;text-decoration:none;font-weight:700;padding:7px 14px;border-radius:8px">{{ $a['label'] }}</a></td>
+      </tr>
       @endforeach
-      <a href="{{ $url }}/#telecharger" style="color:#64748B;text-decoration:none">Toutes les versions</a>
-    </p>
+    </table>
+    @endif
+    <p style="margin:0 0 20px;font-size:13.5px"><a href="{{ $url }}/#telecharger" style="color:#2E6BE6;text-decoration:none;font-weight:600">Voir toutes les versions et le guide d'installation</a></p>
     <p style="margin:0;font-size:13px;color:#64748B;line-height:1.6">Mot de passe oublié ? Utilisez « Mot de passe oublié » sur la page de connexion. Notre équipe ne vous demandera jamais votre mot de passe. Si vous n'êtes pas à l'origine de cette inscription, répondez simplement à cet e-mail.</p>
   </td></tr>
   <tr><td style="background:#F7F9FD;padding:18px 32px;font-size:12.5px;color:#64748B;line-height:1.6">

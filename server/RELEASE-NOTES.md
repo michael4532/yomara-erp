@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.39 — signatures en image, recherche façon Outlook, e-mail de bienvenue, campagnes repensées
+- Signatures : nouveau mode « Image » (bannière ou carte de visite à la place du texte, largeur réglable de 200 à 800 px, lien au clic facultatif) ; chaque ligne du générateur peut être retirée (×) ; les images insérées en HTML sont à taille réelle (600 px, adaptées à l'écran) au lieu de 160 px.
+- Recherche dans la messagerie : dans toutes les boîtes par défaut (ou seulement le dossier ouvert), « Meilleurs résultats » puis « Tous les résultats », dossier de chaque message (Boîte de réception, Éléments envoyés…), étiquette « Brouillon » et mots recherchés surlignés.
+- E-mail de bienvenue : logo Yomara et toutes les applications (Microsoft Store, Mac App Store, Google Play, App Store, plus les fichiers à télécharger quand ils sont sur le serveur).
+- Super admin › Nouvelle campagne : étapes numérotées (Destinataires, Canaux, Message, Quand ?), choix en tuiles au lieu des listes, compteurs sociétés / personnes / e-mails, aperçu en direct de la notification et de l'e-mail à droite (grand écran) avec récapitulatif, et résumé de l'envoi dans la barre du bas.
+
 ## 0.99.38 — barre du bas personnalisable
 Audit avant mise à jour
 - Mise à jour automatique (navigateur) : jamais de rechargement pendant une saisie, un message en rédaction ou une réunion vidéo, ni quand l'onglet est en arrière-plan (le compte à rebours attend) ; « Plus tard » est respecté jusqu'à la prochaine ouverture ; un onglet ne bloque plus la mise à jour des autres ; les paramètres de l'adresse (lien d'invitation…) sont conservés.

@@ -833,6 +833,10 @@ class _SignatureEditorState extends State<_SignatureEditor> {
   late final _custom = TextEditingController(text: _fields['mode'] == 'html' ? '${widget.signature?['html'] ?? ''}' : '');
   late String _mode = '${_fields['mode'] ?? 'form'}';
   late String _color = '${_fields['color'] ?? '#2E6BE6'}';
+  // Mode « Image » : une bannière à la place du texte (taille réglable, lien facultatif)
+  late final _img = TextEditingController(text: '${_fields['image'] ?? ''}');
+  late final _imgLink = TextEditingController(text: '${_fields['image_link'] ?? ''}');
+  late double _imgWidth = (num.tryParse('${_fields['image_width'] ?? ''}') ?? 600).toDouble().clamp(200, 800);
   late bool _default = widget.signature?['is_default'] == true || widget.signature == null;
   late bool _onReply = widget.signature?['on_reply'] != false;
   bool _company = false;
@@ -858,7 +862,20 @@ class _SignatureEditorState extends State<_SignatureEditor> {
     _account = widget.signature?['account_id'] as int? ?? widget.accountId;
   }
 
-  String _html() => _mode == 'html' ? _custom.text : _htmlFromForm();
+  String _html() => switch (_mode) {
+        'html' => _custom.text,
+        'image' => _htmlFromImage(),
+        _ => _htmlFromForm(),
+      };
+
+  String _htmlFromImage() {
+    final src = _img.text.trim();
+    if (src.isEmpty) return '';
+    final w = _imgWidth.round();
+    final img = '<img src="$src" alt="" width="$w" style="display:block;width:${w}px;max-width:100%;height:auto;border:0">';
+    final link = _imgLink.text.trim();
+    return link.isEmpty ? img : '<a href="${link.startsWith('http') ? link : 'https://$link'}" style="text-decoration:none">$img</a>';
+  }
 
   String _htmlFromForm() {
     String v(String k) => const HtmlEscape().convert(_c[k]!.text.trim());
@@ -874,10 +891,10 @@ class _SignatureEditorState extends State<_SignatureEditor> {
         '${photo.isNotEmpty ? '<td style="padding-right:12px;vertical-align:top"><img src="$photo" alt="" width="72" height="72" style="width:72px;height:72px;border-radius:50%;object-fit:cover"></td>' : ''}'
         '${logo.isNotEmpty && photo.isEmpty ? '<td style="padding-right:14px;vertical-align:top"><img src="$logo" alt="" style="max-width:96px;max-height:72px"></td>' : ''}'
         '<td style="border-left:3px solid $_color;padding-left:12px;vertical-align:top">'
-        '<div style="font-size:15px;font-weight:700;color:#0B1B3A">${v('name')}</div>'
+        '${v('name').isNotEmpty ? '<div style="font-size:15px;font-weight:700;color:#0B1B3A">${v('name')}</div>' : ''}'
         '${v('title').isNotEmpty ? '<div style="color:#5B6B85">${v('title')}</div>' : ''}'
         '${v('company').isNotEmpty ? '<div style="font-weight:600;color:$_color;margin-top:2px">${v('company')}</div>' : ''}'
-        '<div style="margin-top:6px;line-height:1.5">${lines.join(' · ')}</div>'
+        '${lines.isNotEmpty ? '<div style="margin-top:6px;line-height:1.5">${lines.join(' · ')}</div>' : ''}'
         '${v('address').isNotEmpty ? '<div style="color:#5B6B85;margin-top:2px">${v('address')}</div>' : ''}'
         '</td></tr></table>'
         '${logo.isNotEmpty && photo.isNotEmpty ? '<div style="margin-top:10px"><img src="$logo" alt="" style="max-width:140px;max-height:48px"></div>' : ''}'
@@ -888,7 +905,15 @@ class _SignatureEditorState extends State<_SignatureEditor> {
     final api = context.read<Session>().api;
     final data = {
       'name': _label.text.trim().isEmpty ? 'Signature' : _label.text.trim(), 'html': _html(), 'is_default': _default, 'on_reply': _onReply, 'account_id': _account,
-      'fields': {for (final e in _c.entries) e.key: e.value.text.trim(), 'color': _color, 'mode': _mode}, 'company': _company,
+      'fields': {
+        for (final e in _c.entries) e.key: e.value.text.trim(),
+        'color': _color,
+        'mode': _mode,
+        'image': _img.text.trim(),
+        'image_link': _imgLink.text.trim(),
+        'image_width': _imgWidth.round(),
+      },
+      'company': _company,
     };
     try {
       final r = widget.signature == null ? await api.post('mailbox/signatures', data) : await api.put('mailbox/signatures/${widget.signature!['id']}', data);
@@ -911,12 +936,18 @@ class _SignatureEditorState extends State<_SignatureEditor> {
                 TextField(controller: _label, decoration: InputDecoration(labelText: tr('Nom de la signature'))),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
-                  segments: [ButtonSegment(value: 'form', label: Text(tr('Générateur'))), ButtonSegment(value: 'html', label: Text(tr('HTML personnalisé')))],
+                  segments: [
+                    ButtonSegment(value: 'form', label: Text(tr('Générateur'))),
+                    ButtonSegment(value: 'image', label: Text(tr('Image'))),
+                    ButtonSegment(value: 'html', label: Text(tr('HTML'))),
+                  ],
                   selected: {_mode},
+                  showSelectedIcon: false,
                   onSelectionChanged: (v) => setState(() => _mode = v.first),
                 ),
                 if (_mode == 'form') ...[
-                  for (final k in labels.keys)
+                  for (final k in labels.keys) ...[
+                    const SizedBox(height: 10),
                     k == 'logo' || k == 'photo'
                         ? Row(children: [
                             if (_c[k]!.text.isNotEmpty)
@@ -935,8 +966,17 @@ class _SignatureEditorState extends State<_SignatureEditor> {
                             ),
                             if (_c[k]!.text.isNotEmpty) IconButton(tooltip: tr('Retirer'), icon: const Icon(Icons.close), onPressed: () => setState(() => _c[k]!.clear())),
                           ])
-                        : TextField(controller: _c[k], decoration: InputDecoration(labelText: labels[k]), onChanged: (_) => setState(() {})),
-                  const SizedBox(height: 8),
+                        : TextField(
+                            controller: _c[k],
+                            decoration: InputDecoration(
+                              labelText: labels[k],
+                              // Chaque ligne peut être retirée : un champ vide n'apparaît pas dans la signature
+                              suffixIcon: _c[k]!.text.isEmpty ? null : IconButton(tooltip: tr('Retirer de la signature'), icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _c[k]!.clear())),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                  ],
+                  const SizedBox(height: 12),
                   Wrap(spacing: 8, children: [
                     for (final c in ['#2E6BE6', '#0B1B3A', '#12A150', '#E8A317', '#D81B60', '#5B5FC7'])
                       InkWell(
@@ -944,13 +984,48 @@ class _SignatureEditorState extends State<_SignatureEditor> {
                         child: CircleAvatar(radius: 12, backgroundColor: Color(int.parse('FF${c.substring(1)}', radix: 16)), child: _color == c ? const Icon(Icons.check, size: 14, color: Colors.white) : null),
                       ),
                   ]),
+                ] else if (_mode == 'image') ...[
+                  const SizedBox(height: 12),
+                  Text(tr('Une image (bannière, carte de visite…) à la place du texte.'), style: TextStyle(color: YColors.muted)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _img,
+                        decoration: InputDecoration(labelText: tr('Image de la signature'), hintText: tr('Chargez une image ou collez son adresse')),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: tr('Charger une image'),
+                      icon: const Icon(Icons.upload_outlined),
+                      onPressed: () async {
+                        final url = await uploadMailImage(context, widget.store);
+                        if (url != null) setState(() => _img.text = url);
+                      },
+                    ),
+                    if (_img.text.isNotEmpty) IconButton(tooltip: tr('Retirer'), icon: const Icon(Icons.close), onPressed: () => setState(() => _img.clear())),
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Text(tr('Largeur')),
+                    Expanded(
+                      child: Slider(value: _imgWidth, min: 200, max: 800, divisions: 30, label: '${_imgWidth.round()} px', onChanged: (v) => setState(() => _imgWidth = v)),
+                    ),
+                    SizedBox(width: 64, child: Text('${_imgWidth.round()} px', textAlign: TextAlign.end)),
+                  ]),
+                  TextField(
+                    controller: _imgLink,
+                    decoration: InputDecoration(labelText: tr('Lien au clic (facultatif)'), hintText: 'www.votre-site.ci'),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ] else
                 ...[
                   Wrap(spacing: 6, children: [
                     TextButton.icon(
                       onPressed: () async {
                         final url = await uploadMailImage(context, widget.store);
-                        if (url != null) setState(() => insertAtCursor(_custom, '<img src="$url" alt="" style="max-width:160px;height:auto">'));
+                        if (url != null) setState(() => insertAtCursor(_custom, '<img src="$url" alt="" width="600" style="display:block;width:600px;max-width:100%;height:auto;border:0">'));
                       },
                       icon: const Icon(Icons.image_outlined, size: 18),
                       label: Text(tr('Insérer une image')),
@@ -974,6 +1049,7 @@ class _SignatureEditorState extends State<_SignatureEditor> {
                   ]),
                   TextField(controller: _custom, minLines: 12, maxLines: 22, style: const TextStyle(fontFamily: 'monospace', fontSize: 12), decoration: InputDecoration(hintText: tr('<table>…</table>')), onChanged: (_) => setState(() {})),
                 ],
+                const SizedBox(height: 12),
                 DropdownButtonFormField<int?>(
                   initialValue: _account,
                   decoration: InputDecoration(labelText: tr('Compte')),

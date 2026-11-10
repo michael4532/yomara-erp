@@ -504,6 +504,32 @@ class LandingController extends Controller
         return redirect()->away($url);
     }
 
+    /**
+     * Toutes les applications proposées dans l'e-mail de bienvenue : boutique (liens enregistrés dans l'administration,
+     * sinon fiches officielles) et fichier à installer quand il est disponible.
+     *
+     * @return list<array{platform: string, label: string, url: string}>
+     */
+    public static function welcomeApps(string $url): array
+    {
+        $saved = self::stores();
+        $official = self::officialStoreLinks();
+        $files = self::files();
+        $out = [];
+        foreach (self::PLATFORMS as $k => $name) {
+            $storeKey = self::STORE_KEYS[$k] ?? null;
+            $store = $storeKey ? (($saved[$k] ?? null) ?: ($official[$storeKey] ?? null)) : null;
+            if ($store) {
+                $out[] = ['platform' => $name, 'label' => self::STORE_NAMES[$k], 'url' => $store];
+            }
+            if ($files[$k] ?? null) {
+                $out[] = ['platform' => $name, 'label' => 'Télécharger ('.(self::FILE_NAMES[$k] ?? 'fichier').')', 'url' => $url.'/telecharger/'.$k];
+            }
+        }
+
+        return $out;
+    }
+
     public function sendWelcome(string $name, string $email, string $password, string $company, ?Plan $plan): bool
     {
         try {
@@ -512,6 +538,7 @@ class LandingController extends Controller
                 'plan' => $plan, 'url' => rtrim(config('app.url'), '/'),
                 'modules' => \App\Platform\SubscriptionLifecycle::planModules($plan),
                 'trialEnds' => \App\Models\User::where('email', $email)->first()?->company?->trial_ends_at,
+                'apps' => self::welcomeApps(rtrim(config('app.url'), '/')),
             ])->render();
             $loc = app()->getLocale();
             $subject = \App\Support\Tr::f('Bienvenue sur {} : votre espace est prêt', [config('erp.name', 'Yomara ERP')], $loc);

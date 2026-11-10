@@ -49,6 +49,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
   _View _view = _View(role: 'inbox', title: tr('Boîte de réception'));
   final _search = TextEditingController();
   String _q = '';
+
+  /// Recherche : dans toutes les boîtes (par défaut, comme Outlook) ou seulement dans le dossier ouvert.
+  bool _searchHere = false;
   String _filter = 'all';
   int? _openId;
   Map<String, dynamic>? _open;
@@ -172,7 +175,16 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   List<Map<String, dynamic>> get _list {
-    final l = _s.query(folderId: _view.folderId, role: _view.role, unread: _view.unread || _filter == 'unread', flagged: _view.flagged || _filter == 'flagged', attachments: _filter == 'attachments', q: _q, focused: _filter == 'focused' ? true : (_filter == 'other' ? false : null));
+    final everywhere = _q.isNotEmpty && !_searchHere;
+    final l = _s.query(
+      folderId: everywhere ? null : _view.folderId,
+      role: everywhere ? null : _view.role,
+      unread: _view.unread || _filter == 'unread',
+      flagged: _view.flagged || _filter == 'flagged',
+      attachments: _filter == 'attachments',
+      q: _q,
+      focused: everywhere ? null : (_filter == 'focused' ? true : (_filter == 'other' ? false : null)),
+    );
     final ids = {for (final m in l) m['id']};
     return [...l, ..._older.where((m) => !ids.contains(m['id']))];
   }
@@ -210,7 +222,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final list = _list;
     final last = list.isEmpty ? null : list.last;
     try {
-      final rows = await _s.older({if (_view.folderId != null) 'folder_id': _view.folderId!, if (_view.role != null) 'role': _view.role!, if (_view.unread || _filter == 'unread') 'unread': 1, if (_view.flagged || _filter == 'flagged') 'flagged': 1, if (_filter == 'attachments') 'attachments': 1, if (_q.isNotEmpty) 'q': _q}, _olderCursor ?? (last == null ? null : '${last['date']}|${last['id']}'));
+      final everywhere = _q.isNotEmpty && !_searchHere;
+      final rows = await _s.older({if (!everywhere && _view.folderId != null) 'folder_id': _view.folderId!, if (!everywhere && _view.role != null) 'role': _view.role!, if (_view.unread || _filter == 'unread') 'unread': 1, if (_view.flagged || _filter == 'flagged') 'flagged': 1, if (_filter == 'attachments') 'attachments': 1, if (_q.isNotEmpty) 'q': _q}, _olderCursor ?? (last == null ? null : '${last['date']}|${last['id']}'));
       if (!mounted) return;
       setState(() {
         _older.addAll(rows);
@@ -1037,7 +1050,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final groups = <String, List<Map<String, dynamic>>>{};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    for (final m in list) {
+    if (_q.isNotEmpty && list.isNotEmpty) {
+      // Recherche : les meilleurs résultats d'abord (expéditeur et objet qui correspondent, messages récents), puis tout par date
+      final best = [...list]..sort((a, b) => _score(b).compareTo(_score(a)));
+      groups['Meilleurs résultats'] = best.take(3).toList();
+      groups['Tous les résultats'] = list;
+    }
+    for (final m in _q.isNotEmpty ? const <Map<String, dynamic>>[] : list) {
       final d = DateTime.tryParse('${m['date']}') ?? now;
       final day = DateTime(d.year, d.month, d.day);
       final diff = today.difference(day).inDays;
@@ -1147,6 +1166,35 @@ class _MailboxScreenState extends State<MailboxScreen> {
           ),
         ),
         if (compact) Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 6), child: _searchField()),
+        if (_q.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+            child: Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              Text(tr('Chercher dans :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+              ChoiceChip(
+                label: Text(tr('Toutes les boîtes')),
+                selected: !_searchHere,
+                visualDensity: VisualDensity.compact,
+                onSelected: (_) => setState(() {
+                  _searchHere = false;
+                  _older.clear();
+                  _olderCursor = null;
+                  _olderDone = false;
+                }),
+              ),
+              ChoiceChip(
+                label: Text(tr(_view.title)),
+                selected: _searchHere,
+                visualDensity: VisualDensity.compact,
+                onSelected: (_) => setState(() {
+                  _searchHere = true;
+                  _older.clear();
+                  _olderCursor = null;
+                  _olderDone = false;
+                }),
+              ),
+            ]),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 2, 4, 6),
           child: Row(
@@ -1325,6 +1373,69 @@ class _MailboxScreenState extends State<MailboxScreen> {
     if (mounted && _openId == id) setState(() => _open = {...?_open, ...?_s.local(id)});
   });
 
+  /// Pertinence d'un résultat de recherche : expéditeur et objet comptent plus que le contenu ; les messages récents passent devant.
+  double _score(Map<String, dynamic> m) {
+    final words = _fold(_q).split(' ').where((w) => w.isNotEmpty);
+    final who = _fold('${m['from_name']} ${m['from_email']} ${(m['to'] as List? ?? const []).map((t) => '${t['name']} ${t['email']}').join(' ')}');
+    final subject = _fold('${m['subject']}');
+    final body = _fold('${m['snippet']}');
+    var s = 0.0;
+    for (final w in words) {
+      if (who.contains(w)) s += 4;
+      if (subject.contains(w)) s += 3;
+      if (body.contains(w)) s += 1;
+    }
+    final age = DateTime.now().difference(DateTime.tryParse('${m['date']}') ?? DateTime(2000)).inDays;
+    return s + 3 / (1 + age / 7) + (m['seen'] != true ? .5 : 0);
+  }
+
+  /// Minuscules sans accents, même longueur que le texte d'origine (pour surligner au bon endroit).
+  static String _fold(String s) {
+    const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+    const to = 'aaaaaaceeeeiiiinooooouuuuyy';
+    return String.fromCharCodes(s.toLowerCase().runes.map((c) {
+      final i = from.indexOf(String.fromCharCode(c));
+      return i >= 0 ? to.codeUnitAt(i) : c;
+    }));
+  }
+
+  /// Texte d'une ligne avec les mots recherchés surlignés en jaune.
+  Widget _hl(String text, TextStyle style) {
+    final t = tr(text);
+    final words = _fold(_q).split(' ').where((w) => w.length > 1).toList();
+    if (words.isEmpty || t.length != _fold(t).length) return Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    final f = _fold(t);
+    final marks = List<bool>.filled(t.length, false);
+    for (final w in words) {
+      var i = f.indexOf(w);
+      while (i >= 0) {
+        for (var k = i; k < i + w.length; k++) {
+          marks[k] = true;
+        }
+        i = f.indexOf(w, i + w.length);
+      }
+    }
+    final spans = <TextSpan>[];
+    var start = 0;
+    for (var i = 1; i <= t.length; i++) {
+      if (i == t.length || marks[i] != marks[start]) {
+        spans.add(TextSpan(text: t.substring(start, i), style: marks[start] ? const TextStyle(backgroundColor: Color(0xFFFFE97A), color: Color(0xFF111111)) : null));
+        start = i;
+      }
+    }
+    return Text.rich(TextSpan(style: style, children: spans), maxLines: 1, overflow: TextOverflow.ellipsis);
+  }
+
+  Widget _badge(String label, Color color, {bool outline = false}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+        decoration: BoxDecoration(
+          color: outline ? Colors.transparent : color.withValues(alpha: .12),
+          border: Border.all(color: outline ? _p.line : color.withValues(alpha: .35)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: outline ? _p.muted : color)),
+      );
+
   Widget _row(Map<String, dynamic> m) {
     final p = _p;
     final sel = _openId == m['id'];
@@ -1382,11 +1493,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              tr(who),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14, fontWeight: unread ? FontWeight.w700 : FontWeight.w600, color: p.ink),
+                            child: _hl(
+                              who,
+                              TextStyle(fontSize: 14, fontWeight: unread ? FontWeight.w700 : FontWeight.w600, color: p.ink),
                             ),
                           ),
                           if (m['has_attachments'] == true) Icon(Icons.attach_file, size: 14, color: p.muted),
@@ -1406,19 +1515,24 @@ class _MailboxScreenState extends State<MailboxScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  tr('${m['subject'] ?? '(sans objet)'}'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: unread ? (p.dark ? const Color(0xFF8AB4FF) : const Color(0xFF1D4ED8)) : p.ink, fontSize: 13),
-                                ),
+                                Row(children: [
+                                  if (_s.folder(m['folder_id'])?['role'] == 'drafts') ...[_badge(tr('Brouillon'), const Color(0xFFC62828)), const SizedBox(width: 6)],
+                                  Expanded(
+                                    child: _hl(
+                                      '${m['subject'] ?? '(sans objet)'}',
+                                      TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: unread ? (p.dark ? const Color(0xFF8AB4FF) : const Color(0xFF1D4ED8)) : p.ink, fontSize: 13),
+                                    ),
+                                  ),
+                                ]),
                                 const SizedBox(height: 2),
-                                Text(
-                                  tr('${m['snippet'] ?? ''}'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: p.muted, fontSize: 12.5),
-                                ),
+                                Row(children: [
+                                  Expanded(child: _hl('${m['snippet'] ?? ''}', TextStyle(color: p.muted, fontSize: 12.5))),
+                                  // Recherche dans toutes les boîtes : dossier de chaque message, comme Outlook
+                                  if (_q.isNotEmpty && _s.folder(m['folder_id']) != null) ...[
+                                    const SizedBox(width: 6),
+                                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 140), child: _badge(tr('${_s.folder(m['folder_id'])!['name']}'), p.muted, outline: true)),
+                                  ],
+                                ]),
                               ],
                             ),
                           ),
