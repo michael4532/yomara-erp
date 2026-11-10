@@ -975,7 +975,7 @@
   }
 
   // ------------------------------------------------------------------ salle
-  var $stage, $side, $controls, $top, $captions, renderQueued = false, clock = null, pip = { x: null, y: null };
+  var $stage, $side, $controls, $top, $captions, renderQueued = false, clock = null, pip = { x: null, y: null }, lastStageSig = null;
   function roomShell() {
     clear($app).className = '';
     $top = h('div', { class: 'top' });
@@ -1068,6 +1068,16 @@
     var spot = S.spotlight ? tiles.filter(function (t) { return t.pid === S.spotlight && t.kind === 'cam'; })[0] : null;
     var pinned = S.pinned ? tiles.filter(function (t) { return t.key === S.pinned; })[0] : null;
     var focus = pinned || shot || spot || (S.layout === 'speaker' && tiles.length > 2 ? tiles.filter(function (t) { return t.key === S.activeSpeaker; })[0] || tiles[1] : null);
+    // Rien n'a changé à l'écran (cas de chaque passage de présence, toutes les 1,5 s) : on ne reconstruit pas les vignettes.
+    // Les reconstruire décrochait les vidéos du document, d'où un écran noir à intervalles réguliers.
+    var sig = JSON.stringify([tiles.map(function (t) { var tr = t.video && t.video.getVideoTracks()[0]; return [t.key, t.kind, tr ? tr.id : 0, t.mic, t.hand, t.role, t.connecting, t.name]; }),
+      focus && focus.key, S.pinned, S.layout, !!S.banner, isHost() ? S.lobby.map(function (l) { return l.id + l.name; }) : 0, $stage.clientWidth, $stage.clientHeight, S.info && S.info.type]);
+    if (sig === lastStageSig && $stage.firstChild) {
+      renderCaptions();
+      if (S.panel) renderPanel(true);
+      return;
+    }
+    lastStageSig = sig;
     clear($stage);
     $stage.appendChild(h('div', { id: 'banner', class: 'banner' + (S.banner ? '' : ' hidden'), text: S.banner || '' }));
     if (S.lobby.length && isHost()) {
@@ -1109,6 +1119,8 @@
       $stage.appendChild(g);
     }
     $stage.appendChild($captions);
+    // Vidéos replacées dans la page : on s'assure qu'elles continuent de jouer
+    $stage.querySelectorAll('video').forEach(function (v) { if (v.paused) v.play().catch(function () {}); });
     renderCaptions();
     if (S.panel) renderPanel(true);
   }

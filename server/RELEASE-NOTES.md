@@ -5,6 +5,7 @@
 - Recherche dans la messagerie : dans toutes les boîtes par défaut (ou seulement le dossier ouvert), « Meilleurs résultats » puis « Tous les résultats », dossier de chaque message (Boîte de réception, Éléments envoyés…), étiquette « Brouillon » et mots recherchés surlignés.
 - E-mail de bienvenue : logo Yomara et toutes les applications (Microsoft Store, Mac App Store, Google Play, App Store, plus les fichiers à télécharger quand ils sont sur le serveur).
 - Juridique › Contrat de travail : le juriste choisit le salarié ; dès que le contrat passe « À signer » ou « En vigueur », le salarié est prévenu et le retrouve dans Mon espace › Mes contrats de travail (texte, impression / PDF, contrat signé ; les brouillons et les remarques internes restent privés).
+- Réunions : fin de l'écran qui devenait noir toutes les une à deux secondes (les vidéos étaient décrochées et replacées à chaque mise à jour de la présence ; elles restent désormais en place).
 - Super admin › Nouvelle campagne : étapes numérotées (Destinataires, Canaux, Message, Quand ?), choix en tuiles au lieu des listes, compteurs sociétés / personnes / e-mails, aperçu en direct de la notification et de l'e-mail à droite (grand écran) avec récapitulatif, et résumé de l'envoi dans la barre du bas.
 
 ## 0.99.38 — barre du bas personnalisable
