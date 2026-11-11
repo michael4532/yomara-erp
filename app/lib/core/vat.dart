@@ -40,7 +40,27 @@ double standardVatRate(Session s) {
 }
 
 /// Taux appliqué par défaut aux nouvelles lignes de vente.
-double defaultVatRate(Session s) => vatSubject(s) ? standardVatRate(s) : 0;
+/// Client établi dans un autre pays (exportation) : 0 % par défaut, comme le veut la règle générale.
+double defaultVatRate(Session s, [Map<String, dynamic>? partner]) {
+  if (!vatSubject(s)) return 0;
+  return isExportClient(s, partner) ? 0 : standardVatRate(s);
+}
+
+/// Client situé hors du pays de la société.
+bool isExportClient(Session s, Map<String, dynamic>? partner) {
+  final pc = '${partner?['country'] ?? ''}'.toUpperCase();
+  final cc = '${s.company['country'] ?? 'CI'}'.toUpperCase();
+  return pc.length == 2 && pc != cc;
+}
+
+/// Comptes bancaires imprimés sur les factures : « banque|numéro » identifie un compte.
+List<Map<String, dynamic>> invoiceBanks(Session s) =>
+    [for (final b in (s.companySettings['bank_accounts'] as List? ?? const [])) if (b is Map && b['on_invoices'] != false) Map<String, dynamic>.from(b)];
+
+String bankKey(Map b) => '${b['bank'] ?? ''}|${b['account'] ?? b['iban'] ?? ''}';
+
+/// Formes juridiques proposées (droit OHADA et usages courants).
+const legalForms = ['Entreprise individuelle', 'Entreprenant', 'SARL', 'SARLU', 'SA', 'SAS', 'SASU', 'SCS', 'SNC', 'GIE', 'Coopérative (SCOOPS)', 'Association', 'ONG'];
 
 /// Taux proposés sur une ligne : taux normal ou exonéré (0 %), plus le taux déjà saisi s'il est différent.
 List<double> vatChoices(Session s, [double? current]) {

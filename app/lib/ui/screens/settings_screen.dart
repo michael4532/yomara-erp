@@ -5,6 +5,7 @@ import 'agences_screen.dart';
 
 import '../../core/config.dart';
 import '../../core/vat.dart';
+import 'document_editor.dart' show paymentMethods;
 import '../../core/sync_engine.dart';
 import '../../state/session.dart';
 import '../theme.dart';
@@ -221,6 +222,9 @@ class SettingsScreen extends StatelessWidget {
     var receiptBox = session.companySettings['invoice_receipt_box'] == true;
     var amountWords = session.companySettings['invoice_amount_words'] != false;
     final regime = TextEditingController(text: '${session.companySettings['tax_regime'] ?? ''}');
+    String? legalForm = session.companySettings['legal_form'] as String?;
+    final capital = TextEditingController(text: toDouble(session.companySettings['capital']) > 0 ? '${toDouble(session.companySettings['capital']).round()}' : '');
+    String? defaultMode = session.companySettings['default_payment_method'] as String?;
     final terms = TextEditingController(text: '${session.companySettings['payment_terms_days'] ?? 30}');
     final footer = TextEditingController(text: '${session.companySettings['invoice_footer'] ?? ''}');
     String n(String k) => toDouble(session.companySettings[k]) == 0 ? '' : '${toDouble(session.companySettings[k]).round()}';
@@ -242,6 +246,31 @@ class SettingsScreen extends StatelessWidget {
                 label: labels[e.key]!,
                 child: TextField(controller: e.value),
               ),
+            Row(
+              children: [
+                Expanded(
+                  child: Field(
+                    label: tr('Forme juridique'),
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: legalForm,
+                      isExpanded: true,
+                      items: [
+                        DropdownMenuItem(value: null, child: Text(tr('Non précisée'))),
+                        for (final f in {...legalForms, ?legalForm}) DropdownMenuItem(value: f, child: Text(tr(f))),
+                      ],
+                      onChanged: (v) => setD(() => legalForm = v),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Field(
+                    label: tr('Capital social'),
+                    child: TextField(controller: capital, keyboardType: TextInputType.number, decoration: InputDecoration(hintText: tr('Ex. : 1000000'))),
+                  ),
+                ),
+              ],
+            ),
             Field(
               label: tr('Pays'),
               child: DropdownButtonFormField<String>(
@@ -291,6 +320,19 @@ class SettingsScreen extends StatelessWidget {
             Field(
               label: tr('Mention en pied de facture'),
               child: TextField(controller: footer, maxLines: 2),
+            ),
+            Field(
+              label: tr('Mode de règlement par défaut des factures'),
+              child: DropdownButtonFormField<String?>(
+                initialValue: paymentMethods.containsKey(defaultMode) ? defaultMode : null,
+                isExpanded: true,
+                items: [
+                  DropdownMenuItem(value: null, child: Text(tr('Aucun'))),
+                  for (final e in paymentMethods.entries)
+                    if (!['loyalty', 'gift_card'].contains(e.key)) DropdownMenuItem(value: e.key, child: Text(tr(e.value))),
+                ],
+                onChanged: (v) => setD(() => defaultMode = v),
+              ),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -347,6 +389,9 @@ class SettingsScreen extends StatelessWidget {
                         'tax_regime': regime.text.trim().isEmpty ? null : regime.text.trim(),
                         'invoice_receipt_box': receiptBox,
                         'invoice_amount_words': amountWords,
+                        'legal_form': legalForm,
+                        'capital': capital.text.trim().isEmpty ? null : toDouble(capital.text),
+                        'default_payment_method': defaultMode,
                         'payment_terms_days': toDouble(terms.text).round(),
                         'invoice_footer': footer.text.trim().isEmpty ? null : footer.text.trim(),
                         if (session.hasModule('achats')) 'purchase_approval_limit': toDouble(approval.text),

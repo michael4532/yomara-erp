@@ -216,6 +216,20 @@ class _ProductForm extends StatefulWidget {
 class _ProductFormState extends State<_ProductForm> {
   final _key = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _c;
+
+  String _fmt(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
+
+  /// HT ou TVA modifiés : TTC recalculé.
+  void _syncTtc() {
+    if (_c['sale_price']!.text.trim().isEmpty) return;
+    _c['sale_price_ttc']!.text = _fmt(ttcFromHt(toDouble(_c['sale_price']!.text), toDouble(_c['tax_rate']!.text), decimalsFor(context.read<Session>().currency)));
+  }
+
+  /// TTC saisi : HT recalculé.
+  void _syncHt() {
+    if (_c['sale_price_ttc']!.text.trim().isEmpty) return;
+    _c['sale_price']!.text = _fmt(htFromTtc(toDouble(_c['sale_price_ttc']!.text), toDouble(_c['tax_rate']!.text)));
+  }
   late String _type;
   late String _unit;
   late bool _trackStock;
@@ -250,6 +264,7 @@ class _ProductFormState extends State<_ProductForm> {
       'sale_price': TextEditingController(text: n(p['sale_price'])),
       'purchase_price': TextEditingController(text: n(p['purchase_price'])),
       'tax_rate': TextEditingController(text: n(p['tax_rate'] ?? taxDefault)),
+      'sale_price_ttc': TextEditingController(text: p['sale_price'] == null ? '' : n(ttcFromHt(toDouble(p['sale_price']), toDouble(p['tax_rate'] ?? taxDefault), decimalsFor(context.read<Session>().currency)))),
       'min_stock': TextEditingController(text: n(p['min_stock'] ?? 0)),
       'description': TextEditingController(text: '${p['description'] ?? ''}'),
       'plu': TextEditingController(text: '${p['plu'] ?? ''}'),
@@ -322,14 +337,28 @@ class _ProductFormState extends State<_ProductForm> {
           const SizedBox(width: 12),
           Expanded(child: Field(label: tr('Code-barres'), child: TextFormField(controller: _c['barcode']))),
         ]),
+        // Prix de vente saisi au choix en HT ou en TTC : l'autre se calcule
         Row(children: [
-          Expanded(child: Field(label: tr('Prix de vente HT'), child: TextFormField(controller: _c['sale_price'], inputFormatters: numFmt, keyboardType: const TextInputType.numberWithOptions(decimal: true)))),
+          Expanded(
+            child: Field(
+              label: tr('Prix de vente HT'),
+              child: TextFormField(controller: _c['sale_price'], inputFormatters: numFmt, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => _syncTtc()),
+            ),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: Field(label: tr('Prix d\'achat HT'), child: TextFormField(controller: _c['purchase_price'], inputFormatters: numFmt, keyboardType: const TextInputType.numberWithOptions(decimal: true)))),
+          Expanded(
+            child: Field(
+              label: tr('Prix de vente TTC'),
+              child: TextFormField(controller: _c['sale_price_ttc'], inputFormatters: numFmt, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => _syncHt()),
+            ),
+          ),
         ]),
         Row(children: [
-          Expanded(child: Field(label: tr('TVA (%)'), child: TextFormField(controller: _c['tax_rate'], inputFormatters: numFmt))),
+          Expanded(child: Field(label: tr('Prix d\'achat HT'), child: TextFormField(controller: _c['purchase_price'], inputFormatters: numFmt, keyboardType: const TextInputType.numberWithOptions(decimal: true)))),
           const SizedBox(width: 12),
+          Expanded(child: Field(label: tr('TVA (%)'), child: TextFormField(controller: _c['tax_rate'], inputFormatters: numFmt, onChanged: (_) => _syncTtc()))),
+        ]),
+        Row(children: [
           Expanded(
             child: Field(
               label: tr('Unité'),

@@ -6,6 +6,8 @@
 - TVA : le taux normal suit le pays de la société (Côte d'Ivoire 18 %, Sénégal 18 %, Cameroun 19,25 %, France 20 %…). Sur chaque ligne de vente, choix entre le taux normal et 0 %.
 - Société non assujettie à la TVA (Paramètres › Informations de la société) : lignes à 0 % imposées (aussi par le serveur), facture sans colonne TVA, « Total » et mention « TVA non applicable ». Pays, régime d'imposition (RNI, RSI, Entreprenant…), case décharge et montant en lettres se règlent au même endroit.
 - « Ajouter un produit » : bouton « Nouveau produit » et « Créer « … » » quand la recherche ne trouve rien ; le produit créé s'ajoute aussitôt à la facture.
+- Inspiré du parcours Dolibarr : TVA à 0 % par défaut pour un client établi dans un autre pays (exportation) ; « Compte bancaire affiché » choisi sur chaque facture ; mode de règlement par défaut de la société ; forme juridique et capital social (« SARL au capital de 1 000 000 F CFA ») en en-tête et en pied de page ; prix de vente du produit saisi au choix en HT ou en TTC.
+- Facture PDF : logo de la société, code client, TVA détaillée par taux (« TVA 18 % »), filigrane « BROUILLON » sur les brouillons.
 - Facture PDF : mode de règlement (choisi sur la facture ou d'après les paiements reçus), « Arrêtée la présente facture à la somme de … francs CFA », case « Pour décharge » (signature du client et de la société), pied de page complet (adresse, téléphone, e-mail, RCCM, NCC, régime, banque), colonne Désignation alignée à gauche.
 
 ## 0.99.42 — correctifs de sécurité

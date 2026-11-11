@@ -275,6 +275,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
       'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       'payment_method': _doc['payment_method'],
       'receipt_box': _doc['receipt_box'],
+      'bank_account': _doc['bank_account'],
       if (analyticEnabled(context.read<Session>())) 'analytic': anDist(_doc['analytic']).isEmpty ? null : _doc['analytic'],
       if (context.read<Session>().hasModule('champs')) 'custom': _custom,
       'lines': [
@@ -477,7 +478,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
     if (!mounted) return;
     final session = context.read<Session>();
     final sale = widget.config == DocConfig.sale;
-    final taxDefault = sale ? defaultVatRate(session) : toDouble(session.companySettings['tax_rate'] ?? standardVatRate(session));
+    final taxDefault = sale ? defaultVatRate(session, LocalDb.get('partners', _doc['partner_id'] as String?)) : toDouble(session.companySettings['tax_rate'] ?? standardVatRate(session));
     if (product != null && product['is_template'] == true) return;
     setState(() {
       _lines.add(product == null || product.isEmpty
@@ -582,11 +583,32 @@ class _DocumentEditorState extends State<DocumentEditor> {
                 initialValue: paymentMethods.containsKey(_doc['payment_method']) ? _doc['payment_method'] as String : null,
                 isExpanded: true,
                 items: [
-                  DropdownMenuItem(value: null, child: Text(tr('Non précisé'))),
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text(tr(paymentMethods.containsKey(session.companySettings['default_payment_method'])
+                        ? 'Par défaut (${paymentMethods[session.companySettings['default_payment_method']]})'
+                        : 'Non précisé')),
+                  ),
                   for (final e in paymentMethods.entries)
                     if (!['loyalty', 'gift_card'].contains(e.key)) DropdownMenuItem(value: e.key, child: Text(tr(e.value))),
                 ],
                 onChanged: editable ? (v) => setState(() { _doc['payment_method'] = v; _dirty = true; }) : null,
+              ),
+            ),
+          ),
+        if (_payModeTypes.contains(_doc['type']) && invoiceBanks(session).length > 1)
+          SizedBox(
+            width: wide ? 240 : double.infinity,
+            child: Field(
+              label: tr('Compte bancaire affiché'),
+              child: DropdownButtonFormField<String?>(
+                initialValue: invoiceBanks(session).any((b) => bankKey(b) == _doc['bank_account']) ? _doc['bank_account'] as String : null,
+                isExpanded: true,
+                items: [
+                  DropdownMenuItem(value: null, child: Text(tr('Tous les comptes'))),
+                  for (final b in invoiceBanks(session)) DropdownMenuItem(value: bankKey(b), child: Text(tr('${b['bank']}${b['account'] != null ? ' · ${b['account']}' : ''}'), overflow: TextOverflow.ellipsis)),
+                ],
+                onChanged: editable ? (v) => setState(() { _doc['bank_account'] = v; _dirty = true; }) : null,
               ),
             ),
           ),

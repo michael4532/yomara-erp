@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart' show networkImage;
 
 import '../core/amount_words.dart';
 import '../core/custom_fields.dart';
@@ -23,7 +24,7 @@ Future<void> printDocument({
   List<Map<String, dynamic>> payments = const [],
 }) async {
   final bytes = await buildDocumentPdf(session: session, config: config, doc: doc, payments: payments);
-  final number = doc['number'] ?? (doc['status'] == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
+  final number = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
   await previewPdf(name: '${config.types[doc['type']]} $number.pdf', onLayout: (_) async => bytes);
 }
 
@@ -44,7 +45,7 @@ Future<Uint8List> buildDocumentPdf({
   final grey = PdfColor.fromHex('#5B6B85');
 
   final typeLabel = (config.types[doc['type']] ?? 'Document').toUpperCase();
-  final docNumber = doc['number'] ?? (doc['status'] == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
+  final docNumber = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
   final partner = LocalDb.get('partners', doc['partner_id'] as String?);
   final lines = List<Map<String, dynamic>>.from((doc['lines'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
 
@@ -54,13 +55,40 @@ Future<Uint8List> buildDocumentPdf({
   final noVat = sale && !vatSubject(session) && toDouble(doc['tax_total']) == 0;
   final regime = settings['tax_regime'];
   // Mode de règlement : celui prévu sur le document, sinon ceux des paiements reçus
+  // Mode de règlement : celui de la facture, sinon les paiements reçus, sinon le mode par défaut de la société
   final payModes = <String>{
     if (doc['payment_method'] != null) '${paymentMethods[doc['payment_method']] ?? doc['payment_method']}',
     if (doc['payment_method'] == null) for (final p in payments) '${paymentMethods[p['method']] ?? p['method']}',
   };
+  if (payModes.isEmpty && sale && paymentMethods.containsKey(settings['default_payment_method'])) payModes.add(paymentMethods[settings['default_payment_method']]!);
   final receiptBox = sale && ['invoice', 'delivery', 'order'].contains(doc['type']) && ((doc['receipt_box'] as bool?) ?? settings['invoice_receipt_box'] == true);
   final words = sale && ['invoice', 'proforma', 'quote', 'credit_note'].contains(doc['type']) && settings['invoice_amount_words'] != false && toDouble(doc['total']) > 0;
-  final firstBank = [for (final b in (settings['bank_accounts'] as List? ?? const [])) if (b is Map && b['on_invoices'] != false) b].firstOrNull;
+  // Comptes bancaires imprimés : celui choisi sur la facture, sinon tous ceux « sur les factures »
+  final allBanks = invoiceBanks(session);
+  final chosenBanks = doc['bank_account'] == null ? allBanks : allBanks.where((b) => bankKey(b) == doc['bank_account']).toList();
+  final banks = chosenBanks.isEmpty ? allBanks : chosenBanks;
+  final firstBank = banks.firstOrNull;
+  final capital = toDouble(settings['capital']);
+  final legal = [
+    if (settings['legal_form'] != null) '${settings['legal_form']}',
+    if (capital > 0) 'au capital de ${money(capital, session.currency)}',
+  ].join(' ');
+  // Document pas encore validé (un brouillon pas encore synchronisé n'a pas de statut)
+  final isDraft = (doc['status'] ?? 'draft') == 'draft' && doc['number'] == null;
+  // Logo de la société (ignoré s'il est injoignable : le PDF se génère aussi hors connexion)
+  pw.ImageProvider? logo;
+  final logoUrl = '${company['logo_url'] ?? ''}';
+  if (logoUrl.startsWith('http')) {
+    try {
+      logo = await networkImage(logoUrl).timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
+  // TVA ventilée par taux (comme l'exige une facture avec plusieurs taux)
+  final vatByRate = <double, double>{};
+  for (final l in lines) {
+    final r = toDouble(l['tax_rate']);
+    if (r > 0) vatByRate[r] = (vatByRate[r] ?? 0) + toDouble(l['tax_amount']);
+  }
   final docWord = switch (doc['type']) { 'quote' => 'le présent devis', 'proforma' => 'la présente facture proforma', 'credit_note' => 'le présent avoir', _ => 'la présente facture' };
 
   final pdf = pw.Document(version: PdfVersion.pdf_1_4, theme: pw.ThemeData.withFont(base: regular, bold: bold));
@@ -74,14 +102,29 @@ Future<Uint8List> buildDocumentPdf({
       );
 
   pdf.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 48),
+    pageTheme: pw.PageTheme(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 48),
+      theme: pw.ThemeData.withFont(base: regular, bold: bold),
+      // Filigrane « BROUILLON » : un brouillon ne vaut pas facture
+      buildBackground: isDraft
+          ? (ctx) => pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Center(
+                  child: pw.Transform.rotate(
+                    angle: 0.6,
+                    child: pw.Text(tr('BROUILLON'), style: pw.TextStyle(fontSize: 96, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#ECEFF4'))),
+                  ),
+                ),
+              )
+          : null,
+    ),
     footer: (ctx) => pw.Column(children: [
       pw.Divider(color: PdfColors.grey300),
       // Pied de page : identité légale, coordonnées et banque de la société
       pw.Text(
         tr([
-          company['name'],
+          [company['name'], if (legal.isNotEmpty) legal].join(' — '),
           [company['address'], company['city']].where((e) => e != null && '$e'.isNotEmpty).join(', '),
           if (company['phone'] != null) 'Tél. ${company['phone']}',
           company['email'],
@@ -107,7 +150,9 @@ Future<Uint8List> buildDocumentPdf({
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Expanded(
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            if (logo != null) pw.Padding(padding: const pw.EdgeInsets.only(bottom: 6), child: pw.Image(logo, height: 54, fit: pw.BoxFit.contain)),
             pw.Text(tr('${company['name'] ?? ''}'), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: night)),
+            if (legal.isNotEmpty) pw.Text(tr(legal), style: pw.TextStyle(fontSize: 9, color: grey)),
             if (company['address'] != null) pw.Text(tr('${company['address']}')),
             if (company['city'] != null) pw.Text(tr('${company['city']}')),
             if (company['phone'] != null) pw.Text(tr('Tél. ${company['phone']}')),
@@ -140,6 +185,7 @@ Future<Uint8List> buildDocumentPdf({
             if (partner?['city'] != null) pw.Text(tr('${partner!['city']}')),
             if (partner?['phone'] != null) pw.Text(tr('${partner!['phone']}')),
             if (partner?['tax_id'] != null) pw.Text(tr('NCC ${partner!['tax_id']}')),
+            if ('${partner?['code'] ?? ''}'.isNotEmpty) pw.Text(tr('Code client : ${partner!['code']}'), style: pw.TextStyle(fontSize: 9, color: grey)),
             for (final f in customFieldsFor('partners'))
               if (f['show_on_pdf'] == true && !customEmpty((partner?['custom'] as Map?)?['${f['key']}']))
                 pw.Text(tr('${f['label']} : ${customDisplay(f, (partner!['custom'] as Map)['${f['key']}'])}')),
@@ -200,7 +246,9 @@ Future<Uint8List> buildDocumentPdf({
           child: pw.Column(children: [
             if (!noVat) kv('Total HT', money(toDouble(doc['subtotal']), currency)),
             if (toDouble(doc['discount_total']) > 0) kv('dont remises', money(toDouble(doc['discount_total']), currency)),
-            if (!noVat) kv('TVA', money(toDouble(doc['tax_total']), currency)),
+            if (!noVat && vatByRate.length <= 1) kv(vatByRate.length == 1 ? 'TVA ${vatPct(vatByRate.keys.first)} %' : 'TVA', money(toDouble(doc['tax_total']), currency)),
+            if (!noVat && vatByRate.length > 1)
+              for (final e in (vatByRate.entries.toList()..sort((a, b) => b.key.compareTo(a.key)))) kv('TVA ${vatPct(e.key)} %', money(e.value, currency)),
             if (!noVat) pw.Divider(),
             kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true),
             if (noVat) pw.Padding(padding: const pw.EdgeInsets.only(top: 2), child: pw.Text(tr('TVA non applicable'), style: pw.TextStyle(fontSize: 8, color: grey))),
@@ -227,7 +275,6 @@ Future<Uint8List> buildDocumentPdf({
       ],
       // Coordonnées de paiement (factures de vente)
       if (config.entity == 'sales_documents' && (doc['type'] == 'invoice' || doc['type'] == 'quote')) ...() {
-        final banks = [for (final b in (session.companySettings['bank_accounts'] as List? ?? const [])) if (b is Map && b['on_invoices'] != false) b];
         final note = session.companySettings['payment_instructions'];
         if (banks.isEmpty && note == null) return <pw.Widget>[];
         return <pw.Widget>[

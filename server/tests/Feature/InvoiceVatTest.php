@@ -20,20 +20,23 @@ class InvoiceVatTest extends TestCase
         $line = ['id' => $this->uuid(), 'description' => 'Prestation', 'quantity' => 1, 'unit_price' => 55000, 'tax_rate' => 18];
 
         // Assujetti (par défaut) : TVA 18 %, mode de règlement et case décharge enregistrés
-        $d = $push(['payment_method' => 'mobile_money', 'receipt_box' => true, 'lines' => [$line]]);
+        $d = $push(['payment_method' => 'mobile_money', 'receipt_box' => true, 'bank_account' => 'ECOBANK|122397', 'lines' => [$line]]);
         $this->assertEquals(64900, $d->total);
         $this->assertSame('mobile_money', $d->payment_method);
         $this->assertTrue($d->receipt_box);
+        $this->assertSame('ECOBANK|122397', $d->bank_account);
 
         // Mode de règlement inconnu : refusé
         $this->api($token)->postJson('/api/sync/push', ['mutations' => [['id' => $this->uuid(), 'entity' => 'sales_documents', 'op' => 'upsert', 'record_id' => $this->uuid(),
             'data' => ['type' => 'invoice', 'date' => now()->toDateString(), 'payment_method' => 'bitcoin', 'lines' => [array_merge($line, ['id' => $this->uuid()])]]]]])->assertJsonPath('results.0.status', 'rejected');
 
         // Réglages de la société : pays, non assujetti, régime, case décharge
-        $this->api($token)->putJson('/api/company', ['country' => 'SN', 'settings' => ['vat_subject' => false, 'tax_regime' => 'Entreprenant', 'invoice_receipt_box' => true, 'invoice_amount_words' => true]])->assertOk();
+        $this->api($token)->putJson('/api/company', ['country' => 'SN', 'settings' => ['vat_subject' => false, 'tax_regime' => 'Entreprenant', 'invoice_receipt_box' => true, 'invoice_amount_words' => true, 'legal_form' => 'SARL', 'capital' => 1000000, 'default_payment_method' => 'cash']])->assertOk();
         $s = $company->fresh()->settings;
         $this->assertFalse($s['vat_subject']);
         $this->assertSame('Entreprenant', $s['tax_regime']);
+        $this->assertSame('SARL', $s['legal_form']);
+        $this->assertSame('cash', $s['default_payment_method']);
         $this->assertSame('SN', $company->fresh()->country);
 
         // Non assujetti : la TVA envoyée est ignorée, total = HT

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/** Mode de règlement prévu et case « Pour décharge » sur les documents de vente et d'achat. */
+/** Mode de règlement prévu, compte bancaire affiché et case « Pour décharge » sur les documents de vente et d'achat. */
 return new class extends Migration
 {
     public function up(): void
@@ -16,13 +16,16 @@ return new class extends Migration
             if (! Schema::hasColumn('trade_documents', 'receipt_box')) {
                 $t->boolean('receipt_box')->nullable();
             }
+            if (! Schema::hasColumn('trade_documents', 'bank_account')) {
+                $t->string('bank_account', 160)->nullable();
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('trade_documents', function (Blueprint $t) {
-            $t->dropColumn(['payment_method', 'receipt_box']);
+            $t->dropColumn(['payment_method', 'receipt_box', 'bank_account']);
         });
     }
 };
