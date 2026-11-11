@@ -148,6 +148,15 @@ L
   echo "  .exe, .dmg, .tar.gz, .deb, .AppImage → Super admin › Versions (page « Télécharger »)"
 } | tee "$LISTE"
 
+# Causes connues, expliquées simplement
+conseil() { grep -qE "$2" "$LOGS/$1.log" 2>/dev/null && { echo; echo "→ $3"; }; }
+SUIVANTE="${NOM}+$(( ${V##*+} + 1 ))"
+conseil ios     "existing ios release for version" "iPhone : ce numéro est déjà enregistré pour les mises à jour à distance. Relancez avec le numéro suivant : $SUIVANTE (tapez-le quand la version est demandée)."
+conseil android "existing android release for version" "Android : ce numéro est déjà enregistré pour les mises à jour à distance. Relancez avec le numéro suivant : $SUIVANTE."
+conseil mac-pkg "No Accounts|No signing certificate \"Mac Installer Distribution\"" "Mac App Store : dans Xcode › Réglages › Comptes, ajoutez votre identifiant Apple (équipe Yomara), puis « Gérer les certificats » › + › « Mac Installer Distribution » (et « Apple Distribution » s'il manque). Relancez ensuite."
+conseil ios     "No Accounts|No signing certificate|No profiles for" "iPhone : dans Xcode › Réglages › Comptes, connectez votre identifiant Apple puis « Gérer les certificats » › + › « Apple Distribution ». Relancez ensuite."
+conseil github  "Échec sur GitHub" "Windows : la compilation GitHub a échoué ; ouvrez le lien de suivi indiqué dans journaux/github.log et envoyez une capture à Claude."
+
 # Détail des échecs : les dernières lignes de chaque journal en échec
 for k in $ECHECS; do
   echo; echo "---- $k : dernières lignes du journal ($LOGS/$k.log)"; tail -8 "$LOGS/$k.log"
