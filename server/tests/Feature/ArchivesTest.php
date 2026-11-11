@@ -20,6 +20,8 @@ class ArchivesTest extends TestCase
         // Plan de classement créé à la première visite
         $dash = $api()->getJson('/api/archives/dashboard')->assertOk()->json('data');
         $this->assertSame(0, $dash['total']);
+        // Sans archive, la répartition par année reste un objet JSON ({}), pas une liste ([])
+        $this->assertStringContainsString('"by_year":{}', $api()->getJson('/api/archives/dashboard')->getContent());
         $series = collect($api()->getJson('/api/archives/series')->assertOk()->json('data'));
         $factures = $series->firstWhere('code', '1.1');
         $this->assertSame(10, $factures['retention_years']);

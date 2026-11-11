@@ -62,7 +62,8 @@ class ArchivesController extends Controller
             'overdue_loans' => DB::table('ar_loans')->where('company_id', $c->id)->where('status', 'approved')->whereNotNull('due_date')->where('due_date', '<', now()->toDateString())->count(),
             'legal_hold' => (clone $active)->where('legal_hold', true)->count(),
             'unsealed' => (clone $active)->whereNull('sha256')->count(),
-            'by_year' => (clone $active)->selectRaw("substr(doc_date, 1, 4) y, COUNT(*) n")->groupBy('y')->orderBy('y')->pluck('n', 'y'),
+            // Objet JSON même vide (un tableau PHP vide serait sérialisé en [] et ferait planter l'écran)
+            'by_year' => (object) (clone $active)->whereNotNull('doc_date')->selectRaw('substr(doc_date, 1, 4) y, COUNT(*) n')->groupBy('y')->orderBy('y')->pluck('n', 'y')->map(fn ($n) => (int) $n)->all(),
             'final_actions' => ArchiveService::FINAL_ACTIONS, 'levels' => ArchiveService::LEVELS, 'sources' => ArchiveService::SOURCES,
         ]];
     }

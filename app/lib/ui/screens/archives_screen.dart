@@ -26,8 +26,11 @@ const _eventLabels = {
 
 Color _levelColor(String? l) => switch (l) { 'secret' => YColors.danger, 'confidential' => YColors.warning, 'public' => YColors.success, _ => YColors.blue };
 
-String _size(num? b) {
-  final v = (b ?? 0).toDouble();
+/// Nombre reçu du serveur, qu'il arrive en nombre ou en texte (MySQL renvoie parfois les sommes en texte).
+num _num(Object? v) => v is num ? v : num.tryParse('${v ?? ''}') ?? 0;
+
+String _size(Object? b) {
+  final v = _num(b).toDouble();
   if (v < 1024) return '${v.toInt()} o';
   if (v < 1048576) return '${(v / 1024).toStringAsFixed(0)} Ko';
   if (v < 1073741824) return '${(v / 1048576).toStringAsFixed(1)} Mo';
@@ -256,12 +259,14 @@ class _ArchivesScreenState extends State<ArchivesScreen> with SingleTickerProvid
             ),
           ),
         );
-    final years = Map<String, dynamic>.from(d['by_year'] as Map? ?? const {});
-    final maxN = years.values.fold<num>(1, (a, b) => (b as num) > a ? b : a);
+    // Un serveur sans archive renvoie [] au lieu de {} : on accepte les deux
+    final by = d['by_year'];
+    final years = by is Map ? {for (final e in by.entries) '${e.key}': _num(e.value)} : <String, num>{};
+    final maxN = years.values.fold<num>(1, (a, b) => b > a ? b : a);
     return ListView(padding: const EdgeInsets.all(16), children: [
       Wrap(spacing: 12, runSpacing: 12, children: [
         stat('Archives conservées', '${d['total'] ?? 0}', Icons.inventory_2_outlined, YColors.blue, onTap: () => _tabs.animateTo(1)),
-        stat('Volume occupé', _size(d['bytes'] as num?), Icons.storage_outlined, const Color(0xFF7C3AED)),
+        stat('Volume occupé', _size(d['bytes']), Icons.storage_outlined, const Color(0xFF7C3AED)),
         stat('Versées cette année', '${d['this_year'] ?? 0}', Icons.move_to_inbox_outlined, YColors.success),
         stat('À éliminer (terme atteint)', '${d['to_dispose'] ?? 0}', Icons.delete_sweep_outlined, YColors.warning, onTap: () => _tabs.animateTo(4)),
         stat('À trier (terme atteint)', '${d['to_review'] ?? 0}', Icons.rule_folder_outlined, YColors.warning, onTap: () {
@@ -269,7 +274,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> with SingleTickerProvid
           _fetch();
           _tabs.animateTo(1);
         }),
-        stat('Prêts en cours', '${d['on_loan'] ?? 0}${(d['overdue_loans'] ?? 0) > 0 ? ' (${d['overdue_loans']} en retard)' : ''}', Icons.outbox_outlined, YColors.blue, onTap: () => _tabs.animateTo(3)),
+        stat('Prêts en cours', '${d['on_loan'] ?? 0}${_num(d['overdue_loans']) > 0 ? ' (${d['overdue_loans']} en retard)' : ''}', Icons.outbox_outlined, YColors.blue, onTap: () => _tabs.animateTo(3)),
         stat('Demandes à traiter', '${d['loan_requests'] ?? 0}', Icons.pending_actions_outlined, YColors.danger, onTap: () => _tabs.animateTo(3)),
         stat('Gels juridiques', '${d['legal_hold'] ?? 0}', Icons.gavel_outlined, YColors.danger),
       ]),
@@ -287,7 +292,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> with SingleTickerProvid
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(value: (e.value as num) / maxN, minHeight: 12, backgroundColor: YColors.line, color: YColors.blue),
+                          child: LinearProgressIndicator(value: e.value / maxN, minHeight: 12, backgroundColor: YColors.line, color: YColors.blue),
                         ),
                       ),
                       SizedBox(width: 60, child: Text('${e.value}', textAlign: TextAlign.right)),
@@ -395,9 +400,9 @@ class _ArchivesScreenState extends State<ArchivesScreen> with SingleTickerProvid
                   s['retention_years'] == 0 ? 'Conservation définitive' : 'DUA ${s['retention_years']} ans',
                   _finalActions[s['final_action']] ?? '${s['final_action']}',
                   _levels[s['confidentiality']] ?? '',
-                  if ((s['sources'] as List).isNotEmpty) 'Auto : ${(s['sources'] as List).length} type(s) de documents',
+                  if (((s['sources'] as List?) ?? const []).isNotEmpty) 'Auto : ${(s['sources'] as List).length} type(s) de documents',
                 ].join(' · '))),
-                trailing: Text(tr('${s['count']} · ${_size(s['bytes'] as num?)}'), style: TextStyle(color: Theme.of(context).hintColor)),
+                trailing: Text(tr('${s['count']} · ${_size(s['bytes'])}'), style: TextStyle(color: Theme.of(context).hintColor)),
               ),
             ),
             ...rows(s['id'] as int, depth + 1),

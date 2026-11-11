@@ -92,7 +92,7 @@ class ArchiveService
         $counts = DB::table('ar_records')->where('company_id', $c->id)->where('status', '!=', 'disposed')->groupBy('series_id')->selectRaw('series_id, COUNT(*) n, SUM(size) bytes')->get()->keyBy('series_id');
 
         return DB::table('ar_series')->where('company_id', $c->id)->orderBy('sort')->orderBy('code')->get()->map(fn ($s) => [
-            'id' => $s->id, 'parent_id' => $s->parent_id, 'code' => $s->code, 'name' => $s->name, 'description' => $s->description,
+            'id' => (int) $s->id, 'parent_id' => $s->parent_id === null ? null : (int) $s->parent_id, 'code' => $s->code, 'name' => $s->name, 'description' => $s->description,
             'retention_years' => (int) $s->retention_years, 'final_action' => $s->final_action, 'confidentiality' => $s->confidentiality,
             'sources' => json_decode((string) $s->sources, true) ?: [], 'count' => (int) ($counts[$s->id]->n ?? 0), 'bytes' => (int) ($counts[$s->id]->bytes ?? 0),
         ])->all();
