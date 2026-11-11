@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.48 — double authentification : applications déjà installées
+
+- Correctif : une application installée avant la double authentification (téléphone, Windows, Mac) affichait « type 'Null' is not a subtype of type 'String' » à la connexion d'un compte protégé. Elle affiche maintenant un message clair, et permet de se connecter en saisissant dans « Mot de passe » le mot de passe suivi directement du code à 6 chiffres de l'application d'authentification (« motdepasse123456 »), en attendant la mise à jour depuis les stores. Code vérifié comme d'habitude (essais limités, code rejoué refusé).
+
 ## 0.99.47 — double authentification : plus de blocage si la base n'est pas à jour
 
 - Correctif : après le dépôt des fichiers d'une nouvelle version sans mise à jour de la base, l'activation obligatoire de la double authentification renvoyait « Server Error » et empêchait d'atteindre le bouton « Mettre à jour la base ». Tant que la base n'est pas à jour, l'obligation est suspendue (l'application s'ouvre et propose la mise à jour) ; l'écran d'activation explique la situation et propose « Mettre à jour la base de données » en un clic.

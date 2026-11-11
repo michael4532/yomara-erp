@@ -149,6 +149,12 @@ class TwoFactor
         return ['user' => $u, 'device' => $ch['device'], 'via' => $ch['via'], 'with' => $ok];
     }
 
+    /** Code de l'application d'authentification (connexion depuis une application ancienne). */
+    public static function verifyAppCode(User $u, string $code): bool
+    {
+        return self::checkCode($u, $code, null) === 'app';
+    }
+
     /** 'app' ou 'email' si le code (hors code de secours) est bon, sinon null. */
     protected static function checkCode(User $u, string $code, ?string $emailHash): ?string
     {

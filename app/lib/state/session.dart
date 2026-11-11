@@ -197,6 +197,7 @@ class Session extends ChangeNotifier {
       'email': email.trim(),
       'password': password,
       'device_name': '${AppConfig.appName} ${clientPlatform()}',
+      'two_factor_capable': true, // sait demander le code de double authentification
       if (_trustToken(email) != null) 'trust_token': _trustToken(email),
     }));
     if (res['two_factor'] == true) throw TwoFactorChallenge(res, email.trim());
@@ -213,6 +214,7 @@ class Session extends ChangeNotifier {
     final res = Map<String, dynamic>.from(await api.post('auth/google', {
       'id_token': idToken,
       'device_name': '${AppConfig.appName} ${clientPlatform()}',
+      'two_factor_capable': true,
       if (_trustToken(last) != null) 'trust_token': _trustToken(last),
     }));
     if (res['two_factor'] == true) throw TwoFactorChallenge(res, last);

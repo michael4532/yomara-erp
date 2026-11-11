@@ -15,7 +15,7 @@ class TwoFactorTest extends TestCase
     {
         $this->app['auth']->forgetGuards();
 
-        return $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $email, 'password' => 'secret123'] + $extra);
+        return $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $email, 'password' => 'secret123', 'two_factor_capable' => true] + $extra);
     }
 
     public function test_totp_matches_rfc_vectors(): void
@@ -80,7 +80,7 @@ class TwoFactorTest extends TestCase
         // Changer le mot de passe retire la confiance aux appareils
         $admin->refresh()->update(['password' => 'nouveau123']);
         $this->app['auth']->forgetGuards();
-        $this->assertTrue($this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $admin->email, 'password' => 'nouveau123', 'trust_token' => $ok['trust_token']])->json('two_factor'));
+        $this->assertTrue($this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $admin->email, 'password' => 'nouveau123', 'two_factor_capable' => true, 'trust_token' => $ok['trust_token']])->json('two_factor'));
     }
 
     public function test_email_method_and_admin_reset(): void
@@ -193,5 +193,26 @@ class TwoFactorTest extends TestCase
         $ready->setValue(null, null);
         $this->api($token)->getJson('/api/bootstrap')->assertStatus(403);
         $this->api($token)->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->assertOk()->assertJsonStructure(['secret', 'uri']);
+    }
+
+    public function test_app_installed_before_two_factor(): void
+    {
+        [, $admin, $token] = $this->makeCompany('Ancienne App SARL');
+        $s = $this->api($token)->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->json();
+        $this->api($token)->postJson('/api/auth/2fa/confirm', ['code' => Totp::code($s['secret'], intdiv(time(), 30))])->assertOk();
+        $old = function (string $password) use ($admin) {
+            $this->app['auth']->forgetGuards();
+            $this->flushHeaders();
+
+            return $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $admin->email, 'password' => $password]);
+        };
+        // Application ancienne (n'annonce pas two_factor_capable) : message clair, jamais de réponse sans jeton
+        $old('secret123')->assertStatus(422)->assertJsonFragment(['email' => ['Double authentification activée : mettez l\'application à jour. En attendant, saisissez dans « Mot de passe » votre mot de passe suivi directement du code à 6 chiffres de votre application d\'authentification (exemple : motdepasse123456).']]);
+        // Mot de passe + code collés : connexion ; mauvais code ou mauvais mot de passe : refus
+        $old('secret123000000')->assertStatus(422)->assertJsonFragment(['email' => ['Identifiants incorrects.']]);
+        $old('mauvais'.Totp::code($s['secret'], intdiv(time(), 30) + 1))->assertStatus(422);
+        $this->assertNotEmpty($old('secret123'.Totp::code($s['secret'], intdiv(time(), 30) + 1))->assertOk()->json('token'));
+        // Le même code ne ressert pas
+        $old('secret123'.Totp::code($s['secret'], intdiv(time(), 30) + 1))->assertStatus(422);
     }
 }

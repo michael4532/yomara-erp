@@ -39,14 +39,30 @@ class AuthController extends Controller
 
         $user = User::where('email', strtolower($data['email']))->first();
 
+        $passed = false;
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages(['email' => 'Identifiants incorrects.']);
+            // Application installée avant la double authentification : mot de passe suivi du code à 6 chiffres
+            // de l'application d'authentification, dans le même champ (« motdepasse123456 »).
+            if ($user && preg_match('/^(.+)(\d{6})$/s', $data['password'], $m) && \App\Support\TwoFactor::enabled($user)
+                && $user->two_factor_method === 'app' && Hash::check($m[1], $user->password) && \App\Support\TwoFactor::verifyAppCode($user, $m[2])) {
+                $passed = true;
+            } else {
+                throw ValidationException::withMessages(['email' => 'Identifiants incorrects.']);
+            }
         }
         if (! $user->is_active) {
             throw ValidationException::withMessages(['email' => 'Ce compte est désactivé.']);
         }
 
-        return $this->issue($request, $user, $data['device_name'] ?? null);
+        return $this->issue($request, $user, $data['device_name'] ?? null, 'password', $passed);
+    }
+
+    /** Message pour une application installée avant la double authentification (elle ne sait pas demander le code). */
+    protected function oldAppTwoFactor(User $user): never
+    {
+        throw ValidationException::withMessages(['email' => $user->two_factor_method === 'app'
+            ? 'Double authentification activée : mettez l\'application à jour. En attendant, saisissez dans « Mot de passe » votre mot de passe suivi directement du code à 6 chiffres de votre application d\'authentification (exemple : motdepasse123456).'
+            : 'Double authentification activée : mettez l\'application à jour pour recevoir le code par e-mail, ou connectez-vous depuis la version web.']);
     }
 
     /**
@@ -56,6 +72,11 @@ class AuthController extends Controller
     public function issue(Request $request, User $user, ?string $device, string $via = 'password', bool $passed = false): array
     {
         if (! $passed && \App\Support\TwoFactor::enabled($user) && ! \App\Support\TwoFactor::trusted($user, $request->input('trust_token'))) {
+            // Les applications à jour l'annoncent ; les anciennes attendraient un jeton et planteraient
+            if (! $request->boolean('two_factor_capable')) {
+                $this->oldAppTwoFactor($user);
+            }
+
             return \App\Support\TwoFactor::challenge($user, $device, $via);
         }
         // Plateforme déclarée par l'application (android, ios, windows…) : valeur courte et contrôlée
