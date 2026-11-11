@@ -126,7 +126,7 @@ class Mime
         }
         $doc = new \DOMDocument;
         libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8"><div id="ymb-root">'.$html.'</div>', LIBXML_NONET | LIBXML_HTML_NODEFDTD | LIBXML_COMPACT);
+        $doc->loadHTML('<?xml encoding="UTF-8"><div id="ymb-root">'.\App\Support\Utf8Html::prepare($html).'</div>', LIBXML_NONET | LIBXML_HTML_NODEFDTD | LIBXML_COMPACT);
         libxml_clear_errors();
         $xp = new \DOMXPath($doc);
         foreach ($xp->query('//script|//iframe|//frame|//frameset|//object|//embed|//applet|//form|//input|//button|//textarea|//select|//meta|//link|//base|//title|//svg//script') as $n) {

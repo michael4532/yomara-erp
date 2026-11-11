@@ -69,12 +69,16 @@ class DocumentService
     public function usage(Company $company): array
     {
         $used = (int) DocVersion::withoutGlobalScopes()->where('company_id', $company->id)->sum('size');
+        // Les fichiers versés aux Archives occupent le même espace partagé
+        $archives = \Illuminate\Support\Facades\Schema::hasTable('ar_records')
+            ? (int) \Illuminate\Support\Facades\DB::table('ar_records')->where('company_id', $company->id)->whereNotNull('file_path')->sum('size') : 0;
+        $used += $archives;
         $s = $this->settings($company);
 
         $me = request()?->user();
         $mine = $me && $me->company_id === $company->id ? ['my_used' => $this->userUsed($company, $me->id)] : [];
 
-        return $mine + ['used' => $used, 'quota' => $s['quota_mb'] * 1024 * 1024, 'extra' => $this->extraMb($company) * 1048576, 'files' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNull('deleted_at')->count(),
+        return $mine + ['used' => $used, 'archives' => $archives, 'quota' => $s['quota_mb'] * 1024 * 1024, 'extra' => $this->extraMb($company) * 1048576, 'files' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNull('deleted_at')->count(),
             'trash' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNotNull('deleted_at')->count(), 'max_file' => $s['max_file_mb'] * 1024 * 1024];
     }
 

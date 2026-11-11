@@ -19,6 +19,7 @@ class HtmlSanitizer
         if (trim($html) === '') {
             return '';
         }
+        $html = Utf8Html::prepare($html); // accents préservés quel que soit le <meta charset> d'origine
         $full = (bool) preg_match('/<html[\s>]/i', $html);
         $doc = new \DOMDocument('1.0', 'UTF-8');
         $prev = libxml_use_internal_errors(true);

@@ -355,7 +355,7 @@ class VisioController extends Controller
         }
         rewind($out);
 
-        return response(stream_get_contents($out), 200, ['Content-Type' => 'text/csv; charset=utf-8', 'Content-Disposition' => 'attachment; filename="participants-'.Str::slug($m->title).'.csv"']);
+        return response("\xEF\xBB\xBF".stream_get_contents($out), 200, ['Content-Type' => 'text/csv; charset=utf-8', 'Content-Disposition' => 'attachment; filename="participants-'.Str::slug($m->title).'.csv"']);
     }
 
     public function recording(Request $r, int $id)

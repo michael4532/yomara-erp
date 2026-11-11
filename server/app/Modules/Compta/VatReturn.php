@@ -16,7 +16,7 @@ class VatReturn
 
     protected function docs(Company $c, string $direction, string $from, string $to): array
     {
-        $types = $direction === 'purchase' ? ['supplier_invoice'] : ['invoice', 'receipt', 'credit_note'];
+        $types = $direction === 'purchase' ? ['supplier_invoice'] : ['invoice', 'receipt', 'credit_note', 'deposit'];
 
         return DB::table('trade_documents as d')->leftJoin('partners as p', 'p.id', '=', 'd.partner_id')
             ->where('d.company_id', $c->id)->whereNull('d.deleted_at')->where('d.direction', $direction)->where('d.status', 'validated')

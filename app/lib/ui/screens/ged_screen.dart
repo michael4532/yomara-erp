@@ -635,6 +635,14 @@ class _FileMenu extends StatelessWidget {
             await showDialog(context: context, builder: (_) => _VersionsDialog(file: file, canEdit: canEdit));
           case 'share':
             await showShareDialog(context, file: file);
+          case 'archive':
+            // Copie scellée dans les Archives (le document reste dans la GED)
+            try {
+              final r = await context.read<Session>().api.post('archives/records/from-ged', {'file_id': file['id']});
+              if (context.mounted) toast(context, tr('Archivé et scellé (${r['data']['id'].toString().substring(0, 8)}…) : retrouvez-le dans Archives.'));
+            } catch (e) {
+              if (context.mounted) toast(context, errorText(e), error: true);
+            }
           case 'lock':
             await context.read<SyncEngine>().save('dc_files', {'id': file['id'], 'locked': file['locked'] != true});
           case 'delete':
@@ -650,6 +658,7 @@ class _FileMenu extends StatelessWidget {
         if (canEdit) PopupMenuItem(value: 'version', child: Text(tr('Déposer une nouvelle version'))),
         PopupMenuItem(value: 'versions', child: Text(tr('Historique des versions'))),
         if (manage) PopupMenuItem(value: 'share', child: Text(tr('Partager par lien'))),
+        if (s.hasModule('archives') && s.can('archives.manage')) PopupMenuItem(value: 'archive', child: Text(tr('Verser aux archives (copie scellée)'))),
         if (manage && (file['owner_id'] == s.user['id'] || s.can('documents.admin'))) PopupMenuItem(value: 'lock', child: Text(tr(file['locked'] == true ? 'Déverrouiller' : 'Verrouiller (lecture seule pour les autres)'))),
         if (canEdit) PopupMenuItem(value: 'delete', child: Text(tr('Supprimer'), style: TextStyle(color: YColors.danger))),
       ],

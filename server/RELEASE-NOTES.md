@@ -1,5 +1,16 @@
 # Notes de version
 
+## 0.99.44 — modèles de documents, acomptes, Archives, WhatsApp Web, fiche contact, caractères spéciaux
+
+- **Facture d'acompte** (numérotée ACP) : « Convertir › Facture d'acompte » depuis un devis, une proforma ou une commande (20, 30, 40, 50 % ou autre, une ligne par taux de TVA). Sur la facture finale du client, les acomptes validés sont proposés en un clic (« Déduire ») ; un acompte ne peut pas être déduit deux fois. Comptabilité : acompte et déduction au compte 4191 « Clients, avances et acomptes reçus ».
+- **Modèles de documents** (Paramètres › Modèles de documents) : bibliothèque avec aperçus — Classique, Minimal, Moderne (gratuits) ; Prestige, Horizon, Offre commerciale (10 000 F), Ivoire (15 000 F), Executive (20 000 F) en achat définitif dans la boutique. Modèle par défaut par type (factures, proformas, devis et offres, commandes, acomptes, avoirs, bons de commande) et choix du modèle sur chaque document. Titres personnalisables (« OFFRE COMMERCIALE »), bloc « Bon pour accord » sur les devis et proformas, validité de l'offre.
+- **Studio de modèles** (module, 15 000 F) : composition par glisser-déposer — blocs (en-tête, client, lignes, totaux, montant en lettres, règlement, FNE, décharge, bon pour accord, signature, texte libre, séparateur, espace…) à glisser dans la page ou réordonner, couleurs, police, en-tête (cartouche, épuré, bandeau, centré, deux tons), tableau (foncé, accent, clair, filets, zébré), liseré, aperçu en direct sur chaque type de document.
+- **Archives** (nouveau module, palier Standard 30 000 F / mois car il occupe du stockage) pour l'archiviste : plan de classement prêt à l'emploi (OHADA : pièces comptables 10 ans), archivage automatique et scellé des factures validées, versement de scans (cote, emplacement physique, service versant, bordereau), empreinte SHA-256 et contrôle d'intégrité du fonds, confidentialité (public → secret), gel juridique, demandes de consultation et de prêt, éliminations en deux temps (visa puis exécution) avec procès-verbal PDF, journal complet exportable. « Verser aux archives » depuis la GED. Les archives comptent dans l'espace de stockage partagé.
+- **WhatsApp Web** dans le menu Collaboration : intégré aux applications 1.0.9 (session conservée), fenêtre accolée sur la version web ; bouton WhatsApp sur les clients.
+- **Boîte mail** : expéditeur et destinataires surlignés au survol ; au clic, fiche contact comme Outlook (appeler, écrire, WhatsApp, copier, ajouter aux contacts, tous ses e-mails, factures et reste dû, derniers échanges).
+- **Caractères spéciaux** : les accents des e-mails reçus d'Outlook et d'autres logiciels ne sont plus abîmés (« reÃ§u » → « reçu ») ; les messages déjà reçus sont réparés à la mise à jour. Même correction pour les pages et e-mails conçus dans l'ERP et l'analyse de sites ; exports CSV de la comptabilité et des participants Yomeet lisibles dans Excel.
+- Correctif : un module vendu uniquement en achat définitif n'est plus enregistré comme gratuit.
+
 ## 0.99.43 — factures : TTC, TVA selon le pays, décharge et montant en lettres
 
 - Factures et devis : nouvelle colonne « Prix unit. TTC » calculée automatiquement ; saisir le TTC recalcule le HT (65 000 TTC à 18 % → 55 084,75 HT, total exact 65 000).

@@ -22,6 +22,8 @@ import 'tresorerie_screen.dart' show trActive, trAccounts, trDefaults;
 import '../../core/approvals.dart';
 import '../../core/vat.dart';
 import 'products_screen.dart' show editProduct;
+import '../../pdf/doc_templates.dart';
+import 'doc_templates_screen.dart' show DocTemplatesScreen;
 import '../../core/custom_fields.dart';
 import '../widgets/custom_fields_editor.dart';
 import 'approbations_screen.dart' show ApprovalBanner;
@@ -93,13 +95,14 @@ class DocumentEditor extends StatefulWidget {
 const _termTypes = ['quote', 'order', 'invoice', 'purchase_order', 'supplier_invoice'];
 
 /// Documents qui portent un mode de règlement et la case « Pour décharge ».
-const _payModeTypes = ['quote', 'order', 'delivery', 'invoice', 'proforma'];
+const _payModeTypes = ['quote', 'order', 'delivery', 'invoice', 'proforma', 'deposit'];
 
 class _DocumentEditorState extends State<DocumentEditor> {
   bool _termChosen = false; // condition choisie à la main : le changement de tiers ne la remplace plus
   late Map<String, dynamic> _doc;
   late List<Map<String, dynamic>> _lines;
   final _notes = TextEditingController();
+  int _tplTick = 0;
   final _reference = TextEditingController();
   bool _dirty = false;
   Map<String, dynamic>? _customM;
@@ -243,10 +246,12 @@ class _DocumentEditorState extends State<DocumentEditor> {
 
   bool _editable(Session s) => _doc['status'] == 'draft' && s.can(cfg.managePerm);
 
-  Map<String, double> get _totals {
+  Map<String, double> get _totals => _totalsOf(_lines, decimalsFor(_cur));
+
+  static Map<String, double> _totalsOf(List<Map<String, dynamic>> lines, int dec) {
     double sub = 0, disc = 0, tax = 0, total = 0;
-    for (final l in _lines) {
-      final c = computeLine(l, decimalsFor(_cur));
+    for (final l in lines) {
+      final c = computeLine(l, dec);
       sub += c['subtotal']!;
       disc += (c['gross']! - c['subtotal']!).clamp(0, double.infinity);
       tax += c['tax_amount']!;
@@ -276,6 +281,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
       'payment_method': _doc['payment_method'],
       'receipt_box': _doc['receipt_box'],
       'bank_account': _doc['bank_account'],
+      'template': _doc['template'],
       if (analyticEnabled(context.read<Session>())) 'analytic': anDist(_doc['analytic']).isEmpty ? null : _doc['analytic'],
       if (context.read<Session>().hasModule('champs')) 'custom': _custom,
       'lines': [
@@ -292,6 +298,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
             'discount_percent': toDouble(l['discount_percent']),
             'tax_rate': toDouble(l['tax_rate']),
             if (anDist(l['analytic']).isNotEmpty) 'analytic': l['analytic'],
+            if (l['deposit_id'] != null) 'deposit_id': l['deposit_id'],
             ...computeLine(l, decimalsFor(_cur))..remove('gross'),
           },
       ],
@@ -421,7 +428,117 @@ class _DocumentEditorState extends State<DocumentEditor> {
     if (mounted) Navigator.pop(context);
   }
 
+  /// Acomptes validés du client, pas encore déduits d'une autre facture.
+  List<Map<String, dynamic>> _availableDeposits() {
+    if (cfg != DocConfig.sale || _doc['type'] != 'invoice' || _doc['partner_id'] == null) return const [];
+    final used = <String>{};
+    for (final d in LocalDb.all('sales_documents')) {
+      if (d['status'] == 'cancelled' || d['id'] == _doc['id']) continue;
+      for (final l in (d['lines'] as List? ?? const [])) {
+        if (l is Map && l['deposit_id'] != null) used.add('${l['deposit_id']}');
+      }
+    }
+    for (final l in _lines) {
+      if (l['deposit_id'] != null) used.add('${l['deposit_id']}');
+    }
+    return LocalDb.all('sales_documents')
+        .where((d) => d['type'] == 'deposit' && d['status'] == 'validated' && d['partner_id'] == _doc['partner_id'] && !used.contains('${d['id']}'))
+        .toList();
+  }
+
+  Widget? _depositBanner(bool editable) {
+    if (!editable) return null;
+    final deps = _availableDeposits();
+    if (deps.isEmpty) return null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .06), border: Border.all(color: YColors.blue.withValues(alpha: .25)), borderRadius: BorderRadius.circular(10)),
+        child: Wrap(spacing: 10, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          const Icon(Icons.savings_outlined, color: YColors.blue),
+          Text(tr('Acomptes de ce client à déduire :'), style: const TextStyle(fontWeight: FontWeight.w600)),
+          for (final d in deps)
+            ActionChip(
+              avatar: const Icon(Icons.remove_circle_outline, size: 18),
+              label: Text(tr('${d['number'] ?? 'Acompte'} · ${money(toDouble(d['total']), _cur)} — Déduire')),
+              onPressed: () => _deductDeposit(d),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  /// Ajoute les lignes de déduction (quantité négative) liées à la facture d'acompte.
+  void _deductDeposit(Map<String, dynamic> d) {
+    setState(() {
+      for (final l in (d['lines'] as List? ?? const [])) {
+        if (l is! Map) continue;
+        _lines.add({
+          'id': newId(),
+          'description': 'Déduction acompte ${d['number'] ?? ''} du ${dateFr(d['date'])}'.trim(),
+          'quantity': -toDouble(l['quantity'] ?? 1),
+          'unit_price': toDouble(l['unit_price']),
+          'discount_percent': toDouble(l['discount_percent']),
+          'tax_rate': toDouble(l['tax_rate']),
+          'deposit_id': d['id'],
+        });
+      }
+      _dirty = true;
+    });
+  }
+
+  /// Pourcentage d'acompte demandé à la création d'une facture d'acompte.
+  Future<double?> _askDepositPercent() async {
+    final ctl = TextEditingController(text: '30');
+    return showDialog<double>(
+      context: context,
+      builder: (dc) => YAlertDialog(
+        title: Text(tr('Facture d\'acompte')),
+        content: SizedBox(
+          width: 380,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr('Montant de l\'acompte, en pourcentage du total de ce document :')),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: [
+              for (final p in [20, 30, 40, 50]) ChoiceChip(label: Text('$p %'), selected: ctl.text == '$p', onSelected: (_) => Navigator.pop(dc, p.toDouble())),
+            ]),
+            const SizedBox(height: 12),
+            TextField(controller: ctl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: tr('Autre pourcentage'), suffixText: '%')),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dc), child: Text(tr('Annuler'))),
+          FilledButton(onPressed: () => Navigator.pop(dc, toDouble(ctl.text)), child: Text(tr('Créer l\'acompte'))),
+        ],
+      ),
+    );
+  }
+
   Future<void> _convert(String type) async {
+    List<Map<String, dynamic>> lines = [for (final l in _lines) {...l, 'id': newId()}];
+    if (type == 'deposit') {
+      final pct = await _askDepositPercent();
+      if (pct == null || pct <= 0 || pct > 100 || !mounted) return;
+      // Une ligne par taux de TVA : pourcentage du HT du document
+      final byRate = <double, double>{};
+      for (final l in _lines) {
+        final c = computeLine(l, decimalsFor(_cur));
+        byRate[toDouble(l['tax_rate'])] = (byRate[toDouble(l['tax_rate'])] ?? 0) + c['subtotal']!;
+      }
+      final ref = '${cfg.types[_doc['type']]} ${_doc['number'] ?? ''}'.trim();
+      lines = [
+        for (final e in byRate.entries)
+          {
+            'id': newId(),
+            'description': 'Acompte de ${vatPct(pct)} % sur $ref${byRate.length > 1 ? ' (TVA ${vatPct(e.key)} %)' : ''}',
+            'quantity': 1,
+            'unit_price': (e.value * pct / 100 * 100).roundToDouble() / 100,
+            'discount_percent': 0,
+            'tax_rate': e.key,
+          },
+      ];
+    }
     final copy = {
       'id': newId(),
       'type': type,
@@ -434,8 +551,8 @@ class _DocumentEditorState extends State<DocumentEditor> {
       'source_id': _doc['id'],
       'project_id': ?_doc['project_id'],
       'notes': _doc['notes'],
-      'lines': [for (final l in _lines) {...l, 'id': newId()}],
-      ..._totals,
+      'lines': lines,
+      ..._totalsOf(lines, decimalsFor(_cur)),
     };
     final saved = await context.read<SyncEngine>().save(cfg.entity, copy);
     if (!mounted) return;
@@ -596,6 +713,34 @@ class _DocumentEditorState extends State<DocumentEditor> {
               ),
             ),
           ),
+        // Modèle du document : celui par défaut du type, ou un autre de la bibliothèque / du studio
+        SizedBox(
+          width: wide ? 220 : double.infinity,
+          child: Field(
+            label: tr('Modèle'),
+            child: DropdownButtonFormField<String?>(
+              key: ValueKey('tpl-${_doc['template']}-$_tplTick'),
+              initialValue: usableTemplates(session).containsKey(_doc['template']) ? _doc['template'] as String : null,
+              isExpanded: true,
+              items: [
+                DropdownMenuItem(value: null, child: Text(tr('Par défaut (${usableTemplates(session)[defaultTemplateId(session, cfg.entity, _doc['type'] as String?)] ?? 'Classique'})'), overflow: TextOverflow.ellipsis)),
+                for (final e in usableTemplates(session).entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value), overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: '__library', child: Text(tr('Bibliothèque de modèles…'), style: const TextStyle(color: YColors.blue))),
+              ],
+              onChanged: (v) {
+                if (v == '__library') {
+                  setState(() => _tplTick++); // le choix revient au modèle courant
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DocTemplatesScreen())).then((_) => mounted ? setState(() {}) : null);
+                  return;
+                }
+                setState(() {
+                  _doc['template'] = v;
+                  _dirty = true;
+                });
+              },
+            ),
+          ),
+        ),
         if (_payModeTypes.contains(_doc['type']) && invoiceBanks(session).length > 1)
           SizedBox(
             width: wide ? 240 : double.infinity,
@@ -990,6 +1135,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
               FnePanel(document: _doc, purchase: cfg.entity == 'purchase_documents'),
             ],
             const SizedBox(height: 12),
+            ?_depositBanner(editable),
             linesCard,
             const SizedBox(height: 12),
             if (wide)

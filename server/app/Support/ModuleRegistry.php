@@ -79,7 +79,9 @@ class ModuleRegistry
                 $module->price_monthly = $monthly;
                 $module->price_yearly = $data['price_yearly'] ?? ($monthly * 10);
                 $module->price_one_time = $data['price_one_time'] ?? ($monthly * ($defaults['one_time_months'] ?? 24));
-                $module->billing_mode = $monthly > 0 ? ($data['billing_mode'] ?? $defaults['billing_mode'] ?? 'subscription') : 'free';
+                // Achat définitif seul (modèles premium…) : payant même sans prix mensuel
+                $priced = $monthly > 0 || (float) ($data['price_one_time'] ?? 0) > 0;
+                $module->billing_mode = $priced ? ($data['billing_mode'] ?? $defaults['billing_mode'] ?? 'subscription') : 'free';
                 $module->trial_days = $data['trial_days'] ?? ($defaults['trial_days'] ?? 0);
                 $module->currency = config('erp.defaults.currency');
             }

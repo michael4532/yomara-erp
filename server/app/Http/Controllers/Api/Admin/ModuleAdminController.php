@@ -89,7 +89,7 @@ class ModuleAdminController extends Controller
                 if ($m->billing_mode !== 'free' || (float) $m->price_monthly > 0 || (float) $m->price_one_time > 0) {
                     $toFree[] = $m;
                 }
-            } elseif ($m->billing_mode === 'free' || (float) $m->price_monthly <= 0) {
+            } elseif ($m->billing_mode === 'free' || ((float) $m->price_monthly <= 0 && (float) $m->price_one_time <= 0)) { // achat définitif seul (modèles premium) : déjà tarifé
                 $toPrice[] = $m;
             } elseif (($tier = PricingGrid::tierOf($m->key)) !== 'essentiel' && (float) $m->price_monthly !== (float) PricingGrid::TIERS[$tier]['price']) {
                 // Modules coûteux pour la plateforme (SMS, WhatsApp, e-mailing…, visio, IA) : toujours au prix de leur palier

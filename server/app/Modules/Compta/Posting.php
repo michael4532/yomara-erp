@@ -31,7 +31,7 @@ class Posting
 {
     public const PURCHASE_TYPES = ['supplier_invoice'];
 
-    public const SALE_TYPES = ['invoice', 'receipt', 'credit_note'];
+    public const SALE_TYPES = ['invoice', 'receipt', 'credit_note', 'deposit'];
 
     // ------------------------------------------------------------------
     // Documents
@@ -61,9 +61,10 @@ class Posting
             $products = Product::withoutGlobalScopes()->whereIn('id', $doc->lines->pluck('product_id')->filter())->pluck('type', 'id');
 
             // HT réparti entre marchandises et services
-            $base = ['goods' => 0.0, 'services' => 0.0];
+            // Acomptes (facture d'acompte et sa déduction sur la facture finale) : compte 4191 « Clients, avances et acomptes reçus »
+            $base = ['goods' => 0.0, 'services' => 0.0, 'advances' => 0.0];
             foreach ($doc->lines as $l) {
-                $kind = ($products[$l->product_id] ?? 'product') === 'service' ? 'services' : 'goods';
+                $kind = ($doc->type === 'deposit' || $l->deposit_id) ? 'advances' : (($products[$l->product_id] ?? 'product') === 'service' ? 'services' : 'goods');
                 $base[$kind] += (float) $l->subtotal;
             }
             // Devise étrangère : conversion au cours du document
@@ -71,7 +72,7 @@ class Posting
             $dec = \App\Modules\Core\Models\TradeDocumentLine::decimalsFor($company->currency);
             $base = array_map(fn ($v) => round($v * $rate, $dec), $base);
             $total = round((float) $doc->total * $rate, $dec);
-            $tax = round($total - $base['goods'] - $base['services'], 2); // garantit l'équilibre
+            $tax = round($total - $base['goods'] - $base['services'] - $base['advances'], 2); // garantit l'équilibre
             $partner = $doc->partner_id;
             $label = $this->docLabel($doc);
             $lines = [];
@@ -92,6 +93,9 @@ class Posting
                     if (abs($base[$k]) > 0.004) {
                         $lines[] = $this->line($company, $map[$acc], -$sign * round($base[$k], 2), $label);
                     }
+                }
+                if (abs($base['advances']) > 0.004) {
+                    $lines[] = $this->line($company, Chart::code($company, '4191'), -$sign * round($base['advances'], 2), 'Acompte '.$label);
                 }
                 if (abs($tax) > 0.004) {
                     $lines[] = $this->line($company, $map['vat_collected'], -$sign * $tax, 'TVA '.$label);

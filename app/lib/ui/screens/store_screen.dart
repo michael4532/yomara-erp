@@ -3099,3 +3099,20 @@ class _SelfHostStoreState extends State<_SelfHostStore> {
     );
   }
 }
+
+/// Ouvre directement la fiche d'achat d'un module de la boutique (ex. modèle de document premium).
+Future<void> buyModule(BuildContext context, String key) async {
+  final session = context.read<Session>();
+  try {
+    final store = Map<String, dynamic>.from(await session.api.get('store'));
+    final m = (store['modules'] as List? ?? const []).map((e) => Map<String, dynamic>.from(e)).where((e) => e['key'] == key).firstOrNull;
+    if (!context.mounted) return;
+    if (m == null) {
+      toast(context, tr('Ce module n\'est pas proposé dans la boutique.'), error: true);
+      return;
+    }
+    await showModuleDetail(context, m, store, () => session.refreshBootstrap());
+  } catch (e) {
+    if (context.mounted) toast(context, errorText(e), error: true);
+  }
+}

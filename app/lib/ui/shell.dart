@@ -124,6 +124,8 @@ import 'screens/relances_screen.dart';
 import 'screens/immobilisations_screen.dart';
 import 'screens/signature_screen.dart';
 import 'screens/ged_screen.dart';
+import 'screens/archives_screen.dart';
+import 'screens/whatsapp_web_screen.dart';
 import 'screens/agenda_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/documents_screen.dart';
@@ -405,10 +407,13 @@ class _AppShellState extends State<AppShell> {
       NavItem('mailbox', tr('Boîte mail'), Icons.mail_outline, (_) => const MailboxScreen(), section: 'Collaboration'),
     if (s.hasModule('whatsapp') && (s.can('whatsapp.use') || s.can('whatsapp.manage')))
       NavItem('whatsapp', tr('WhatsApp'), Icons.chat_outlined, (_) => const WhatsappScreen(), section: 'Collaboration'),
+    NavItem('whatsapp_web', tr('WhatsApp Web'), Icons.forum_outlined, (_) => const WhatsAppWebScreen(), section: 'Collaboration'),
     if (s.hasModule('visio') && (s.can('visio.use') || s.can('visio.webinar') || s.can('visio.manage')))
       NavItem('visio', tr('Yomeet : réunions & webinaires'), Icons.video_call_outlined, (_) => const VisioScreen(), section: 'Collaboration'),
     if (s.hasModule('documents') && (s.can('documents.view') || s.can('documents.manage') || s.can('documents.admin')))
       NavItem('ged', tr('Documents'), Icons.folder_outlined, (_) => const GedScreen(), section: 'Collaboration'),
+    if (s.hasModule('archives') && (s.can('archives.view') || s.can('archives.manage') || s.can('archives.dispose')))
+      NavItem('archives', tr('Archives'), Icons.inventory_2_outlined, (_) => const ArchivesScreen(), section: 'Collaboration'),
     if (s.hasModule('activite') && (s.can('activite.use') || s.can('activite.view_all')))
       NavItem('activite', tr('Rapports d\'activité'), Icons.summarize_outlined, (_) => const ActiviteScreen(), section: 'Collaboration'),
     if (s.hasModule('juridique') && (s.can('juridique.view') || s.can('juridique.manage')))

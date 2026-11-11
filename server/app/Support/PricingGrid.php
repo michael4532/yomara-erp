@@ -27,7 +27,7 @@ class PricingGrid
     ];
 
     /** Modules qui coûtent à la plateforme (envois, stockage, API payantes) : palier Standard. Tous les autres : Essentiel. */
-    public const TIER_STANDARD = ['sms', 'whatsapp', 'marketing', 'mail_server', 'sites', 'ecommerce', 'documents', 'signature', 'mailbox', 'avis_google', 'social', 'veille', 'acquisition'];
+    public const TIER_STANDARD = ['sms', 'whatsapp', 'marketing', 'mail_server', 'sites', 'ecommerce', 'documents', 'signature', 'mailbox', 'avis_google', 'social', 'veille', 'acquisition', 'archives'];
 
     /** Modules les plus coûteux à faire tourner (IA, audio et vidéo en direct) : palier Premium. */
     public const TIER_PREMIUM = ['visio', 'ia'];

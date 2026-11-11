@@ -6,6 +6,7 @@ import '../../core/local_db.dart';
 import '../../core/sync_engine.dart';
 import '../../state/session.dart';
 import '../theme.dart';
+import 'whatsapp_web_screen.dart' show openWhatsAppChat, waDigits;
 import '../widgets/common.dart';
 import '../widgets/payment_terms.dart';
 import '../widgets/custom_fields_editor.dart';
@@ -193,7 +194,18 @@ class _PartnersScreenState extends State<PartnersScreen> {
                 p['type'] == 'prospect'
                     ? StatusChip(prospectStatuses[p['prospect_status'] ?? 'never'] ?? 'Prospect', color: prospectStatusColor(p['prospect_status'] as String? ?? 'never'))
                     : StatusChip(partnerTypes[p['type']] ?? 'Client', color: typeColor(p['type'] as String?)),
-                Text(tr('${p['phone'] ?? ''}'), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Flexible(child: Text(tr('${p['phone'] ?? ''}'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]))),
+                  if (waDigits('${p['phone'] ?? ''}').length >= 8)
+                    IconButton(
+                      tooltip: tr('Écrire sur WhatsApp'),
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: const Color(0xFF25D366),
+                      onPressed: () => openWhatsAppChat(context, '${p['phone']}', text: 'Bonjour ${p['name']},'),
+                      icon: const Icon(Icons.chat),
+                    ),
+                ]),
                 Text(tr('${p['city'] ?? ''}')),
                 Text(tr(owed[p['id']] == null ? '—' : money(owed[p['id']], cur)), style: TextStyle(fontWeight: owed[p['id']] == null ? null : FontWeight.w600, color: owed[p['id']] == null ? hint : null, fontFeatures: const [FontFeature.tabularFigures()])),
               ],

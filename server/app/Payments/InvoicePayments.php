@@ -60,7 +60,7 @@ class InvoicePayments
     public function start(string $token, int $gatewayId, string $mode = 'due'): PaymentTransaction
     {
         [$company, $doc] = $this->resolve($token);
-        if (! in_array($doc->type, ['invoice', 'receipt'], true) || $doc->status !== 'validated') {
+        if (! in_array($doc->type, ['invoice', 'receipt', 'deposit'], true) || $doc->status !== 'validated') {
             throw new PaymentException('Ce document ne peut pas être réglé en ligne.');
         }
         $due = $this->amountFor($doc, $mode);

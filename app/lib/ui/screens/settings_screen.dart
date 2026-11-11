@@ -6,6 +6,7 @@ import 'agences_screen.dart';
 import '../../core/config.dart';
 import '../../core/vat.dart';
 import 'document_editor.dart' show paymentMethods;
+import 'doc_templates_screen.dart';
 import '../../core/sync_engine.dart';
 import '../../state/session.dart';
 import '../theme.dart';
@@ -44,6 +45,13 @@ class SettingsScreen extends StatelessWidget {
           onTap: () => open(const AgencesScreen(standalone: true, initialTab: 1)),
         ),
       if (manage) ...[
+        _SettingTile(
+          icon: Icons.style_outlined,
+          color: const Color(0xFFB8935A),
+          title: 'Modèles de documents',
+          text: 'Apparence des factures, proformas, devis et offres : bibliothèque de modèles, premium et studio par glisser-déposer.',
+          onTap: () => open(const DocTemplatesScreen()),
+        ),
         _SettingTile(
           icon: Icons.event_note_outlined,
           color: const Color(0xFF0EA5E9),

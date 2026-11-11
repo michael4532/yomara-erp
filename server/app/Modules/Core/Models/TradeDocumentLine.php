@@ -12,6 +12,7 @@ class TradeDocumentLine extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'deposit_id',
         'id', 'document_id', 'product_id', 'description', 'quantity', 'unit', 'unit_price',
         'discount_percent', 'tax_rate', 'subtotal', 'tax_amount', 'total', 'sort', 'analytic',
         'unit_factor', 'lots', 'account_code',

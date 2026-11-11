@@ -209,7 +209,7 @@ class Ledger
             ->join('trade_documents as d', 'd.id', '=', 'l.document_id')
             ->where('d.company_id', $company->id)->where('d.status', 'validated')->whereNull('d.deleted_at')
             ->whereBetween('d.date', [$from, $to])
-            ->whereIn('d.type', ['invoice', 'receipt', 'credit_note', 'supplier_invoice'])
+            ->whereIn('d.type', ['invoice', 'receipt', 'credit_note', 'deposit', 'supplier_invoice'])
             ->groupBy('d.direction', 'l.tax_rate')
             ->selectRaw("d.direction, l.tax_rate, SUM(CASE WHEN d.type = 'credit_note' THEN -l.subtotal ELSE l.subtotal END) as base, SUM(CASE WHEN d.type = 'credit_note' THEN -l.tax_amount ELSE l.tax_amount END) as tax")
             ->get()

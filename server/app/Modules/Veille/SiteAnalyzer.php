@@ -94,7 +94,7 @@ class SiteAnalyzer
     {
         $doc = new \DOMDocument;
         $prev = libxml_use_internal_errors(true);
-        $doc->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+        $doc->loadHTML('<?xml encoding="UTF-8">'.\App\Support\Utf8Html::prepare($html), LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
         libxml_clear_errors();
         libxml_use_internal_errors($prev);
         $x = new \DOMXPath($doc);

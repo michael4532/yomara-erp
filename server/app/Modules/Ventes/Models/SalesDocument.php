@@ -13,11 +13,12 @@ class SalesDocument extends TradeDocument
         'proforma' => ['Facture proforma', 'proforma_prefix', 'PRO'],
         'order' => ['Commande client', 'order_prefix', 'CMD'],
         'invoice' => ['Facture', 'invoice_prefix', 'FAC'],
+        'deposit' => ['Facture d\'acompte', 'deposit_prefix', 'ACP'],
         'credit_note' => ['Avoir', 'credit_prefix', 'AV'],
         'receipt' => ['Ticket de caisse', 'receipt_prefix', 'TK'], // module Caisse (POS)
     ];
 
-    public const PAYABLE_TYPES = ['invoice', 'receipt'];
+    public const PAYABLE_TYPES = ['invoice', 'receipt', 'deposit'];
 
     public static string $syncEntity = 'sales_documents';
 

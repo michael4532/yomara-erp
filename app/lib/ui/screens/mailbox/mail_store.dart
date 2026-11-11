@@ -26,6 +26,9 @@ class MailStore extends ChangeNotifier {
   Map<int, Map<String, dynamic>> signatureDefaults = {};
   /// Carnet d'adresses interne : collaborateurs, direction, stagiaires, boîtes partagées
   List<Map<String, dynamic>> directory = [];
+
+  /// Lance une recherche dans la boîte (posé par l'écran : « Tous les e-mails de ce contact »).
+  void Function(String q)? searchFor;
   List<Map<String, dynamic>> templates = [];
   List<Map<String, dynamic>> outbox = [];
   List<Map<String, dynamic>> users = [];

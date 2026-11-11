@@ -15,6 +15,7 @@ import '../../widgets/mail_alerts.dart';
 import 'compose.dart';
 import 'mail_assist.dart';
 import 'mail_store.dart';
+import 'contact_card.dart';
 import 'mail_theme.dart';
 import 'mailbox_settings.dart';
 import 'mail_actions.dart';
@@ -144,6 +145,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
     _s.arrivals.addListener(_arrived);
     _life = AppLifecycleListener(onStateChange: (st) => _s.foreground = st == AppLifecycleState.resumed);
     _s.init();
+    _s.searchFor = (q) => setState(() {
+      _search.text = q;
+      _q = q;
+      _older.clear();
+      _olderCursor = null;
+      _olderDone = false;
+    });
     MailAlerts.opener = _alertOpener;
   }
 
@@ -1837,25 +1845,28 @@ class _MailboxScreenState extends State<MailboxScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Tooltip(
-                                    message: '${m['from_email'] ?? ''}',
-                                    child: Text.rich(
-                                      TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: '${m['from_name'] ?? ''} ',
-                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.ink),
-                                          ),
-                                          TextSpan(
-                                            text: '<${m['from_email'] ?? ''}>',
-                                            style: TextStyle(color: p.muted, fontSize: 13),
-                                          ),
-                                        ],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                  // Expéditeur : surligné au survol, fiche contact au clic (comme Outlook)
+                                  Transform.translate(
+                                    offset: const Offset(-6, 0),
+                                    child: ContactPill(
+                                      email: '${m['from_email'] ?? ''}',
+                                      name: m['from_name'] as String?,
+                                      store: _s,
+                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.ink),
                                     ),
                                   ),
+                                  if (_showRcpt)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 2, runSpacing: 2, children: [
+                                        Text(tr('À :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                        for (final t in to) ContactPill(email: '${t['email'] ?? ''}', name: t['name'] as String?, store: _s, showEmail: false, style: TextStyle(color: p.ink, fontSize: 12.5)),
+                                        if ((m['cc'] as List? ?? const []).isNotEmpty) ...[
+                                          Text(tr('  Cc :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                          for (final t in (m['cc'] as List)) ContactPill(email: '${t['email'] ?? ''}', name: t['name'] as String?, store: _s, showEmail: false, style: TextStyle(color: p.ink, fontSize: 12.5)),
+                                        ],
+                                      ]),
+                                    ),
                                   InkWell(
                                     borderRadius: BorderRadius.circular(6),
                                     onTap: () => setState(() => _showRcpt = !_showRcpt),
@@ -1866,7 +1877,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                                         children: [
                                           Flexible(
                                             child: Text(
-                                              tr(_showRcpt ? 'À : ${names(to)}${(m['cc'] as List? ?? const []).isNotEmpty ? '  ·  Cc : ${names(m['cc'] as List)}' : ''}' : (toMe ? 'à moi' : 'à ${names(to)}')),
+                                              tr(_showRcpt ? 'Masquer les destinataires' : (toMe ? 'à moi' : 'à ${names(to)}')),
                                               maxLines: _showRcpt ? 4 : 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(color: p.muted, fontSize: 12.5),

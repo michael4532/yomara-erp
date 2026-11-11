@@ -43,7 +43,7 @@ abstract class TradeDocument extends Model
     protected $fillable = [
         'type', 'reference', 'partner_id', 'partner_name', 'date', 'due_date', 'status',
         'currency', 'warehouse_id', 'branch_id', 'source_id', 'notes', 'terms', 'pos_session_id', 'rs_order_id', 'rs_bill', 'analytic', 'exchange_rate', 'project_id', 'payment_term_id',
-        'payment_method', 'receipt_box', 'bank_account',
+        'payment_method', 'receipt_box', 'bank_account', 'template',
     ];
 
     protected $attributes = ['status' => 'draft', 'payment_status' => 'unpaid'];
@@ -131,6 +131,7 @@ abstract class TradeDocument extends Model
             'lines.*.unit_factor' => 'nullable|numeric|gt:0|max:100000',
             'lines.*.lots' => 'nullable|array|max:500',
             'lines.*.account_code' => ['nullable', 'regex:/^[1-9][0-9]{1,9}$/'],
+            'lines.*.deposit_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('trade_documents')],
             'analytic' => 'nullable|array',
             'exchange_rate' => 'nullable|numeric|gt:0|max:1000000000',
             'project_id' => 'nullable|uuid',
@@ -138,6 +139,7 @@ abstract class TradeDocument extends Model
             'payment_method' => 'nullable|in:'.implode(',', \App\Modules\Core\Models\Payment::METHODS),
             'receipt_box' => 'nullable|boolean',
             'bank_account' => 'nullable|string|max:160',
+            'template' => 'nullable|string|max:60',
         ];
     }
 
@@ -406,6 +408,7 @@ abstract class TradeDocument extends Model
                 'unit_factor' => (float) ($l['unit_factor'] ?? 1) ?: 1,
                 'lots' => \App\Modules\Lots\LotService::cleanSpec($l['lots'] ?? null),
                 'account_code' => $l['account_code'] ?? null,
+                'deposit_id' => $l['deposit_id'] ?? null,
                 'sort' => $i,
             ]);
             $line->document_id = $this->id;
