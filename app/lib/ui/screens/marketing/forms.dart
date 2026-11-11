@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,6 +14,7 @@ import 'mk_common.dart';
 import '../../../i18n/i18n.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../../widgets/pdf_viewer.dart';
 const formFieldLabels = {'first_name': 'Prénom', 'last_name': 'Nom', 'email': 'E-mail', 'phone': 'Téléphone / WhatsApp', 'company_name': 'Société', 'city': 'Ville', 'birthday': 'Date d\'anniversaire'};
 
 class FormsTab extends StatefulWidget {
@@ -379,7 +379,7 @@ ${_c['consent_text']!.text.trim().isEmpty ? '' : '  <p><label><input type="check
         pw.Text(tr(url), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
       ]),
     ));
-    await Printing.layoutPdf(name: 'QR $title.pdf', onLayout: (_) async => doc.save());
+    await previewPdf(name: 'QR $title.pdf', onLayout: (_) async => doc.save());
   }
 
   Widget _share() {

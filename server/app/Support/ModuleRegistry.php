@@ -91,7 +91,8 @@ class ModuleRegistry
             }
             $module->save();
             // Nouveau module : ajouté d'office aux formules « tous les modules » (Enterprise, Sur mesure)
-            if ($isNew && $manifest !== null && Schema::hasTable('plans')) {
+            // Packs (espace en plus…) : achetés à part, jamais inclus d'office dans une formule
+            if ($isNew && $manifest !== null && empty($data['addon']) && Schema::hasTable('plans')) {
                 foreach (\App\Models\Plan::whereIn('code', ['entreprise', 'sur_mesure'])->get() as $plan) {
                     $mods = (array) ($plan->modules ?? []);
                     if ($mods && ! in_array($key, $mods, true)) {

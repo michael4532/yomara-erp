@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,6 +16,7 @@ import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../widgets/pdf_viewer.dart';
 const sgStatuses = {'draft': 'Brouillon', 'pending': 'En cours', 'completed': 'Signé', 'declined': 'Refusé', 'cancelled': 'Annulé', 'expired': 'Expiré'};
 const sgSignerStatuses = {'waiting': 'Attend son tour', 'pending': 'À signer', 'viewed': 'Document ouvert', 'signed': 'Signé', 'declined': 'Refusé'};
 const sgVerif = {'sms': 'code SMS', 'whatsapp': 'code WhatsApp', 'email': 'code e-mail', 'account': 'compte utilisateur', 'link': 'lien personnel'};
@@ -404,7 +404,7 @@ Future<void> _openPdf(BuildContext context, Map r, String kind, {bool save = fal
       final where = await saveFile(name, bytes, mime: 'application/pdf');
       if (context.mounted) toast(context, tr('PDF enregistré${where.isEmpty ? '' : ' : $where'}'));
     } else {
-      await Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
+      await previewPdf(name: name, onLayout: (_) async => bytes);
     }
   } catch (e) {
     if (context.mounted) toast(context, errorText(e), error: true);
@@ -797,7 +797,7 @@ class _NewRequestDialogState extends State<_NewRequestDialog> {
             const SizedBox(width: 8),
             Expanded(child: Text(tr(_name ?? 'Aucun document choisi'), style: TextStyle(fontWeight: FontWeight.w600, color: _name == null ? Theme.of(context).hintColor : null))),
             if (widget.bytes == null) OutlinedButton.icon(onPressed: _pick, icon: const Icon(Icons.upload_file), label: Text(tr(_name == null ? 'Choisir un PDF' : 'Changer'))),
-            if (_bytes != null) TextButton(onPressed: () => Printing.layoutPdf(name: _name ?? 'document.pdf', onLayout: (_) async => _bytes!), child: Text(tr('Aperçu'))),
+            if (_bytes != null) TextButton(onPressed: () => previewPdf(name: _name ?? 'document.pdf', onLayout: (_) async => _bytes!), child: Text(tr('Aperçu'))),
           ]),
           TextField(controller: _title, decoration: InputDecoration(labelText: tr('Titre (vu par les signataires)'))),
           TextField(controller: _message, maxLines: 2, decoration: InputDecoration(labelText: tr('Message aux signataires (facultatif)'))),

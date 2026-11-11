@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../i18n/i18n.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 const _months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
@@ -144,5 +144,5 @@ Future<Uint8List> rhDocumentPdf({required Map<String, dynamic> company, required
 
 Future<void> printRhDocument({required Map<String, dynamic> company, required Map<String, dynamic> doc, required String employeeName, String? signatory, String? signatoryTitle}) async {
   final bytes = await rhDocumentPdf(company: company, doc: doc, employeeName: employeeName, signatory: signatory, signatoryTitle: signatoryTitle);
-  await Printing.layoutPdf(name: '${doc['title']} ${doc['number'] ?? ''} $employeeName.pdf', onLayout: (_) async => bytes);
+  await previewPdf(name: '${doc['title']} ${doc['number'] ?? ''} $employeeName.pdf', onLayout: (_) async => bytes);
 }

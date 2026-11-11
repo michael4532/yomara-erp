@@ -234,6 +234,9 @@ Route::middleware('throttle:portal')->group(function () {
     Route::get('d/{token}/telecharger/{file?}', [$c, 'download']);
 });
 
+// Documents (GED) : éditeur Word / Excel / PowerPoint en ligne
+Route::middleware('throttle:portal')->get('office/{token}', [\App\Modules\Documents\OfficeController::class, 'page'])->where('token', '[A-Za-z0-9]{40}');
+
 // Agenda : abonnement iCalendar personnel
 Route::middleware('throttle:public-pay')->get('agenda/flux/{token}.ics', [\App\Modules\Agenda\FeedController::class, 'show']);
 

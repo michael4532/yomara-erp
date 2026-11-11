@@ -1,7 +1,6 @@
 import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/local_db.dart';
@@ -13,6 +12,7 @@ import '../widgets/report_charts.dart';
 import 'sites_screen.dart' show openUrl;
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 const _months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 const _monthsLong = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -36,7 +36,7 @@ Color _unitColor(String s) => switch (s) {
 Future<void> _openPdf(BuildContext c, String path, String name, {Map<String, String>? query}) async {
   try {
     final bytes = await c.read<Session>().api.download(path, query: query);
-    await Printing.layoutPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
+    await previewPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
   } catch (e) {
     if (c.mounted) toast(c, errorText(e), error: true);
   }

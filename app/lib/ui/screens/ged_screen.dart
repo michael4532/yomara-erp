@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -14,6 +13,9 @@ import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
+import '../widgets/office_frame.dart';
+import '../widgets/pdf_viewer.dart';
+import '../navigation.dart' show ShellNav;
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
@@ -103,13 +105,59 @@ Future<List<int>?> _download(BuildContext context, Map f, {int? version}) async 
   }
 }
 
-/// Ouvre un document : PDF dans l'aperçu, image à l'écran, autre format enregistré sur l'appareil.
+const gedOfficeExt = {'docx', 'xlsx', 'xls', 'ods', 'csv', 'pptx'};
+
+/// Ouvre l'éditeur Word / Excel (Yomara Office) : dans l'application (version web), sinon dans le navigateur.
+Future<void> gedOffice(BuildContext context, {Map? file, String? newKind, String? folderId}) async {
+  final s = context.read<Session>();
+  final sync = context.read<SyncEngine>();
+  try {
+    final r = asMap(await (newKind != null
+        ? s.api.post('documents/office/new', {'kind': newKind, 'folder_id': folderId})
+        : s.api.post('documents/files/${file!['id']}/office')));
+    final d = asMap(r['data']);
+    if (!context.mounted) return;
+    await openOffice(context, '${d['url']}');
+  } catch (e) {
+    if (context.mounted) toast(context, errorText(e), error: true);
+  }
+  try {
+    await sync.sync();
+  } catch (_) {}
+}
+
+Future<void> openOffice(BuildContext context, String url) async {
+  if (!officeEmbedded) {
+    await safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return;
+  }
+  await Navigator.of(context).push(MaterialPageRoute(
+    fullscreenDialog: true,
+    builder: (c) => Scaffold(body: SafeArea(child: OfficeFrame(url: url, onClose: () => Navigator.of(c).maybePop()))),
+  ));
+}
+
+/// Ouvre un document : Word / Excel dans l'éditeur en ligne, PDF dans la visionneuse, image à l'écran, autre format enregistré.
 Future<void> gedOpen(BuildContext context, Map f, {int? version}) async {
+  if (version == null && gedOfficeExt.contains('${f['extension'] ?? ''}'.toLowerCase())) {
+    return gedOffice(context, file: f);
+  }
   final bytes = await _download(context, f, version: version);
   if (bytes == null || !context.mounted) return;
   final ext = '${f['extension'] ?? ''}'.toLowerCase();
   if (ext == 'pdf') {
-    await Printing.layoutPdf(name: '${f['name']}', onLayout: (_) async => Uint8List.fromList(bytes));
+    // Lecture et outils PDF dans l'application ; une modification devient une nouvelle version du document
+    final s = context.read<Session>();
+    final sync = context.read<SyncEngine>();
+    final canEdit = version == null && (s.can('documents.manage') || s.can('documents.admin')) && f['locked'] != true;
+    await showPdf(context, bytes, '${f['name']}', onSave: canEdit
+        ? (b, name) async {
+            await s.api.uploadForm('documents/files/${f['id']}/version', {'comment': 'Modifié avec les outils PDF'}, 'file', b, '${f['name']}');
+            try {
+              await sync.sync();
+            } catch (_) {}
+          }
+        : null);
   } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) {
     await showDialog(
       context: context,
@@ -265,17 +313,55 @@ class _GedScreenState extends State<GedScreen> {
         return Column(children: [
           PageHeader(
             title: tr('Documents'),
-            subtitle: u == null ? 'Dossiers et fichiers de l\'entreprise' : '${u['files']} document(s) · ${gedSize(u['used'] as num)} utilisés sur ${gedSize(u['quota'] as num)}',
+            subtitle: u == null
+                ? 'Dossiers et fichiers de l\'entreprise'
+                : [
+                    '${u['files']} document(s) · société : ${gedSize(u['used'] as num)} sur ${gedSize(u['quota'] as num)}',
+                  ].join(' · '),
             actions: [
               OutlinedButton.icon(onPressed: () {
                 _clearQ();
                 setState(() => _mode = 'expiring');
               }, icon: Icon(Icons.event_busy, color: expiring > 0 ? YColors.warning : null), label: Text(tr('Échéances${expiring > 0 ? ' ($expiring)' : ''}'))),
-              if (manage) OutlinedButton.icon(onPressed: () {
-                _clearQ();
-                setState(() => _mode = 'trash');
-              }, icon: const Icon(Icons.delete_outline), label: Text(tr('Corbeille'))),
-              if (manage) OutlinedButton.icon(onPressed: () => editFolder(context, parent: _mode == 'browse' ? _folder : null), icon: const Icon(Icons.create_new_folder_outlined), label: Text(tr('Nouveau dossier'))),
+              if (manage)
+                PopupMenuButton<String>(
+                  tooltip: tr('Plus'),
+                  icon: const Icon(Icons.more_horiz),
+                  onSelected: (k) async {
+                    if (k == 'trash') {
+                      _clearQ();
+                      setState(() => _mode = 'trash');
+                    } else if (k == 'storage') {
+                      final nav = ShellNav.of(context);
+                      await showDialog(context: context, builder: (_) => _StorageDialog(onStore: () => nav?.go('store')));
+                      _loadUsage();
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'trash', child: ListTile(leading: const Icon(Icons.delete_outline), title: Text(tr('Corbeille')), contentPadding: EdgeInsets.zero)),
+                    if (s.can('documents.admin'))
+                      PopupMenuItem(value: 'storage', child: ListTile(leading: const Icon(Icons.cloud_outlined), title: Text(tr('Espace de stockage')), contentPadding: EdgeInsets.zero)),
+                  ],
+                ),
+              if (manage)
+                PopupMenuButton<String>(
+                  tooltip: tr('Créer'),
+                  onSelected: (k) async {
+                    if (k == 'folder') {
+                      await editFolder(context, parent: _mode == 'browse' ? _folder : null);
+                      return;
+                    }
+                    await gedOffice(context, newKind: k, folderId: _mode == 'browse' ? _folder : null);
+                    _loadUsage();
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'docx', child: ListTile(leading: const Icon(Icons.description, color: Color(0xFF2B579A)), title: Text(tr('Document Word')), contentPadding: EdgeInsets.zero)),
+                    PopupMenuItem(value: 'xlsx', child: ListTile(leading: const Icon(Icons.table_chart, color: Color(0xFF217346)), title: Text(tr('Classeur Excel')), contentPadding: EdgeInsets.zero)),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(value: 'folder', child: ListTile(leading: const Icon(Icons.create_new_folder_outlined), title: Text(tr('Dossier')), contentPadding: EdgeInsets.zero)),
+                  ],
+                  child: IgnorePointer(child: FilledButton.tonalIcon(onPressed: () {}, icon: const Icon(Icons.add), label: Text(tr('Nouveau')))),
+                ),
               if (manage)
                 FilledButton.icon(
                   onPressed: () async {
@@ -1152,3 +1238,136 @@ class LinkedDocuments extends StatelessWidget {
   }
 }
 
+
+
+/// Espace de stockage partagé par toute la société : utilisation, part de chacun, packs d'espace en plus.
+class _StorageDialog extends StatefulWidget {
+  const _StorageDialog({required this.onStore});
+
+  final VoidCallback onStore;
+
+  @override
+  State<_StorageDialog> createState() => _StorageDialogState();
+}
+
+class _StorageDialogState extends State<_StorageDialog> {
+  Map<String, dynamic>? _d;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await context.read<Session>().api.get('documents/storage');
+      if (mounted) setState(() => (_d = asMap(asMap(r)['data']), _error = null));
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = _d;
+    final cs = Theme.of(context).colorScheme;
+    final hint = Theme.of(context).hintColor;
+    final u = asMap(d?['usage']);
+    final people = [for (final p in (d?['people'] as List? ?? const [])) asMap(p)].where((p) => (p['used'] as num) > 0).toList();
+    final packs = [for (final p in (d?['packs'] as List? ?? const [])) asMap(p)];
+    final used = (u['used'] as num?) ?? 0, quota = (u['quota'] as num?) ?? 1;
+    final r = (used / quota).clamp(0, 1).toDouble();
+    final tone = r >= .9 ? YColors.danger : (r >= .75 ? YColors.warning : YColors.blue);
+    return YAlertDialog(
+      title: Text(tr('Espace de stockage')),
+      content: SizedBox(
+        width: 560,
+        height: 540,
+        child: d == null
+            ? Center(child: _error == null ? const CircularProgressIndicator() : Text(_error!))
+            : ListView(children: [
+                // Jauge de l'espace partagé
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(color: tone.withValues(alpha: .07), borderRadius: BorderRadius.circular(16)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text(gedSize(used), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1)),
+                      const SizedBox(width: 8),
+                      Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(tr('utilisés sur ${gedSize(quota)}'), style: TextStyle(color: hint))),
+                      const Spacer(),
+                      Text('${(r * 100).round()} %', style: TextStyle(fontWeight: FontWeight.w800, color: tone)),
+                    ]),
+                    const SizedBox(height: 12),
+                    LinearProgressIndicator(value: r, minHeight: 10, borderRadius: BorderRadius.circular(6), color: tone, backgroundColor: cs.surface),
+                    const SizedBox(height: 10),
+                    Text(tr('Espace partagé par tout le personnel : chacun dépose ses fichiers, la limite vaut pour toute la société.'), style: TextStyle(color: hint, fontSize: 12.5)),
+                  ]),
+                ),
+                if (d['hosted'] == true) ...[
+                  const SizedBox(height: 20),
+                  Text(tr('Ajouter de l\'espace'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 10),
+                  LayoutBuilder(builder: (context, c) {
+                    final n = c.maxWidth < 420 ? 2 : 4;
+                    final w = (c.maxWidth - (n - 1) * 10) / n;
+                    return Wrap(spacing: 10, runSpacing: 10, children: [
+                      for (final p in packs)
+                        SizedBox(
+                          width: w,
+                          child: Material(
+                            color: p['active'] == true ? YColors.success.withValues(alpha: .08) : Colors.transparent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: p['active'] == true ? YColors.success : Theme.of(context).dividerColor)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: p['active'] == true
+                                  ? null
+                                  : () {
+                                      Navigator.pop(context);
+                                      widget.onStore();
+                                    },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Icon(p['active'] == true ? Icons.check_circle : Icons.cloud_upload_outlined, color: p['active'] == true ? YColors.success : YColors.blue),
+                                  const SizedBox(height: 8),
+                                  Text('+${gedSize(p['size'] as num)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                                  Text(p['active'] == true ? tr('Actif') : tr('${money(toDouble(p['price_monthly']), '${p['currency']}')} / mois'), style: TextStyle(color: hint, fontSize: 12)),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ]);
+                  }),
+                ],
+                if (people.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  Text(tr('Qui utilise l\'espace'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  const SizedBox(height: 6),
+                  for (final p in people)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(children: [
+                        CircleAvatar(radius: 15, backgroundColor: YColors.blue.withValues(alpha: .12), child: Text('${p['name']}'.characters.first.toUpperCase(), style: const TextStyle(color: YColors.blue, fontWeight: FontWeight.w700, fontSize: 13))),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(tr('${p['name']}'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                            const SizedBox(height: 4),
+                            LinearProgressIndicator(value: ((p['used'] as num) / quota).clamp(0, 1).toDouble(), minHeight: 5, borderRadius: BorderRadius.circular(3)),
+                          ]),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(gedSize(p['used'] as num), style: TextStyle(color: hint, fontSize: 12.5)),
+                      ]),
+                    ),
+                ],
+              ]),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer')))],
+    );
+  }
+}

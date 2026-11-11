@@ -65,6 +65,14 @@ Route::middleware('installed')->group(function () {
     Route::post('dev-git/{token}', [\App\Modules\Dev\DevController::class, 'git'])->where('token', '[a-z0-9]{40}')->middleware('throttle:inbound');
     Route::post('shopify-webhook/{token}', [\App\Modules\Shopify\ShopifyController::class, 'webhook'])->where('token', '[a-z0-9]{40}')->middleware('throttle:inbound');
 
+    // Bureautique en ligne (Documents) : l'éditeur Word / Excel / PowerPoint, identifié par sa session (lien à usage limité)
+    Route::prefix('office/{token}')->where(['token' => '[A-Za-z0-9]{40}'])->middleware('throttle:120,1')->group(function () {
+        $o = \App\Modules\Documents\OfficeController::class;
+        Route::get('content', [$o, 'content']);
+        Route::post('save', [$o, 'save']);
+        Route::post('ping', [$o, 'ping']);
+    });
+
     // Salles de visioconférence (module « visio ») : participants identifiés par leur lien personnel, sans compte
     Route::prefix('visio-room/{code}')->where(['code' => '[a-z]{3}-[a-z]{4}-[a-z]{3}'])->middleware('throttle:visio')->group(function () {
         $v = \App\Modules\Visio\RoomController::class;
@@ -419,6 +427,13 @@ Route::middleware('installed')->group(function () {
             Route::put('releases/{id}', [\App\Http\Controllers\Api\Admin\ReleaseAdminController::class, 'update'])->whereNumber('id');
             Route::delete('releases/{id}', [\App\Http\Controllers\Api\Admin\ReleaseAdminController::class, 'destroy'])->whereNumber('id');
             Route::post('system/update', [SystemController::class, 'update']);
+
+            Route::get('storage', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'index']);
+            Route::post('storage', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'store']);
+            Route::post('storage/reorder', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'reorder']);
+            Route::put('storage/{id}', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'update'])->whereNumber('id');
+            Route::post('storage/{id}/test', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'test'])->whereNumber('id');
+            Route::delete('storage/{id}', [\App\Http\Controllers\Api\Admin\StorageAdminController::class, 'destroy'])->whereNumber('id');
 
             Route::get('modules', [ModuleAdminController::class, 'index']);
             Route::post('modules/refresh', [ModuleAdminController::class, 'refresh']);

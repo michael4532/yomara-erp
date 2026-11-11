@@ -37,7 +37,7 @@ final navGroups = <NavGroup>[
   NavGroup('collab', tr('Collaboration'), Icons.groups_2_outlined, ['activite', 'mailbox', 'whatsapp', 'agenda', 'visio', 'tickets', 'ged', 'signature', 'pdf'], hint: tr('e-mails, WhatsApp, agenda, réunions vidéo, documents, signatures, outils PDF')),
   NavGroup('admin', tr('Administration'), Icons.settings_outlined, ['team', 'settings', 'payments', 'backups', 'integrations', 'store', 'referral', 'licenses', 'license', 'import_export', 'migration', 'champs'], hint: tr('équipe et accès, paramètres, modules, imports, migration')),
   NavGroup('superadmin', tr('Plateforme'), Icons.admin_panel_settings_outlined,
-      ['admin_console', 'admin_setup', 'admin_site', 'admin_livechat', 'admin_comms', 'admin_promo', 'admin_licenses', 'admin_support', 'admin', 'admin_online', 'admin_companies', 'admin_plans', 'admin_modules', 'admin_store', 'admin_updates', 'admin_env', 'admin_backups', 'admin_sites', 'admin_events']),
+      ['admin_console', 'admin_setup', 'admin_site', 'admin_livechat', 'admin_comms', 'admin_promo', 'admin_licenses', 'admin_support', 'admin', 'admin_online', 'admin_companies', 'admin_plans', 'admin_modules', 'admin_storage', 'admin_store', 'admin_updates', 'admin_env', 'admin_backups', 'admin_sites', 'admin_events']),
 ];
 
 /// Mots-clés de recherche (synonymes) par écran pour la palette de commandes.

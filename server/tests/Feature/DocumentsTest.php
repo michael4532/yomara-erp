@@ -162,8 +162,19 @@ class DocumentsTest extends TestCase
 
         // Quota de stockage
         config(['erp.documents_quota_mb' => 1]);
-        $upload($compta, 'gros.bin', str_repeat('x', 1200 * 1024), ['folder_id' => $cpt])->assertStatus(422)->assertJsonFragment(['message' => 'Espace de stockage plein (1 Mo). Videz la corbeille ou supprimez d\'anciennes versions.']);
-        config(['erp.documents_quota_mb' => 2048]);
+        $upload($compta, 'gros.bin', str_repeat('x', 1200 * 1024), ['folder_id' => $cpt])->assertStatus(422)->assertJsonFragment(['message' => 'Espace de stockage de la société plein (1 Mo). Videz la corbeille, supprimez d\'anciennes versions ou ajoutez de l\'espace (Documents › Espace de stockage).']);
+        config(['erp.documents_quota_mb' => null]);
+
+        // En ligne (SaaS) : 2 Go partagés par toute la société, packs d'espace en plus
+        config(['erp.mode' => 'saas']);
+        $st = $api()->getJson('/api/documents/storage')->assertOk()->json('data');
+        $this->assertSame(2 * 1073741824, $st['usage']['quota']);
+        $this->assertSame([10, 20, 50, 100], array_map(fn ($p) => $p['size'] / 1073741824, $st['packs']));
+        $this->assertGreaterThan(0, collect($st['people'])->firstWhere('id', $paul->id)['used']);
+        $compta()->getJson('/api/documents/storage')->assertForbidden();
+        \App\Models\CompanyModule::updateOrCreate(['company_id' => $company->id, 'module_key' => 'stockage_10'], ['enabled' => true]);
+        $this->assertSame(12 * 1073741824, $api()->getJson('/api/documents/storage')->json('data.usage.quota'));
+        config(['erp.mode' => 'single']);
         $this->assertGreaterThan(0, $compta()->getJson('/api/documents/usage')->json('data.used'));
 
         // Échéances et corbeille : tâche quotidienne

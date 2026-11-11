@@ -1,10 +1,10 @@
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../ui/widgets/common.dart';
 import '../i18n/i18n.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 const _months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
@@ -23,7 +23,7 @@ String periodLabel(String period) {
 Future<void> printPayslips({required Map<String, dynamic> company, required String currency, required String period, required List<Map<String, dynamic>> payslips, String? title}) async {
   final bytes = await buildPayslipsPdf(company: company, currency: currency, period: period, payslips: payslips);
   final name = title ?? (payslips.length == 1 ? 'Bulletin ${payslips.first['employee']['full_name']} ${periodLabel(period)}' : 'Bulletins ${periodLabel(period)}');
-  await Printing.layoutPdf(name: '$name.pdf', onLayout: (_) async => bytes);
+  await previewPdf(name: '$name.pdf', onLayout: (_) async => bytes);
 }
 
 Future<Uint8List> buildPayslipsPdf({required Map<String, dynamic> company, required String currency, required String period, required List<Map<String, dynamic>> payslips}) async {

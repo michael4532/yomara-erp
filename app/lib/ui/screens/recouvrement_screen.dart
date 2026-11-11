@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/session.dart';
@@ -11,6 +10,7 @@ import '../widgets/filter_bar.dart';
 import '../widgets/report_charts.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 Color recoveryColor(String s) => switch (s) {
       'open' => YColors.warning,
@@ -536,7 +536,7 @@ class _CaseDetailState extends State<_CaseDetail> {
   Future<void> _notice() async {
     try {
       final bytes = await context.read<Session>().api.download('relances/cases/${widget.id}/notice');
-      await Printing.layoutPdf(name: 'Mise en demeure ${_c?['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
+      await previewPdf(name: 'Mise en demeure ${_c?['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

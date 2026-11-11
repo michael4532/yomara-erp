@@ -34,6 +34,17 @@ class DocumentsController extends Controller
         return ['data' => $this->svc->usage(app('tenant'))];
     }
 
+    /** Espace partagé de la société, utilisation par personne et packs d'espace en plus (administrateur des documents). */
+    public function storage()
+    {
+        $c = app('tenant');
+        $packs = \App\Models\Module::whereIn('key', array_keys(DocumentService::PACKS))->get()->keyBy('key');
+
+        return ['data' => ['usage' => $this->svc->usage($c), 'people' => $this->svc->people($c), 'hosted' => DocumentService::hosted(),
+            'packs' => collect(DocumentService::PACKS)->map(fn ($mb, $k) => ['key' => $k, 'size' => $mb * 1048576, 'active' => $this->svc->packActive($c, $k),
+                'price_monthly' => (float) ($packs[$k]->price_monthly ?? 0), 'currency' => $packs[$k]->currency ?? 'XOF'])->values()]];
+    }
+
     public function upload(Request $r)
     {
         $v = $r->validate([
@@ -70,11 +81,9 @@ class DocumentsController extends Controller
     {
         $f = $this->file($r, $id, $r->boolean('trash'));
         $v = $r->filled('v') ? DocVersion::where('file_id', $f->id)->where('number', (int) $r->query('v'))->firstOrFail() : DocVersion::where('file_id', $f->id)->where('number', $f->current_version)->first();
-        $path = $v?->path ?? $f->path;
-        abort_unless($path && Storage::disk('local')->exists($path), 404, 'Fichier introuvable sur le serveur.');
         $name = $v && $v->number !== $f->current_version ? pathinfo($f->name, PATHINFO_FILENAME).' (v'.$v->number.')'.($f->extension ? '.'.$f->extension : '') : $f->name;
 
-        return response()->file(Storage::disk('local')->path($path), \App\Support\SafeDownload::headers($v?->mime ?? $f->mime, (string) $name, $r->boolean('inline')));
+        return $this->svc->serve($v, $f->path, \App\Support\SafeDownload::headers($v?->mime ?? $f->mime, (string) $name, $r->boolean('inline')));
     }
 
     public function versions(Request $r, string $id)

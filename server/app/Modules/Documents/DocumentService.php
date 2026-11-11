@@ -19,10 +19,47 @@ class DocumentService
 {
     public const BLOCKED = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'pht', 'exe', 'bat', 'cmd', 'com', 'scr', 'msi', 'sh', 'cgi', 'pl', 'htaccess', 'jsp', 'asp', 'aspx', 'vbs', 'ps1', 'html', 'htm', 'xhtml', 'shtml', 'svg', 'svgz', 'js', 'mjs', 'hta'];
 
+    /** Espace en plus acheté dans la boutique des modules (packs « Stockage »), en Mo. */
+    public const PACKS = ['stockage_10' => 10240, 'stockage_20' => 20480, 'stockage_50' => 51200, 'stockage_100' => 102400];
+
+    public function packActive(Company $company, string $key): bool
+    {
+        return (bool) $company->moduleOverrides()->where('module_key', $key)->get()->first(fn ($o) => $o->isEffective());
+    }
+
+    public function extraMb(Company $company): int
+    {
+        // Seuls les packs réellement achetés (ou offerts) comptent, pas « tous les modules » d'une formule ou d'une installation
+        $mb = 0;
+        foreach ($company->moduleOverrides()->whereIn('module_key', array_keys(self::PACKS))->get() as $o) {
+            if ($o->isEffective()) {
+                $mb += self::PACKS[$o->module_key];
+            }
+        }
+
+        return $mb;
+    }
+
+    /** Plateforme en ligne (SaaS) : l'espace est fourni par l'éditeur, donc limité et vendu par packs. */
+    public static function hosted(): bool
+    {
+        return config('erp.mode') === 'saas';
+    }
+
+    public function userUsed(Company $company, int $userId): int
+    {
+        return (int) DocVersion::withoutGlobalScopes()->where('company_id', $company->id)->where('user_id', $userId)->sum('size');
+    }
+
     public function settings(Company $company): array
     {
+        // Espace partagé par toute la société : 2 Go en ligne (ou le quota fixé par l'éditeur), plus les packs achetés.
+        // Installation sur le serveur du client : son propre disque, pas de limite par défaut.
+        $base = (int) ($company->setting('documents_quota_mb') ?: config('erp.documents_quota_mb')
+            ?: (self::hosted() ? config('erp.documents_company_quota_mb', 2048) : 1048576));
+
         return [
-            'quota_mb' => (int) ($company->setting('documents_quota_mb') ?: config('erp.documents_quota_mb', 2048)),
+            'quota_mb' => $base + $this->extraMb($company),
             'max_file_mb' => (int) config('erp.documents_max_file_mb', 50),
             'trash_days' => 30,
             'expiry_notices' => [30, 7, 0],
@@ -34,8 +71,54 @@ class DocumentService
         $used = (int) DocVersion::withoutGlobalScopes()->where('company_id', $company->id)->sum('size');
         $s = $this->settings($company);
 
-        return ['used' => $used, 'quota' => $s['quota_mb'] * 1024 * 1024, 'files' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNull('deleted_at')->count(),
+        $me = request()?->user();
+        $mine = $me && $me->company_id === $company->id ? ['my_used' => $this->userUsed($company, $me->id)] : [];
+
+        return $mine + ['used' => $used, 'quota' => $s['quota_mb'] * 1024 * 1024, 'extra' => $this->extraMb($company) * 1048576, 'files' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNull('deleted_at')->count(),
             'trash' => DocFile::withoutGlobalScopes()->where('company_id', $company->id)->whereNotNull('deleted_at')->count(), 'max_file' => $s['max_file_mb'] * 1024 * 1024];
+    }
+
+    public static function human(int|float $bytes): string
+    {
+        return $bytes >= 1073741824 ? rtrim(rtrim(number_format($bytes / 1073741824, 1, ',', ''), '0'), ',').' Go' : round($bytes / 1048576).' Mo';
+    }
+
+    /** Espace utilisé par chaque personne, sur l'espace partagé de la société (administrateur des documents). */
+    public function people(Company $company): array
+    {
+        $used = DocVersion::withoutGlobalScopes()->where('company_id', $company->id)->selectRaw('user_id, SUM(size) as total')->groupBy('user_id')->pluck('total', 'user_id');
+        return User::where('company_id', $company->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email'])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'used' => (int) ($used[$u->id] ?? 0)])
+            ->sortByDesc('used')->values()->all();
+    }
+
+    /** Contenu de la version en cours d'un fichier (pièce jointe d'un e-mail…), où qu'il soit stocké. */
+    public function bytes(DocFile $file): ?string
+    {
+        $v = DocVersion::withoutGlobalScopes()->where('file_id', $file->id)->where('number', $file->current_version)->first();
+        try {
+            return $file->path ? app(\App\Storage\StoragePool::class)->get($v?->backend_id, $v?->path ?? $file->path) : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** Réponse de téléchargement d'une version, où qu'elle soit stockée (serveur ou stockage externe). */
+    public function serve(?DocVersion $v, ?string $path, array $headers)
+    {
+        $pool = app(\App\Storage\StoragePool::class);
+        $path = $v?->path ?? $path;
+        abort_unless($path && $pool->exists($v?->backend_id, $path), 404, 'Fichier introuvable sur le serveur.');
+        try {
+            [$local, $temp] = $pool->localPath($v?->backend_id, $path);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(503, 'Le stockage de ce fichier ne répond pas. Réessayez dans un instant.');
+        }
+
+        $res = response()->file($local, $headers);
+
+        return $temp ? $res->deleteFileAfterSend(true) : $res;
     }
 
     protected function disk()
@@ -61,7 +144,7 @@ class DocumentService
         }
         $u = $this->usage($company);
         if ($u['used'] + strlen($bytes) > $u['quota']) {
-            throw new \DomainException('Espace de stockage plein ('.round($u['quota'] / 1048576).' Mo). Videz la corbeille ou supprimez d\'anciennes versions.');
+            throw new \DomainException('Espace de stockage de la société plein ('.self::human($u['quota']).'). Videz la corbeille, supprimez d\'anciennes versions ou ajoutez de l\'espace (Documents › Espace de stockage).');
         }
         if ($checkAccess) {
             if ($file && (! DocumentAccess::canSee($user, $file->folder_id) || ! $file->canEdit($user))) {
@@ -87,10 +170,11 @@ class DocumentService
             }
             $n = $file->current_version + 1;
             $path = 'documents/'.$company->id.'/'.$file->id.'/v'.$n.'-'.Str::random(6).($ext ? '.'.$ext : '');
-            $this->disk()->put($path, $bytes);
             $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) ?: 'application/octet-stream';
+            // Stockage : le premier disponible par ordre de priorité (serveur, R2, B2…), bascule automatique si plein
+            $backend = app(\App\Storage\StoragePool::class)->put($path, $bytes, $mime);
             $v = new DocVersion(['file_id' => $file->id, 'number' => $n, 'path' => $path, 'name' => mb_substr($originalName, 0, 200), 'mime' => $mime, 'size' => strlen($bytes),
-                'sha256' => hash('sha256', $bytes), 'user_id' => $user?->id, 'comment' => $comment ? mb_substr($comment, 0, 255) : ($creating ? null : 'Nouvelle version')]);
+                'sha256' => hash('sha256', $bytes), 'user_id' => $user?->id, 'backend_id' => $backend, 'comment' => $comment ? mb_substr($comment, 0, 255) : ($creating ? null : 'Nouvelle version')]);
             $v->company_id = $company->id;
             $v->save();
             if ($creating) {
@@ -103,7 +187,13 @@ class DocumentService
                 }
             }
             $file->forceFill(['path' => $path, 'mime' => $mime, 'extension' => $ext ?: null, 'size' => strlen($bytes), 'sha256' => $v->sha256, 'current_version' => $n]);
-            $file->content_text = TextExtractor::extract($this->disk()->path($path), $ext);
+            $tmp = tempnam(sys_get_temp_dir(), 'gedx');
+            file_put_contents($tmp, $bytes);
+            try {
+                $file->content_text = TextExtractor::extract($tmp, $ext);
+            } finally {
+                @unlink($tmp);
+            }
             $file->refreshSearch();
             $file->save();
 
@@ -151,7 +241,7 @@ class DocumentService
             throw new \DomainException('C\'est déjà la version en cours.');
         }
 
-        return $this->store($company, $user, $this->disk()->get($v->path), $v->name, $file->folder_id, [], $file, 'Retour à la version '.$number);
+        return $this->store($company, $user, app(\App\Storage\StoragePool::class)->get($v->backend_id, $v->path), $v->name, $file->folder_id, [], $file, 'Retour à la version '.$number);
     }
 
     public function restore(DocFile $file): void
@@ -166,7 +256,7 @@ class DocumentService
     public function purge(DocFile $file): void
     {
         foreach (DocVersion::where('file_id', $file->id)->get() as $v) {
-            $this->disk()->delete($v->path);
+            app(\App\Storage\StoragePool::class)->delete($v->backend_id, $v->path, (int) $v->size);
             $v->delete();
         }
         $this->disk()->deleteDirectory('documents/'.$file->company_id.'/'.$file->id);

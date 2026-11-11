@@ -13,7 +13,7 @@ return [
 
     'name' => env('ERP_NAME', 'Yomara ERP'),
 
-    'version' => '0.99.40',
+    'version' => '0.99.41',
 
     // Fiches officielles des applications (proposées dans Administration › Boutique › Liens de téléchargement)
     'store_links' => [
@@ -85,6 +85,8 @@ return [
 
     // SaaS : durée d'essai pour une nouvelle inscription
     'trial_days' => (int) env('ERP_TRIAL_DAYS', 14),
+    // Documents (GED), plateforme en ligne : espace partagé par toute la société, en Mo (agrandi par les packs Stockage)
+    'documents_company_quota_mb' => (int) env('ERP_DOCUMENTS_QUOTA_MB', 2048),
 
     // Mises à jour à distance : serveur de diffusion (la plateforme Yomara) et canal suivi
     'updates' => [

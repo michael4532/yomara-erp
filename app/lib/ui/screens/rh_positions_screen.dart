@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/json.dart';
@@ -16,6 +15,7 @@ import 'talents_screen.dart' show RhDeadlinesCard;
 import 'rh_screen.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../widgets/pdf_viewer.dart';
 // ===========================================================================
 // Référentiel : fiches de poste et catégories (synchronisés, disponibles hors ligne)
 // ===========================================================================
@@ -725,7 +725,7 @@ Future<void> printPosition(BuildContext context, Map<String, dynamic> p, {Map<St
     signatory: st['rh_signatory'] as String?,
     signatoryTitle: st['rh_signatory_title'] as String?,
   );
-  await Printing.layoutPdf(name: 'Fiche de poste ${p['title']}', onLayout: (_) async => bytes);
+  await previewPdf(name: 'Fiche de poste ${p['title']}', onLayout: (_) async => bytes);
 }
 
 Future<void> showPositionSheet(BuildContext context, Map<String, dynamic> p) {
@@ -1191,7 +1191,7 @@ Future<void> openEmployeeContract(BuildContext context, Map<String, dynamic> r, 
                 signatory: s.companySettings['rh_signatory'] as String?,
                 signatoryTitle: s.companySettings['rh_signatory_title'] as String?,
               );
-              await Printing.layoutPdf(name: '${c['title']}', onLayout: (_) async => bytes);
+              await previewPdf(name: '${c['title']}', onLayout: (_) async => bytes);
             },
             icon: const Icon(Icons.print_outlined, size: 18),
             label: Text(tr('Imprimer / PDF')),

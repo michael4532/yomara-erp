@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/local_db.dart';
@@ -16,6 +15,7 @@ import 'sites_screen.dart' show openUrl;
 import 'sites_shop.dart' show shopStatusColor;
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 const _channelIcons = {
   'site': Icons.language,
@@ -233,7 +233,7 @@ class _OrdersState extends State<_Orders> {
   Future<void> _picking() async {
     try {
       final bytes = await _s.api.download('ecommerce/picking', query: {'ids': _sel.join(','), if (widget.manage) 'mark': '1'});
-      await Printing.layoutPdf(name: 'Bon de préparation', onLayout: (_) async => Uint8List.fromList(bytes));
+      await previewPdf(name: 'Bon de préparation', onLayout: (_) async => Uint8List.fromList(bytes));
       await _load();
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);

@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_navigator.dart';
 import 'core/local_db.dart';
 import 'core/secure_store.dart';
 import 'i18n/i18n.dart';
@@ -64,6 +65,7 @@ class YomaraErpApp extends StatelessWidget {
       valueListenable: I18n.current,
       builder: (context, lang, _) => MaterialApp(
       key: ValueKey(lang),
+      navigatorKey: appNavigatorKey,
       navigatorObservers: [PopupGuardObserver()],
       builder: (context, child) => AutoUpdate(child: child ?? const SizedBox.shrink()),
       title: (session.bootstrap?['app']?['name'] as String?) ?? 'Yomara ERP',

@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../i18n/i18n.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 /// Section d'état comptable : titre facultatif, lignes, total facultatif.
 class ReportSection {
@@ -69,5 +69,5 @@ Future<void> printReport({
     ],
   ));
 
-  await Printing.layoutPdf(name: '$title.pdf', onLayout: (_) async => doc.save());
+  await previewPdf(name: '$title.pdf', onLayout: (_) async => doc.save());
 }

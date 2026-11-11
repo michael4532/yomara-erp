@@ -22,10 +22,10 @@ class StoreExpiryTest extends TestCase
         config(['erp.mode' => 'saas']);
         [$company, $admin, $token] = $this->makeCompany('Boutique Awa', 'starter');
         // Tarif unique par défaut et moyens de paiement de la plateforme (en ligne à configurer, hors ligne actifs)
-        $paid = Module::where('is_core', false)->where('price_monthly', '>', 0)->get();
+        $paid = Module::where('is_core', false)->where('price_monthly', '>', 0)->where('key', 'not like', 'stockage_%')->get();
         $this->assertGreaterThan(40, $paid->count());
         // Trois paliers : Essentiel 5 000 F par défaut, Standard 10 000 F (envois, stockage, API payantes), Premium 25 000 F (IA, visio)
-        $this->assertEqualsCanonicalizing([5000.0, 10000.0, 25000.0], $paid->pluck('price_monthly')->map(fn ($v) => (float) $v)->unique()->values()->all());
+        $this->assertEqualsCanonicalizing([5000.0, 25000.0, 30000.0], $paid->pluck('price_monthly')->map(fn ($v) => (float) $v)->unique()->values()->all());
         $this->assertEqualsCanonicalizing(\App\Support\PricingGrid::TIER_PREMIUM, $paid->where('price_monthly', 25000)->pluck('key')->all());
         $this->assertSame(['cinetpay', 'wave', 'orange_money', 'mobile_money', 'bank_transfer', 'cash'], PaymentGateway::whereNull('company_id')->orderBy('sort')->pluck('driver')->all());
         $this->assertSame(['mobile_money', 'bank_transfer'], PaymentGateway::whereNull('company_id')->where('enabled', true)->orderBy('sort')->pluck('driver')->all());

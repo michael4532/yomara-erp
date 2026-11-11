@@ -1,0 +1,140 @@
+{
+  "_dayjs.min-TZ14vqtR.js": {
+    "file": "chunks/dayjs.min-TZ14vqtR.js",
+    "name": "dayjs.min",
+    "imports": [
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "_main-BhlJPqCY.js": {
+    "file": "chunks/main-BhlJPqCY.js",
+    "name": "main",
+    "isDynamicEntry": true,
+    "imports": [
+      "_react-DzWBR8iR.js",
+      "_dayjs.min-TZ14vqtR.js"
+    ]
+  },
+  "_react-DzWBR8iR.js": {
+    "file": "chunks/react-DzWBR8iR.js",
+    "name": "react"
+  },
+  "_remark-gfm-DCND-V-3.es-DPQjWrnw.js": {
+    "file": "chunks/remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+    "name": "remark-gfm-DCND-V-3.es",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ],
+    "dynamicImports": [
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/detect-container-Cs3KoJVc.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/decrypt-docx-p5cG_KjI.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-parse-CHPhIj_F.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-remark-Wa_YyYKW.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/PasswordPromptSurface-Dqe9cCcR.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/FindReplaceSurface-DY4hnrs0.es.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/PdfViewer-A559W7rp.es.js"
+    ]
+  },
+  "node_modules/@fortune-sheet/react/dist/index.esm.js": {
+    "file": "chunks/index.esm-CcfngUfI.js",
+    "name": "index.esm",
+    "src": "node_modules/@fortune-sheet/react/dist/index.esm.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_dayjs.min-TZ14vqtR.js",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/FindReplaceSurface-DY4hnrs0.es.js": {
+    "file": "chunks/FindReplaceSurface-DY4hnrs0.es-prIQsRT3.js",
+    "name": "FindReplaceSurface-DY4hnrs0.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/FindReplaceSurface-DY4hnrs0.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/PasswordPromptSurface-Dqe9cCcR.es.js": {
+    "file": "chunks/PasswordPromptSurface-Dqe9cCcR.es-CHbtc03A.js",
+    "name": "PasswordPromptSurface-Dqe9cCcR.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/PasswordPromptSurface-Dqe9cCcR.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/PdfViewer-A559W7rp.es.js": {
+    "file": "chunks/PdfViewer-A559W7rp.es-DVkPQrw3.js",
+    "name": "PdfViewer-A559W7rp.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/PdfViewer-A559W7rp.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/decrypt-docx-p5cG_KjI.es.js": {
+    "file": "chunks/decrypt-docx-p5cG_KjI.es-DNZ6DECv.js",
+    "name": "decrypt-docx-p5cG_KjI.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/decrypt-docx-p5cG_KjI.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "node_modules/@harbour-enterprises/superdoc/dist/chunks/detect-container-Cs3KoJVc.es.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/detect-container-Cs3KoJVc.es.js": {
+    "file": "chunks/detect-container-Cs3KoJVc.es-OAtcIsl_.js",
+    "name": "detect-container-Cs3KoJVc.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/detect-container-Cs3KoJVc.es.js",
+    "isDynamicEntry": true
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-parse-CHPhIj_F.es.js": {
+    "file": "chunks/rehype-parse-CHPhIj_F.es-CPqD0zW5.js",
+    "name": "rehype-parse-CHPhIj_F.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-parse-CHPhIj_F.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-remark-Wa_YyYKW.es.js": {
+    "file": "chunks/rehype-remark-Wa_YyYKW.es-B2Mxe605.js",
+    "name": "rehype-remark-Wa_YyYKW.es",
+    "src": "node_modules/@harbour-enterprises/superdoc/dist/chunks/rehype-remark-Wa_YyYKW.es.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js",
+      "src/main.jsx",
+      "_react-DzWBR8iR.js"
+    ]
+  },
+  "src/main.jsx": {
+    "file": "office-Dk0v0kRm.js",
+    "name": "main",
+    "src": "src/main.jsx",
+    "isEntry": true,
+    "imports": [
+      "_react-DzWBR8iR.js"
+    ],
+    "dynamicImports": [
+      "node_modules/@fortune-sheet/react/dist/index.esm.js",
+      "_main-BhlJPqCY.js",
+      "_remark-gfm-DCND-V-3.es-DPQjWrnw.js"
+    ]
+  },
+  "style.css": {
+    "file": "office.css",
+    "src": "style.css"
+  }
+}

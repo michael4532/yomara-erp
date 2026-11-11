@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,6 +15,7 @@ import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../widgets/pdf_viewer.dart';
 // ---------------------------------------------------------------------------------------------- outils
 
 List<Map<String, dynamic>> _suppliers() =>
@@ -33,7 +33,7 @@ String _q(dynamic v) {
 Future<void> _openPdf(BuildContext context, String path, String name) async {
   try {
     final bytes = await context.read<Session>().api.download(path);
-    await Printing.layoutPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
+    await previewPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
   } catch (e) {
     if (context.mounted) toast(context, errorText(e), error: true);
   }

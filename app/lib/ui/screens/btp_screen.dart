@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/session.dart';
@@ -9,6 +8,7 @@ import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 Color _statusColor(String s) => switch (s) {
       'study' => YColors.blue,
@@ -30,7 +30,7 @@ String _qty(dynamic v) {
 Future<void> _openPdf(BuildContext c, String path, String name, {Map<String, String>? query}) async {
   try {
     final bytes = await c.read<Session>().api.download(path, query: query);
-    await Printing.layoutPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
+    await previewPdf(name: name, onLayout: (_) async => Uint8List.fromList(bytes));
   } catch (e) {
     if (c.mounted) toast(c, errorText(e), error: true);
   }

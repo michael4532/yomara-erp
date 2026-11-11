@@ -1,0 +1,23 @@
+{
+  "name": "office",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@corbe30/fortune-excel": "^2.3.5",
+    "@fortune-sheet/react": "^1.0.4",
+    "@harbour-enterprises/superdoc": "^1.46.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,6 +20,7 @@ import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../widgets/pdf_viewer.dart';
 bool tkCanManage(Session s) => s.can('billetterie.manage');
 bool tkCanSell(Session s) => s.can('billetterie.sell') || s.can('billetterie.manage');
 bool tkCanScan(Session s) => s.can('billetterie.scan') || s.can('billetterie.manage');
@@ -58,7 +58,7 @@ Future<void> printTickets(BuildContext context, Map<String, dynamic> event, List
   final session = context.read<Session>();
   final types = {for (final t in tkTypes('${event['id']}')) '${t['id']}': t};
   final bytes = await ticketsPdf(event: event, tickets: tickets, types: types, company: '${session.company['name'] ?? ''}', roll: roll);
-  await Printing.layoutPdf(name: 'Billets ${event['name']}', onLayout: (_) async => Uint8List.fromList(bytes));
+  await previewPdf(name: 'Billets ${event['name']}', onLayout: (_) async => Uint8List.fromList(bytes));
 }
 
 /// Onglet Billetterie d'un événement : tarifs, guichet, badges, billets émis.

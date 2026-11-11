@@ -13,7 +13,7 @@ class DocVersion extends Model
 
     protected $table = 'dc_versions';
 
-    protected $fillable = ['file_id', 'number', 'path', 'name', 'mime', 'size', 'sha256', 'user_id', 'comment'];
+    protected $fillable = ['file_id', 'number', 'path', 'name', 'mime', 'size', 'sha256', 'user_id', 'backend_id', 'comment'];
 
     protected $hidden = ['path', 'company_id'];
 

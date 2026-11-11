@@ -12,6 +12,7 @@ import '../state/session.dart';
 import 'screens/admin/admin_companies_screen.dart';
 import 'screens/event_extras.dart' show AdminEventsScreen;
 import 'screens/admin/admin_modules_screen.dart';
+import 'screens/admin/admin_storage_screen.dart';
 import 'screens/admin/admin_online_screen.dart';
 import 'screens/admin/admin_overview_screen.dart';
 import 'screens/admin/admin_console_screen.dart';
@@ -467,6 +468,7 @@ class _AppShellState extends State<AppShell> {
       NavItem('admin_events', tr('Événements (plateforme)'), Icons.event_available_outlined, (_) => const AdminEventsScreen(), section: 'Super admin'),
       if (!selfHosted) NavItem('admin_store', tr('Ventes de modules'), Icons.shopping_bag_outlined, (_) => const AdminStoreScreen(), section: 'Super admin'),
       if (!selfHosted) NavItem('admin_modules', tr('Modules & tarifs'), Icons.extension_outlined, (_) => const AdminModulesScreen(), section: 'Super admin'),
+      if (s.mode == 'saas') NavItem('admin_storage', tr('Stockage des documents'), Icons.cloud_sync_outlined, (_) => const AdminStorageScreen(), section: 'Super admin'),
       NavItem('admin_companies', tr('Sociétés'), Icons.business_outlined, (_) => const AdminCompaniesScreen(), section: 'Super admin'),
       if (!selfHosted) NavItem('admin_plans', tr('Formules'), Icons.workspace_premium_outlined, (_) => const AdminPlansScreen(), section: 'Super admin'),
       NavItem('admin_updates', tr('Mises à jour'), Icons.system_update_alt, (_) => const AdminUpdatesScreen(), section: 'Super admin'),

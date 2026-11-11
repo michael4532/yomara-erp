@@ -69,9 +69,11 @@ class ShareController extends Controller
         [, $s] = $this->ctx($token);
         abort_unless($s->active() && $this->unlocked($r, $s), 403, 'Lien expiré ou protégé.');
         $f = $this->files($s)->first(fn ($x) => ! $fileId || $x->id === $fileId);
-        abort_unless($f && $f->path && Storage::disk('local')->exists($f->path), 404);
+        abort_unless($f && $f->path, 404);
+        $v = \App\Modules\Documents\Models\DocVersion::where('file_id', $f->id)->where('number', $f->current_version)->first();
+        $res = app(\App\Modules\Documents\DocumentService::class)->serve($v, $f->path, \App\Support\SafeDownload::headers($f->mime, (string) $f->name, $r->boolean('inline')) + ['X-Robots-Tag' => 'noindex']);
         $s->forceFill(['downloads' => $s->downloads + 1, 'last_access_at' => now()])->save();
 
-        return response()->file(Storage::disk('local')->path($f->path), \App\Support\SafeDownload::headers($f->mime, (string) $f->name, $r->boolean('inline')) + ['X-Robots-Tag' => 'noindex']);
+        return $res;
     }
 }

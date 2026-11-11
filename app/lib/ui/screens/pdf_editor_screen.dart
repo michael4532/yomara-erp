@@ -14,6 +14,7 @@ import '../../files/save_file.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
+import '../widgets/pdf_viewer.dart';
 import '../widgets/common.dart';
 
 /// Outils de l'éditeur. Les positions sont des fractions de page (0 à 1) : indépendantes du zoom et identiques côté serveur.
@@ -65,9 +66,12 @@ class _Page {
 
 /// « Modifier le PDF » : texte, remplacement, masquage, surlignage, formes, dessin, signature, images, pages.
 class PdfEditorScreen extends StatefulWidget {
-  const PdfEditorScreen({super.key, this.bytes, this.name});
+  const PdfEditorScreen({super.key, this.bytes, this.name, this.onSaved});
   final Uint8List? bytes;
   final String? name;
+
+  /// Ouvert depuis un document : le PDF modifié le remplace (nouvelle version) au lieu d'être téléchargé.
+  final Future<void> Function(Uint8List bytes, String name)? onSaved;
 
   @override
   State<PdfEditorScreen> createState() => _PdfEditorScreenState();
@@ -425,6 +429,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   Future<void> _result(Uint8List bytes, String name) async {
+    if (widget.onSaved != null) {
+      await widget.onSaved!(bytes, name);
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -437,7 +446,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           Text(tr('Vos modifications restent ouvertes ici : vous pouvez continuer et enregistrer à nouveau.'), textAlign: TextAlign.center, style: TextStyle(color: Theme.of(ctx).hintColor, fontSize: 13)),
         ]),
         actions: [
-          TextButton.icon(onPressed: () => Printing.layoutPdf(name: name, onLayout: (_) async => bytes), icon: const Icon(Icons.print_outlined), label: Text(tr('Ouvrir / imprimer'))),
+          TextButton.icon(onPressed: () => showPdf(context, bytes, name), icon: const Icon(Icons.visibility_outlined), label: Text(tr('Ouvrir'))),
           FilledButton.icon(
             onPressed: () async {
               await saveFile(name, bytes, mime: 'application/pdf');

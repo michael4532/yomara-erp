@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/json.dart';
@@ -12,6 +11,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
 import 'rh_screen.dart' show empName, myEmployee;
+import '../widgets/pdf_viewer.dart';
 
 // ===========================================================================
 // Sorties de matériel : caméras, ordinateurs, outillage emportés en intervention puis rendus.
@@ -501,7 +501,7 @@ class _CheckoutViewState extends State<_CheckoutView> {
   Future<void> _pdf(Map c) async {
     try {
       final bytes = await context.read<Session>().api.download('materiel/checkouts/${widget.id}/pdf');
-      await Printing.layoutPdf(name: 'Bon de sortie ${c['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
+      await previewPdf(name: 'Bon de sortie ${c['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

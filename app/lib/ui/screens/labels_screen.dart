@@ -15,6 +15,7 @@ import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 /// Article à étiqueter : nombre d'étiquettes et, pour un article pesé, le poids du colis.
 class LabelItem {
@@ -291,7 +292,7 @@ class _LabelsScreenState extends State<LabelsScreen> {
       if (share) {
         await Printing.sharePdf(bytes: Uint8List.fromList(bytes), filename: 'etiquettes.pdf');
       } else {
-        await Printing.layoutPdf(name: 'Étiquettes', format: fmt, onLayout: (_) async => Uint8List.fromList(bytes));
+        await previewPdf(name: 'Étiquettes', format: fmt, onLayout: (_) async => Uint8List.fromList(bytes));
       }
       // Mémorise le prix imprimé (pour repérer les étiquettes à refaire après un changement de prix)
       if (mounted) {

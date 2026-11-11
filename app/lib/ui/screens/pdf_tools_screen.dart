@@ -10,6 +10,7 @@ import '../../files/save_file.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
+import '../widgets/pdf_viewer.dart';
 import '../widgets/common.dart';
 import 'pdf_editor_screen.dart';
 
@@ -104,8 +105,9 @@ class _Doc {
 }
 
 class _ToolPage extends StatefulWidget {
-  const _ToolPage({super.key, required this.tool});
+  const _ToolPage({super.key, required this.tool, this.onSaved});
   final _Tool tool;
+  final Future<void> Function(Uint8List bytes, String name)? onSaved;
 
   @override
   State<_ToolPage> createState() => _ToolPageState();
@@ -223,6 +225,12 @@ class _ToolPageState extends State<_ToolPage> {
 
   Future<void> _result(Uint8List bytes, String name) async {
     final isPdf = name.endsWith('.pdf');
+    // Ouvert depuis un document : le résultat le remplace (nouvelle version), on revient à la lecture
+    if (isPdf && widget.onSaved != null) {
+      await widget.onSaved!(bytes, name);
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
     Uint8List? thumb;
     if (isPdf && t.op != 'protect') {
       try {
@@ -251,9 +259,9 @@ class _ToolPageState extends State<_ToolPage> {
         actions: [
           if (isPdf && t.op != 'protect')
             TextButton.icon(
-              onPressed: () => Printing.layoutPdf(name: name, onLayout: (_) async => bytes),
-              icon: const Icon(Icons.print_outlined),
-              label: Text(tr('Ouvrir / imprimer')),
+              onPressed: () => showPdf(context, bytes, name),
+              icon: const Icon(Icons.visibility_outlined),
+              label: Text(tr('Ouvrir')),
             ),
           if (isPdf && t.op != 'protect')
             TextButton.icon(
@@ -630,9 +638,10 @@ class _ToolPageState extends State<_ToolPage> {
 
 /// Enchaîner : choisir un autre outil pour le fichier qu'on vient de produire.
 class PdfToolsScreenPicker extends StatelessWidget {
-  const PdfToolsScreenPicker({super.key, required this.bytes, required this.name});
+  const PdfToolsScreenPicker({super.key, required this.bytes, required this.name, this.onSaved});
   final Uint8List bytes;
   final String name;
+  final Future<void> Function(Uint8List bytes, String name)? onSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -646,7 +655,7 @@ class PdfToolsScreenPicker extends StatelessWidget {
               title: Text(tr(t.title)),
               subtitle: Text(tr(t.desc)),
               onTap: () => Navigator.of(context).pushReplacement(MaterialPageRoute(
-                  builder: (_) => t.op == 'edit' ? PdfEditorScreen(bytes: bytes, name: name) : _ChainedTool(tool: t, bytes: bytes, name: name))),
+                  builder: (_) => t.op == 'edit' ? PdfEditorScreen(bytes: bytes, name: name, onSaved: onSaved) : _ChainedTool(tool: t, bytes: bytes, name: name, onSaved: onSaved))),
             ),
           ),
       ]),
@@ -655,10 +664,11 @@ class PdfToolsScreenPicker extends StatelessWidget {
 }
 
 class _ChainedTool extends StatefulWidget {
-  const _ChainedTool({required this.tool, required this.bytes, required this.name});
+  const _ChainedTool({required this.tool, required this.bytes, required this.name, this.onSaved});
   final _Tool tool;
   final Uint8List bytes;
   final String name;
+  final Future<void> Function(Uint8List bytes, String name)? onSaved;
 
   @override
   State<_ChainedTool> createState() => _ChainedToolState();
@@ -680,5 +690,5 @@ class _ChainedToolState extends State<_ChainedTool> {
   }
 
   @override
-  Widget build(BuildContext context) => _ToolPage(key: _key, tool: widget.tool);
+  Widget build(BuildContext context) => _ToolPage(key: _key, tool: widget.tool, onSaved: widget.onSaved);
 }

@@ -3,7 +3,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/session.dart';
@@ -14,6 +13,7 @@ import '../widgets/report_charts.dart';
 import 'appro_screen.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../widgets/pdf_viewer.dart';
 
 Color fondsStatusColor(String s) => switch (s) {
       'submitted' => YColors.warning,
@@ -735,7 +735,7 @@ class _FundDetailState extends State<_FundDetail> {
   Future<void> _pdf() async {
     try {
       final bytes = await context.read<Session>().api.download('fonds/requests/${widget.id}/pdf');
-      await Printing.layoutPdf(name: 'Appel de fonds ${_r?['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
+      await previewPdf(name: 'Appel de fonds ${_r?['number'] ?? ''}', onLayout: (_) async => Uint8List.fromList(bytes));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }
@@ -1434,7 +1434,7 @@ class _FondsFormTemplateState extends State<_FondsFormTemplate> {
     if (!await _save(quiet: true) || !mounted) return;
     try {
       final bytes = await context.read<Session>().api.download('fonds/form/preview');
-      await Printing.layoutPdf(name: 'Aperçu appel de fonds', onLayout: (_) async => Uint8List.fromList(bytes));
+      await previewPdf(name: 'Aperçu appel de fonds', onLayout: (_) async => Uint8List.fromList(bytes));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

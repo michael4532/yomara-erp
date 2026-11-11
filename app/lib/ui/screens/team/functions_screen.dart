@@ -8,7 +8,7 @@ import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../../../files/save_file.dart';
 import 'org_export.dart';
-import 'package:printing/printing.dart';
+import '../../widgets/pdf_viewer.dart';
 
 /// Fonctions & organigramme : l'entreprise crée ses propres fonctions (Directeur commercial, Chef d'équipe…),
 /// les range sous leur supérieure et choisit, module par module, ce que chacune peut faire.
@@ -424,7 +424,7 @@ class _FunctionsScreenState extends State<FunctionsScreen> {
       }
       final bytes = await orgChartPdf(company: company, title: title, roots: roots, loose: loose);
       if (kind == 'print') {
-        await Printing.layoutPdf(name: title, onLayout: (_) async => bytes);
+        await previewPdf(name: title, onLayout: (_) async => bytes);
       } else {
         final where = await saveFile('organigramme.pdf', bytes, mime: 'application/pdf');
         if (mounted) toast(context, tr('PDF enregistré : $where'));

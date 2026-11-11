@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../files/save_file.dart';
@@ -16,6 +15,7 @@ import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
 import '../widgets/report_charts.dart';
 import '../../i18n/i18n.dart';
+import '../widgets/pdf_viewer.dart';
 
 part 'compta_cabinet.dart';
 part 'compta_closing.dart';

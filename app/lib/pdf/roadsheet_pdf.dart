@@ -2,11 +2,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../state/session.dart';
 import '../ui/widgets/common.dart';
 import '../i18n/i18n.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 /// Feuille de route d'une tournée (arrêts dans l'ordre, montants à encaisser, cases de signature).
 Future<void> printRoadSheet({
@@ -85,5 +85,5 @@ Future<void> printRoadSheet({
       ),
     ],
   ));
-  await Printing.layoutPdf(name: 'Feuille de route ${tour['date']}.pdf', onLayout: (_) async => pdf.save());
+  await previewPdf(name: 'Feuille de route ${tour['date']}.pdf', onLayout: (_) async => pdf.save());
 }

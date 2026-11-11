@@ -11,6 +11,7 @@ import '../pdf/receipt_pdf.dart';
 import '../state/session.dart';
 import 'receipt_escpos.dart';
 import 'transport.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 /// Mode d'impression du poste de caisse.
 enum PrintMode {
@@ -183,7 +184,7 @@ class PosPrinter {
         if (cfg.mode == PrintMode.system) {
           await _system(cfg, 'Test', bytes);
         } else {
-          await Printing.layoutPdf(name: 'Test', format: cfg.pdfFormat, onLayout: (_) async => bytes);
+          await previewPdf(name: 'Test', format: cfg.pdfFormat, onLayout: (_) async => bytes);
         }
     }
   }
@@ -212,13 +213,13 @@ class PosPrinter {
           return null;
         case PrintMode.pdf:
           final bytes = await pdf();
-          await Printing.layoutPdf(name: '$name.pdf', format: cfg.pdfFormat, onLayout: (_) async => bytes);
+          await previewPdf(name: '$name.pdf', format: cfg.pdfFormat, onLayout: (_) async => bytes);
           return null;
       }
     } on PrintFailure catch (e) {
       // Repli : la vente ne doit jamais être bloquée par l'imprimante.
       final bytes = await pdf();
-      await Printing.layoutPdf(name: '$name.pdf', format: cfg.pdfFormat, onLayout: (_) async => bytes);
+      await previewPdf(name: '$name.pdf', format: cfg.pdfFormat, onLayout: (_) async => bytes);
       return '${e.message} Impression via PDF à la place.';
     }
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../core/custom_fields.dart';
 import '../core/fne.dart';
@@ -10,6 +9,7 @@ import '../state/session.dart';
 import '../ui/screens/documents_screen.dart';
 import '../ui/widgets/common.dart';
 import '../i18n/i18n.dart';
+import '../ui/widgets/pdf_viewer.dart';
 
 /// Génère le PDF d'un document (facture, devis…) entièrement en local :
 /// impression et export fonctionnent sans connexion.
@@ -21,7 +21,7 @@ Future<void> printDocument({
 }) async {
   final bytes = await buildDocumentPdf(session: session, config: config, doc: doc, payments: payments);
   final number = doc['number'] ?? (doc['status'] == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
-  await Printing.layoutPdf(name: '${config.types[doc['type']]} $number.pdf', onLayout: (_) async => bytes);
+  await previewPdf(name: '${config.types[doc['type']]} $number.pdf', onLayout: (_) async => bytes);
 }
 
 /// PDF du document (impression, envoi par e-mail ou WhatsApp).

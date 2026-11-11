@@ -34,10 +34,11 @@ class Composer
                 $att = ['name' => (string) ($x['name'] ?? 'piece-jointe'), 'mime' => (string) ($x['mime'] ?? 'application/octet-stream'), 'content' => $content];
             } elseif ($type === 'document') {
                 $f = DocFile::find($x['id'] ?? null);
-                if (! $f || ($user && ! DocumentAccess::canSee($user, $f->folder_id)) || ! $f->path || ! Storage::disk('local')->exists($f->path)) {
+                $bytes = $f && (! $user || DocumentAccess::canSee($user, $f->folder_id)) ? app(\App\Modules\Documents\DocumentService::class)->bytes($f) : null;
+                if ($bytes === null) {
                     throw new \DomainException('Document introuvable ou non autorisé.');
                 }
-                $att = ['name' => $f->name, 'mime' => $f->mime ?: 'application/octet-stream', 'content' => Storage::disk('local')->get($f->path)];
+                $att = ['name' => $f->name, 'mime' => $f->mime ?: 'application/octet-stream', 'content' => $bytes];
             } elseif ($type === 'original' && $orig) {
                 $att = app(MailboxService::class)->attachment($orig, (string) $x['id']);
                 if (! $att) {
