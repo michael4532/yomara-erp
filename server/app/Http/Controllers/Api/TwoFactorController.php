@@ -66,6 +66,7 @@ class TwoFactorController extends Controller
 
     public function setup(Request $request)
     {
+        TwoFactor::ensureReady();
         $d = $request->validate(['method' => 'required|in:app,email', 'password' => 'required|string']);
         $this->checkPassword($request, $d['password']);
 
@@ -74,6 +75,7 @@ class TwoFactorController extends Controller
 
     public function confirm(Request $request, AuthController $auth)
     {
+        TwoFactor::ensureReady();
         $d = $request->validate(['code' => 'required|string|max:20']);
         $u = $request->user();
         try {

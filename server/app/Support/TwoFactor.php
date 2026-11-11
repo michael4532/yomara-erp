@@ -31,7 +31,7 @@ class TwoFactor
 
     public static function enabled(User $u): bool
     {
-        return in_array($u->two_factor_method, ['app', 'email'], true) && $u->two_factor_confirmed_at !== null;
+        return in_array($u->two_factor_method ?? null, ['app', 'email'], true) && ($u->two_factor_confirmed_at ?? null) !== null;
     }
 
     /** La double authentification est-elle exigée pour cet utilisateur ? */
@@ -48,7 +48,29 @@ class TwoFactor
     /** À configurer avant de pouvoir utiliser l'application. */
     public static function setupRequired(User $u): bool
     {
-        return self::required($u) && ! self::enabled($u);
+        // Base pas encore mise à jour (fichiers déposés sans « Mettre à jour la base ») : pas d'obligation,
+        // sinon le super administrateur ne pourrait plus atteindre le bouton qui met la base à jour.
+        return self::ready() && self::required($u) && ! self::enabled($u);
+    }
+
+    protected static ?bool $ready = null;
+
+    /** Tables et colonnes de la double authentification présentes. */
+    public static function ready(): bool
+    {
+        return self::$ready ??= rescue(fn () => \Illuminate\Support\Facades\Schema::hasTable('two_factor_pending')
+            && \Illuminate\Support\Facades\Schema::hasColumn('users', 'two_factor_last_step'), false, false);
+    }
+
+    /** Erreur lisible quand la base n'est pas à jour. */
+    public static function ensureReady(): void
+    {
+        if (! self::ready()) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                'code' => 'database_outdated',
+                'message' => 'La base de données de ce serveur n\'est pas à jour : mettez-la à jour (Super admin → Système & serveur), puis recommencez.',
+            ], 409));
+        }
     }
 
     // ---------- Défi de connexion ----------

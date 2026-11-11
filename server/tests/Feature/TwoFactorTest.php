@@ -173,4 +173,25 @@ class TwoFactorTest extends TestCase
         $this->artisan('erp:2fa-reset', ['email' => $admin->email])->assertExitCode(0);
         $this->assertFalse(\App\Support\TwoFactor::enabled($admin->fresh()));
     }
+
+    public function test_outdated_database_never_locks_out_the_super_admin(): void
+    {
+        config(['erp.two_factor.super_admin' => true]);
+        [, $sa, $token] = $this->makeCompany('Plateforme', 'entreprise', true);
+        // Fichiers déposés sans « Mettre à jour la base » : la table manque
+        \Illuminate\Support\Facades\Schema::drop('two_factor_pending');
+        \Illuminate\Support\Facades\DB::table('migrations')->where('migration', 'like', '%two_factor_store')->delete();
+        $ready = new \ReflectionProperty(\App\Support\TwoFactor::class, 'ready');
+        $ready->setValue(null, null);
+
+        $this->api($token)->getJson('/api/auth/me')->assertOk()->assertJsonPath('user.two_factor_required', false);
+        $this->api($token)->getJson('/api/bootstrap')->assertOk(); // l'application s'ouvre, la bannière de mise à jour s'affiche
+        $this->api($token)->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->assertStatus(409)->assertJsonPath('code', 'database_outdated');
+
+        // « Mettre à jour la base de données » : la double authentification redevient obligatoire et fonctionne
+        $this->api($token)->postJson('/api/admin/system/update')->assertOk();
+        $ready->setValue(null, null);
+        $this->api($token)->getJson('/api/bootstrap')->assertStatus(403);
+        $this->api($token)->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->assertOk()->assertJsonStructure(['secret', 'uri']);
+    }
 }

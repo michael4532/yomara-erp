@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.47 — double authentification : plus de blocage si la base n'est pas à jour
+
+- Correctif : après le dépôt des fichiers d'une nouvelle version sans mise à jour de la base, l'activation obligatoire de la double authentification renvoyait « Server Error » et empêchait d'atteindre le bouton « Mettre à jour la base ». Tant que la base n'est pas à jour, l'obligation est suspendue (l'application s'ouvre et propose la mise à jour) ; l'écran d'activation explique la situation et propose « Mettre à jour la base de données » en un clic.
+- Vérifié sur MariaDB (comme en production) en plus des tests habituels.
+
 ## 0.99.46 — correctifs : double authentification, réponses dans la conversation, mode sombre
 
 - Double authentification : « Activation expirée » à la saisie du code corrigé. L'activation en cours et les codes de connexion sont conservés en base de données (chiffrés) et non plus dans le cache du serveur, qui peut être vidé ou isolé sur un hébergement mutualisé.

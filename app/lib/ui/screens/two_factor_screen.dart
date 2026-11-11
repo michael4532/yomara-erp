@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/api_client.dart';
 import '../../core/json.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
@@ -241,6 +242,9 @@ class _TwoFactorWizardState extends State<TwoFactorWizard> {
   bool _noted = false;
   String? _error;
 
+  /// Base du serveur pas encore mise à jour : bouton pour la mettre à jour (super administrateur).
+  bool _dbOutdated = false;
+
   Session get _session => context.read<Session>();
 
   Future<void> _run(Future<void> Function() f) async {
@@ -251,7 +255,12 @@ class _TwoFactorWizardState extends State<TwoFactorWizard> {
     try {
       await f();
     } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
+      if (mounted) {
+        setState(() {
+          _error = errorText(e);
+          _dbOutdated = e is ApiException && e.code == 'database_outdated';
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -273,7 +282,26 @@ class _TwoFactorWizardState extends State<TwoFactorWizard> {
     final hint = Theme.of(context).hintColor;
     Widget error() => _error == null
         ? const SizedBox.shrink()
-        : Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: YColors.danger)));
+        : Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_error!, style: const TextStyle(color: YColors.danger)),
+              if (_dbOutdated) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() async {
+                            await _session.api.post('admin/system/update');
+                            if (mounted) setState(() => _dbOutdated = false);
+                            if (mounted) toast(this.context, tr('Base de données mise à jour : touchez « Continuer ».'));
+                          }),
+                  icon: const Icon(Icons.storage_rounded, size: 18),
+                  label: Text(tr('Mettre à jour la base de données')),
+                ),
+              ],
+            ]),
+          );
 
     // 3. Codes de secours
     if (_codes != null) {

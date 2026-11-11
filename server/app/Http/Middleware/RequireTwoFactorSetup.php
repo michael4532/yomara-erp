@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
  */
 class RequireTwoFactorSetup
 {
-    protected const OPEN = ['api/auth/me', 'api/auth/logout', 'api/auth/password', 'api/auth/2fa', 'api/auth/2fa/*', 'api/me/push-token'];
+    protected const OPEN = ['api/auth/me', 'api/auth/logout', 'api/auth/password', 'api/auth/2fa', 'api/auth/2fa/*', 'api/me/push-token', 'api/admin/system/update'];
 
     public function handle(Request $request, Closure $next)
     {
