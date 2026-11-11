@@ -203,7 +203,7 @@ class _FundListState extends State<_FundList> {
     final statuses = asMap(widget.meta['statuses']);
     final kinds = <String, String>{
       for (final r in rows)
-        for (final k in ((r['kinds'] as List?) ?? const [])) '$k': '${types[k] is Map ? (types[k] as Map)['label'] ?? k : types[k] ?? k}',
+        for (final k in ((r['kinds'] as List?) ?? const [])) '$k': '${types[k] is Map ? asMap(types[k])['label'] ?? k : types[k] ?? k}',
     };
     return RefreshIndicator(
       onRefresh: _load,

@@ -179,7 +179,7 @@ class _BackupsScreenState extends State<BackupsScreen> {
     final d = _d;
     if (d == null) return _error != null ? Center(child: Text(tr(errorText(_error!)))) : const Center(child: CircularProgressIndicator());
     final s = asMap(d['settings']);
-    final last = d['last'] as Map?;
+    final last = asMapOrNull(d['last']);
     final dest = asMap(d['destinations']);
     final list = [for (final x in (d['backups'] as List)) asMap(x)];
     final hint = Theme.of(context).hintColor;

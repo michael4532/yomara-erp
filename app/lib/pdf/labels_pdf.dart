@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../i18n/i18n.dart';
+import '../core/json.dart';
 
 /// Format d'étiquettes (dimensions en millimètres).
 class LabelFormat {
@@ -168,7 +169,7 @@ Future<List<int>> labelsPdf({required LabelFormat format, required List<LabelDat
   return (
     pad: (h * 0.06).clamp(1.0, 3.0).toDouble(),
     name: (h * 0.095).clamp(1.8, 6.0).toDouble(),
-    price: (f.style == 'shelf' ? h * 0.27 : h * 0.16).clamp(2.2, w * 0.16).toDouble(),
+    price: clampSize(f.style == 'shelf' ? h * 0.27 : h * 0.16, 2.2, w * 0.16),
     small: (h * 0.065).clamp(1.5, 3.2).toDouble(),
     barcode: (h * (f.style == 'barcode' ? 0.55 : (f.style == 'shelf' ? 0.2 : 0.3))).clamp(4.0, 30.0).toDouble(),
   );

@@ -13,6 +13,7 @@ import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/pdf_viewer.dart';
+import '../../core/json.dart';
 
 const _finalActions = {'destroy': 'Élimination', 'keep': 'Conservation définitive', 'review': 'Tri (à examiner)'};
 const _levels = {'public': 'Public', 'internal': 'Interne', 'confidential': 'Confidentiel', 'secret': 'Secret'};
@@ -427,7 +428,7 @@ class _ArchivesScreenState extends State<ArchivesScreen> with SingleTickerProvid
     String level = '${s?['confidentiality'] ?? 'internal'}';
     int? parent = s?['parent_id'] as int?;
     final sources = <String>{...((s?['sources'] as List?) ?? const []).map((e) => '$e')};
-    final allSources = Map<String, dynamic>.from(_dash?['sources'] as Map? ?? const {});
+    final allSources = asMap(_dash?['sources']);
     await showFormDialog(
       context,
       title: s == null ? 'Nouvelle série' : 'Série ${s['code']}',
@@ -682,7 +683,7 @@ class _RecordSheetState extends State<_RecordSheet> {
           subtitle: Text(tr(v == null || v.isEmpty ? '—' : v), style: const TextStyle(fontSize: 14)),
           trailing: field != null && widget.manage && !disposed ? IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: () => _editText(field, k)) : null,
         );
-    final snapshot = x['snapshot'] as Map?;
+    final snapshot = asMapOrNull(x['snapshot']);
     return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 0, 24, 24), children: [
       Text(tr('${x['title']}'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       const SizedBox(height: 6),

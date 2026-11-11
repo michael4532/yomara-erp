@@ -139,7 +139,7 @@ class _SupportPanelState extends State<_SupportPanel> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final narrow = size.width < 600;
-    final cats = Map<String, dynamic>.from(widget.status['categories'] as Map? ?? const {});
+    final cats = asMap(widget.status['categories']);
     Widget body;
     if (_new) {
       body = _NewConversation(

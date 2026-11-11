@@ -189,7 +189,7 @@ class CommercialHooks
             'today' => (clone $visits)->whereBetween('planned_at', [now()->startOfDay(), now()->endOfDay()])->orderBy('planned_at')->get(['id', 'title', 'partner_id', 'prospect', 'planned_at', 'status', 'user_id', 'address'])
                 ->map(fn ($v) => (array) $v + ['client' => $v->prospect ?: DB::table('partners')->where('id', $v->partner_id)->value('name'), 'seller' => DB::table('users')->where('id', $v->user_id)->value('name')])->values(),
             'reports_due' => (clone $visits)->where('status', 'planned')->where('planned_at', '<', now()->subHours(2))->count(),
-            'outcomes' => (clone $visits)->where('status', 'done')->whereBetween('planned_at', [$from, $to.' 23:59:59'])->whereNotNull('outcome')->groupBy('outcome')->select('outcome', DB::raw('COUNT(*) as n'))->pluck('n', 'outcome'),
+            'outcomes' => (object) (clone $visits)->where('status', 'done')->whereBetween('planned_at', [$from, $to.' 23:59:59'])->whereNotNull('outcome')->groupBy('outcome')->select('outcome', DB::raw('COUNT(*) as n'))->pluck('n', 'outcome')->all(),
         ];
     }
 

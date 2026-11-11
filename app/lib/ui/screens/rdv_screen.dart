@@ -344,7 +344,7 @@ class _OffHoursPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()..color = shade;
-    final ranges = ((staff['schedule'] as Map?)?['${date.weekday}'] as List? ?? const [])
+    final ranges = (asMap(staff['schedule'])['${date.weekday}'] as List? ?? const [])
         .map((r) => (r as List).map((t) => '$t'.split(':')).map((x) => int.parse(x[0]) * 60 + int.parse(x[1])).toList())
         .toList()
       ..sort((a, b) => a[0].compareTo(b[0]));
@@ -1082,7 +1082,7 @@ class _StaffTab extends StatelessWidget {
   }
 
   String _scheduleSummary(Map<String, dynamic> st) {
-    final sch = (st['schedule'] as Map?) ?? const {};
+    final sch = asMap(st['schedule']);
     final parts = <String>[];
     for (var d = 1; d <= 7; d++) {
       final r = (sch['$d'] as List? ?? const []);

@@ -907,12 +907,12 @@ class _SiteEditorState extends State<SiteEditor> {
   late String _hero = '${s['theme']['hero']}', _hf = '${s['theme']['heading_font']}', _bf = '${s['theme']['body_font']}';
   late final _t = {
     for (final k in ['hero_title', 'hero_subtitle', 'cta_label', 'about_title', 'about_text', 'services_title', 'hours', 'announcement', 'whatsapp', 'address'])
-      k: TextEditingController(text: '${(s['overrides']['content'] as Map?)?[k] ?? (['hours', 'announcement', 'whatsapp', 'address'].contains(k) ? '' : c[k] ?? '')}'),
+      k: TextEditingController(text: '${asMap(s['overrides']['content'])[k] ?? (['hours', 'announcement', 'whatsapp', 'address'].contains(k) ? '' : c[k] ?? '')}'),
     'name': TextEditingController(text: '${s['name']}'),
     'seo_title': TextEditingController(text: '${s['seo']?['title'] ?? ''}'),
     'seo_description': TextEditingController(text: '${s['seo']?['description'] ?? ''}'),
-    for (final k in const ['meta_pixel', 'ga4', 'gtm', 'tiktok_pixel', 'google_ads', 'gsc']) 'tk_$k': TextEditingController(text: '${(s['seo']?['tracking'] as Map?)?[k] ?? ''}'),
-    for (final k in ['facebook', 'instagram', 'linkedin', 'tiktok', 'youtube']) 'so_$k': TextEditingController(text: '${(c['socials'] as Map?)?[k] ?? ''}'),
+    for (final k in const ['meta_pixel', 'ga4', 'gtm', 'tiktok_pixel', 'google_ads', 'gsc']) 'tk_$k': TextEditingController(text: '${asMap(s['seo']?['tracking'])[k] ?? ''}'),
+    for (final k in ['facebook', 'instagram', 'linkedin', 'tiktok', 'youtube']) 'so_$k': TextEditingController(text: '${asMap(c['socials'])[k] ?? ''}'),
   };
   late String _cta = '${c['cta_target'] ?? 'contact'}';
   late final List<Map<String, String>> _services = _rows(c['services'], ['icon', 'title', 'text']);

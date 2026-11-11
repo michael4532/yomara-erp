@@ -80,7 +80,7 @@ class _MomoTabState extends State<MomoTab> {
                       if (a['url'] != null && !await confirm(ctx, tr('Changer l\'adresse ?'), tr('L\'ancienne adresse ne fonctionnera plus : mettez à jour l\'application du téléphone.'))) return;
                       try {
                         final r = await api.post('tresorerie/accounts/${a['id']}/momo-token', {'renew': a['url'] != null});
-                        set(() => a['url'] = (r['data'] as Map)['url']);
+                        set(() => a['url'] = asMap(r['data'])['url']);
                         _load();
                       } catch (e) {
                         if (ctx.mounted) toast(ctx, errorText(e), error: true);
@@ -148,7 +148,7 @@ class _MomoTabState extends State<MomoTab> {
                   final r = await api.post('tresorerie/momo', {'account_id': account, 'text': text.text});
                   if (!ctx.mounted || !mounted) return;
                   Navigator.pop(ctx);
-                  final st = '${(r['data'] as Map)['status']}';
+                  final st = '${asMap(r['data'])['status']}';
                   toast(context, st == 'matched' ? 'Encaissement rapproché automatiquement.' : 'SMS enregistré : ${_momoStatus[st] ?? st}.');
                   _load();
                 } catch (e) {

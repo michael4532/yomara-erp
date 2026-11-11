@@ -86,7 +86,7 @@ class _WoocommerceScreenState extends State<WoocommerceScreen> {
     try {
       final r = await api.postLong('${_Pf.key}/stores/$_sel/sync', {'what': what});
       final d = asMap(r['data']);
-      final p = d['products'] as Map?;
+      final p = asMapOrNull(d['products']);
       if (mounted) {
         toast(
           context,
@@ -600,7 +600,7 @@ class _ProductsTabState extends State<_ProductsTab> {
         if (all) 'all_active': true,
         'category_id': ?category,
       });
-      final p = r['push'] as Map?;
+      final p = asMapOrNull(r['push']);
       if (mounted) {
         toast(
           context,

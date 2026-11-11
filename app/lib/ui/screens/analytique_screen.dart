@@ -945,7 +945,7 @@ class _BudgetDetailState extends State<BudgetDetail> {
     final prefix = TextEditingController(text: '${l['account_prefix'] ?? ''}');
     final label = TextEditingController(text: '${l['label'] ?? ''}');
     final total = TextEditingController();
-    final perMonth = {for (final m in months) m: TextEditingController(text: number(toDouble((l['amounts'] as Map?)?[m]), decimals: 0).replaceAll(RegExp(r'\s'), ''))};
+    final perMonth = {for (final m in months) m: TextEditingController(text: number(toDouble(asMap(l['amounts'])[m]), decimals: 0).replaceAll(RegExp(r'\s'), ''))};
     var monthly = index != null && (perMonth.values.map((c) => c.text).toSet().length > 2);
     final sections = [
       for (final a in anAxes())

@@ -7,6 +7,7 @@ import 'motion.dart';
 
 export 'motion.dart';
 import '../../i18n/i18n.dart';
+import '../../core/json.dart';
 
 // ---------------------------------------------------------------------------
 // Formats
@@ -411,7 +412,7 @@ class StatStrip extends StatelessWidget {
               ]),
             );
           }
-          final fit = ((c.maxWidth + 12) / 222).floor().clamp(1, tiles.length);
+          final fit = clampCount(((c.maxWidth + 12) / 222).floor(), 1, tiles.length);
           final cols = fit >= tiles.length ? tiles.length : (fit >= 2 && tiles.length == 4 ? 2 : fit);
           final w = (c.maxWidth - (cols - 1) * 12) / cols;
           return Wrap(spacing: 12, runSpacing: 12, children: [for (final t in tiles) SizedBox(width: w, child: t)]);
@@ -447,7 +448,7 @@ class KpiWrap extends StatelessWidget {
             ),
           );
         }
-        var cols = ((c.maxWidth + spacing) / (minTile + spacing)).floor().clamp(1, n);
+        var cols = clampCount(((c.maxWidth + spacing) / (minTile + spacing)).floor(), 1, n);
         if (cols < n && n == 4 && cols == 3) cols = 2; // 2 × 2 plutôt que 3 + 1
         if (cols < n && cols > 1 && n % cols != 0 && (n / ((n / cols).ceil())).ceil() < cols) cols = (n / ((n / cols).ceil())).ceil(); // lignes équilibrées
         final w = ((c.maxWidth - (cols - 1) * spacing) / cols).floorToDouble();

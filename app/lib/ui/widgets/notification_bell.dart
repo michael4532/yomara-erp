@@ -18,6 +18,7 @@ import 'announcement_dialog.dart';
 import 'common.dart';
 import 'mail_alerts.dart';
 import '../../i18n/i18n.dart';
+import '../../core/json.dart';
 
 /// Cloche des notifications (tickets, rapports, commandes…), rafraîchie chaque minute.
 class NotificationBell extends StatefulWidget {
@@ -92,7 +93,7 @@ class _NotificationBellState extends State<NotificationBell> {
     );
     if (picked == null || !mounted) return;
     if (picked['__mail'] != null) {
-      final m = Map<String, dynamic>.from(picked['__mail'] as Map);
+      final m = asMap(picked['__mail']);
       final open = MailAlerts.opener;
       if (open != null) {
         open(m);

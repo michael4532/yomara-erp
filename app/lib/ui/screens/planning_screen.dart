@@ -120,11 +120,11 @@ class _PlanningScreenState extends State<PlanningScreen> {
     final out = <PlPerson>[];
     for (final u in users) {
       final p = PlPerson(u.id, u.name);
-      final sd = server[u.id]?['days'] as Map?;
+      final sd = asMapOrNull(server[u.id]?['days']);
       for (var i = 0; i < _weeks * 7; i++) {
         final day = _from.add(Duration(days: i));
         final k = _iso(day);
-        final s = sd?[k] as Map?;
+        final s = asMapOrNull(sd?[k]);
         final cap = s != null ? toDouble(s['capacity']) : (day.weekday <= 5 ? 8.0 : 0.0);
         var planned = 0.0;
         if (cap > 0) {

@@ -189,7 +189,7 @@ class _HebergementScreenState extends State<HebergementScreen> {
   }
 
   Widget _renewalCell(Map<String, dynamic> s, String cur) {
-    final p = s['pending'] as Map?;
+    final p = asMapOrNull(s['pending']);
     if (s['provider_todo'] != null) return StatusChip(tr('Payé : à renouveler chez le fournisseur'), color: YColors.blue, icon: Icons.published_with_changes);
     if (p != null) return StatusChip('${p['number'] ?? 'Facture'} ${p['payment_status'] == 'partial' ? 'en partie payée' : 'à encaisser'}', color: YColors.danger, icon: Icons.receipt_long_outlined);
     if (s['auto_renew'] == false) return Text(tr('Manuel'));
@@ -270,7 +270,7 @@ class _ServiceSheetState extends State<_ServiceSheet> {
     try {
       await sync.sync();
       final r = await fn();
-      if (r is Map && r['data'] is Map && (r['data'] as Map)['partner_id'] != null) await LocalDb.put('hb_services', asMap(r['data']));
+      if (r is Map && r['data'] is Map && asMap(r['data'])['partner_id'] != null) await LocalDb.put('hb_services', asMap(r['data']));
       if (r is Map && r['services'] is List) {
         await LocalDb.putMany('hb_services', [for (final x in (r['services'] as List)) asMap(x)]);
       }
@@ -294,8 +294,8 @@ class _ServiceSheetState extends State<_ServiceSheet> {
         final s = LocalDb.get('hb_services', widget.id);
         if (s == null) return Padding(padding: EdgeInsets.all(24), child: Text(tr('Service introuvable.')));
         final hint = Theme.of(context).hintColor;
-        final p = s['pending'] as Map?;
-        final todo = s['provider_todo'] as Map?;
+        final p = asMapOrNull(s['pending']);
+        final todo = asMapOrNull(s['provider_todo']);
         Widget row(String l, String v) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [SizedBox(width: 150, child: Text(tr(l), style: TextStyle(color: hint))), Expanded(child: Text(tr(v), style: const TextStyle(fontWeight: FontWeight.w600)))]),

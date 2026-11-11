@@ -16,6 +16,7 @@ import '../widgets/common.dart';
 import 'social_inbox.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import '../../core/json.dart';
 // ---------------------------------------------------------------------------
 // Réseaux : pictogramme, couleur, comptage des caractères (mêmes règles que le serveur)
 // ---------------------------------------------------------------------------
@@ -137,7 +138,7 @@ class _SocialScreenState extends State<SocialScreen> {
 
   List<Map<String, dynamic>> get _networks => [for (final n in (_ov?['networks'] as List? ?? const [])) Map<String, dynamic>.from(n as Map)];
   List<Map<String, dynamic>> get _accounts => [for (final a in (_ov?['accounts'] as List? ?? const [])) Map<String, dynamic>.from(a as Map)];
-  Map<String, dynamic> get _can => Map<String, dynamic>.from(_ov?['can'] as Map? ?? const {});
+  Map<String, dynamic> get _can => asMap(_ov?['can']);
 
   Future<void> _compose([Map<String, dynamic>? post, DateTime? at]) async {
     if (_ov == null) return;
@@ -1117,7 +1118,7 @@ class _PostPreviewState extends State<_PostPreview> {
     final tg = targets.isEmpty ? null : targets[_i.clamp(0, targets.length - 1)];
     final net = '${tg?['network'] ?? ''}';
     final accent = _hex(widget.networks.firstWhere((x) => x['key'] == net, orElse: () => const {})['color']);
-    final variants = p['variants'] is Map ? Map<String, dynamic>.from(p['variants'] as Map) : const <String, dynamic>{};
+    final variants = p['variants'] is Map ? asMap(p['variants']) : const <String, dynamic>{};
     final v = variants[net];
     final text = '${(v is Map ? v['text'] : v) ?? p['body'] ?? ''}';
     final title = '${p['title'] ?? ''}'.trim();
@@ -1452,9 +1453,9 @@ class _PostSheetState extends State<_PostSheet> {
                 ? [
                     tr('Publiée'),
                     if (t['stats'] is Map) ...[
-                      if ((t['stats'] as Map)['likes'] != null) '${t['stats']['likes']} ${tr('J\'aime')}',
-                      if ((t['stats'] as Map)['comments'] != null) '${t['stats']['comments']} ${tr('commentaires')}',
-                      if ((t['stats'] as Map)['views'] != null) '${t['stats']['views']} ${tr('vues')}',
+                      if (asMap(t['stats'])['likes'] != null) '${t['stats']['likes']} ${tr('J\'aime')}',
+                      if (asMap(t['stats'])['comments'] != null) '${t['stats']['comments']} ${tr('commentaires')}',
+                      if (asMap(t['stats'])['views'] != null) '${t['stats']['views']} ${tr('vues')}',
                     ],
                   ].join(' · ')
                 : '${t['network_label']}',
@@ -1567,13 +1568,13 @@ class _SocialComposerState extends State<SocialComposer> {
   late final _title = TextEditingController(text: '${widget.post?['title'] ?? ''}');
   late final _link = TextEditingController(text: '${widget.post?['link_url'] ?? ''}');
   late final _campaign = TextEditingController(text: '${widget.post?['campaign'] ?? ''}');
-  late final _comment = TextEditingController(text: '${(widget.post?['options'] as Map?)?['first_comment'] ?? ''}');
+  late final _comment = TextEditingController(text: '${asMap(widget.post?['options'])['first_comment'] ?? ''}');
   final Map<String, TextEditingController> _variants = {};
   late final Set<int> _selected = {for (final t in (widget.post?['targets'] as List? ?? const [])) ((t as Map)['account_id'] as num).toInt()};
   late final List<Map<String, dynamic>> _media = [for (final m in (widget.post?['media'] as List? ?? const [])) Map<String, dynamic>.from(m as Map)];
   late DateTime? _at = _dt(widget.post?['scheduled_at']) ?? widget.initialDate;
-  late String _tiktok = '${(widget.post?['options'] as Map?)?['tiktok_privacy'] ?? 'PUBLIC_TO_EVERYONE'}';
-  late String _youtube = '${(widget.post?['options'] as Map?)?['youtube_privacy'] ?? 'public'}';
+  late String _tiktok = '${asMap(widget.post?['options'])['tiktok_privacy'] ?? 'PUBLIC_TO_EVERYONE'}';
+  late String _youtube = '${asMap(widget.post?['options'])['youtube_privacy'] ?? 'public'}';
   bool _busy = false;
   bool _uploading = false;
   String? _assist;
@@ -1661,7 +1662,7 @@ class _SocialComposerState extends State<SocialComposer> {
         'link': _link.text.trim().isEmpty ? null : _link.text.trim(),
         'with_media': _media.isNotEmpty,
       });
-      final v = Map<String, dynamic>.from(r['variants'] as Map);
+      final v = asMap(r['variants']);
       if (!mounted) return;
       setState(() {
         for (final e in v.entries) {
@@ -3392,7 +3393,7 @@ class _StatsTabState extends State<_StatsTab> {
   Widget build(BuildContext context) {
     final d = _d;
     if (d == null) return const Center(child: CircularProgressIndicator());
-    final t = Map<String, dynamic>.from(d['totals'] as Map);
+    final t = asMap(d['totals']);
     final nets = [for (final n in (d['networks'] as List)) Map<String, dynamic>.from(n as Map)];
     final maxEng = nets.fold<num>(1, (m, n) => (n['engagement'] as num) > m ? n['engagement'] as num : m);
     final theme = Theme.of(context);

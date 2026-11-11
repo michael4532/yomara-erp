@@ -50,7 +50,7 @@ class MomoController extends Controller
         $rows = $q->limit(200)->get();
 
         return ['data' => $rows->map(fn ($m) => $this->svc->toArray($m, true))->values(),
-            'counts' => MomoMessage::selectRaw('status, count(*) n')->groupBy('status')->pluck('n', 'status'),
+            'counts' => (object) MomoMessage::selectRaw('status, count(*) n')->groupBy('status')->pluck('n', 'status')->all(),
             'accounts' => TreasuryAccount::where('kind', 'mobile_money')->orderBy('name')->get()->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'url' => $this->svc->url($a)])];
     }
 

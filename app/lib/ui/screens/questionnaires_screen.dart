@@ -291,7 +291,7 @@ class _ResultsState extends State<_Results> {
                 Wrap(spacing: 10, runSpacing: 8, children: [
                   StatusChip(tr('${d['responses']} réponse(s)'), color: YColors.blue),
                   if (d['satisfaction'] != null) StatusChip(tr('${d['satisfaction']} % satisfaits'), color: YColors.success),
-                  if ((d['moods'] as Map)['unhappy'] != 0) StatusChip(tr('${(d['moods'] as Map)['unhappy']} mécontent(s)'), color: YColors.danger),
+                  if (asMap(d['moods'])['unhappy'] != 0) StatusChip(tr('${asMap(d['moods'])['unhappy']} mécontent(s)'), color: YColors.danger),
                 ]),
                 const SizedBox(height: 12),
                 for (final q in [for (final x in d['questions'] as List) asMap(x)])

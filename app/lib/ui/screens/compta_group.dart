@@ -205,8 +205,8 @@ class _GroupTabState extends State<_GroupTab> {
     final g = _g!;
     final hint = Theme.of(context).hintColor;
     final members = List<Map>.from(g['members'] as List);
-    final parent = g['parent'] as Map?;
-    final link = g['link_code'] as Map?;
+    final parent = asMapOrNull(g['parent']);
+    final link = asMapOrNull(g['link_code']);
     final pad = MediaQuery.of(context).size.width < 700 ? 16.0 : 24.0;
     final api = context.read<Session>().api;
 
@@ -660,7 +660,7 @@ class _GroupTabState extends State<_GroupTab> {
           icon: const Icon(Icons.grid_on_outlined, size: 18),
           label: Text(tr('Excel')),
         ),
-        if (s['frozen'] != null) StatusChip(tr('Arrêtés le ${dateFr('${(s['frozen'] as Map)['at']}'.substring(0, 10))}'), color: YColors.success),
+        if (s['frozen'] != null) StatusChip(tr('Arrêtés le ${dateFr('${asMap(s['frozen'])['at']}'.substring(0, 10))}'), color: YColors.success),
         if (widget.manage && s['frozen'] == null)
           FilledButton.icon(
             onPressed: _busy
@@ -782,7 +782,7 @@ class _GroupTabState extends State<_GroupTab> {
           headers: const ['Réf.', 'Flux de trésorerie consolidés', 'Montant'],
           flex: const [1, 8, 3],
           rows: [
-            for (final x in List<Map>.from((s['cashflow'] as Map)['rows'] as List))
+            for (final x in List<Map>.from(asMap(s['cashflow'])['rows'] as List))
               (ref: '${x['ref']}', label: '${x['label']}', values: [x['amount'] == null ? '' : _m(c, x['amount'])], total: x['total'] == true),
           ],
         ),
@@ -793,7 +793,7 @@ class _GroupTabState extends State<_GroupTab> {
             headers: const ['', 'Variation des capitaux propres', 'Capital', 'Réserves', 'Conversion', 'Part du groupe', 'Minoritaires', 'Total'],
             flex: const [1, 7, 3, 3, 3, 3, 3, 3],
             rows: [
-              for (final x in List<Map>.from((s['equity_changes'] as Map)['rows'] as List))
+              for (final x in List<Map>.from(asMap(s['equity_changes'])['rows'] as List))
                 (ref: '', label: '${x['label']}', values: [for (final k in ['capital', 'reserves', 'translation', 'group', 'minority', 'total']) _m(c, x[k])], total: x['is_total'] == true),
             ],
           );

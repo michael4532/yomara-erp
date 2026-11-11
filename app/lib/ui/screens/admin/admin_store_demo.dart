@@ -6,6 +6,7 @@ import '../../../i18n/i18n.dart';
 import '../../../state/session.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../../core/json.dart';
 
 /// Compte de démonstration pour la relecture App Store / Google Play :
 /// création, identifiants à recopier, nouveau mot de passe (réactive le compte), désactivation.
@@ -46,7 +47,7 @@ class _StoreDemoDialogState extends State<_StoreDemoDialog> {
     setState(() => (_busy = true, _error = null));
     try {
       final r = await call();
-      final d = Map<String, dynamic>.from(r['data'] as Map);
+      final d = asMap(r['data']);
       if (!mounted) return;
       setState(() {
         _d = d;

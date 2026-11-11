@@ -991,7 +991,7 @@ class _StatementMappingDialog extends StatefulWidget {
 
 class _StatementMappingDialogState extends State<_StatementMappingDialog> {
   late final Map<String, int?> _m = {
-    for (final f in ['date', 'label', 'debit', 'credit', 'amount', 'balance', 'reference']) f: ((widget.analysis['mapping'] as Map?)?[f] as num?)?.toInt(),
+    for (final f in ['date', 'label', 'debit', 'credit', 'amount', 'balance', 'reference']) f: (asMap(widget.analysis['mapping'])[f] as num?)?.toInt(),
   };
   bool _invert = false;
 
@@ -1107,7 +1107,7 @@ class _ForecastTabState extends State<_ForecastTab> {
   }
 
   List<Map<String, dynamic>> _weeks() {
-    final src = _scenario == 'realistic' ? _d!['weeks'] : (_d!['scenario_weeks'] as Map?)?[_scenario] ?? _d!['weeks'];
+    final src = _scenario == 'realistic' ? _d!['weeks'] : asMap(_d!['scenario_weeks'])[_scenario] ?? _d!['weeks'];
     return [for (final w in (src as List)) asMap(w)];
   }
 
@@ -1255,18 +1255,18 @@ class _ForecastTabState extends State<_ForecastTab> {
     final cur = context.read<Session>().currency;
     final hint = Theme.of(context).hintColor;
     final weeks = _weeks();
-    final sc = Map<String, dynamic>.from((_d!['scenarios'] as Map?)?[_scenario] as Map? ?? {'lowest': _d!['lowest'], 'end': weeks.last['balance'], 'first_below': _d!['first_below']});
+    final sc = Map<String, dynamic>.from(asMap(_d!['scenarios'])[_scenario] as Map? ?? {'lowest': _d!['lowest'], 'end': weeks.last['balance'], 'first_below': _d!['first_below']});
     final threshold = toDouble(_d!['threshold']);
     final lowest = toDouble(sc['lowest']);
     final manage = context.read<Session>().can('tresorerie.manage');
     final n = weeks.length;
-    final cats = Map<String, String>.from((_d!['categories'] as Map?) ?? const {});
+    final cats = Map<String, String>.from(asMap(_d!['categories']));
     final lines = {
-      for (final e in ((_d!['scenarios'] as Map?) ?? const {}).entries) '${e.key}': [for (final v in ((e.value as Map)['balances'] as List)) toDouble(v)],
+      for (final e in asMap(_d!['scenarios']).entries) e.key: [for (final v in ((e.value as Map)['balances'] as List)) toDouble(v)],
     };
     final sel = _week == null || _week! >= n ? null : weeks[_week!];
     final usedCats = cats.keys.where((k) => weeks.any((w) => toDouble(_cm(w['categories'])[k]) != 0)).toList();
-    final delays = _d!['customer_delays'] as Map?;
+    final delays = asMapOrNull(_d!['customer_delays']);
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.all(16), children: [

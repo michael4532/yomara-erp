@@ -1020,7 +1020,7 @@ Future<bool> agReschedule(BuildContext context, AgItem it, DateTime start, DateT
       'id': e['id'],
       'starts_at': _sql(start),
       'ends_at': _sql(end),
-      if (e['yomeet'] is Map) 'yomeet': {'enabled': (e['yomeet'] as Map)['enabled'] == true},
+      if (e['yomeet'] is Map) 'yomeet': {'enabled': asMap(e['yomeet'])['enabled'] == true},
     });
     return true;
   } catch (err) {
@@ -1578,13 +1578,13 @@ class _EventFormState extends State<_EventForm> {
         for (final k in ['name', 'email', 'phone']) k: TextEditingController(text: '${(g as Map)[k] ?? ''}'),
       },
   ];
-  late String _freq = e?['recurrence'] is Map ? '${(e!['recurrence'] as Map)['freq']}' : 'none';
-  late int _interval = e?['recurrence'] is Map ? ((e!['recurrence'] as Map)['interval'] as num?)?.toInt() ?? 1 : 1;
-  late final Set<int> _byday = {...(e?['recurrence'] is Map ? (((e!['recurrence'] as Map)['byday'] as List?) ?? []) : []).map((x) => (x as num).toInt())};
-  late DateTime? _until = e?['recurrence'] is Map ? DateTime.tryParse('${(e!['recurrence'] as Map)['until'] ?? ''}') : null;
+  late String _freq = e?['recurrence'] is Map ? '${asMap(e!['recurrence'])['freq']}' : 'none';
+  late int _interval = e?['recurrence'] is Map ? (asMap(e!['recurrence'])['interval'] as num?)?.toInt() ?? 1 : 1;
+  late final Set<int> _byday = {...(e?['recurrence'] is Map ? ((asMap(e!['recurrence'])['byday'] as List?) ?? []) : []).map((x) => (x as num).toInt())};
+  late DateTime? _until = e?['recurrence'] is Map ? DateTime.tryParse('${asMap(e!['recurrence'])['until'] ?? ''}') : null;
   bool _notifyGuests = true;
   // Visio : aucune, Yomeet (intégrée à l'ERP), Teams, Meet ou autre lien
-  late final Map<String, dynamic> _yomeet = e?['yomeet'] is Map ? Map<String, dynamic>.from(e!['yomeet'] as Map) : <String, dynamic>{};
+  late final Map<String, dynamic> _yomeet = e?['yomeet'] is Map ? asMap(e!['yomeet']) : <String, dynamic>{};
   late String _video = _yomeet['enabled'] == true
       ? 'yomeet'
       : switch ('${e?['online_link'] ?? ''}') {

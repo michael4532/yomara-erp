@@ -168,7 +168,7 @@ class _DashboardState extends State<_Dashboard> with _Loader {
   Future<void> _remind(Map<String, dynamic> o) async {
     try {
       await session.api.post('immobilier/leases/${o['lease_id']}/remind');
-      if (mounted) toast(context, tr('Relance envoyée à ${(o['tenant'] as Map?)?['name']}.'));
+      if (mounted) toast(context, tr('Relance envoyée à ${asMap(o['tenant'])['name']}.'));
       load();
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -232,7 +232,7 @@ class _DashboardState extends State<_Dashboard> with _Loader {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(backgroundColor: YColors.danger.withValues(alpha: .12), child: const Icon(Icons.person_outline, color: YColors.danger)),
-                      title: Text(tr('${(o['tenant'] as Map?)?['name'] ?? '—'}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      title: Text(tr('${asMap(o['tenant'])['name'] ?? '—'}'), style: const TextStyle(fontWeight: FontWeight.w700)),
                       subtitle: Text(tr('${o['property']} — ${o['unit']} · ${o['count']} loyer(s) · retard ${o['days_late']} j')),
                       trailing: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 4, children: [
                         Text(tr(money(toDouble(o['balance']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: YColors.danger)),
@@ -252,7 +252,7 @@ class _DashboardState extends State<_Dashboard> with _Loader {
                   title: tr('Baux qui se terminent (60 jours)'),
                   child: Column(children: [
                     for (final l in ending)
-                      ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(tr('${l['property_name']} — ${l['unit_reference']}')), subtitle: Text(tr('${(l['tenant'] as Map?)?['name']} · ${l['number']}')), trailing: Text(tr(dateFr(l['end_date'])))),
+                      ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(tr('${l['property_name']} — ${l['unit_reference']}')), subtitle: Text(tr('${asMap(l['tenant'])['name']} · ${l['number']}')), trailing: Text(tr(dateFr(l['end_date'])))),
                   ]),
                 ),
               ),
@@ -341,7 +341,7 @@ class _PropertiesState extends State<_Properties> with _Loader {
               SegmentedButton<String>(
                 segments: [
                   ButtonSegment(value: 'own', label: Text(tr('Bien de la société'))),
-                  if (p?['owner_id'] != null) ButtonSegment(value: 'keep', label: Text(tr('${(p!['owner'] as Map?)?['name'] ?? 'Propriétaire'}'))),
+                  if (p?['owner_id'] != null) ButtonSegment(value: 'keep', label: Text(tr('${asMap(p!['owner'])['name'] ?? 'Propriétaire'}'))),
                   ButtonSegment(value: 'new', label: Text(tr('Nouveau propriétaire'))),
                 ],
                 selected: {mode},
@@ -467,9 +467,9 @@ class _PropertiesState extends State<_Properties> with _Loader {
     final cur = context.watch<Session>().currency;
     final hint = Theme.of(context).hintColor;
     List<Map<String, dynamic>> units(Map<String, dynamic> p) => [for (final u in (p['units'] as List? ?? const [])) asMap(u)];
-    String owner(Map<String, dynamic> p) => p['owner'] != null ? '${(p['owner'] as Map)['name']}' : 'Bien de la société';
+    String owner(Map<String, dynamic> p) => p['owner'] != null ? '${asMap(p['owner'])['name']}' : 'Bien de la société';
     final base = allProps
-        .where((p) => _q.isEmpty || '${p['name']} ${p['district'] ?? ''} ${p['city'] ?? ''} ${owner(p)} ${units(p).map((u) => '${u['reference']} ${((u['lease'] as Map?)?['tenant'] as Map?)?['name'] ?? ''}').join(' ')}'.toLowerCase().contains(_q))
+        .where((p) => _q.isEmpty || '${p['name']} ${p['district'] ?? ''} ${p['city'] ?? ''} ${owner(p)} ${units(p).map((u) => '${u['reference']} ${(asMap(u['lease'])['tenant'] as Map?)?['name'] ?? ''}').join(' ')}'.toLowerCase().contains(_q))
         .where((p) => _f['kind'] == null || '${p['kind_label']}' == _f['kind'])
         .where((p) => _f['city'] == null || '${p['city']}' == _f['city'])
         .where((p) => _f['owner'] == null || owner(p) == _f['owner'])
@@ -529,7 +529,7 @@ class _PropertiesState extends State<_Properties> with _Loader {
                         '${p['kind_label']}',
                         if ('${p['district'] ?? ''}'.isNotEmpty) '${p['district']}',
                         if ('${p['city'] ?? ''}'.isNotEmpty) '${p['city']}',
-                        p['owner'] != null ? 'propriétaire : ${(p['owner'] as Map)['name']} · honoraires ${number(toDouble(p['fee_rate']), decimals: 1)} %' : 'bien de la société',
+                        p['owner'] != null ? 'propriétaire : ${asMap(p['owner'])['name']} · honoraires ${number(toDouble(p['fee_rate']), decimals: 1)} %' : 'bien de la société',
                       ].join(' · ')), style: TextStyle(color: hint, fontSize: 12.5)),
                     ]),
                   ),
@@ -551,7 +551,7 @@ class _PropertiesState extends State<_Properties> with _Loader {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
-                            final lease = u['lease'] as Map?;
+                            final lease = asMapOrNull(u['lease']);
                             if (lease != null) {
                               _leaseSheet(context, lease['id'] as int, widget.manage, () { load(); widget.onChanged(); });
                             } else if (widget.manage && u['status'] == 'vacant') {
@@ -571,8 +571,8 @@ class _PropertiesState extends State<_Properties> with _Loader {
                               Text(tr('${u['kind_label']}${u['rooms'] != null ? ' · ${u['rooms']} p.' : ''}${u['surface'] != null ? ' · ${number(toDouble(u['surface']))} m²' : ''}'), style: TextStyle(color: hint, fontSize: 12)),
                               const SizedBox(height: 4),
                               if (u['lease'] != null) ...[
-                                Text(tr('${((u['lease'] as Map)['tenant'] as Map?)?['name'] ?? ''}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                Text(tr('${money(toDouble((u['lease'] as Map)['rent']) + toDouble((u['lease'] as Map)['charges']), cur)} / mois'), style: TextStyle(color: hint, fontSize: 12)),
+                                Text(tr('${(asMap(u['lease'])['tenant'] as Map?)?['name'] ?? ''}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(tr('${money(toDouble(asMap(u['lease'])['rent']) + toDouble(asMap(u['lease'])['charges']), cur)} / mois'), style: TextStyle(color: hint, fontSize: 12)),
                               ] else
                                 Text(tr(u['status'] == 'vacant' ? '${money(toDouble(u['rent']) + toDouble(u['charges']), cur)} / mois · ${widget.manage ? 'toucher pour louer' : 'libre'}' : 'Non proposé à la location'),
                                     style: TextStyle(color: hint, fontSize: 12)),
@@ -867,7 +867,7 @@ class _LeaseDetailState extends State<_LeaseDetail> with _Loader {
         Expanded(child: Text(tr('Bail ${l['number']}'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
         StatusChip(active ? 'En cours' : 'Terminé', color: active ? YColors.success : YColors.muted),
       ]),
-      Text(tr('${l['property_name']} — ${l['unit_reference']} · ${(l['tenant'] as Map?)?['name'] ?? ''}${(l['tenant'] as Map?)?['phone'] != null ? ' · ${(l['tenant'] as Map)['phone']}' : ''}'), style: TextStyle(color: hint)),
+      Text(tr('${l['property_name']} — ${l['unit_reference']} · ${asMap(l['tenant'])['name'] ?? ''}${asMap(l['tenant'])['phone'] != null ? ' · ${asMap(l['tenant'])['phone']}' : ''}'), style: TextStyle(color: hint)),
       const SizedBox(height: 12),
       KpiWrap(children: [
         _kpi(context, 'Loyer + charges / mois', money(toDouble(l['monthly']), cur), sub: '${l['periodicity']} · avant le ${l['due_day']}'),
@@ -932,7 +932,7 @@ class _RentTile extends StatelessWidget {
           content: SizedBox(
             width: 420,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(tr('${(rent['tenant'] as Map?)?['name'] ?? ''} · ${rent['property_name']} — ${rent['unit_reference']} · reste ${money(toDouble(rent['balance']), cur)}')),
+              Text(tr('${asMap(rent['tenant'])['name'] ?? ''} · ${rent['property_name']} — ${rent['unit_reference']} · reste ${money(toDouble(rent['balance']), cur)}')),
               const SizedBox(height: 8),
               TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant reçu'))),
               const SizedBox(height: 8),
@@ -985,7 +985,7 @@ class _RentTile extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr(showTenant ? '${(rent['tenant'] as Map?)?['name'] ?? '—'} · ${rent['property_name']} — ${rent['unit_reference']}' : 'Loyer ${rent['label']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(tr(showTenant ? '${asMap(rent['tenant'])['name'] ?? '—'} · ${rent['property_name']} — ${rent['unit_reference']}' : 'Loyer ${rent['label']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
               Text(tr([
                 if (showTenant) '${rent['label']}',
                 'échéance ${dateFr(rent['due_date'])}',
@@ -1047,7 +1047,7 @@ class _LeasesState extends State<_Leases> with _Loader {
     final all = [for (final l in res!['data'] as List) asMap(l)];
     final cur = context.watch<Session>().currency;
     final hint = Theme.of(context).hintColor;
-    String tenant(Map<String, dynamic> l) => '${(l['tenant'] as Map?)?['name'] ?? ''}';
+    String tenant(Map<String, dynamic> l) => '${asMap(l['tenant'])['name'] ?? ''}';
     final rows = all
         .where((l) => _q.isEmpty || '${tenant(l)} ${l['property_name']} ${l['unit_reference']} ${l['number']}'.toLowerCase().contains(_q))
         .where((l) => _f['property'] == null || '${l['property_name']}' == _f['property'])
@@ -1101,7 +1101,7 @@ class _LeasesState extends State<_Leases> with _Loader {
                 backgroundColor: (toDouble(l['overdue']) > 0 ? YColors.danger : YColors.success).withValues(alpha: .12),
                 child: Icon(Icons.key_outlined, color: toDouble(l['overdue']) > 0 ? YColors.danger : YColors.success),
               ),
-              title: Text(tr('${(l['tenant'] as Map?)?['name'] ?? '—'} · ${l['property_name']} — ${l['unit_reference']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              title: Text(tr('${asMap(l['tenant'])['name'] ?? '—'} · ${l['property_name']} — ${l['unit_reference']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(tr('${l['number']} · depuis le ${dateFr(l['start_date'])} · ${l['periodicity']}${l['end_date'] != null ? ' · fin ${dateFr(l['end_date'])}' : ''}'), style: TextStyle(color: hint)),
               trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(tr('${money(toDouble(l['monthly']), cur)} / mois'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
@@ -1146,7 +1146,7 @@ class _RentsState extends State<_Rents> with _Loader {
     final st = state();
     if (st != null) return st;
     final all = [for (final r in res!['data'] as List) asMap(r)];
-    String tenant(Map<String, dynamic> r) => '${(r['tenant'] as Map?)?['name'] ?? ''}';
+    String tenant(Map<String, dynamic> r) => '${asMap(r['tenant'])['name'] ?? ''}';
     final rows = all
         .where((r) => _q.isEmpty || '${tenant(r)} ${r['property_name']} ${r['unit_reference']} ${r['label']} ${r['invoice_number'] ?? ''}'.toLowerCase().contains(_q))
         .where((r) => _f['property'] == null || '${r['property_name']}' == _f['property'])
@@ -1241,7 +1241,7 @@ class _ExpensesState extends State<_Expenses> with _Loader {
       if (mounted) {
         setState(() => (
               _props = [for (final x in p['data'] as List) asMap(x)],
-              _cats = asMap((p['meta'] as Map)['expense_categories']),
+              _cats = asMap(asMap(p['meta'])['expense_categories']),
             ));
       }
     } catch (_) {}
@@ -1460,11 +1460,11 @@ class _OwnersState extends State<_Owners> with _Loader {
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => YAlertDialog(
-          title: Text(tr('Reversement à ${(s['owner'] as Map)['name']}')),
+          title: Text(tr('Reversement à ${asMap(s['owner'])['name']}')),
           content: SizedBox(
             width: 420,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(tr('Net de ${_monthLabel(_month)} : ${money(toDouble((s['totals'] as Map)['net']), cur)}')),
+              Text(tr('Net de ${_monthLabel(_month)} : ${money(toDouble(asMap(s['totals'])['net']), cur)}')),
               TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant reversé'))),
               DropdownButtonFormField<String>(
                 initialValue: method,
@@ -1530,12 +1530,12 @@ class _OwnersState extends State<_Owners> with _Loader {
         const LoadingSkeleton()
       else ...[
         KpiWrap(children: [
-          _kpi(context, 'Loyers encaissés', money(toDouble((s['totals'] as Map)['collected']), cur), sub: 'appelés ${money(toDouble((s['totals'] as Map)['billed']), cur)}'),
-          _kpi(context, 'Honoraires', money(toDouble((s['totals'] as Map)['fees']), cur)),
-          _kpi(context, 'Dépenses déduites', money(toDouble((s['totals'] as Map)['expenses']), cur)),
-          _kpi(context, 'Net propriétaire', money(toDouble((s['totals'] as Map)['net']), cur), color: YColors.success,
+          _kpi(context, 'Loyers encaissés', money(toDouble(asMap(s['totals'])['collected']), cur), sub: 'appelés ${money(toDouble(asMap(s['totals'])['billed']), cur)}'),
+          _kpi(context, 'Honoraires', money(toDouble(asMap(s['totals'])['fees']), cur)),
+          _kpi(context, 'Dépenses déduites', money(toDouble(asMap(s['totals'])['expenses']), cur)),
+          _kpi(context, 'Net propriétaire', money(toDouble(asMap(s['totals'])['net']), cur), color: YColors.success,
               sub: toDouble(s['paid_out']) > 0 ? 'reversé ${money(toDouble(s['paid_out']), cur)}' : 'reste ${money(toDouble(s['to_pay']), cur)}'),
-          _kpi(context, 'Impayés locataires', money(toDouble((s['totals'] as Map)['overdue']), cur), color: YColors.danger),
+          _kpi(context, 'Impayés locataires', money(toDouble(asMap(s['totals'])['overdue']), cur), color: YColors.danger),
         ]),
         const SizedBox(height: 10),
         for (final p in (s['properties'] as List).map((x) => asMap(x)))

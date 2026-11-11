@@ -153,7 +153,7 @@ class _CardsTabState extends State<_CardsTab> {
         final all = LocalDb.all('lc_cards').map((c) => {...c, '_partner': LocalDb.get('partners', c['partner_id'] as String?)}).toList();
         final minRedeem = fidMinRedeem(s);
         final base = all.where((c) {
-          final p = c['_partner'] as Map?;
+          final p = asMapOrNull(c['_partner']);
           if (_q.isNotEmpty && !'${c['number']} ${p?['name']} ${p?['phone']}'.toLowerCase().contains(_q)) return false;
           final pts = toDouble(c['points']), pf = _f['points'], sy = _f['sync'];
           if (pf == 'zero' && pts > 0) return false;
@@ -200,16 +200,16 @@ class _CardsTabState extends State<_CardsTab> {
                       columns: const ['Carte', 'Client', 'Téléphone', 'Niveau', 'Points', 'Valeur'],
                       cells: (c) => [
                         Text(tr('${c['number'] ?? 'en attente'}'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text(tr('${(c['_partner'] as Map?)?['name'] ?? ''}')),
-                        Text(tr('${(c['_partner'] as Map?)?['phone'] ?? ''}')),
+                        Text(tr('${asMap(c['_partner'])['name'] ?? ''}')),
+                        Text(tr('${asMap(c['_partner'])['phone'] ?? ''}')),
                         c['tier'] == null ? Text(tr('Membre')) : StatusChip('${c['tier']}', color: YColors.blue),
                         Text(tr('${c['points'] ?? 0}'), style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text(tr(money(((c['points'] as num?) ?? 0) * fidPointValue(s), s.currency))),
                       ],
                       mobileTile: (c) => ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: InitialsAvatar('${(c['_partner'] as Map?)?['name'] ?? '?'}', size: 38),
-                        title: Text(tr('${(c['_partner'] as Map?)?['name'] ?? ''}')),
+                        leading: InitialsAvatar('${asMap(c['_partner'])['name'] ?? '?'}', size: 38),
+                        title: Text(tr('${asMap(c['_partner'])['name'] ?? ''}')),
                         subtitle: Text(tr('${c['number'] ?? ''}${c['tier'] != null ? ' · ${c['tier']}' : ''}')),
                         trailing: Text(tr('${c['points'] ?? 0} pts'), style: const TextStyle(fontWeight: FontWeight.w700)),
                       ),

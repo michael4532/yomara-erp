@@ -144,7 +144,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
           _LicenseTargetBar(
             licenses: List<Map<String, dynamic>>.from((_data!['licenses'] as List).map((e) => Map<String, dynamic>.from(e as Map))),
             selected: _licenseId,
-            current: _data!['license'] is Map ? Map<String, dynamic>.from(_data!['license'] as Map) : null,
+            current: _data!['license'] is Map ? asMap(_data!['license']) : null,
             busy: _switching,
             onChanged: _switchTo,
           ),
@@ -197,7 +197,7 @@ class _StoreScreenState extends State<StoreScreen> with TickerProviderStateMixin
                       Padding(
                         padding: const EdgeInsets.only(bottom: 18),
                         child: YomeetQuotaBar(
-                          quota: Map<String, dynamic>.from(_data!['visio_quota'] as Map),
+                          quota: asMap(_data!['visio_quota']),
                           onBuy: () => showYomeetMinutesShop(context, onChanged: _changed),
                         ),
                       ),
@@ -691,7 +691,7 @@ class _PlanTabState extends State<_PlanTab> {
           LayoutBuilder(
             builder: (context, box) {
               final maxCols = box.maxWidth > 1150 ? 4 : (box.maxWidth > 850 ? 3 : (box.maxWidth > 560 ? 2 : 1));
-              final cols = maxCols.clamp(1, plans.length);
+              final cols = clampCount(maxCols, 1, plans.length);
               final rows = <List<Map<String, dynamic>>>[for (var i = 0; i < plans.length; i += cols) plans.sublist(i, (i + cols).clamp(0, plans.length))];
               return Column(
                 children: [
@@ -1657,7 +1657,7 @@ class _Packs extends StatelessWidget {
               itemCount: packs.length,
               separatorBuilder: (_, _) => const SizedBox(width: 12),
               itemBuilder: (context, i) {
-                final p = Map<String, dynamic>.from(packs[i] as Map);
+                final p = asMap(packs[i]);
                 final cur = '${p['currency'] ?? 'XOF'}';
                 final offers = Map<String, dynamic>.from(p['offers'] is Map ? p['offers'] as Map : const {});
                 return SizedBox(
@@ -2850,7 +2850,7 @@ class _YomeetShopState extends State<_YomeetShop> {
     final hint = Theme.of(context).hintColor;
     final packs = [for (final p in (s['minute_packs'] as List? ?? const [])) Map<String, dynamic>.from(p as Map)];
     final methods = [for (final g in (s['payment_methods'] as List? ?? const [])) Map<String, dynamic>.from(g as Map)];
-    final quota = s['visio_quota'] is Map ? Map<String, dynamic>.from(s['visio_quota'] as Map) : null;
+    final quota = s['visio_quota'] is Map ? asMap(s['visio_quota']) : null;
     final cur = '${s['currency'] ?? 'XOF'}';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),

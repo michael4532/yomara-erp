@@ -583,7 +583,7 @@ Future<void> showInvoiceMatch(BuildContext context, Map<String, dynamic> i) asyn
   if (!context.mounted) return;
   final st = '${m['status']}';
   final lines = (m['lines'] as List? ?? const []).cast<Map>();
-  final warnings = ((i['extracted'] as Map?)?['warnings'] as List? ?? const []);
+  final warnings = (asMap(i['extracted'])['warnings'] as List? ?? const []);
   Widget kv(String k, String v, {bool strong = false, Color? color}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [Expanded(child: Text(tr(k))), Text(tr(v), style: TextStyle(fontWeight: strong ? FontWeight.w800 : FontWeight.w500, color: color))]),
@@ -696,7 +696,7 @@ class _InvoicesTabState extends State<_InvoicesTab> {
 
   Future<void> _decide(BuildContext context, Map<String, dynamic> i, bool accept) async {
     String? reason;
-    final m = i['match'] as Map?;
+    final m = asMapOrNull(i['match']);
     if (!accept) {
       final c = TextEditingController(text: m != null && const ['over', 'amount_gap', 'not_received'].contains(m['status']) ? '${m['label']}' : '');
       final ok = await showDialog<bool>(
@@ -745,10 +745,10 @@ class _InvoicesTabState extends State<_InvoicesTab> {
           return Column(children: [bar, Expanded(child: EmptyState(icon: Icons.receipt_long_outlined, title: tr('Aucune facture'), message: tr('Vos fournisseurs déposent leurs factures sur leur portail, ou importez un PDF reçu par e-mail.')))]);
         }
         final base = all.where((i) {
-          if (_q.isNotEmpty && !'${i['partner_name'] ?? ''} ${i['number'] ?? ''} ${(i['match'] as Map?)?['order_number'] ?? ''}'.toLowerCase().contains(_q)) return false;
+          if (_q.isNotEmpty && !'${i['partner_name'] ?? ''} ${i['number'] ?? ''} ${asMap(i['match'])['order_number'] ?? ''}'.toLowerCase().contains(_q)) return false;
           final sup = _f['supplier'], ma = _f['match'], src = _f['source'];
           if (sup != null && '${i['partner_name'] ?? ''}' != sup) return false;
-          if (ma != null && '${(i['match'] as Map?)?['status'] ?? ''}' != ma) return false;
+          if (ma != null && '${asMap(i['match'])['status'] ?? ''}' != ma) return false;
           if (src != null && (i['source'] == 'upload' ? 'upload' : 'portal') != src) return false;
           if (_period != null && !_period!.contains(i['date'])) return false;
           return true;
@@ -767,7 +767,7 @@ class _InvoicesTabState extends State<_InvoicesTab> {
             statusCounts: {for (final k in statuses.keys) k: k.isEmpty ? base.length : base.where((i) => i['status'] == k).length},
             filters: [
               FilterSpec('supplier', 'Fournisseur', filterOptions(all, 'partner_name'), icon: Icons.local_shipping_outlined),
-              FilterSpec('match', 'Rapprochement', {for (final i in all) if (spMatchLabels.containsKey((i['match'] as Map?)?['status'])) '${(i['match'] as Map)['status']}': spMatchLabels[(i['match'] as Map)['status']]!}, icon: Icons.compare_arrows),
+              FilterSpec('match', 'Rapprochement', {for (final i in all) if (spMatchLabels.containsKey(asMap(i['match'])['status'])) '${asMap(i['match'])['status']}': spMatchLabels[asMap(i['match'])['status']]!}, icon: Icons.compare_arrows),
               const FilterSpec('source', 'Origine', {'portal': 'Déposée sur le portail', 'upload': 'Importée'}, icon: Icons.upload_file),
             ],
             values: _f,
@@ -784,9 +784,9 @@ class _InvoicesTabState extends State<_InvoicesTab> {
             Builder(builder: (context) {
               final order = i['order_id'] == null ? null : LocalDb.get('purchase_documents', '${i['order_id']}');
               final st = '${i['status']}';
-              final m = i['match'] as Map?;
+              final m = asMapOrNull(i['match']);
               final ms = '${m?['status'] ?? ''}';
-              final warnings = ((i['extracted'] as Map?)?['warnings'] as List? ?? const []);
+              final warnings = (asMap(i['extracted'])['warnings'] as List? ?? const []);
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Card(

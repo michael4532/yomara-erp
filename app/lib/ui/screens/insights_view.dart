@@ -89,7 +89,7 @@ class InsightsView extends StatelessWidget {
     return LayoutBuilder(builder: (context, c) {
       final w = c.maxWidth - 2 * padding;
       final wide = w > 1000;
-      final cols = (w > 1000 ? 4 : (w > 300 ? 2 : 1)).clamp(1, cards.length);
+      final cols = clampCount(w > 1000 ? 4 : (w > 300 ? 2 : 1), 1, cards.length);
       final gap = w < 560 ? 10.0 : 16.0;
       final cw = (w - (cols - 1) * gap) / cols;
       Widget pair(Widget a, Widget b, {int fa = 3, int fb = 2}) => wide

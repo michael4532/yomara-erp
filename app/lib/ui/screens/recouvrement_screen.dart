@@ -446,7 +446,7 @@ class _CaseDetailState extends State<_CaseDetail> {
     var send = (c['email'] ?? '').toString().isNotEmpty;
     String? treasury;
     final treasuryList = List<Map>.from(_meta?['treasury'] as List? ?? const []);
-    final title = '${(_meta?['actions'] as Map?)?[type] ?? type}';
+    final title = '${asMap(_meta?['actions'])[type] ?? type}';
     final fmt = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))];
     final ok = await showFormDialog<bool>(context, title: title, builder: (dc) => StatefulBuilder(builder: (dc, set) {
         Future<void> chooseDate(void Function(String) on, String? init) async {
@@ -597,7 +597,7 @@ class _CaseDetailState extends State<_CaseDetail> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           FilledButton.icon(onPressed: _busy ? null : () => _action('payment'), icon: const Icon(Icons.payments_outlined), label: Text(tr('Encaissement'))),
           for (final t in ['call', 'visit', 'promise', 'plan', 'notice', 'bailiff'])
-            OutlinedButton.icon(onPressed: _busy ? null : () => _action(t), icon: Icon(_actionIcon(t), size: 18), label: Text(tr('${(_meta?['actions'] as Map?)?[t] ?? t}'))),
+            OutlinedButton.icon(onPressed: _busy ? null : () => _action(t), icon: Icon(_actionIcon(t), size: 18), label: Text(tr('${asMap(_meta?['actions'])[t] ?? t}'))),
           PopupMenuButton<String>(
             tooltip: tr('Autres actions'),
             onSelected: (v) async {
@@ -617,7 +617,7 @@ class _CaseDetailState extends State<_CaseDetail> {
               }
             },
             itemBuilder: (_) => [
-              for (final t in ['email', 'sms', 'whatsapp', 'letter', 'note', 'fees', 'litigation', 'write_off']) PopupMenuItem(value: t, child: Text(tr('${(_meta?['actions'] as Map?)?[t] ?? t}'))),
+              for (final t in ['email', 'sms', 'whatsapp', 'letter', 'note', 'fees', 'litigation', 'write_off']) PopupMenuItem(value: t, child: Text(tr('${asMap(_meta?['actions'])[t] ?? t}'))),
               PopupMenuItem(value: 'close', child: Text(tr('Clôturer le dossier'))),
             ],
             child: const Padding(padding: EdgeInsets.all(10), child: Icon(Icons.more_horiz)),

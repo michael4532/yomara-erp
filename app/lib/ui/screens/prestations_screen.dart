@@ -242,7 +242,7 @@ class _PackSheetState extends State<_PackSheet> {
       await sync.sync();
       final r = await api.post(path);
       for (final k in ['pack', 'old', 'data']) {
-        if (r is Map && r[k] is Map && (r[k] as Map)['hours'] != null) await LocalDb.put('pr_packs', asMap(r[k]));
+        if (r is Map && r[k] is Map && asMap(r[k])['hours'] != null) await LocalDb.put('pr_packs', asMap(r[k]));
       }
       await sync.sync();
       if (mounted) toast(context, done);

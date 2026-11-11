@@ -734,7 +734,7 @@ class _BarChart extends StatelessWidget {
                         const SizedBox(height: 4),
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 400),
-                          height: max == 0 ? 2 : ((s['value'] as num).toDouble() / max * (c.maxHeight - 46)).clamp(2, c.maxHeight - 46),
+                          height: max == 0 ? 2 : clampSize((s['value'] as num).toDouble() / max * (c.maxHeight - 46), 2, c.maxHeight - 46),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,

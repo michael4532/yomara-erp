@@ -16,6 +16,7 @@ import '../widgets/pdf_viewer.dart';
 import 'document_editor.dart' show computeLine;
 import 'documents_screen.dart' show DocConfig;
 import 'store_screen.dart' show buyModule;
+import '../../core/json.dart';
 
 /// Types de document auxquels un modèle peut s'appliquer (filtre de la bibliothèque et modèle par défaut).
 const _docKinds = <String, (String, String, String)>{
@@ -336,9 +337,9 @@ class _TemplateStudioState extends State<TemplateStudio> {
   @override
   void initState() {
     super.initState();
-    _style = Map<String, dynamic>.from(widget.spec['style'] as Map? ?? const {});
+    _style = asMap(widget.spec['style']);
     _blocks = [for (final b in (widget.spec['blocks'] as List? ?? defaultBlocks)) Map<String, dynamic>.from(b as Map)..putIfAbsent('_k', newId)];
-    _titles = Map<String, dynamic>.from(widget.spec['titles'] as Map? ?? const {});
+    _titles = asMap(widget.spec['titles']);
     _name = TextEditingController(text: '${widget.spec['name'] ?? 'Mon modèle'}');
     _render();
   }

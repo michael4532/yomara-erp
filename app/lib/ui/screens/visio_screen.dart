@@ -210,7 +210,7 @@ class _VisioScreenState extends State<VisioScreen> {
             Padding(
               padding: EdgeInsets.fromLTRB(pad, 0, pad, 14),
               child: YomeetQuotaBar(
-                quota: Map<String, dynamic>.from(_d!['quota'] as Map),
+                quota: asMap(_d!['quota']),
                 compact: width < 700,
                 onBuy: _d!['can_buy'] == true && !AppConfig.purchasesHidden ? () => showYomeetMinutesShop(context, onChanged: _load) : null,
               ),
@@ -555,7 +555,7 @@ class _MeetingFormState extends State<_MeetingForm> {
   final _guestName = TextEditingController(), _guestEmail = TextEditingController();
   late DateTime _start = _dt(widget.meeting?['starts_at']) ?? _nextSlot();
   late int _duration = (widget.meeting?['duration_minutes'] as num?)?.toInt() ?? (widget.type == 'webinar' ? 90 : 60);
-  late final Map<String, bool> _opts = {for (final k in _optionLabels.keys) k: ((widget.meeting?['options'] as Map?)?[k] ?? widget.defaults[k] ?? false) == true};
+  late final Map<String, bool> _opts = {for (final k in _optionLabels.keys) k: (asMap(widget.meeting?['options'])[k] ?? widget.defaults[k] ?? false) == true};
   final Set<int> _users = {};
   final List<Map<String, String>> _guests = [];
   late bool _regOpen = widget.meeting?['registration_open'] ?? true;
@@ -1692,7 +1692,7 @@ class _SettingsFormState extends State<_SettingsForm> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              if (s['quota'] is Map) ...[YomeetQuotaBar(quota: Map<String, dynamic>.from(s['quota'] as Map)), const SizedBox(height: 16)],
+              if (s['quota'] is Map) ...[YomeetQuotaBar(quota: asMap(s['quota'])), const SizedBox(height: 16)],
               if (admin) ...[
                 Text(tr('Infrastructure de la plateforme (réservé à l\'éditeur)'), style: const TextStyle(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),

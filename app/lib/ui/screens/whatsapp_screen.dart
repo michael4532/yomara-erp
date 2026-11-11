@@ -935,7 +935,7 @@ class _WaSettingsState extends State<_WaSettings> {
   late final _phone = TextEditingController(text: '${d['display_phone'] ?? ''}');
   late bool _auto = d['auto_assign'] == true;
   late final Map<String, List<String>?> _hours = {
-    for (var i = 1; i <= 7; i++) '$i': (d['hours'] as Map?)?['$i'] == null ? null : List<String>.from((d['hours'] as Map)['$i'] as List),
+    for (var i = 1; i <= 7; i++) '$i': asMap(d['hours'])['$i'] == null ? null : List<String>.from(asMap(d['hours'])['$i'] as List),
   };
   static const _days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 

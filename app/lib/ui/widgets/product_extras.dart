@@ -304,7 +304,7 @@ class _VariantsPanelState extends State<VariantsPanel> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              title: Text(tr(((v['variant_values'] as Map?) ?? const {}).values.join(' / ')), style: TextStyle(fontWeight: FontWeight.w600, color: v['active'] == false ? Colors.grey : null)),
+              title: Text(tr((asMap(v['variant_values'])).values.join(' / ')), style: TextStyle(fontWeight: FontWeight.w600, color: v['active'] == false ? Colors.grey : null)),
               subtitle: Text(tr([if (v['sku'] != null) '${v['sku']}', if (v['barcode'] != null) '${v['barcode']}'].join(' · '))),
               trailing: Text(tr('${money(toDouble(v['sale_price']), currency)}   ${qty(stock[v['id']] ?? 0)} en stock')),
             ),

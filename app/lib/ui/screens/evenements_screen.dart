@@ -1292,7 +1292,7 @@ class _BookingFormState extends State<_BookingForm> {
       await sync.sync();
       final r = await api.post(path);
       if (r is Map && r['booking'] is Map) await LocalDb.put('ev_bookings', asMap(r['booking']));
-      if (r is Map && r['data'] is Map && (r['data'] as Map)['event_id'] != null) await LocalDb.put('ev_bookings', asMap(r['data']));
+      if (r is Map && r['data'] is Map && asMap(r['data'])['event_id'] != null) await LocalDb.put('ev_bookings', asMap(r['data']));
       await sync.sync();
       if (mounted) {
         Navigator.pop(context);

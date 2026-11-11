@@ -51,7 +51,7 @@ class _DevScreenState extends State<DevScreen> {
           key: _dash,
           path: 'dev/dashboard',
           builder: (context, d, _) {
-            final sp = d['sprint'] as Map?;
+            final sp = asMapOrNull(d['sprint']);
             return StatStrip(tiles: [
               StatTile(label: sp == null ? 'Aucun sprint en cours' : '${sp['title']}', value: sp == null ? '—' : '${sp['progress']}'.split(' (').first, detail: sp == null ? null : 'fin le ${dateFr(sp['end_date'])}', icon: Icons.directions_run),
               StatTile(label: tr('Mes tâches en cours'), value: '${d['mine']}', detail: tr('${d['in_progress']} en cours dans l\'équipe'), icon: Icons.person_outline, color: const Color(0xFF9333EA)),

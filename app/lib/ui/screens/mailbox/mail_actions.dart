@@ -37,12 +37,12 @@ class MailActionsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ins = message['insights'] as Map?;
+    final ins = asMapOrNull(message['insights']);
     if (ins == null) return const SizedBox();
     final actions = allActions(message);
     final dates = [for (final d in (ins['dates'] as List? ?? const [])) asMap(d)];
-    final invite = ins['invite'] as Map?;
-    final link = ins['meeting_link'] as Map?;
+    final invite = asMapOrNull(ins['invite']);
+    final link = asMapOrNull(ins['meeting_link']);
     final suggested = [for (final i in (ins['intents'] as List? ?? const [])) if (actions.contains(i)) '$i'].take(3).toList();
     if (dates.isEmpty && invite == null && link == null && suggested.isEmpty) return const SizedBox();
     final hint = Theme.of(context).hintColor;
@@ -74,7 +74,7 @@ class MailActionsBar extends StatelessWidget {
                   tr([
                     _when(invite['start'], invite['end'], allDay: invite['all_day'] == true),
                     if ((invite['location'] ?? '').toString().isNotEmpty) '${invite['location']}',
-                    if ((invite['organizer'] as Map?)?['name'] != null) 'de ${(invite['organizer'] as Map)['name']}',
+                    if (asMap(invite['organizer'])['name'] != null) 'de ${asMap(invite['organizer'])['name']}',
                   ].join(' · ')),
                   style: TextStyle(color: hint, fontSize: 12.5),
                 ),

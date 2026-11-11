@@ -243,7 +243,7 @@ class _ProductFormState extends State<_ProductForm> {
     for (final a in (widget.product?['variant_attributes'] as List? ?? const [])) {'name': (a as Map)['name'], 'values': List<String>.from((a['values'] as List? ?? const []).map((e) => '$e'))},
   ];
   late final Map<String, Map<String, dynamic>> _extras = {
-    for (final e in ((widget.product?['price_extras'] as Map?) ?? const {}).entries) '${e.key}': asMap(e.value),
+    for (final e in asMap(widget.product?['price_extras']).entries) e.key: asMap(e.value),
   };
   bool get _isVariant => widget.product?['parent_id'] != null;
 
@@ -381,7 +381,7 @@ class _ProductFormState extends State<_ProductForm> {
         if (_isVariant)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(tr('Variante de « ${LocalDb.get('products', '${widget.product!['parent_id']}')?['name'] ?? 'modèle'} » : ${((widget.product!['variant_values'] as Map?) ?? const {}).entries.map((e) => '${e.key} ${e.value}').join(', ')}'),
+            child: Text(tr('Variante de « ${LocalDb.get('products', '${widget.product!['parent_id']}')?['name'] ?? 'modèle'} » : ${(asMap(widget.product!['variant_values'])).entries.map((e) => '${e.key} ${e.value}').join(', ')}'),
                 style: TextStyle(color: Theme.of(context).hintColor)),
           ),
         if (_isTemplate) ...[

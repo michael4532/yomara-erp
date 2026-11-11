@@ -71,7 +71,7 @@ class AcquisitionController extends Controller
             'currency' => $a->currency, 'pixel_id' => $a->pixel_id, 'send_conversions' => (bool) $a->send_conversions, 'has_capi_token' => ! empty($cr['capi_token']),
             'status' => $a->status, 'last_error' => $a->last_error, 'synced_at' => $a->synced_at,
             'campaigns' => DB::table('ac_campaigns')->where('account_id', $a->id)->count(),
-            'events' => DB::table('ac_events')->where('account_id', $a->id)->where('created_at', '>=', now()->subDays(30))->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status')];
+            'events' => (object) DB::table('ac_events')->where('account_id', $a->id)->where('created_at', '>=', now()->subDays(30))->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status')->all()];
     }
 
     public function accounts()

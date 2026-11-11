@@ -15,6 +15,7 @@ import '../ui/widgets/common.dart';
 import '../i18n/i18n.dart';
 import '../ui/widgets/pdf_viewer.dart';
 import 'doc_templates.dart';
+import '../core/json.dart';
 
 /// Génère le PDF d'un document (facture, devis…) entièrement en local :
 /// impression et export fonctionnent sans connexion.
@@ -67,9 +68,9 @@ Future<Uint8List> buildDocumentPdf({
   Map<String, dynamic>? template,
 }) async {
   final spec = template ?? resolveTemplate(session, doc, config.entity);
-  final style = Map<String, dynamic>.from(spec['style'] as Map? ?? const {});
+  final style = asMap(spec['style']);
   final blocks = [for (final b in (spec['blocks'] as List? ?? defaultBlocks)) if (b is Map && b['hidden'] != true) Map<String, dynamic>.from(b)];
-  final titles = Map<String, dynamic>.from(spec['titles'] as Map? ?? const {});
+  final titles = asMap(spec['titles']);
 
   final font = style['font'] == 'inter' ? 'Inter' : 'Roboto';
   final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/$font-Regular.ttf'));
@@ -270,8 +271,8 @@ Future<Uint8List> buildDocumentPdf({
         if (partner?['tax_id'] != null) pw.Text(tr('NCC ${partner!['tax_id']}')),
         if ('${partner?['code'] ?? ''}'.isNotEmpty) pw.Text(tr('Code client : ${partner!['code']}'), style: pw.TextStyle(fontSize: 9, color: grey)),
         for (final f in customFieldsFor('partners'))
-          if (f['show_on_pdf'] == true && !customEmpty((partner?['custom'] as Map?)?['${f['key']}']))
-            pw.Text(tr('${f['label']} : ${customDisplay(f, (partner!['custom'] as Map)['${f['key']}'])}')),
+          if (f['show_on_pdf'] == true && !customEmpty(asMap(partner?['custom'])['${f['key']}']))
+            pw.Text(tr('${f['label']} : ${customDisplay(f, asMap(partner!['custom'])['${f['key']}'])}')),
       ]),
     );
     return [
@@ -286,8 +287,8 @@ Future<Uint8List> buildDocumentPdf({
   List<pw.Widget> info() => [
         if (doc['reference'] != null) ...[pw.SizedBox(height: 8), pw.Text(tr('Référence : ${doc['reference']}'))],
         for (final f in customFieldsFor(config.entity))
-          if (f['show_on_pdf'] == true && !customEmpty((doc['custom'] as Map?)?['${f['key']}']))
-            pw.Padding(padding: const pw.EdgeInsets.only(top: 3), child: pw.Text(tr('${f['label']} : ${customDisplay(f, (doc['custom'] as Map)['${f['key']}'])}'))),
+          if (f['show_on_pdf'] == true && !customEmpty(asMap(doc['custom'])['${f['key']}']))
+            pw.Padding(padding: const pw.EdgeInsets.only(top: 3), child: pw.Text(tr('${f['label']} : ${customDisplay(f, asMap(doc['custom'])['${f['key']}'])}'))),
       ];
 
   List<pw.Widget> lineTable() {

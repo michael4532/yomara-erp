@@ -91,7 +91,7 @@ class Roi
             'cpl' => $totalLeads ? round($spent / $totalLeads) : null, 'roas' => $spent > 0 ? round($revenue / $spent, 2) : null,
             'duplicates' => (clone $leadsAll)->where('status', 'duplicate')->count(),
             'by_platform' => $by, 'campaigns' => array_slice($rows, 0, 50), 'daily' => $daily,
-            'by_source' => (clone $leadsAll)->selectRaw('platform, count(*) as n')->groupBy('platform')->pluck('n', 'platform'),
+            'by_source' => (object) (clone $leadsAll)->selectRaw('platform, count(*) as n')->groupBy('platform')->pluck('n', 'platform')->all(),
         ];
     }
 }

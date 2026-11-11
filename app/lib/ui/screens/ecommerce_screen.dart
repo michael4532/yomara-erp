@@ -68,7 +68,7 @@ class _EcommerceScreenState extends State<EcommerceScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     final ov = _ov;
-    final site = ov?['site'] as Map?;
+    final site = asMapOrNull(ov?['site']);
     return Column(children: [
       PageHeader(
         title: tr('Boutique en ligne'),
@@ -107,7 +107,7 @@ class _EcommerceScreenState extends State<EcommerceScreen> with SingleTickerProv
           ),
         _Kpis(ov: ov),
         TabBar(controller: _tabs, isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8), tabAlignment: TabAlignment.start, tabs: [
-          Tab(text: tr('Commandes${toDouble((ov['counts'] as Map?)?['new']) > 0 ? ' (${(ov['counts'] as Map)['new']} nouvelles)' : ''}')),
+          Tab(text: tr('Commandes${toDouble(asMap(ov['counts'])['new']) > 0 ? ' (${asMap(ov['counts'])['new']} nouvelles)' : ''}')),
           Tab(text: tr('Statistiques')),
           if (_settings) Tab(text: tr('Canaux & réglages')),
         ]),
@@ -473,7 +473,7 @@ class _OrdersState extends State<_Orders> {
     final pickup = o['pickup'] == true;
     final logi = widget.ov['logistique'] == true && !pickup;
     final drivers = [for (final d in (widget.ov['drivers'] as List? ?? [])) asMap(d)];
-    var delivery = (widget.ov['settings'] as Map?)?['auto_delivery'] != false;
+    var delivery = asMap(widget.ov['settings'])['auto_delivery'] != false;
     int? driver;
     var date = DateTime.now();
     var packages = 1;
@@ -1018,7 +1018,7 @@ class _SettingsState extends State<_Settings> {
               if (!context.mounted) return;
               try {
                 final r = await context.read<Session>().api.post('ecommerce/settings/feed-token');
-                if (mounted) setState(() => _feeds = asMap((r['data'] as Map)['feeds']));
+                if (mounted) setState(() => _feeds = asMap(asMap(r['data'])['feeds']));
               } catch (e) {
                 if (context.mounted) toast(context, errorText(e), error: true);
               }

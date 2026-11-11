@@ -915,7 +915,7 @@ Future<void> editLabourCosts(BuildContext context) async {
   if (!context.mounted) return;
   String fmt(dynamic v) => v == null || toDouble(v) == 0 ? '' : '${toDouble(v).round()}';
   final general = TextEditingController(text: fmt(s['hourly_cost']));
-  final per = {for (final u in users) '${u['id']}': TextEditingController(text: fmt((s['user_costs'] as Map?)?['${u['id']}']))};
+  final per = {for (final u in users) '${u['id']}': TextEditingController(text: fmt(asMap(s['user_costs'])['${u['id']}']))};
   await showFormDialog(
     context,
     title: tr('Coûts horaires de la main-d\'œuvre'),

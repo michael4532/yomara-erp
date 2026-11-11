@@ -125,7 +125,7 @@ class _BtpScreenState extends State<BtpScreen> {
                       const SizedBox(height: 12),
                       ...() {
                         final all = [for (final s in d['sites'] as List) asMap(s)];
-                        String client(Map<String, dynamic> s) => '${(s['client'] as Map?)?['name'] ?? ''}';
+                        String client(Map<String, dynamic> s) => '${asMap(s['client'])['name'] ?? ''}';
                         final base = all
                             .where((s) => _q.isEmpty || '${s['name']} ${client(s)} ${s['reference'] ?? ''} ${s['city'] ?? ''}'.toLowerCase().contains(_q))
                             .where((s) => _f['client'] == null || client(s) == _f['client'])
@@ -183,12 +183,12 @@ class _BtpScreenState extends State<BtpScreen> {
                                       Expanded(
                                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                           Text(tr('${s['name']}'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
-                                          Text(tr([(s['client'] as Map?)?['name'] ?? 'Client à renseigner', if (s['reference'] != null) 'marché ${s['reference']}', if (s['city'] != null) '${s['city']}'].join(' · ')),
+                                          Text(tr([asMap(s['client'])['name'] ?? 'Client à renseigner', if (s['reference'] != null) 'marché ${s['reference']}', if (s['city'] != null) '${s['city']}'].join(' · ')),
                                               style: TextStyle(color: hint, fontSize: 12.5)),
                                         ]),
                                       ),
                                       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                        Text(tr(money(toDouble(s['status'] == 'study' ? (s['estimate'] as Map)['price'] : s['contract_amount']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                                        Text(tr(money(toDouble(s['status'] == 'study' ? asMap(s['estimate'])['price'] : s['contract_amount']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                                         StatusChip('${s['status_label']}', color: _statusColor('${s['status']}')),
                                       ]),
                                     ]),
@@ -252,7 +252,7 @@ class _SiteDialogState extends State<_SiteDialog> {
       };
       final api = context.read<Session>().api;
       final r = s['id'] == null ? await api.post('btp/sites', body) : await api.put('btp/sites/${s['id']}', body);
-      if (mounted) Navigator.pop(context, (r['data'] as Map)['id'] as int);
+      if (mounted) Navigator.pop(context, asMap(r['data'])['id'] as int);
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     } finally {
@@ -269,7 +269,7 @@ class _SiteDialogState extends State<_SiteDialog> {
           TextField(controller: _name, decoration: InputDecoration(labelText: tr('Nom du chantier *'), hintText: tr('Villa duplex Bingerville, réfection bureaux Plateau…'))),
           const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: TextField(controller: _client, decoration: InputDecoration(labelText: trn(s['client'] == null ? 'Client (maître d\'ouvrage)' : 'Changer de client'), helperText: trn(s['client'] != null ? 'Actuel : ${(s['client'] as Map)['name']}' : null)))),
+            Expanded(child: TextField(controller: _client, decoration: InputDecoration(labelText: trn(s['client'] == null ? 'Client (maître d\'ouvrage)' : 'Changer de client'), helperText: trn(s['client'] != null ? 'Actuel : ${asMap(s['client'])['name']}' : null)))),
             const SizedBox(width: 10),
             Expanded(child: TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Téléphone')))),
           ]),
@@ -407,7 +407,7 @@ class _SitePageState extends State<_SitePage> {
         StatusChip('${s['status_label']}', color: _statusColor(st)),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(tr([(s['client'] as Map?)?['name'] ?? 'Client à renseigner', if (s['address'] != null) '${s['address']}', if (s['reference'] != null) 'marché ${s['reference']}'].join(' · ')),
+          child: Text(tr([asMap(s['client'])['name'] ?? 'Client à renseigner', if (s['address'] != null) '${s['address']}', if (s['reference'] != null) 'marché ${s['reference']}'].join(' · ')),
               style: TextStyle(color: hint)),
         ),
       ]),
@@ -481,7 +481,7 @@ class _SitePageState extends State<_SitePage> {
           child: Column(children: [
             for (final d in docs)
               if (d['doc'] != null)
-                ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.description_outlined), title: Text(tr('${d['label']} · ${(d['doc'] as Map)['number'] ?? ''}')), trailing: Text(tr(money(toDouble((d['doc'] as Map)['total']), cur)), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+                ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.description_outlined), title: Text(tr('${d['label']} · ${asMap(d['doc'])['number'] ?? ''}')), trailing: Text(tr(money(toDouble(asMap(d['doc'])['total']), cur)), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
           ]),
         ),
       ],
@@ -761,15 +761,15 @@ class _SituationsState extends State<_Situations> {
               tr('Travaux ${money(toDouble(x['works_amount']), cur)} HT · cumul ${money(toDouble(x['works_cumul']), cur)}'
               '${toDouble(x['advance_repaid']) > 0 ? ' · avance −${money(toDouble(x['advance_repaid']), cur)}' : ''}'
               '${toDouble(x['retention']) > 0 ? ' · retenue −${money(toDouble(x['retention']), cur)}' : ''}'
-              '${x['invoice'] != null ? ' · facture ${(x['invoice'] as Map)['number']}' : ''}'),
+              '${x['invoice'] != null ? ' · facture ${asMap(x['invoice'])['number']}' : ''}'),
               style: TextStyle(color: hint),
             ),
             trailing: Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
               Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(tr(money(toDouble(x['net']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 if (x['invoice'] != null)
-                  StatusChip(toDouble((x['invoice'] as Map)['amount_paid']) >= toDouble((x['invoice'] as Map)['total']) - 0.5 ? 'Payée' : 'À encaisser',
-                      color: toDouble((x['invoice'] as Map)['amount_paid']) >= toDouble((x['invoice'] as Map)['total']) - 0.5 ? YColors.success : YColors.warning),
+                  StatusChip(toDouble(asMap(x['invoice'])['amount_paid']) >= toDouble(asMap(x['invoice'])['total']) - 0.5 ? 'Payée' : 'À encaisser',
+                      color: toDouble(asMap(x['invoice'])['amount_paid']) >= toDouble(asMap(x['invoice'])['total']) - 0.5 ? YColors.success : YColors.warning),
               ]),
               IconButton(tooltip: tr('Décompte PDF'), onPressed: () => _openPdf(context, 'btp/situations/${x['id']}/pdf', 'Situation n° ${x['number']}'), icon: const Icon(Icons.picture_as_pdf_outlined)),
             ]),
@@ -789,7 +789,7 @@ class _SituationDialog extends StatefulWidget {
 }
 
 class _SituationDialogState extends State<_SituationDialog> {
-  late final List<Map<String, dynamic>> _rows = [for (final r in ((widget.site['next'] as Map)['rows'] as List)) asMap(r)];
+  late final List<Map<String, dynamic>> _rows = [for (final r in (asMap(widget.site['next'])['rows'] as List)) asMap(r)];
   late final Map<int, TextEditingController> _ctl = {for (final r in _rows) r['item_id'] as int: TextEditingController(text: _qty(r['cumul']).replaceAll(' ', '').replaceAll(' ', ''))};
   Map<String, dynamic>? _calc;
   bool _busy = false;

@@ -218,7 +218,8 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
         ),
         TabBar(
           controller: _tabs,
-          isScrollable: true, padding: EdgeInsets.symmetric(horizontal: narrow ? 8 : 16),
+          isScrollable: true,
+          padding: EdgeInsets.symmetric(horizontal: narrow ? 8 : 16),
           tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: tr('Pipeline')),
@@ -248,9 +249,15 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                     if (me != null) '$me': '${s.user['name'] ?? 'Moi'}',
                   };
                   final source = tab == 2 ? allActivities : allLeads;
-                  final owners = {for (final r in source) if (r['owner_id'] != null) '${r['owner_id']}': users['${r['owner_id']}'] ?? 'Utilisateur ${r['owner_id']}'};
+                  final owners = {
+                    for (final r in source)
+                      if (r['owner_id'] != null) '${r['owner_id']}': users['${r['owner_id']}'] ?? 'Utilisateur ${r['owner_id']}',
+                  };
                   final partners = {for (final p in LocalDb.all('partners')) '${p['id']}': '${p['name']}'};
-                  final clients = {for (final r in source) if (partners.containsKey('${r['partner_id']}')) '${r['partner_id']}': partners['${r['partner_id']}']!};
+                  final clients = {
+                    for (final r in source)
+                      if (partners.containsKey('${r['partner_id']}')) '${r['partner_id']}': partners['${r['partner_id']}']!,
+                  };
                   final bar = FilterBar(
                     padding: EdgeInsets.fromLTRB(narrow ? 16 : 24, 12, narrow ? 16 : 24, 4),
                     search: _q,
@@ -261,7 +268,10 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                       if (tab < 3) FilterSpec('client', 'Client', clients, icon: Icons.storefront_outlined),
                       if (tab < 2) ...[
                         FilterSpec('stage', 'Étape', {for (final st in stages) '${st['id']}': '${st['name']}'}, icon: Icons.view_kanban_outlined),
-                        FilterSpec('source', 'Source', {for (final l in allLeads) if (leadSources.containsKey(l['source'])) '${l['source']}': leadSources[l['source']]!}, icon: Icons.campaign_outlined),
+                        FilterSpec('source', 'Source', {
+                          for (final l in allLeads)
+                            if (leadSources.containsKey(l['source'])) '${l['source']}': leadSources[l['source']]!,
+                        }, icon: Icons.campaign_outlined),
                         const FilterSpec('priority', 'Priorité', {'0': 'Aucune', '1': '★', '2': '★★', '3': '★★★'}, icon: Icons.star_outline_rounded),
                       ],
                       if (tab == 2) FilterSpec('atype', 'Type', activityTypes, icon: Icons.event_outlined),
@@ -271,32 +281,44 @@ class _CrmScreenState extends State<CrmScreen> with SingleTickerProviderStateMix
                     showPeriod: tab < 3,
                     period: _period,
                     onPeriod: (v) => setState(() => _period = v),
-                    count: switch (tab) { 0 => leads.length, 2 => shownActivities.length, _ => null },
+                    count: switch (tab) {
+                      0 => leads.length,
+                      2 => shownActivities.length,
+                      _ => null,
+                    },
                     countLabel: tab == 2 ? 'activité' : 'opportunité',
                     onReset: () => setState(() => (_q = '', _f = {}, _period = null, _mine = false)),
                     trailing: [FilterChip(label: Text(tr('Mes affaires')), selected: _mine, onSelected: (v) => setState(() => _mine = v))],
                   );
-                  return Column(children: [
-                    if (tab != 4) bar,
-                    if (tab < 3 && _period != null)
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: narrow ? 16 : 24),
-                        child: Align(alignment: Alignment.centerLeft, child: Text(tr(tab == 2 ? 'Période appliquée à l\'échéance des activités' : 'Période appliquée à la date de clôture prévue'), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor))),
+                  return Column(
+                    children: [
+                      if (tab != 4) bar,
+                      if (tab < 3 && _period != null)
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: narrow ? 16 : 24),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              tr(tab == 2 ? 'Période appliquée à l\'échéance des activités' : 'Période appliquée à la date de clôture prévue'),
+                              style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabs,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            _Pipeline(stages: stages, leads: leads, activities: activities, manage: manage),
+                            _LeadList(stages: stages, leads: leads, manage: manage),
+                            _ActivityList(activities: shownActivities, manage: manage, filtered: shownActivities.length != activities.length || _q.isNotEmpty),
+                            _Stats(ownerId: _mine ? me : null),
+                            CrmSequencesView(manage: manage),
+                          ],
+                        ),
                       ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabs,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _Pipeline(stages: stages, leads: leads, activities: activities, manage: manage),
-                          _LeadList(stages: stages, leads: leads, manage: manage),
-                          _ActivityList(activities: shownActivities, manage: manage, filtered: shownActivities.length != activities.length || _q.isNotEmpty),
-                          _Stats(ownerId: _mine ? me : null),
-                          CrmSequencesView(manage: manage),
-                        ],
-                      ),
-                    ),
-                  ]);
+                    ],
+                  );
                 },
               ),
             ),
@@ -371,7 +393,11 @@ class _Pipeline extends StatelessWidget {
                             Row(
                               children: [
                                 Flexible(
-                                  child: Text(tr('${st['name']}'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -.2)),
+                                  child: Text(
+                                    tr('${st['name']}'),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5, letterSpacing: -.2),
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
@@ -382,8 +408,10 @@ class _Pipeline extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(tr(st['kind'] == 'open' ? 'Total : ${compactMoney(total, cur)} · ${st['probability']} %' : 'Total : ${compactMoney(total, cur)}'),
-                                style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
+                            Text(
+                              tr(st['kind'] == 'open' ? 'Total : ${compactMoney(total, cur)} · ${st['probability']} %' : 'Total : ${compactMoney(total, cur)}'),
+                              style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
+                            ),
                           ],
                         ),
                       ),
@@ -472,12 +500,14 @@ class _PipelineKpis extends StatelessWidget {
     final won = leads.where((l) => kind(l) == 'won').length, lost = leads.where((l) => kind(l) == 'lost').length;
     final rate = won + lost == 0 ? null : (won * 100 / (won + lost)).round();
     if (MediaQuery.of(context).size.width < 700 && leads.isEmpty) return const SizedBox.shrink();
-    return StatStrip(tiles: [
-      StatTile(label: tr('Opportunités ouvertes'), value: '${open.length}', icon: Icons.track_changes_rounded, color: YColors.blue),
-      StatTile(label: tr('Montant du pipeline'), value: money(amount, cur), icon: Icons.paid_outlined, color: const Color(0xFFEA8A0B)),
-      StatTile(label: tr('Prévision pondérée'), value: money(weighted, cur), icon: Icons.bar_chart_rounded, color: const Color(0xFF4F46E5)),
-      StatTile(label: tr('Taux de conversion'), value: rate == null ? '—' : '$rate %', icon: Icons.percent_rounded, color: YColors.success),
-    ]);
+    return StatStrip(
+      tiles: [
+        StatTile(label: tr('Opportunités ouvertes'), value: '${open.length}', icon: Icons.track_changes_rounded, color: YColors.blue),
+        StatTile(label: tr('Montant du pipeline'), value: money(amount, cur), icon: Icons.paid_outlined, color: const Color(0xFFEA8A0B)),
+        StatTile(label: tr('Prévision pondérée'), value: money(weighted, cur), icon: Icons.bar_chart_rounded, color: const Color(0xFF4F46E5)),
+        StatTile(label: tr('Taux de conversion'), value: rate == null ? '—' : '$rate %', icon: Icons.percent_rounded, color: YColors.success),
+      ],
+    );
   }
 }
 
@@ -520,7 +550,13 @@ class _LeadCard extends StatelessWidget {
                     child: Text(tr('${lead['title']}'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: -.2)),
                   ),
                   if (priority > 1)
-                    Padding(padding: const EdgeInsets.only(left: 4, top: 1), child: Row(mainAxisSize: MainAxisSize.min, children: [for (var i = 0; i < priority; i++) const Icon(Icons.star_rounded, size: 14, color: YColors.yellow)])),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 1),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [for (var i = 0; i < priority; i++) const Icon(Icons.star_rounded, size: 14, color: YColors.yellow)],
+                      ),
+                    ),
                   if (lead['_local'] == true)
                     Tooltip(
                       message: tr('En attente de synchronisation'),
@@ -531,7 +567,12 @@ class _LeadCard extends StatelessWidget {
               if (who.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(tr(who), style: TextStyle(color: hint, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    tr(who),
+                    style: TextStyle(color: hint, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               const SizedBox(height: 8),
               Text(tr(money(toDouble(lead['expected_revenue']), cur)), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, letterSpacing: -.3)),
@@ -539,19 +580,30 @@ class _LeadCard extends StatelessWidget {
               Row(
                 children: [
                   if (next == null)
-                    Expanded(child: Text(tr('Aucune action prévue'), style: TextStyle(color: hint, fontSize: 12.5)))
+                    Expanded(
+                      child: Text(tr('Aucune action prévue'), style: TextStyle(color: hint, fontSize: 12.5)),
+                    )
                   else if (late)
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: const Color(0xFFFFF1DC), borderRadius: BorderRadius.circular(8)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.error_rounded, size: 15, color: Color(0xFFE8890C)),
-                          const SizedBox(width: 6),
-                          Flexible(child: Text(tr('Relance en retard'), overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600))),
-                        ]),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xFFFFF1DC), borderRadius: BorderRadius.circular(8)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_rounded, size: 15, color: Color(0xFFE8890C)),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  tr('Relance en retard'),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Color(0xFFB45309), fontSize: 12.5, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
@@ -649,13 +701,18 @@ class _LeadListState extends State<_LeadList> {
           status: _status,
           onStatus: (v) => setState(() => _status = v),
           statusCounts: {for (final k in _statuses.keys) k: widget.leads.where((l) => k.isEmpty || (l['status'] ?? 'open') == k).length},
-          trailing: [Text(tr('${rows.length} opportunité(s) · ${money(total, cur)}'), style: TextStyle(color: Theme.of(context).hintColor, fontWeight: FontWeight.w600, fontSize: 12.5))],
+          trailing: [
+            Text(
+              tr('${rows.length} opportunité(s) · ${money(total, cur)}'),
+              style: TextStyle(color: Theme.of(context).hintColor, fontWeight: FontWeight.w600, fontSize: 12.5),
+            ),
+          ],
         ),
         Expanded(
           child: rows.isEmpty
               ? (widget.leads.isNotEmpty
-                  ? EmptyState(icon: Icons.search_off, title: tr('Aucun résultat'))
-                  : EmptyState(icon: Icons.handshake_outlined, title: tr('Aucune opportunité'), message: tr('Ajoutez vos prospects et suivez-les jusqu\'à la signature.')))
+                    ? EmptyState(icon: Icons.search_off, title: tr('Aucun résultat'))
+                    : EmptyState(icon: Icons.handshake_outlined, title: tr('Aucune opportunité'), message: tr('Ajoutez vos prospects et suivez-les jusqu\'à la signature.')))
               : ResponsiveList<Map<String, dynamic>>(
                   items: rows,
                   columns: const ['Opportunité', 'Client / contact', 'Étape', 'Montant', 'Note', 'Clôture prévue', 'Source'],
@@ -667,7 +724,10 @@ class _LeadListState extends State<_LeadList> {
                       Text(tr([l['company_name'], l['contact_name']].where((e) => e != null && '$e'.isNotEmpty).join(' · '))),
                       StatusChip('${st?['name'] ?? '—'}', color: _hex(st?['color'] as String?)),
                       Text(tr(money(toDouble(l['expected_revenue']), cur))),
-                      Align(alignment: Alignment.centerLeft, child: LeadScoreTag(lead: l)),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: LeadScoreTag(lead: l),
+                      ),
                       Text(tr(dateFr(l['expected_close_date']))),
                       Text(tr(leadSources[l['source']] ?? '')),
                     ];
@@ -683,7 +743,13 @@ class _LeadListState extends State<_LeadList> {
                               Text(tr('${l['title']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
                               Text(tr('${l['company_name'] ?? l['contact_name'] ?? ''}'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
                               const SizedBox(height: 4),
-                              Wrap(spacing: 6, children: [StatusChip('${st?['name'] ?? '—'}', color: _hex(st?['color'] as String?)), LeadScoreTag(lead: l)]),
+                              Wrap(
+                                spacing: 6,
+                                children: [
+                                  StatusChip('${st?['name'] ?? '—'}', color: _hex(st?['color'] as String?)),
+                                  LeadScoreTag(lead: l),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -827,7 +893,10 @@ class _StatsState extends State<_Stats> {
     final cur = context.read<Session>().currency;
     String m(num? v) => money(v, cur);
 
-    Widget kpi(String label, String value, {IconData icon = Icons.insights, Color color = YColors.blue}) => KpiBox(width: 220, child: StatTile(label: label, value: value, icon: icon, color: color));
+    Widget kpi(String label, String value, {IconData icon = Icons.insights, Color color = YColors.blue}) => KpiBox(
+      width: 220,
+      child: StatTile(label: label, value: value, icon: icon, color: color),
+    );
 
     final pipeline = List<Map<String, dynamic>>.from(d['pipeline']).where((p) => p['kind'] == 'open').toList();
     final maxAmount = pipeline.fold<double>(1, (s, p) => toDouble(p['amount']) > s ? toDouble(p['amount']) : s);
@@ -840,23 +909,21 @@ class _StatsState extends State<_Stats> {
           for (final r in rows.cast<Map>())
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  SizedBox(width: 150, child: Text(tr(label(r)), overflow: TextOverflow.ellipsis)),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (_, c) => Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          height: 14,
-                          width: (c.maxWidth * value(r) / max).clamp(2, c.maxWidth).toDouble(),
-                          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-                        ),
-                      ),
+              child: _barRow(
+                Text(tr(label(r)), overflow: TextOverflow.ellipsis),
+                LayoutBuilder(
+                  builder: (_, c) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      height: 14,
+                      width: clampSize(c.maxWidth * value(r) / max, 2, c.maxWidth),
+                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
                     ),
                   ),
-                  SizedBox(width: 130, child: Text(tr((fmt ?? m)(value(r))), textAlign: TextAlign.right)),
-                ],
+                ),
+                Text(tr((fmt ?? m)(value(r))), textAlign: TextAlign.right),
+                labelWidth: 150,
+                valueWidth: 130,
               ),
             ),
         ],
@@ -870,7 +937,8 @@ class _StatsState extends State<_Stats> {
         children: [
           Text(tr('Du ${dateFr(d['from'])} au ${dateFr(d['to'])}'), style: TextStyle(color: Theme.of(context).hintColor)),
           const SizedBox(height: 10),
-          KpiWrap(children: [
+          KpiWrap(
+            children: [
               kpi('Pipeline en cours (${k['open_count']})', m(k['open_amount']), icon: Icons.view_kanban_outlined),
               kpi('Pipeline pondéré', m(k['weighted']), icon: Icons.trending_up),
               kpi('Gagné (${k['won_count']})', m(k['won_amount']), icon: Icons.emoji_events_outlined, color: YColors.success),
@@ -889,32 +957,27 @@ class _StatsState extends State<_Stats> {
                 for (final p in pipeline)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        SizedBox(width: 150, child: Text(tr('${p['name']} (${p['count']})'), overflow: TextOverflow.ellipsis)),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (_, c) => Stack(
-                              children: [
-                                Container(
-                                  height: 16,
-                                  width: (c.maxWidth * toDouble(p['amount']) / maxAmount).clamp(2, c.maxWidth).toDouble(),
-                                  decoration: BoxDecoration(color: _hex(p['color'] as String?).withValues(alpha: .25), borderRadius: BorderRadius.circular(4)),
-                                ),
-                                Container(
-                                  height: 16,
-                                  width: (c.maxWidth * toDouble(p['weighted']) / maxAmount).clamp(2, c.maxWidth).toDouble(),
-                                  decoration: BoxDecoration(color: _hex(p['color'] as String?), borderRadius: BorderRadius.circular(4)),
-                                ),
-                              ],
+                    child: _barRow(
+                      Text(tr('${p['name']} (${p['count']})'), overflow: TextOverflow.ellipsis),
+                      LayoutBuilder(
+                        builder: (_, c) => Stack(
+                          children: [
+                            Container(
+                              height: 16,
+                              width: clampSize(c.maxWidth * toDouble(p['amount']) / maxAmount, 2, c.maxWidth),
+                              decoration: BoxDecoration(color: _hex(p['color'] as String?).withValues(alpha: .25), borderRadius: BorderRadius.circular(4)),
                             ),
-                          ),
+                            Container(
+                              height: 16,
+                              width: clampSize(c.maxWidth * toDouble(p['weighted']) / maxAmount, 2, c.maxWidth),
+                              decoration: BoxDecoration(color: _hex(p['color'] as String?), borderRadius: BorderRadius.circular(4)),
+                            ),
+                          ],
                         ),
-                        SizedBox(
-                          width: 200,
-                          child: Text(tr('${m(p['amount'])} · pondéré ${m(p['weighted'])}'), textAlign: TextAlign.right, style: const TextStyle(fontSize: 12)),
-                        ),
-                      ],
+                      ),
+                      Text(tr('${m(p['amount'])} · pondéré ${m(p['weighted'])}'), textAlign: TextAlign.right, style: const TextStyle(fontSize: 12)),
+                      labelWidth: 150,
+                      valueWidth: 200,
                     ),
                   ),
               ],
@@ -947,30 +1010,47 @@ class _StatsState extends State<_Stats> {
               final temp = asMap(d['temperature']);
               final hot = [for (final x in (d['hot_leads'] as List? ?? const [])) asMap(x)];
               final camps = (d['by_campaign'] as List? ?? const []);
-              cards.add(SectionCard(
-                title: tr('Prospects à rappeler en premier'),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Wrap(spacing: 8, runSpacing: 6, children: [
-                    for (final t in const [('hot', 'Chauds', 75), ('warm', 'Tièdes', 50), ('cold', 'Froids', 10)])
-                      Chip(avatar: CircleAvatar(backgroundColor: leadTemperature(t.$3).$1, radius: 6), label: Text(tr('${temp[t.$1] ?? 0} ${t.$2.toLowerCase()}'))),
-                  ]),
-                  const SizedBox(height: 6),
-                  for (final h in hot)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      onTap: () {
-                        final l = LocalDb.get('crm_leads', '${h['id']}');
-                        if (l != null) editLead(context, l);
-                      },
-                      title: Text(verbatim('${h['title']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(verbatim([h['contact'], h['source']].where((x) => x != null).join(' · '))),
-                      trailing: LeadScoreTag(lead: {'score': h['score'], 'status': 'open'}),
-                    ),
-                ]),
-              ));
+              cards.add(
+                SectionCard(
+                  title: tr('Prospects à rappeler en premier'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          for (final t in const [('hot', 'Chauds', 75), ('warm', 'Tièdes', 50), ('cold', 'Froids', 10)])
+                            Chip(
+                              avatar: CircleAvatar(backgroundColor: leadTemperature(t.$3).$1, radius: 6),
+                              label: Text(tr('${temp[t.$1] ?? 0} ${t.$2.toLowerCase()}')),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      for (final h in hot)
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          onTap: () {
+                            final l = LocalDb.get('crm_leads', '${h['id']}');
+                            if (l != null) editLead(context, l);
+                          },
+                          title: Text(verbatim('${h['title']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(verbatim([h['contact'], h['source']].where((x) => x != null).join(' · '))),
+                          trailing: LeadScoreTag(lead: {'score': h['score'], 'status': 'open'}),
+                        ),
+                    ],
+                  ),
+                ),
+              );
               if (camps.isNotEmpty) {
-                cards.add(SectionCard(title: tr('Opportunités par campagne'), child: bars(camps, (r) => '${r['label']} (${r['count']} · ${r['won']} gagnée(s))', (r) => r['count'] as num, color: const Color(0xFF9333EA), fmt: (v) => '$v')));
+                cards.add(
+                  SectionCard(
+                    title: tr('Opportunités par campagne'),
+                    child: bars(camps, (r) => '${r['label']} (${r['count']} · ${r['won']} gagnée(s))', (r) => r['count'] as num, color: const Color(0xFF9333EA), fmt: (v) => '$v'),
+                  ),
+                );
               }
               if (c.maxWidth < 1000) {
                 return Column(
@@ -978,7 +1058,11 @@ class _StatsState extends State<_Stats> {
                 );
               }
               final w = (c.maxWidth - 32) / 3;
-              return Wrap(spacing: 16, runSpacing: 16, children: [for (final x in cards) SizedBox(width: w, child: x)]);
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [for (final x in cards) SizedBox(width: w, child: x)],
+              );
             },
           ),
         ],
@@ -995,11 +1079,19 @@ String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 Future<void> editLead(BuildContext context, [Map<String, dynamic>? lead, dynamic stageId]) async {
   final nav = Navigator.of(context);
-  final res = await showFormDialog<Map<String, dynamic>>(context, title: lead == null ? 'Nouvelle opportunité' : '${lead['title']}', builder: (c) => _LeadForm(lead: lead, stageId: stageId));
+  final res = await showFormDialog<Map<String, dynamic>>(
+    context,
+    title: lead == null ? 'Nouvelle opportunité' : '${lead['title']}',
+    builder: (c) => _LeadForm(lead: lead, stageId: stageId),
+  );
   final quote = res?['quote'];
   if (quote is Map<String, dynamic>) {
     // Le devis s'ouvre une fois la fiche fermée
-    await nav.push(MaterialPageRoute(builder: (_) => DocumentEditor(config: DocConfig.sale, document: quote, initialType: 'quote')));
+    await nav.push(
+      MaterialPageRoute(
+        builder: (_) => DocumentEditor(config: DocConfig.sale, document: quote, initialType: 'quote'),
+      ),
+    );
   }
 }
 
@@ -1138,7 +1230,10 @@ class _LeadFormState extends State<_LeadForm> {
             'city': lead['city'],
             if (leadSources.containsKey(lead['source'])) 'source': lead['source'],
             'salesperson_id': lead['owner_id'],
-            if (company && '${lead['contact_name'] ?? ''}'.trim().isNotEmpty) 'contacts': [{'name': lead['contact_name'], 'phone': lead['phone'], 'email': lead['email']}],
+            if (company && '${lead['contact_name'] ?? ''}'.trim().isNotEmpty)
+              'contacts': [
+                {'name': lead['contact_name'], 'phone': lead['phone'], 'email': lead['email']},
+              ],
           });
           partnerId = p['id'] as String;
         }
@@ -1398,7 +1493,10 @@ class _LeadFormState extends State<_LeadForm> {
           if (!_isNew && (_l['utm_campaign'] ?? _l['utm_source']) != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(tr('Origine : ${[_l['utm_source'], _l['utm_medium'], _l['utm_campaign']].where((x) => x != null && '$x'.isNotEmpty).join(' · ')}'), style: TextStyle(color: hint, fontSize: 12.5)),
+              child: Text(
+                tr('Origine : ${[_l['utm_source'], _l['utm_medium'], _l['utm_campaign']].where((x) => x != null && '$x'.isNotEmpty).join(' · ')}'),
+                style: TextStyle(color: hint, fontSize: 12.5),
+              ),
             ),
           const SizedBox(height: 16),
           if (manage)
@@ -1510,7 +1608,12 @@ class _ActivityFormState extends State<_ActivityForm> {
               runSpacing: 6,
               children: [
                 for (final e in activityTypes.entries)
-                  ChoiceChip(avatar: Icon(activityIcons[e.key], size: 16), label: Text(tr(e.value)), selected: _a['type'] == e.key, onSelected: manage ? (_) => setState(() => _a['type'] = e.key) : null),
+                  ChoiceChip(
+                    avatar: Icon(activityIcons[e.key], size: 16),
+                    label: Text(tr(e.value)),
+                    selected: _a['type'] == e.key,
+                    onSelected: manage ? (_) => setState(() => _a['type'] = e.key) : null,
+                  ),
               ],
             ),
           ),
@@ -1604,3 +1707,30 @@ class _ActivityFormState extends State<_ActivityForm> {
     );
   }
 }
+
+/// Ligne « libellé · barre · montant » : sur une ligne en large, sur deux lignes sur téléphone
+/// (sinon la barre n'a plus de place).
+Widget _barRow(Widget label, Widget bar, Widget value, {required double labelWidth, required double valueWidth}) => LayoutBuilder(
+  builder: (_, c) => c.maxWidth < labelWidth + valueWidth + 120
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: label),
+                const SizedBox(width: 8),
+                Flexible(child: value),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SizedBox(height: 16, child: bar),
+          ],
+        )
+      : Row(
+          children: [
+            SizedBox(width: labelWidth, child: label),
+            Expanded(child: SizedBox(height: 16, child: bar)),
+            SizedBox(width: valueWidth, child: value),
+          ],
+        ),
+);

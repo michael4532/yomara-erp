@@ -7,6 +7,7 @@ import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../../core/json.dart';
 
 /// Méthodes de prise en compte de la famille dans l'impôt sur salaires.
 const familyMethods = {
@@ -221,7 +222,7 @@ class _PayrollProfileEditorState extends State<PayrollProfileEditor> {
     final fam = it['family'] as Map<String, dynamic>;
     final parts = (fam['parts'] ??= <String, dynamic>{}) as Map;
     final annual = it['period'] == 'annual';
-    final sen = _p['seniority'] as Map?;
+    final sen = _p['seniority'] is Map ? _p['seniority'] as Map : null; // modifié en place
     final gap = const SizedBox(height: 12);
 
     return Column(
@@ -320,10 +321,10 @@ class _PayrollProfileEditorState extends State<PayrollProfileEditor> {
               ]),
               const SizedBox(height: 12),
               _wrap([
-                _num('Abattement frais pro %', (it['professional'] as Map?)?['rate'], (v) {
+                _num('Abattement frais pro %', asMap(it['professional'])['rate'], (v) {
                   it['professional'] = {...?(it['professional'] as Map?), 'rate': v ?? 0};
                 }, width: 190),
-                _num(annual ? 'Plafond annuel' : 'Plafond mensuel', (it['professional'] as Map?)?['cap'], (v) {
+                _num(annual ? 'Plafond annuel' : 'Plafond mensuel', asMap(it['professional'])['cap'], (v) {
                   it['professional'] = {...?(it['professional'] as Map?), 'cap': v};
                 }, width: 170, hint: 'Aucun'),
                 _num(annual ? 'Abattement fixe annuel' : 'Abattement fixe mensuel', it['fixed_abatement'], (v) => it['fixed_abatement'] = v ?? 0, width: 200),

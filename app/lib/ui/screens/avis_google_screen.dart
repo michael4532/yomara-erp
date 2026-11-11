@@ -375,7 +375,7 @@ class _ReviewsTabState extends State<_ReviewsTab> {
   @override
   Widget build(BuildContext context) {
     final canReply = widget.info['can_reply'] == true && widget.info['mode'] == 'api';
-    final dist = asMap((widget.info['stats'] as Map)['distribution']);
+    final dist = asMap(asMap(widget.info['stats'])['distribution']);
     final total = dist.values.fold<num>(0, (a, b) => a + (b as num));
     final shown = (_list ?? const <Map<String, dynamic>>[])
         .where((r) => _f['rating'] == null || '${r['rating']}' == _f['rating'])
@@ -648,7 +648,7 @@ class _RequestsTabState extends State<_RequestsTab> {
           leading: Icon(rs['enabled'] == true ? Icons.autorenew : Icons.pause_circle_outline, color: rs['enabled'] == true ? const Color(0xFF137333) : const Color(0xFFB06000)),
           title: Text(tr(rs['enabled'] == true ? 'Demandes automatiques actives' : 'Demandes automatiques désactivées'), style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(tr(rs['enabled'] == true
-              ? 'Après : ${(rs['triggers'] as List? ?? const []).map((t) => (widget.info['triggers'] as Map?)?[t] ?? t).join(', ')} · ${rs['delay_hours']} h plus tard · au plus une fois tous les ${rs['cooldown_days']} jours par client'
+              ? 'Après : ${(rs['triggers'] as List? ?? const []).map((t) => asMap(widget.info['triggers'])[t] ?? t).join(', ')} · ${rs['delay_hours']} h plus tard · au plus une fois tous les ${rs['cooldown_days']} jours par client'
               : 'Activez-les dans Paramètres : chaque client reçoit un lien d\'avis par WhatsApp, SMS ou e-mail après son achat.')),
           trailing: Wrap(spacing: 16, children: [
             Column(mainAxisSize: MainAxisSize.min, children: [Text(tr('${s['requests_30']}'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)), Text(tr('envoyées 30 j'), style: TextStyle(color: hint, fontSize: 11))]),

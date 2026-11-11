@@ -71,14 +71,14 @@ class ReportData {
   Map<String, dynamic> get totals => asMap(raw['totals']);
   Map<String, dynamic>? get others => raw['others'] == null ? null : asMap(raw['others']);
   Map<String, dynamic>? get previous => raw['previous'] == null ? null : asMap(raw['previous']);
-  String get periodLabel => '${(raw['period'] as Map?)?['label'] ?? ''}';
+  String get periodLabel => '${asMap(raw['period'])['label'] ?? ''}';
   String? get filtersLabel => raw['filters_label'] as String?;
   bool get cumulative => config['cumulative'] == true;
 
-  String label(Map<String, dynamic> row, String dim) => '${(row['labels'] as Map?)?[dim] ?? ''}';
-  String? key(Map<String, dynamic> row, String dim) => (row['keys'] as Map?)?[dim]?.toString();
+  String label(Map<String, dynamic> row, String dim) => '${asMap(row['labels'])[dim] ?? ''}';
+  String? key(Map<String, dynamic> row, String dim) => asMap(row['keys'])[dim]?.toString();
   double? value(Map<String, dynamic> row, String m) {
-    final v = (row['values'] as Map?)?[m];
+    final v = asMap(row['values'])[m];
     return v == null ? null : toDouble(v);
   }
 

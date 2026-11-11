@@ -7,6 +7,7 @@ import '../../theme.dart';
 import '../../widgets/common.dart';
 import 'admin_common.dart';
 import '../../../i18n/i18n.dart';
+import '../../../core/json.dart';
 
 /// Arrondi à la centaine, comme le serveur (Plan::yearlyPrice / introPrice).
 double _round100(double v) => (v / 100).round() * 100.0;
@@ -41,7 +42,7 @@ String _pct(num v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixe
 
 /// Résumé de l'offre affiché sur la carte d'une formule : « −25 % à l'année », « −15 % les 3 premiers mois », « Gratuit ».
 List<(String, IconData, Color)> planOfferTags(Map<String, dynamic> p) {
-  final offer = p['offer'] is Map ? Map<String, dynamic>.from(p['offer'] as Map) : const <String, dynamic>{};
+  final offer = p['offer'] is Map ? asMap(p['offer']) : const <String, dynamic>{};
   final free = p['is_free'] == true || offer['is_free'] == true || toDouble(p['price_monthly']) <= 0;
   if (free) return [('Gratuit', Icons.card_giftcard_rounded, YColors.success)];
   final yd = toDouble(p['yearly_discount'] ?? offer['yearly_discount']);
@@ -314,7 +315,7 @@ class _PlanCard extends StatelessWidget {
     final p = plan;
     final cur = '${p['currency'] ?? 'XOF'}';
     final hint = Theme.of(context).hintColor;
-    final offer = p['offer'] is Map ? Map<String, dynamic>.from(p['offer'] as Map) : const <String, dynamic>{};
+    final offer = p['offer'] is Map ? asMap(p['offer']) : const <String, dynamic>{};
     final tags = planOfferTags(p);
     final free = tags.isNotEmpty && tags.first.$1 == 'Gratuit';
     final monthly = toDouble(p['price_monthly']);

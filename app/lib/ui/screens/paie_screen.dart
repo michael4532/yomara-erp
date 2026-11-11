@@ -935,7 +935,7 @@ class _DeclarationView extends StatelessWidget {
   /// Blocs de la déclaration (format multi-pays, sinon ancien format ivoirien).
   List<Map<String, dynamic>> get _blocks => data['blocks'] is List
       ? (data['blocks'] as List).map((b) => Map<String, dynamic>.from(b as Map)).toList()
-      : [for (final b in _legacy) if (data[b.$1] is Map) {'title': b.$2, ...Map<String, dynamic>.from(data[b.$1] as Map)}];
+      : [for (final b in _legacy) if (data[b.$1] is Map) {'title': b.$2, ...asMap(data[b.$1])}];
 
   List get _employees => data['employees'] as List? ?? (data['cnps']?['employees'] as List? ?? []);
 
@@ -1263,7 +1263,7 @@ class _SettingsTabState extends State<_SettingsTab> {
           }
         }
         for (final a in _accounts.keys) {
-          _c['acc_$a'] = TextEditingController(text: '${(s['comptes'] as Map?)?[a] ?? ''}');
+          _c['acc_$a'] = TextEditingController(text: '${asMap(s['comptes'])[a] ?? ''}');
         }
         _bareme = [
           for (final t in s['its_bareme'] as List) {'up_to': TextEditingController(text: _fmt(t['up_to'])), 'rate': TextEditingController(text: _fmt(t['rate']))},
@@ -1335,7 +1335,7 @@ class _SettingsTabState extends State<_SettingsTab> {
             child: PayrollCountryCard(
               country: '${_meta['country']}',
               countries: _meta['countries'] as List,
-              profile: Map<String, dynamic>.from(_meta['profile'] as Map),
+              profile: asMap(_meta['profile']),
               onChanged: _changeCountry,
             ),
           );
@@ -1344,7 +1344,7 @@ class _SettingsTabState extends State<_SettingsTab> {
         padding: const EdgeInsets.all(24),
         children: [
           countryCard,
-          PayrollProfileEditor(country: '${_meta['country']}', profile: Map<String, dynamic>.from(_meta['profile'] as Map), onSaved: _load),
+          PayrollProfileEditor(country: '${_meta['country']}', profile: asMap(_meta['profile']), onSaved: _load),
           const SizedBox(height: 24),
           accounts,
           const SizedBox(height: 12),

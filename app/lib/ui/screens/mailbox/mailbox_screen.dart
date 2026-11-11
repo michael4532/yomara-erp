@@ -288,7 +288,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 final showFolders = _foldersOpen && c.maxWidth >= 980;
                 final fw = _wFolders.clamp(200.0, 380.0);
                 final maxList = (c.maxWidth - (showFolders ? fw : 0) - 380).clamp(280.0, 760.0);
-                final lw = _wList.clamp(280.0, maxList);
+                final lw = clampSize(_wList, 280.0, maxList);
                 return Column(
                   children: [
                     _header(showFolders: showFolders),
@@ -313,7 +313,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                             SizedBox(width: lw, child: _card(_messageList())),
                             _Splitter(
                               color: _theme.accent,
-                              onDrag: (dx) => setState(() => _wList = (lw + dx).clamp(280.0, maxList)),
+                              onDrag: (dx) => setState(() => _wList = clampSize(lw + dx, 280.0, maxList)),
                               onEnd: _saveLayout,
                               onReset: () {
                                 setState(() => _wList = 400);
@@ -1706,7 +1706,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final thread = _s.thread(m).where((x) => x['id'] != m['id']).toList();
     final folder = _s.folder(m['folder_id']);
     final accountFolders = _s.foldersOf(m['account_id'] as int).where((f) => f['id'] != m['folder_id']).toList();
-    final partner = m['partner'] as Map?;
+    final partner = asMapOrNull(m['partner']);
     final dark = p.dark;
     final html = (m['html'] as String?) ?? '<div style="white-space:pre-wrap">${const _Esc().convert('${m['text'] ?? m['snippet'] ?? ''}')}</div>';
     final list = _list;
@@ -2063,7 +2063,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       if (r == null) return;
       body = r;
     } else if (action == 'funds' || action == 'quote') {
-      body['amount'] = (m['insights'] as Map?)?['amount'];
+      body['amount'] = asMap(m['insights'])['amount'];
       body.removeWhere((k, v) => v == null);
     }
     await _do(() async {

@@ -1334,7 +1334,7 @@ class _DepartmentFormState extends State<_DepartmentForm> {
   late final _name = TextEditingController(text: '${d['name'] ?? ''}');
   late final _code = TextEditingController(text: '${d['code'] ?? ''}');
   late final _cats = TextEditingController(text: (d['categories'] as List? ?? const []).join('\n'));
-  late final Map<String, TextEditingController> _sla = {for (final u in ticketUrgencies.keys) u: TextEditingController(text: '${(d['sla'] as Map?)?[u] ?? const {'critical': 4, 'high': 24, 'normal': 72, 'low': 168}[u]}')};
+  late final Map<String, TextEditingController> _sla = {for (final u in ticketUrgencies.keys) u: TextEditingController(text: '${asMap(d['sla'])[u] ?? const {'critical': 4, 'high': 24, 'normal': 72, 'low': 168}[u]}')};
   late int? _parent = d['parent_id'] as int?;
   late int? _head = d['head_user_id'] as int?;
   late final Set<int> _supervisors = {...List<int>.from(d['supervisor_ids'] ?? const [])};

@@ -66,7 +66,7 @@ Map<String, dynamic>? ptSchedule(Map badge) {
 }
 
 Map<String, dynamic>? ptPlan(Map? schedule, DateTime day) {
-  final d = (schedule?['days'] as Map?)?['${day.weekday}'];
+  final d = asMap(schedule?['days'])['${day.weekday}'];
   return d == null ? null : asMap(d);
 }
 
@@ -1010,7 +1010,7 @@ Future<void> editSchedule(BuildContext context, [Map<String, dynamic>? s]) async
   final tol = TextEditingController(text: '${s?['tolerance'] ?? 10}');
   final days = <String, Map<String, dynamic>?>{
     for (final k in ['1', '2', '3', '4', '5', '6', '7'])
-      k: s == null ? (int.parse(k) <= 5 ? {'start': '08:00', 'end': '17:00', 'break': 60} : null) : ((s['days'] as Map?)?[k] == null ? null : asMap((s['days'] as Map)[k])),
+      k: s == null ? (int.parse(k) <= 5 ? {'start': '08:00', 'end': '17:00', 'break': 60} : null) : (asMap(s['days'])[k] == null ? null : asMap(asMap(s['days'])[k])),
   };
   var isDefault = s?['is_default'] == true;
   Future<String?> pick(BuildContext c, String v) async {

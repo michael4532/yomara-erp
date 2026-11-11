@@ -1132,7 +1132,7 @@ class _SettingsTabState extends State<_SettingsTab> {
         empty: 'Aucun délai : les tickets n\'ont pas d\'échéance.',
         subtitle: (p) => [
           for (final k in ['urgent', 'high', 'normal', 'low'])
-            if ((p['targets'] as Map?)?[k] != null) '${hdPriorities[k]} : ${hdDuration(Duration(minutes: toDouble(p['targets'][k]['first']).toInt()))} / ${hdDuration(Duration(minutes: toDouble(p['targets'][k]['resolve']).toInt()))}',
+            if (asMap(p['targets'])[k] != null) '${hdPriorities[k]} : ${hdDuration(Duration(minutes: toDouble(p['targets'][k]['first']).toInt()))} / ${hdDuration(Duration(minutes: toDouble(p['targets'][k]['resolve']).toInt()))}',
         ].join(' · ') + (p['business_hours'] == true ? ' (heures ouvrées)' : ''),
         badge: (p) => p['is_default'] == true ? 'Par défaut' : ((p['partner_ids'] as List?)?.isNotEmpty == true ? '${(p['partner_ids'] as List).length} client(s)' : null),
         onEdit: (p) => editSla(context, p),

@@ -921,7 +921,7 @@ class _ComparisonPageState extends State<_ComparisonPage> {
             'delay': TextEditingController(text: o['delay_days'] == null ? '' : '${o['delay_days']}'), 'extra': TextEditingController(text: toDouble(o['extra']) > 0 ? '${toDouble(o['extra']).round()}' : ''),
             'terms': TextEditingController(text: '${o['payment_terms'] ?? ''}'), 'compliant': o['compliant'] != false,
             'validity': o['validity'], 'notes': o['notes'], 'source': o['source'], 'submitted_at': o['submitted_at'], 'line_notes': o['line_notes'] is Map ? o['line_notes'] : const {},
-            'prices': {for (final l in c['lines'] as List) '${(l as Map)['key']}': TextEditingController(text: o['prices'] is Map && (o['prices'] as Map)[l['key']] != null ? _q((o['prices'] as Map)[l['key']]) : '')},
+            'prices': {for (final l in c['lines'] as List) '${(l as Map)['key']}': TextEditingController(text: o['prices'] is Map && asMap(o['prices'])[l['key']] != null ? _q(asMap(o['prices'])[l['key']]) : '')},
           },
       ];
     });
@@ -1249,9 +1249,9 @@ class _ComparisonPageState extends State<_ComparisonPage> {
               filled: isBest,
               fillColor: YColors.success.withValues(alpha: .12),
               hintText: '—',
-              prefixIcon: (o['line_notes'] as Map?)?['${l['key']}'] == null
+              prefixIcon: asMap(o['line_notes'])['${l['key']}'] == null
                   ? null
-                  : Tooltip(message: '${(o['line_notes'] as Map)['${l['key']}']}', child: const Icon(Icons.sticky_note_2_outlined, size: 16, color: YColors.blue)),
+                  : Tooltip(message: '${asMap(o['line_notes'])['${l['key']}']}', child: const Icon(Icons.sticky_note_2_outlined, size: 16, color: YColors.blue)),
               prefixIconConstraints: const BoxConstraints(minWidth: 26),
             ),
           ),

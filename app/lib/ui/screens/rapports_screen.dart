@@ -309,7 +309,7 @@ class _BoardsTabState extends State<_BoardsTab> {
             SimpleDialogOption(
               onPressed: () => Navigator.pop(d, r),
               child: Row(children: [
-                Icon(_chartIcons[(r['config'] as Map?)?['chart']] ?? Icons.insights, size: 18),
+                Icon(_chartIcons[asMap(r['config'])['chart']] ?? Icons.insights, size: 18),
                 const SizedBox(width: 10),
                 Expanded(child: Text(tr('${r['name']}'))),
                 if (r['folder'] != null) Text(tr('${r['folder']}'), style: TextStyle(color: Theme.of(d).hintColor, fontSize: 12)),
@@ -319,7 +319,7 @@ class _BoardsTabState extends State<_BoardsTab> {
       ),
     );
     if (picked == null || !mounted) return;
-    final chart = (picked['config'] as Map?)?['chart'];
+    final chart = asMap(picked['config'])['chart'];
     final widgets = [for (final w in (_board!['widgets'] as List? ?? const [])) asMap(w)];
     widgets.add({'id': newId().substring(0, 12), 'report_id': picked['id'], 'title': null, 'w': chart == 'kpi' ? 1 : 2, 'h': chart == 'kpi' ? 1 : 2});
     await _saveWidgets(widgets);
@@ -467,7 +467,7 @@ class _BoardsTabState extends State<_BoardsTab> {
           for (var i = 0; i < widgets.length; i++)
             Builder(builder: (context) {
               final w = widgets[i];
-              final span = (toDouble(w['w']).toInt()).clamp(1, cols);
+              final span = clampCount(toDouble(w['w']).toInt(), 1, cols);
               final h = toDouble(w['h']).toInt().clamp(1, 3);
               return SizedBox(
                 width: unit * span + (span - 1) * 12,
@@ -540,7 +540,7 @@ class _WidgetCard extends StatelessWidget {
       final view = ReportView(data: data, compact: true);
       body = data.chart == 'table' || data.chart == 'pivot' ? SingleChildScrollView(child: view) : view;
     }
-    final period = result?['ok'] == true ? '${(result!['result'] as Map)['period']?['label'] ?? ''}' : '';
+    final period = result?['ok'] == true ? '${asMap(result!['result'])['period']?['label'] ?? ''}' : '';
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -763,12 +763,12 @@ class _ReportsTabState extends State<_ReportsTab> {
                             ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: YColors.blue.withValues(alpha: 0.1),
-                                child: Icon(_chartIcons[(r['config'] as Map?)?['chart']] ?? Icons.insights, color: YColors.blue, size: 20),
+                                child: Icon(_chartIcons[asMap(r['config'])['chart']] ?? Icons.insights, color: YColors.blue, size: 20),
                               ),
                               title: Text(tr('${r['name']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
                               subtitle: Text(tr([
                                 RapportsMeta.source('${r['source']}')?['label'] ?? '',
-                                RapportsMeta.periods()[(r['config'] as Map?)?['period']] ?? '',
+                                RapportsMeta.periods()[asMap(r['config'])['period']] ?? '',
                                 if (r['description'] != null && '${r['description']}'.isNotEmpty) '${r['description']}',
                               ].where((x) => '$x'.isNotEmpty).join(' · ')), maxLines: 2, overflow: TextOverflow.ellipsis),
                               trailing: Icon(r['visibility'] == 'private' ? Icons.lock_outline : Icons.groups_outlined, size: 18, color: Theme.of(context).hintColor),
@@ -847,7 +847,7 @@ class _TemplatesDialogState extends State<_TemplatesDialog> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Icon(_chartIcons[(t['config'] as Map?)?['chart']] ?? Icons.insights, color: YColors.blue, size: 20),
+                                    Icon(_chartIcons[asMap(t['config'])['chart']] ?? Icons.insights, color: YColors.blue, size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -943,7 +943,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       ]),
     );
     if (b == null || !mounted) return;
-    final chart = (_r?['config'] as Map?)?['chart'];
+    final chart = asMap(_r?['config'])['chart'];
     final widgets = [
       for (final w in (b['widgets'] as List? ?? const [])) asMap(w),
       {'id': newId().substring(0, 12), 'report_id': widget.reportId, 'title': null, 'w': chart == 'kpi' ? 1 : 2, 'h': chart == 'kpi' ? 1 : 2},
@@ -1027,7 +1027,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               isExpanded: true,
               decoration: InputDecoration(labelText: tr('Période'), isDense: true),
               items: [
-                DropdownMenuItem<String?>(value: null, child: Text(tr('Période du rapport (${RapportsMeta.periods()[(r['config'] as Map?)?['period']] ?? '—'})'), overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem<String?>(value: null, child: Text(tr('Période du rapport (${RapportsMeta.periods()[asMap(r['config'])['period']] ?? '—'})'), overflow: TextOverflow.ellipsis)),
                 for (final e in periods.entries) DropdownMenuItem<String?>(value: e.key, child: Text(tr(e.value))),
               ],
               onChanged: (v) {
@@ -1162,7 +1162,7 @@ class _ReportBuilderPageState extends State<ReportBuilderPage> {
     if (n == 0) chart = 'kpi';
     if (chart == 'pivot' && n != 2) chart = 'table';
     _c['chart'] = chart;
-    final sort = _c['sort'] as Map?;
+    final sort = asMapOrNull(_c['sort']);
     if (sort != null && !_dims.contains(sort['by']) && !_measures.contains(sort['by'])) _c['sort'] = null;
   }
 
@@ -1466,7 +1466,7 @@ class _ReportBuilderPageState extends State<ReportBuilderPage> {
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String?>(
-                  initialValue: (_c['sort'] as Map?)?['by'] as String?,
+                  initialValue: asMap(_c['sort'])['by'] as String?,
                   isExpanded: true,
                   decoration: InputDecoration(isDense: true, labelText: tr('Trier par')),
                   items: [
@@ -1475,21 +1475,21 @@ class _ReportBuilderPageState extends State<ReportBuilderPage> {
                     for (final m in _measures) DropdownMenuItem<String?>(value: m, child: Text(tr('${measures.firstWhere((x) => x['key'] == m, orElse: () => {'label': m})['label']}'))),
                   ],
                   onChanged: (v) {
-                    _c['sort'] = v == null ? null : {'by': v, 'dir': (_c['sort'] as Map?)?['dir'] ?? 'desc'};
+                    _c['sort'] = v == null ? null : {'by': v, 'dir': asMap(_c['sort'])['dir'] ?? 'desc'};
                     _changed();
                   },
                 ),
               ),
               if (_c['sort'] != null)
                 IconButton(
-                  tooltip: trn((_c['sort'] as Map)['dir'] == 'asc' ? 'Croissant' : 'Décroissant'),
+                  tooltip: trn(asMap(_c['sort'])['dir'] == 'asc' ? 'Croissant' : 'Décroissant'),
                   onPressed: () {
                     final sort = asMap(_c['sort']);
                     sort['dir'] = sort['dir'] == 'asc' ? 'desc' : 'asc';
                     _c['sort'] = sort;
                     _changed();
                   },
-                  icon: Icon((_c['sort'] as Map)['dir'] == 'asc' ? Icons.arrow_upward : Icons.arrow_downward),
+                  icon: Icon(asMap(_c['sort'])['dir'] == 'asc' ? Icons.arrow_upward : Icons.arrow_downward),
                 ),
               const SizedBox(width: 8),
               SizedBox(

@@ -141,7 +141,7 @@ class _PortalPartnerScreenState extends State<PortalPartnerScreen> {
                               leading: Icon(_eventIcons[e['type']] ?? Icons.circle_outlined, color: _eventColors[e['type']] ?? hint, size: 20),
                               title: Text(tr(_eventText(Map<String, dynamic>.from(e)))),
                               subtitle: Text(tr(dateTimeFr(e['created_at']))),
-                              onTap: e['document_id'] == null ? null : () => _openDoc(context, '${e['document_id']}', '${(e['data'] as Map?)?['order_id'] ?? ''}'),
+                              onTap: e['document_id'] == null ? null : () => _openDoc(context, '${e['document_id']}', '${asMap(e['data'])['order_id'] ?? ''}'),
                             ),
                         ]),
                 ),
@@ -170,7 +170,7 @@ class _PortalPartnerScreenState extends State<PortalPartnerScreen> {
   }
 
   Widget _accessCard(BuildContext context, Map<String, dynamic>? partner) {
-    final access = _d!['access'] as Map?;
+    final access = asMapOrNull(_d!['access']);
     final channels = List<String>.from(_d!['channels'] as List);
     final active = access?['active'] == true;
     final hint = Theme.of(context).hintColor;

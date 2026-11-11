@@ -56,7 +56,7 @@ class _ShopTabState extends State<ShopTab> {
     try {
       await context.read<Session>().api.post('sites/orders/${o['id']}/status', {'status': status, if (paid) 'paid': true});
       await _load();
-      if (mounted) toast(context, tr('Commande ${o['number']} : ${(_d?['statuses'] as Map?)?[status] ?? status}.'));
+      if (mounted) toast(context, tr('Commande ${o['number']} : ${asMap(_d?['statuses'])[status] ?? status}.'));
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }
@@ -701,7 +701,7 @@ class _Reviews extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Wrap(spacing: 12, runSpacing: 4, children: [
-                    for (final e in (r['products'] as Map).entries) Row(mainAxisSize: MainAxisSize.min, children: [Text(tr('${(r['items'] as Map?)?[e.key] ?? 'Article'} '), style: TextStyle(color: hint, fontSize: 12.5)), stars(toDouble(e.value).round(), 14)]),
+                    for (final e in (r['products'] as Map).entries) Row(mainAxisSize: MainAxisSize.min, children: [Text(tr('${asMap(r['items'])[e.key] ?? 'Article'} '), style: TextStyle(color: hint, fontSize: 12.5)), stars(toDouble(e.value).round(), 14)]),
                   ]),
                 ),
               if (r['reply'] != null) Container(margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.only(left: 10), decoration: const BoxDecoration(border: Border(left: BorderSide(color: YColors.blue, width: 3))), child: Text(tr('Votre réponse : ${r['reply']}'), style: TextStyle(color: hint))),
