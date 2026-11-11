@@ -18,7 +18,8 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }
       - uses: subosito/flutter-action@v2
-        with: { channel: stable, cache: true }
+        # Même Flutter que les versions publiées (Shorebird : SB_FLUTTER dans app/scripts/shorebird-commun.sh)
+        with: { flutter-version: '3.47.9', channel: stable, cache: true }
       - run: flutter pub get
       - name: APK release (non signé)
         env: { YOMARA_UNSIGNED: '1' }
