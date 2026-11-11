@@ -80,6 +80,14 @@ class InvoiceVatTest extends TestCase
         $e = $acc($inv);
         $this->assertEquals(30000, $e['4191']); // l'avance est soldée
         $this->assertEquals(82600, $e['411']);
+
+        // Second usage du même acompte, ou acompte d'un autre client : refusés
+        $deduct = fn ($partner) => ['type' => 'invoice', 'partner_id' => $partner, 'lines' => [
+            ['id' => $this->uuid(), 'description' => 'X', 'quantity' => 1, 'unit_price' => 50000, 'tax_rate' => 18],
+            ['id' => $this->uuid(), 'description' => 'Déduction', 'quantity' => -1, 'unit_price' => 30000, 'tax_rate' => 18, 'deposit_id' => $dep]]];
+        $this->assertSame('rejected', $push($deduct($client))['status']);
+        $autre = $api()->postJson('/api/core/partners', ['name' => 'Autre client', 'type' => 'customer'])->json('data.id');
+        $this->assertSame('rejected', $push($deduct($autre))['status']);
     }
 
     public function test_document_templates_settings_and_premium_modules(): void

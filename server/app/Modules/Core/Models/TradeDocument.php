@@ -394,6 +394,21 @@ abstract class TradeDocument extends Model
         $this->lines()->delete();
         // Société non assujettie à la TVA : aucune TVA facturée sur ses ventes
         $noVat = static::DIRECTION === 'sale' && app()->bound('tenant') && data_get(app('tenant')->settings, 'vat_subject') === false;
+        // Déduction d'acompte : facture d'acompte validée du même client, jamais déduite deux fois (compte 4191)
+        $depositIds = array_values(array_unique(array_filter(array_column($lines, 'deposit_id'))));
+        if ($depositIds) {
+            $cid = $this->company_id ?? (app()->bound('tenant') ? app('tenant')->id : 0);
+            $ok = \Illuminate\Support\Facades\DB::table('trade_documents')->where('company_id', $cid)->whereIn('id', $depositIds)
+                ->where('direction', 'sale')->where('type', 'deposit')->where('status', 'validated')->where('partner_id', $this->partner_id)->whereNull('deleted_at')->count();
+            if (static::DIRECTION !== 'sale' || $ok !== count($depositIds)) {
+                throw new \DomainException('Déduction d\'acompte refusée : seules les factures d\'acompte validées de ce client peuvent être déduites.');
+            }
+            $used = \Illuminate\Support\Facades\DB::table('trade_document_lines as l')->join('trade_documents as d', 'd.id', '=', 'l.document_id')
+                ->whereIn('l.deposit_id', $depositIds)->where('d.id', '!=', $this->id)->where('d.company_id', $cid)->where('d.status', '!=', 'cancelled')->whereNull('d.deleted_at')->exists();
+            if ($used) {
+                throw new \DomainException('Cet acompte a déjà été déduit sur une autre facture.');
+            }
+        }
         foreach (array_values($lines) as $i => $l) {
             $line = new TradeDocumentLine([
                 'id' => $l['id'] ?? null,

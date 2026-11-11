@@ -26,5 +26,11 @@ gh run watch "$RUN" -R "$SB_REPO" --exit-status --interval 30 >/dev/null || { ec
 if [ "$MODE" = version ] && [ -n "$OUT" ]; then
   mkdir -p "$OUT"
   gh run download "$RUN" -R "$SB_REPO" -n msix -D "$OUT" 2>/dev/null && echo "Paquet Microsoft Store : $(ls "$OUT"/*.msix | head -1)"
+  # Tous les logiciels de bureau (TOUT=1) : installateur Windows, DMG Mac, paquets Linux
+  if [ "${TOUT:-0}" = 1 ]; then
+    for a in windows macos linux; do
+      gh run download "$RUN" -R "$SB_REPO" -n "$a" -D "$OUT/$a" 2>/dev/null && echo "Logiciels $a : $OUT/$a" || echo "Pas de fichiers $a sur GitHub."
+    done
+  fi
 fi
 echo "GitHub : terminé."

@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Le micro sert à vous faire entendre pendant les réunions.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>La caméra sert à scanner les QR codes des billets et des badges.</string>
+	<string>La caméra sert à scanner les QR codes des billets et des badges, et à vous montrer pendant les réunions.</string>
 	<!-- Serveurs ERP en http seulement sur le réseau local (adresses IP privées, noms .local) ; https partout ailleurs -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -43,5 +45,18 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.business</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.yomaratechnologies.visio</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>yomara</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

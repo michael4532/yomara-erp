@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/local_db.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
+import '../../core/metiers.dart';
 import '../navigation.dart';
 import '../widgets/common.dart' show YomaraMark;
 
@@ -153,6 +154,8 @@ class _GuideState extends State<_Guide> {
               foot: tr('Ce guide prend environ deux minutes.'),
             ),
           )),
+      // Parcours par métier : favoris du menu et premiers pas adaptés à l'activité
+      _Page('metier', (c, play, wide) => _Metiers(available: ids, onGo: _close)),
       if (groups.isNotEmpty)
         _Page('spaces', (c, play, wide) => _Spaces(groups: groups, available: ids, play: play, wide: wide)),
       _Page('search', (c, play, wide) => _Split(
@@ -862,3 +865,82 @@ class _Finish extends StatelessWidget {
         ),
       );
 }
+
+/// Choix du métier : épingle les écrans utiles dans le menu et propose les premiers pas.
+class _Metiers extends StatefulWidget {
+  const _Metiers({required this.available, required this.onGo});
+
+  final Set<String> available;
+  final void Function([String? target]) onGo;
+
+  @override
+  State<_Metiers> createState() => _MetiersState();
+}
+
+class _MetiersState extends State<_Metiers> {
+  String? _id = UiPrefs.list('metier').firstOrNull;
+
+  Future<void> _choose(Metier m) async {
+    setState(() => _id = m.id);
+    await UiPrefs.save('metier', [m.id]);
+    // Favoris : ceux du métier (disponibles) en tête, puis ceux déjà choisis par l'utilisateur
+    final fav = [for (final f in m.favorites) if (widget.available.contains(f)) f];
+    for (final f in UiPrefs.list('nav_favorites')) {
+      if (!fav.contains(f)) fav.add(f);
+    }
+    await UiPrefs.save('nav_favorites', fav);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = metierById(_id);
+    final narrow = MediaQuery.of(context).size.width < 760;
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: narrow ? 20 : 56, vertical: 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Votre métier'), style: const TextStyle(color: Color(0xFFFFC531), fontWeight: FontWeight.w800, letterSpacing: .5)),
+        const SizedBox(height: 6),
+        Text(tr('Que fait votre entreprise ?'), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text(tr('Les écrans utiles à votre activité sont épinglés en haut du menu ; tout le reste reste accessible. Vous pourrez changer plus tard.'),
+            style: TextStyle(color: Colors.white.withValues(alpha: .78))),
+        const SizedBox(height: 16),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final x in metiers)
+            ChoiceChip(
+              avatar: Icon(x.icon, size: 18, color: _id == x.id ? const Color(0xFF0B1B3A) : Colors.white),
+              label: Text(tr(x.label)),
+              selected: _id == x.id,
+              // Couleur explicite : le thème clair des puces (fond blanc) rendait le texte blanc invisible
+              color: WidgetStatePropertyAll(_id == x.id ? const Color(0xFFFFC531) : const Color(0xFF1C2E52)),
+              showCheckmark: false,
+              labelStyle: TextStyle(color: _id == x.id ? const Color(0xFF0B1B3A) : Colors.white, fontWeight: FontWeight.w600),
+              side: BorderSide(color: Colors.white.withValues(alpha: .25)),
+              onSelected: (_) => _choose(x),
+            ),
+        ]),
+        if (m != null) ...[
+          const SizedBox(height: 20),
+          Text(tr('Vos premiers pas'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          for (final (i, st) in m.steps.indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: Colors.white.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(12),
+                child: ListTile(
+                  leading: CircleAvatar(radius: 14, backgroundColor: const Color(0xFFFFC531), child: Text('${i + 1}', style: const TextStyle(color: Color(0xFF0B1B3A), fontWeight: FontWeight.w800, fontSize: 13))),
+                  title: Text(tr(st.$1), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  trailing: widget.available.contains(st.$2)
+                      ? TextButton(onPressed: () => widget.onGo(st.$2), child: Text(tr('Commencer'), style: const TextStyle(color: Color(0xFFFFC531))))
+                      : Text(tr('Module à ajouter'), style: TextStyle(color: Colors.white.withValues(alpha: .6), fontSize: 12)),
+                ),
+              ),
+            ),
+        ],
+      ]),
+    );
+  }
+}
+

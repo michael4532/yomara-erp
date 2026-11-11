@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_navigator.dart';
+import 'core/deep_links.dart';
 import 'core/local_db.dart';
 import 'core/secure_store.dart';
 import 'i18n/i18n.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
     return;
   }
 
+  DeepLinks.init(); // lien « Ouvrir dans l'application » d'une réunion
   runApp(
     MultiProvider(
       providers: [

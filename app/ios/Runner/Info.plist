@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Le micro sert à vous faire entendre pendant les réunions.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>La caméra sert à scanner les QR codes des billets et des badges.</string>
+	<string>La caméra sert à scanner les QR codes des billets et des badges, et à vous montrer pendant les réunions.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -74,6 +76,16 @@
 	<string>400573441933-pp4h4gfg4dqjrkj0oc90mdu865lbimv9.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.yomaratechnologies.visio</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>yomara</string>
+			</array>
+		</dict>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>

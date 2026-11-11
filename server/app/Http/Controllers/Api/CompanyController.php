@@ -78,6 +78,8 @@ class CompanyController extends Controller
         ]);
 
         $company = app('tenant');
+        // Modèles du studio : taille raisonnable (le PDF est composé sur chaque appareil)
+        abort_if(isset($data['settings']['doc_templates']) && strlen((string) json_encode($data['settings']['doc_templates'])) > 300000, 422, 'Modèles de documents trop volumineux.');
         if (isset($data['settings'])) {
             // Seuls les réglages prévus ici : les quotas de la plateforme et les réglages protégés par d'autres droits
             // (paie, clôture comptable, gestionnaires…) ne passent pas par cette route.

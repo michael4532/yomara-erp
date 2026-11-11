@@ -223,6 +223,11 @@ class ArchivesController extends Controller
             'final_action' => 'sometimes|in:'.implode(',', array_keys(ArchiveService::FINAL_ACTIONS)),
             'retention_until' => 'nullable|date', 'legal_hold' => 'sometimes|boolean',
         ]);
+        // Séparation des rôles : lever un gel juridique, avancer le terme ou passer à l'élimination demande le droit d'éliminer
+        $sensitive = (array_key_exists('legal_hold', $d) && ! $d['legal_hold'] && $x->legal_hold)
+            || (array_key_exists('retention_until', $d) && ($d['retention_until'] === null ? false : ($x->retention_until === null || $d['retention_until'] < $x->retention_until)))
+            || (($d['final_action'] ?? null) === 'destroy' && $x->final_action !== 'destroy');
+        abort_if($sensitive && ! $r->user()->hasPermission('archives.dispose'), 403, 'Seul un responsable habilité aux éliminations peut lever un gel, avancer le terme ou décider une élimination.');
         if (array_key_exists('series_id', $d) && $d['series_id'] && (int) $d['series_id'] !== (int) $x->series_id && ! array_key_exists('retention_until', $d)) {
             // Reclassement : durée et sort de la nouvelle série
             $s = DB::table('ar_series')->where('id', $d['series_id'])->first();

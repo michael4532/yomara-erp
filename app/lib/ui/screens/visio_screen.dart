@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -34,18 +35,19 @@ const _optionLabels = {
   'reactions': ('Réactions', 'Applaudissements, pouces, emojis'),
 };
 
-/// Ouvre la salle : dans l'application (navigateur) ou dans le navigateur par défaut (applications de bureau et mobiles).
+/// Ouvre la salle : dans l'application (navigateur web, Android, iPhone, Mac, Windows) ou dans le navigateur par défaut (Linux).
 Future<void> openVisioRoom(BuildContext context, String url, String title) async {
+  // « app=1 » : la page de la salle ne propose pas d'ouvrir l'application, on en vient
+  final u0 = Uri.parse(url);
+  final u = u0.replace(queryParameters: {...u0.queryParameters, 'app': '1'});
   if (!visioEmbedded) {
-    // « app=1 » : la page de la salle ne propose pas d'ouvrir l'application, on en vient
-    final u = Uri.parse(url);
-    await safeLaunchUrl(u.replace(queryParameters: {...u.queryParameters, 'app': '1'}), mode: LaunchMode.externalApplication);
+    await safeLaunchUrl(u, mode: LaunchMode.externalApplication);
     return;
   }
   await Navigator.of(context).push(
     MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (c) => _RoomPage(url: url, title: title),
+      builder: (c) => _RoomPage(url: u.toString(), title: title),
     ),
   );
 }
@@ -66,6 +68,8 @@ class _RoomPage extends StatelessWidget {
       titleTextStyle: const TextStyle(color: Colors.white70, fontSize: 13),
       title: Text(tr('$title · la réunion continue tant que cette page est ouverte')),
       actions: [
+        // Téléphone : pas de seconde fenêtre (elle rejoindrait la réunion une deuxième fois)
+        if (kIsWeb || !(defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS))
         TextButton.icon(
           onPressed: () => safeLaunchUrl(Uri.parse(url), webOnlyWindowName: '_blank'),
           icon: const Icon(Icons.open_in_new, size: 16, color: Colors.white70),

@@ -65,7 +65,7 @@ if veut msix; then
         ko+=("Windows/Linux/DMG (sources GitHub pas en $NOUVELLE)")
       else
         echo; echo "=================== Windows, DMG Mac, Linux : construction Shorebird lancée sur GitHub (journal : $LOGS/microsoft.log)"
-        ./scripts/shorebird-github.sh version "$NOUVELLE" "$SORTIE" >"$LOGS/microsoft.log" 2>&1 &
+        TOUT="${TOUT:-0}" ./scripts/shorebird-github.sh version "$NOUVELLE" "$SORTIE" >"$LOGS/microsoft.log" 2>&1 &
         MSIX_PID=$!
       fi
     else

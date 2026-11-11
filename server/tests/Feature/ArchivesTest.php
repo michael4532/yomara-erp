@@ -67,6 +67,15 @@ class ArchivesTest extends TestCase
         $api()->postJson("/api/archives/loans/$loan", ['action' => 'return'])->assertOk();
         $this->assertSame('active', DB::table('ar_records')->where('id', $rec->id)->value('status'));
 
+        // Un archiviste sans droit d'élimination ne lève pas un gel et n'avance pas un terme
+        $arch = Role::withoutGlobalScopes()->create(['company_id' => $company->id, 'name' => 'Archiviste', 'permissions' => ['archives.view', 'archives.manage', 'archives.confidential']]);
+        $at = User::create(['company_id' => $company->id, 'name' => 'Archiviste', 'email' => 'arch@akwaba.ci', 'password' => 'secret123', 'role_id' => $arch->id])->createToken('t')->plainTextToken;
+        $api()->putJson("/api/archives/records/{$rec->id}", ['legal_hold' => true])->assertOk();
+        $this->api($at)->putJson("/api/archives/records/{$rec->id}", ['legal_hold' => false])->assertForbidden();
+        $this->api($at)->putJson("/api/archives/records/{$rec->id}", ['retention_until' => '2020-01-01'])->assertForbidden();
+        $this->api($at)->putJson("/api/archives/records/{$rec->id}", ['location' => 'Salle C'])->assertOk();
+        $api()->putJson("/api/archives/records/{$rec->id}", ['legal_hold' => false])->assertOk();
+
         // Élimination : arrivée à terme, gel juridique respecté, visa puis exécution, notice conservée
         DB::table('ar_records')->where('id', $scan->id)->update(['final_action' => 'destroy', 'retention_until' => '2015-01-10']);
         $old = $api()->post('/api/archives/records', ['files' => [UploadedFile::fake()->createWithContent('vieux.pdf', 'ancien')], 'doc_date' => '2005-01-01', 'series_id' => $factures['id']])->json('data.ids.0');

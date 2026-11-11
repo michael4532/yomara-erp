@@ -428,6 +428,78 @@ class _DocumentEditorState extends State<DocumentEditor> {
     if (mounted) Navigator.pop(context);
   }
 
+  /// Abonnement créé depuis ce document : mêmes lignes, facturées automatiquement à intervalle régulier.
+  Future<void> _makeRecurring() async {
+    var unit = 'month';
+    var count = 1;
+    var autoValidate = true;
+    var autoSend = false;
+    final maxCtl = TextEditingController();
+    final name = TextEditingController(text: '${_lines.first['description']}${_lines.length > 1 ? ' et ${_lines.length - 1} autre(s)' : ''} — ${_doc['partner_name'] ?? ''}');
+    DateTime next(DateTime d) => switch (unit) {
+          'week' => d.add(Duration(days: 7 * count)),
+          'year' => DateTime(d.year + count, d.month, d.day),
+          _ => DateTime(d.year, d.month + count, d.day),
+        };
+    final base = DateTime.tryParse('${_doc['date']}') ?? DateTime.now();
+    final ok = await showFormDialog<bool>(
+      context,
+      title: 'Facturation récurrente',
+      subtitle: '${_doc['partner_name'] ?? ''}',
+      icon: Icons.autorenew,
+      builder: (dc) => StatefulBuilder(builder: (dc, setD) {
+        final first = next(base);
+        return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 8, 24, 24), children: [
+          Field(label: tr('Nom du contrat'), child: TextField(controller: name)),
+          Text(tr('Fréquence'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final (u, c, l) in [('week', 1, 'Chaque semaine'), ('month', 1, 'Chaque mois'), ('month', 3, 'Chaque trimestre'), ('month', 6, 'Chaque semestre'), ('year', 1, 'Chaque année')])
+              ChoiceChip(label: Text(tr(l)), selected: unit == u && count == c, onSelected: (_) => setD(() => (unit = u, count = c))),
+          ]),
+          const SizedBox(height: 12),
+          Text(tr('Prochaine facture le ${dateFr(isoDate(first))}, puis ${unit == 'week' ? 'chaque semaine' : unit == 'year' ? 'chaque année' : count == 1 ? 'chaque mois' : 'tous les $count mois'}.'), style: TextStyle(color: Theme.of(dc).hintColor)),
+          const SizedBox(height: 8),
+          Field(label: tr('Nombre de factures (vide = sans fin)'), child: TextField(controller: maxCtl, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+          SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Valider automatiquement')), value: autoValidate, onChanged: (v) => setD(() => autoValidate = v)),
+          SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Envoyer au client (e-mail avec lien de paiement)')), value: autoSend, onChanged: (v) => setD(() => autoSend = v)),
+          Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: () => Navigator.pop(dc, true), icon: const Icon(Icons.autorenew), label: Text(tr('Créer l\'abonnement')))),
+        ]);
+      }),
+    );
+    if (ok != true || !mounted) return;
+    final first = next(base);
+    await context.read<SyncEngine>().save('ab_subscriptions', {
+      'partner_id': _doc['partner_id'],
+      'name': name.text.trim().isEmpty ? 'Abonnement ${_doc['partner_name'] ?? ''}' : name.text.trim(),
+      'status': 'active',
+      'start_date': isoDate(first),
+      'next_date': isoDate(first),
+      'interval_unit': unit,
+      'interval_count': count,
+      if (int.tryParse(maxCtl.text) != null) 'max_invoices': int.parse(maxCtl.text),
+      'currency': _cur,
+      'auto_validate': autoValidate,
+      'auto_send': autoSend,
+      'lines': [
+        // Lignes facturables seulement (pas les déductions d'acompte)
+        for (final l in _lines)
+          if (toDouble(l['quantity']) > 0 && l['deposit_id'] == null)
+            {
+              'description': l['description'],
+              'quantity': toDouble(l['quantity']),
+              'unit_price': toDouble(l['unit_price']),
+              'tax_rate': toDouble(l['tax_rate']),
+              'discount_percent': toDouble(l['discount_percent']),
+              'product_id': ?l['product_id'],
+              'unit': ?l['unit'],
+            },
+      ],
+      'notes': 'Créé depuis ${cfg.types[_doc['type']] ?? 'le document'} ${_doc['number'] ?? ''}'.trim(),
+    });
+    if (mounted) toast(context, tr('Abonnement créé : prochaine facture le ${dateFr(isoDate(first))} (Contrats & abonnements).'));
+  }
+
   /// Acomptes validés du client, pas encore déduits d'une autre facture.
   List<Map<String, dynamic>> _availableDeposits() {
     if (cfg != DocConfig.sale || _doc['type'] != 'invoice' || _doc['partner_id'] == null) return const [];
@@ -1032,6 +1104,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
           if (v == 'delete') _deleteDraft();
           if (v == 'cancel') _cancelDoc();
           if (v == 'paylink') _payLink();
+          if (v == 'recurring') _makeRecurring();
           if (v == 'sign') _sign(session, payments);
           if (v == 'assets') assetsFromInvoice(context, {..._doc, ..._payload(), 'id': _doc['id']});
           if (v == 'delivery') editDelivery(context, fromDocument: {..._doc, ..._payload(), 'id': _doc['id'], 'type': _doc['type'], 'number': _doc['number'], 'amount_paid': _doc['amount_paid'], 'total': _doc['total']});
@@ -1039,6 +1112,8 @@ class _DocumentEditorState extends State<DocumentEditor> {
         itemBuilder: (_) => [
           if (cfg.entity == 'sales_documents' && ['order', 'invoice'].contains(_doc['type']) && _doc['status'] == 'validated' && session.hasModule('logistique') && session.can('logistique.manage'))
             PopupMenuItem(value: 'delivery', child: Text(tr('Créer la livraison'))),
+          if (cfg.entity == 'sales_documents' && ['invoice', 'quote', 'order'].contains(_doc['type']) && _doc['partner_id'] != null && _lines.isNotEmpty && session.hasModule('abonnements') && session.can('abonnements.manage'))
+            PopupMenuItem(value: 'recurring', child: Text(tr('Rendre récurrente (facturer chaque mois…)'))),
           if (cfg.entity == 'sales_documents' && _doc['type'] == 'invoice' && _doc['status'] == 'validated' && _doc['number'] != null && _doc['payment_status'] != 'paid')
             PopupMenuItem(value: 'paylink', child: Text(tr('Lien « Payer en ligne »'))),
           if (cfg.entity == 'sales_documents' && _doc['status'] == 'validated' && _doc['number'] != null && session.hasModule('signature') && session.can('signature.manage'))
