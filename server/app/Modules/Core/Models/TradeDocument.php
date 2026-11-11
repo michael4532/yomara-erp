@@ -43,6 +43,7 @@ abstract class TradeDocument extends Model
     protected $fillable = [
         'type', 'reference', 'partner_id', 'partner_name', 'date', 'due_date', 'status',
         'currency', 'warehouse_id', 'branch_id', 'source_id', 'notes', 'terms', 'pos_session_id', 'rs_order_id', 'rs_bill', 'analytic', 'exchange_rate', 'project_id', 'payment_term_id',
+        'payment_method', 'receipt_box',
     ];
 
     protected $attributes = ['status' => 'draft', 'payment_status' => 'unpaid'];
@@ -64,6 +65,7 @@ abstract class TradeDocument extends Model
             'rs_bill' => 'array',
             'analytic' => 'array',
             'exchange_rate' => 'float',
+            'receipt_box' => 'boolean',
             'version' => 'integer',
         ];
     }
@@ -133,6 +135,8 @@ abstract class TradeDocument extends Model
             'exchange_rate' => 'nullable|numeric|gt:0|max:1000000000',
             'project_id' => 'nullable|uuid',
             'payment_term_id' => ['nullable', 'uuid', \App\Support\TenantRef::of('payment_terms')],
+            'payment_method' => 'nullable|in:'.implode(',', \App\Modules\Core\Models\Payment::METHODS),
+            'receipt_box' => 'nullable|boolean',
         ];
     }
 
@@ -385,6 +389,8 @@ abstract class TradeDocument extends Model
     public function replaceLines(array $lines): void
     {
         $this->lines()->delete();
+        // Société non assujettie à la TVA : aucune TVA facturée sur ses ventes
+        $noVat = static::DIRECTION === 'sale' && app()->bound('tenant') && data_get(app('tenant')->settings, 'vat_subject') === false;
         foreach (array_values($lines) as $i => $l) {
             $line = new TradeDocumentLine([
                 'id' => $l['id'] ?? null,
@@ -394,7 +400,7 @@ abstract class TradeDocument extends Model
                 'unit' => $l['unit'] ?? null,
                 'unit_price' => (float) $l['unit_price'],
                 'discount_percent' => (float) ($l['discount_percent'] ?? 0),
-                'tax_rate' => (float) ($l['tax_rate'] ?? 0),
+                'tax_rate' => $noVat ? 0.0 : (float) ($l['tax_rate'] ?? 0),
                 'analytic' => $l['analytic'] ?? null,
                 'unit_factor' => (float) ($l['unit_factor'] ?? 1) ?: 1,
                 'lots' => \App\Modules\Lots\LotService::cleanSpec($l['lots'] ?? null),

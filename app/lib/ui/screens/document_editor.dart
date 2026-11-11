@@ -20,6 +20,8 @@ import 'logistique_screen.dart' show editDelivery;
 import 'partners_screen.dart';
 import 'tresorerie_screen.dart' show trActive, trAccounts, trDefaults;
 import '../../core/approvals.dart';
+import '../../core/vat.dart';
+import 'products_screen.dart' show editProduct;
 import '../../core/custom_fields.dart';
 import '../widgets/custom_fields_editor.dart';
 import 'approbations_screen.dart' show ApprovalBanner;
@@ -89,6 +91,9 @@ class DocumentEditor extends StatefulWidget {
 }
 
 const _termTypes = ['quote', 'order', 'invoice', 'purchase_order', 'supplier_invoice'];
+
+/// Documents qui portent un mode de règlement et la case « Pour décharge ».
+const _payModeTypes = ['quote', 'order', 'delivery', 'invoice', 'proforma'];
 
 class _DocumentEditorState extends State<DocumentEditor> {
   bool _termChosen = false; // condition choisie à la main : le changement de tiers ne la remplace plus
@@ -268,6 +273,8 @@ class _DocumentEditorState extends State<DocumentEditor> {
       if (ptAvailable() && _termTypes.contains(_doc['type'])) 'payment_term_id': _doc['payment_term_id'],
       'reference': _reference.text.trim().isEmpty ? null : _reference.text.trim(),
       'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+      'payment_method': _doc['payment_method'],
+      'receipt_box': _doc['receipt_box'],
       if (analyticEnabled(context.read<Session>())) 'analytic': anDist(_doc['analytic']).isEmpty ? null : _doc['analytic'],
       if (context.read<Session>().hasModule('champs')) 'custom': _custom,
       'lines': [
@@ -468,7 +475,9 @@ class _DocumentEditorState extends State<DocumentEditor> {
   Future<void> _addLine([Map<String, dynamic>? product]) async {
     product ??= await showDialog<Map<String, dynamic>>(context: context, builder: (_) => const _ProductPicker());
     if (!mounted) return;
-    final taxDefault = toDouble(context.read<Session>().companySettings['tax_rate'] ?? 18);
+    final session = context.read<Session>();
+    final sale = widget.config == DocConfig.sale;
+    final taxDefault = sale ? defaultVatRate(session) : toDouble(session.companySettings['tax_rate'] ?? standardVatRate(session));
     if (product != null && product['is_template'] == true) return;
     setState(() {
       _lines.add(product == null || product.isEmpty
@@ -481,7 +490,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
               'quantity': 1,
               'unit_price': widget.config == DocConfig.sale ? toDouble(product['sale_price']) : toDouble(product['purchase_price']),
               'discount_percent': 0,
-              'tax_rate': toDouble(product['tax_rate'] ?? taxDefault),
+              'tax_rate': sale && !vatSubject(session) ? 0 : toDouble(product['tax_rate'] ?? taxDefault),
             });
       final pk = product == null ? null : packagingsOf(product).where((e) => e['name'] == product!['_packaging']).firstOrNull;
       if (pk != null) {
@@ -564,6 +573,41 @@ class _DocumentEditorState extends State<DocumentEditor> {
         if (((_doc['schedule'] as List?)?.length ?? 0) > 1)
           SizedBox(width: double.infinity, child: Field(label: tr('Échéancier'), child: ScheduleView(doc: _doc))),
         SizedBox(width: wide ? 200 : double.infinity, child: Field(label: tr('Référence'), child: TextField(controller: _reference, enabled: editable, onChanged: (_) => _dirty = true))),
+        if (_payModeTypes.contains(_doc['type']))
+          SizedBox(
+            width: wide ? 200 : double.infinity,
+            child: Field(
+              label: tr('Mode de règlement'),
+              child: DropdownButtonFormField<String?>(
+                initialValue: paymentMethods.containsKey(_doc['payment_method']) ? _doc['payment_method'] as String : null,
+                isExpanded: true,
+                items: [
+                  DropdownMenuItem(value: null, child: Text(tr('Non précisé'))),
+                  for (final e in paymentMethods.entries)
+                    if (!['loyalty', 'gift_card'].contains(e.key)) DropdownMenuItem(value: e.key, child: Text(tr(e.value))),
+                ],
+                onChanged: editable ? (v) => setState(() { _doc['payment_method'] = v; _dirty = true; }) : null,
+              ),
+            ),
+          ),
+        if (_payModeTypes.contains(_doc['type']))
+          SizedBox(
+            width: wide ? 220 : double.infinity,
+            child: Field(
+              label: tr('Décharge'),
+              child: Tooltip(
+                message: tr('Cadre « Pour décharge » : le client signe à la remise de la facture ou de la marchandise'),
+                child: CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(tr('Case « Pour décharge »')),
+                  value: (_doc['receipt_box'] as bool?) ?? session.companySettings['invoice_receipt_box'] == true,
+                  onChanged: editable ? (v) => setState(() { _doc['receipt_box'] = v; _dirty = true; }) : null,
+                ),
+              ),
+            ),
+          ),
         if (session.hasModule('devises'))
           SizedBox(
             width: wide ? (_foreign ? 300 : 160) : double.infinity,
@@ -719,6 +763,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
                   editable: editable,
                   wide: wide,
                   currency: _cur,
+                  vatOptions: cfg == DocConfig.sale ? vatChoices(session, toDouble(_lines[i]['tax_rate'])) : null,
                   analytic: analyticEnabled(session),
                   packagings: session.hasModule('tarifs'),
                   lots: _lotsOn,
@@ -734,13 +779,16 @@ class _DocumentEditorState extends State<DocumentEditor> {
             ]),
     );
 
+    // Société non assujettie : pas de TVA sur les ventes, total simple
+    final noVat = cfg == DocConfig.sale && !vatSubject(session) && (t['tax_total'] ?? 0) == 0;
     final totalsCard = SectionCard(
       child: Column(children: [
-        _TotalRow('Sous-total HT', money(t['subtotal'], _cur)),
+        if (!noVat) _TotalRow('Sous-total HT', money(t['subtotal'], _cur)),
         if ((t['discount_total'] ?? 0) > 0) _TotalRow('dont remises', '− ${money(t['discount_total'], _cur)}'),
-        _TotalRow('TVA', money(t['tax_total'], _cur)),
-        const Divider(height: 20),
-        _TotalRow('Total TTC', money(t['total'], _cur), bold: true),
+        if (!noVat) _TotalRow('TVA', money(t['tax_total'], _cur)),
+        if (!noVat) const Divider(height: 20),
+        _TotalRow(noVat ? 'Total' : 'Total TTC', money(t['total'], _cur), bold: true),
+        if (noVat) Align(alignment: Alignment.centerRight, child: Text(tr('TVA non applicable'), style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor))),
         if (_foreign && toDouble(_doc['exchange_rate']) > 0)
           _TotalRow('Contrevaleur (1 $_cur = ${number(toDouble(_doc['exchange_rate']), decimals: toDouble(_doc['exchange_rate']) == toDouble(_doc['exchange_rate']).roundToDouble() ? 0 : 3)})', money((t['total'] ?? 0) * toDouble(_doc['exchange_rate']), session.currency), color: Theme.of(context).hintColor),
         if (payable) ...[
@@ -991,7 +1039,7 @@ class _TotalRow extends StatelessWidget {
 }
 
 class _LineRow extends StatefulWidget {
-  const _LineRow({super.key, required this.line, required this.editable, required this.wide, required this.currency, required this.onChanged, required this.onDelete, this.analytic = false, this.packagings = false, this.lots = false, this.incoming = false, this.warehouseId, this.onReprice});
+  const _LineRow({super.key, required this.line, required this.editable, required this.wide, required this.currency, required this.onChanged, required this.onDelete, this.analytic = false, this.packagings = false, this.lots = false, this.incoming = false, this.warehouseId, this.onReprice, this.vatOptions});
 
   final Map<String, dynamic> line;
   final bool editable;
@@ -1005,6 +1053,9 @@ class _LineRow extends StatefulWidget {
   final bool incoming;
   final String? warehouseId;
   final void Function(bool force)? onReprice;
+
+  /// Taux de TVA proposés (ventes) ; null = saisie libre (achats).
+  final List<double>? vatOptions;
 
   @override
   State<_LineRow> createState() => _LineRowState();
@@ -1028,7 +1079,13 @@ class _LineRowState extends State<_LineRow> {
     _px = px;
     _c['unit_price']!.text = _n(widget.line['unit_price']);
     _c['discount_percent']!.text = _n(widget.line['discount_percent']);
+    _syncTtc();
   }
+
+  int get _dec => decimalsFor(widget.currency);
+
+  /// Prix unitaire TTC affiché, recalculé depuis le HT et la TVA.
+  void _syncTtc() => _c['unit_price_ttc']!.text = _n(ttcFromHt(toDouble(widget.line['unit_price']), toDouble(widget.line['tax_rate']), _dec));
 
   Widget? _unitPicker() {
     final p = _product;
@@ -1105,11 +1162,22 @@ class _LineRowState extends State<_LineRow> {
       'unit_price': TextEditingController(text: n(widget.line['unit_price'])),
       'discount_percent': TextEditingController(text: n(widget.line['discount_percent'])),
       'tax_rate': TextEditingController(text: n(widget.line['tax_rate'])),
+      'unit_price_ttc': TextEditingController(text: n(ttcFromHt(toDouble(widget.line['unit_price']), toDouble(widget.line['tax_rate']), decimalsFor(widget.currency)))),
     };
   }
 
   void _set(String k, String v) {
+    if (k == 'unit_price_ttc') {
+      // Prix TTC saisi : le HT est recalculé (même arrondi que la base)
+      final ht = htFromTtc(toDouble(v), toDouble(widget.line['tax_rate']));
+      widget.line['unit_price'] = ht;
+      widget.line['_manual'] = true;
+      _c['unit_price']!.text = _n(ht);
+      widget.onChanged();
+      return;
+    }
     widget.line[k] = k == 'description' ? v : toDouble(v);
+    if (k == 'unit_price' || k == 'tax_rate') _syncTtc();
     if (k == 'unit_price' || k == 'discount_percent') widget.line['_manual'] = true;
     if (k == 'quantity') {
       widget.onReprice?.call(false);
@@ -1130,6 +1198,29 @@ class _LineRowState extends State<_LineRow> {
           onChanged: (v) => _set(k, v),
         ),
       );
+
+  Widget _vat({double width = 100}) {
+    final opts = widget.vatOptions;
+    if (opts == null) return _num('tax_rate', 'TVA %', width: 70);
+    final cur = toDouble(widget.line['tax_rate']);
+    return SizedBox(
+      width: widget.wide ? width : null,
+      child: DropdownButtonFormField<double>(
+        initialValue: opts.contains(cur) ? cur : opts.first,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: tr('TVA')),
+        items: [for (final r in opts) DropdownMenuItem(value: r, child: Text(tr('${_n(r)} %')))],
+        onChanged: !widget.editable || opts.length < 2
+            ? null
+            : (v) {
+                widget.line['tax_rate'] = v ?? 0;
+                _c['tax_rate']!.text = _n(v);
+                setState(_syncTtc);
+                widget.onChanged();
+              },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1179,11 +1270,13 @@ class _LineRowState extends State<_LineRow> {
           _num('quantity', 'Qté', width: 80),
           if (unit != null) ...[const SizedBox(width: 8), unit],
           const SizedBox(width: 8),
-          _num('unit_price', 'Prix unit. HT', width: 120),
+          _num('unit_price', 'Prix unit. HT', width: 115),
           const SizedBox(width: 8),
-          _num('discount_percent', 'Remise %', width: 80),
+          _num('unit_price_ttc', 'Prix unit. TTC', width: 115),
           const SizedBox(width: 8),
-          _num('tax_rate', 'TVA %', width: 70),
+          _num('discount_percent', 'Rem. %', width: 82),
+          const SizedBox(width: 8),
+          _vat(),
           const SizedBox(width: 12),
           total,
           an,
@@ -1208,7 +1301,13 @@ class _LineRowState extends State<_LineRow> {
           const SizedBox(width: 8),
           Expanded(flex: 2, child: _num('unit_price', 'Prix HT')),
           const SizedBox(width: 8),
-          Expanded(child: _num('tax_rate', 'TVA %')),
+          Expanded(flex: 2, child: _num('unit_price_ttc', 'Prix TTC')),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _num('discount_percent', 'Remise %')),
+          const SizedBox(width: 8),
+          Expanded(child: _vat()),
         ]),
         ?extra,
         const SizedBox(height: 6),
@@ -1285,6 +1384,12 @@ class _ProductPicker extends StatefulWidget {
 
 class _ProductPickerState extends State<_ProductPicker> {
   String _q = '';
+  String _raw = '';
+
+  Future<void> _create() async {
+    final created = await editProduct(context, null, _raw.trim().isEmpty ? null : _raw.trim());
+    if (created != null && mounted) Navigator.pop(context, created);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1305,7 +1410,10 @@ class _ProductPickerState extends State<_ProductPicker> {
           TextField(
             autofocus: true,
             decoration: InputDecoration(prefixIcon: Icon(Icons.qr_code_scanner, size: 20), hintText: tr('Nom, référence ou code-barres…')),
-            onChanged: (v) => setState(() => _q = v.toLowerCase()),
+            onChanged: (v) => setState(() {
+              _raw = v;
+              _q = v.toLowerCase();
+            }),
             onSubmitted: (v) {
               final pk = packagingByBarcode(v);
               if (pk != null && pk.$1['is_template'] != true) return Navigator.pop(context, {...pk.$1, '_packaging': pk.$2['name']});
@@ -1315,7 +1423,15 @@ class _ProductPickerState extends State<_ProductPicker> {
           const SizedBox(height: 8),
           Expanded(
             child: items.isEmpty
-                ? Center(child: Text(tr('Aucun produit')))
+                ? Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(tr('Aucun produit')),
+                      if (_q.isNotEmpty && context.read<Session>().can('core.products.manage')) ...[
+                        const SizedBox(height: 12),
+                        FilledButton.tonalIcon(onPressed: _create, icon: const Icon(Icons.add), label: Text(tr('Créer « ${_raw.trim()} »'))),
+                      ],
+                    ]),
+                  )
                 : ListView.builder(
                     itemCount: items.length,
                     itemBuilder: (_, i) => ListTile(
@@ -1328,7 +1444,15 @@ class _ProductPickerState extends State<_ProductPicker> {
           ),
         ]),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer')))],
+      actions: [
+        if (context.read<Session>().can('core.products.manage'))
+          TextButton.icon(
+            onPressed: _create,
+            icon: const Icon(Icons.add),
+            label: Text(tr('Nouveau produit')),
+          ),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
+      ],
     );
   }
 }

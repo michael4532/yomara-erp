@@ -6,6 +6,7 @@ import '../../core/local_db.dart';
 import '../../core/stock_calc.dart';
 import '../../core/sync_engine.dart';
 import '../../state/session.dart';
+import '../../core/vat.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/custom_fields_editor.dart';
@@ -194,16 +195,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
 const units = ['unité', 'kg', 'g', 'litre', 'mètre', 'carton', 'sac', 'paquet', 'boîte', 'heure', 'jour', 'forfait'];
 
-Future<Map<String, dynamic>?> editProduct(BuildContext context, [Map<String, dynamic>? product]) => showFormDialog<Map<String, dynamic>>(
+Future<Map<String, dynamic>?> editProduct(BuildContext context, [Map<String, dynamic>? product, String? name]) => showFormDialog<Map<String, dynamic>>(
       context,
       title: product == null ? 'Nouveau produit' : 'Modifier le produit',
-      builder: (_) => _ProductForm(product: product),
+      builder: (_) => _ProductForm(product: product, name: name),
     );
 
 class _ProductForm extends StatefulWidget {
-  const _ProductForm({this.product});
+  const _ProductForm({this.product, this.name});
 
   final Map<String, dynamic>? product;
+
+  /// Nom proposé pour un nouveau produit (texte cherché dans une facture).
+  final String? name;
 
   @override
   State<_ProductForm> createState() => _ProductFormState();
@@ -232,8 +236,8 @@ class _ProductFormState extends State<_ProductForm> {
   @override
   void initState() {
     super.initState();
-    final p = widget.product ?? {};
-    final taxDefault = context.read<Session>().companySettings['tax_rate'] ?? 18;
+    final p = widget.product ?? {if (widget.name != null) 'name': widget.name};
+    final taxDefault = standardVatRate(context.read<Session>());
     _type = (p['type'] as String?) ?? 'product';
     _unit = units.contains(p['unit']) ? p['unit'] as String : 'unité';
     _trackStock = (p['track_stock'] as bool?) ?? true;

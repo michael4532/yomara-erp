@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.43 — factures : TTC, TVA selon le pays, décharge et montant en lettres
+
+- Factures et devis : nouvelle colonne « Prix unit. TTC » calculée automatiquement ; saisir le TTC recalcule le HT (65 000 TTC à 18 % → 55 084,75 HT, total exact 65 000).
+- TVA : le taux normal suit le pays de la société (Côte d'Ivoire 18 %, Sénégal 18 %, Cameroun 19,25 %, France 20 %…). Sur chaque ligne de vente, choix entre le taux normal et 0 %.
+- Société non assujettie à la TVA (Paramètres › Informations de la société) : lignes à 0 % imposées (aussi par le serveur), facture sans colonne TVA, « Total » et mention « TVA non applicable ». Pays, régime d'imposition (RNI, RSI, Entreprenant…), case décharge et montant en lettres se règlent au même endroit.
+- « Ajouter un produit » : bouton « Nouveau produit » et « Créer « … » » quand la recherche ne trouve rien ; le produit créé s'ajoute aussitôt à la facture.
+- Facture PDF : mode de règlement (choisi sur la facture ou d'après les paiements reçus), « Arrêtée la présente facture à la somme de … francs CFA », case « Pour décharge » (signature du client et de la société), pied de page complet (adresse, téléphone, e-mail, RCCM, NCC, régime, banque), colonne Désignation alignée à gauche.
+
 ## 0.99.42 — correctifs de sécurité
 
 - Signatures d'e-mail : les adresses d'image, de logo, de photo et de site saisies dans le formulaire sont vérifiées (http/https ou image intégrée) et échappées ; une adresse piégée ne peut plus injecter de code dans la signature.

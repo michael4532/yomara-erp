@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'agences_screen.dart';
 
 import '../../core/config.dart';
+import '../../core/vat.dart';
 import '../../core/sync_engine.dart';
 import '../../state/session.dart';
 import '../theme.dart';
@@ -214,7 +215,12 @@ class SettingsScreen extends StatelessWidget {
     final ctrl = {
       for (final f in ['name', 'phone', 'email', 'address', 'city', 'tax_id', 'trade_register']) f: TextEditingController(text: '${c[f] ?? ''}'),
     };
-    final tax = TextEditingController(text: '${session.companySettings['tax_rate'] ?? 18}');
+    final tax = TextEditingController(text: vatPct(standardVatRate(session)));
+    var country = '${c['country'] ?? 'CI'}'.toUpperCase();
+    var vatOn = vatSubject(session);
+    var receiptBox = session.companySettings['invoice_receipt_box'] == true;
+    var amountWords = session.companySettings['invoice_amount_words'] != false;
+    final regime = TextEditingController(text: '${session.companySettings['tax_regime'] ?? ''}');
     final terms = TextEditingController(text: '${session.companySettings['payment_terms_days'] ?? 30}');
     final footer = TextEditingController(text: '${session.companySettings['invoice_footer'] ?? ''}');
     String n(String k) => toDouble(session.companySettings[k]) == 0 ? '' : '${toDouble(session.companySettings[k]).round()}';
@@ -226,7 +232,7 @@ class SettingsScreen extends StatelessWidget {
     await showFormDialog(
       context,
       title: tr('Informations de la société'),
-      builder: (dc) {
+      builder: (dc) => StatefulBuilder(builder: (dc, setD) {
         return ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           shrinkWrap: true,
@@ -236,12 +242,41 @@ class SettingsScreen extends StatelessWidget {
                 label: labels[e.key]!,
                 child: TextField(controller: e.value),
               ),
+            Field(
+              label: tr('Pays'),
+              child: DropdownButtonFormField<String>(
+                initialValue: vatCountryNames.containsKey(country) ? country : null,
+                isExpanded: true,
+                items: [
+                  for (final e in (vatCountryNames.entries.toList()..sort((a, b) => a.value.compareTo(b.value))))
+                    DropdownMenuItem(value: e.key, child: Text(tr('${e.value} — TVA ${vatPct(countryVatRate(e.key))} %'))),
+                ],
+                // Le taux normal suit le pays choisi
+                onChanged: (v) => setD(() {
+                  country = v ?? country;
+                  tax.text = vatPct(countryVatRate(country));
+                }),
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('Assujetti à la TVA')),
+              subtitle: Text(tr(vatOn
+                  ? 'Les factures de vente portent la TVA (taux normal ou 0 % au choix sur chaque ligne).'
+                  : 'Aucune TVA sur les ventes ; les factures portent la mention « TVA non applicable ».')),
+              value: vatOn,
+              onChanged: (v) => setD(() => vatOn = v),
+            ),
+            Field(
+              label: tr('Régime d\'imposition (facultatif)'),
+              child: TextField(controller: regime, decoration: InputDecoration(hintText: tr('Ex. : RNI, RSI, Entreprenant, Micro-entreprise'))),
+            ),
             Row(
               children: [
                 Expanded(
                   child: Field(
-                    label: tr('TVA par défaut (%)'),
-                    child: TextField(controller: tax),
+                    label: tr('TVA normale (%)'),
+                    child: TextField(controller: tax, enabled: vatOn, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -256,6 +291,20 @@ class SettingsScreen extends StatelessWidget {
             Field(
               label: tr('Mention en pied de facture'),
               child: TextField(controller: footer, maxLines: 2),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('Case « Pour décharge » sur les factures')),
+              subtitle: Text(tr('Cadre de signature du client à la remise (modifiable sur chaque facture).')),
+              value: receiptBox,
+              onChanged: (v) => setD(() => receiptBox = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('Montant en lettres')),
+              subtitle: Text(tr('« Arrêtée la présente facture à la somme de … »')),
+              value: amountWords,
+              onChanged: (v) => setD(() => amountWords = v),
             ),
             if (session.hasModule('achats'))
               Field(
@@ -291,8 +340,13 @@ class SettingsScreen extends StatelessWidget {
                   try {
                     await session.api.put('company', {
                       for (final e in ctrl.entries) e.key: e.value.text.trim().isEmpty ? null : e.value.text.trim(),
+                      'country': country,
                       'settings': {
                         'tax_rate': toDouble(tax.text),
+                        'vat_subject': vatOn,
+                        'tax_regime': regime.text.trim().isEmpty ? null : regime.text.trim(),
+                        'invoice_receipt_box': receiptBox,
+                        'invoice_amount_words': amountWords,
                         'payment_terms_days': toDouble(terms.text).round(),
                         'invoice_footer': footer.text.trim().isEmpty ? null : footer.text.trim(),
                         if (session.hasModule('achats')) 'purchase_approval_limit': toDouble(approval.text),
@@ -311,7 +365,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         );
-      },
+      }),
     );
   }
 
@@ -504,7 +558,7 @@ class _CompanyHero extends StatelessWidget {
       (Icons.receipt_long_outlined, 'NCC', v(c['tax_id'])),
       (Icons.gavel_outlined, 'RCCM', v(c['trade_register'])),
       (Icons.payments_outlined, 'Devise', session.currency),
-      (Icons.percent, 'TVA par défaut', '${session.companySettings['tax_rate'] ?? 18} %'),
+      (Icons.percent, 'TVA', vatSubject(session) ? '${vatPct(standardVatRate(session))} %' : 'Non assujetti'),
     ];
 
     final identity = Row(

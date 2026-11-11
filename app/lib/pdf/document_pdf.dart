@@ -2,11 +2,14 @@ import 'package:flutter/services.dart' show rootBundle, Uint8List;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../core/amount_words.dart';
 import '../core/custom_fields.dart';
+import '../core/vat.dart';
 import '../core/fne.dart';
 import '../core/local_db.dart';
 import '../state/session.dart';
 import '../ui/screens/documents_screen.dart';
+import '../ui/screens/document_editor.dart' show paymentMethods;
 import '../ui/widgets/common.dart';
 import '../i18n/i18n.dart';
 import '../ui/widgets/pdf_viewer.dart';
@@ -45,6 +48,21 @@ Future<Uint8List> buildDocumentPdf({
   final partner = LocalDb.get('partners', doc['partner_id'] as String?);
   final lines = List<Map<String, dynamic>>.from((doc['lines'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
 
+  final sale = config.entity == 'sales_documents';
+  final settings = session.companySettings;
+  // TVA : colonnes masquées et mention légale quand la société n'est pas assujettie (ventes sans aucune TVA)
+  final noVat = sale && !vatSubject(session) && toDouble(doc['tax_total']) == 0;
+  final regime = settings['tax_regime'];
+  // Mode de règlement : celui prévu sur le document, sinon ceux des paiements reçus
+  final payModes = <String>{
+    if (doc['payment_method'] != null) '${paymentMethods[doc['payment_method']] ?? doc['payment_method']}',
+    if (doc['payment_method'] == null) for (final p in payments) '${paymentMethods[p['method']] ?? p['method']}',
+  };
+  final receiptBox = sale && ['invoice', 'delivery', 'order'].contains(doc['type']) && ((doc['receipt_box'] as bool?) ?? settings['invoice_receipt_box'] == true);
+  final words = sale && ['invoice', 'proforma', 'quote', 'credit_note'].contains(doc['type']) && settings['invoice_amount_words'] != false && toDouble(doc['total']) > 0;
+  final firstBank = [for (final b in (settings['bank_accounts'] as List? ?? const [])) if (b is Map && b['on_invoices'] != false) b].firstOrNull;
+  final docWord = switch (doc['type']) { 'quote' => 'le présent devis', 'proforma' => 'la présente facture proforma', 'credit_note' => 'le présent avoir', _ => 'la présente facture' };
+
   final pdf = pw.Document(version: PdfVersion.pdf_1_4, theme: pw.ThemeData.withFont(base: regular, bold: bold));
 
   pw.Widget kv(String k, String v, {bool strong = false}) => pw.Padding(
@@ -60,14 +78,25 @@ Future<Uint8List> buildDocumentPdf({
     margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 48),
     footer: (ctx) => pw.Column(children: [
       pw.Divider(color: PdfColors.grey300),
+      // Pied de page : identité légale, coordonnées et banque de la société
       pw.Text(
         tr([
           company['name'],
-          if (company['trade_register'] != null) 'RCCM ${company['trade_register']}',
-          if (company['tax_id'] != null) 'NCC ${company['tax_id']}',
-          company['phone'],
+          [company['address'], company['city']].where((e) => e != null && '$e'.isNotEmpty).join(', '),
+          if (company['phone'] != null) 'Tél. ${company['phone']}',
           company['email'],
         ].where((e) => e != null && '$e'.isNotEmpty).join(' · ')),
+        style: pw.TextStyle(fontSize: 8, color: grey, fontWeight: pw.FontWeight.bold),
+        textAlign: pw.TextAlign.center,
+      ),
+      pw.Text(
+        tr([
+          if (company['trade_register'] != null) 'RCCM ${company['trade_register']}',
+          if (company['tax_id'] != null) 'NCC ${company['tax_id']}',
+          if (regime != null) 'Régime : $regime',
+          if (sale && !vatSubject(session)) 'Non assujetti à la TVA',
+          if (firstBank != null) [firstBank['bank'], if (firstBank['account'] != null) 'RIB ${firstBank['account']}', if (firstBank['iban'] != null) 'IBAN ${firstBank['iban']}'].where((e) => e != null).join(' '),
+        ].where((e) => e.isNotEmpty).join(' · ')),
         style: pw.TextStyle(fontSize: 8, color: grey),
         textAlign: pw.TextAlign.center,
       ),
@@ -123,7 +152,7 @@ Future<Uint8List> buildDocumentPdf({
           pw.Padding(padding: const pw.EdgeInsets.only(top: 3), child: pw.Text(tr('${f['label']} : ${customDisplay(f, (doc['custom'] as Map)['${f['key']}'])}'))),
       pw.SizedBox(height: 16),
       pw.TableHelper.fromTextArray(
-        headers: ['Désignation', 'Qté', 'P.U. HT', 'Remise', 'TVA', 'Total TTC'],
+        headers: noVat ? ['Désignation', 'Qté', 'Prix unitaire', 'Remise', 'Total'] : ['Désignation', 'Qté', 'P.U. HT', 'Remise', 'TVA', 'Total TTC'],
         data: [
           for (final l in lines)
             [
@@ -131,22 +160,29 @@ Future<Uint8List> buildDocumentPdf({
               qty(l['quantity'] as num?) + (l['unit'] != null ? ' ${l['unit']}' : ''),
               money(toDouble(l['unit_price']), currency),
               toDouble(l['discount_percent']) > 0 ? '${number(toDouble(l['discount_percent']))} %' : '',
-              '${number(toDouble(l['tax_rate']))} %',
+              if (!noVat) '${number(toDouble(l['tax_rate']))} %',
               money(toDouble(l['total']), currency),
             ],
         ],
+        headerAlignments: {0: pw.Alignment.centerLeft},
         headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
         headerDecoration: pw.BoxDecoration(color: night),
         cellStyle: const pw.TextStyle(fontSize: 9),
-        cellAlignments: {1: pw.Alignment.centerRight, 2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight, 4: pw.Alignment.centerRight, 5: pw.Alignment.centerRight},
+        cellAlignments: {0: pw.Alignment.centerLeft, 1: pw.Alignment.centerRight, 2: pw.Alignment.centerRight, 3: pw.Alignment.centerRight, 4: pw.Alignment.centerRight, 5: pw.Alignment.centerRight},
         columnWidths: {0: const pw.FlexColumnWidth(4)},
         border: null,
         rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200))),
       ),
       pw.SizedBox(height: 16),
-      pw.Row(children: [
+      pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
         pw.Expanded(
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.SizedBox(height: 4),
+            if (payModes.isNotEmpty)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 4),
+                child: pw.Text(tr('Mode de règlement : ${payModes.join(', ')}'), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              ),
             if (doc['notes'] != null) pw.Text(tr('${doc['notes']}'), style: pw.TextStyle(color: grey, fontSize: 9)),
             // Conditions de paiement et échéancier
             if (doc['payment_term_id'] != null && LocalDb.hasEntity('payment_terms') && LocalDb.get('payment_terms', '${doc['payment_term_id']}') != null)
@@ -162,11 +198,12 @@ Future<Uint8List> buildDocumentPdf({
         pw.SizedBox(
           width: 220,
           child: pw.Column(children: [
-            kv('Total HT', money(toDouble(doc['subtotal']), currency)),
+            if (!noVat) kv('Total HT', money(toDouble(doc['subtotal']), currency)),
             if (toDouble(doc['discount_total']) > 0) kv('dont remises', money(toDouble(doc['discount_total']), currency)),
-            kv('TVA', money(toDouble(doc['tax_total']), currency)),
-            pw.Divider(),
-            kv('Total TTC', money(toDouble(doc['total']), currency), strong: true),
+            if (!noVat) kv('TVA', money(toDouble(doc['tax_total']), currency)),
+            if (!noVat) pw.Divider(),
+            kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true),
+            if (noVat) pw.Padding(padding: const pw.EdgeInsets.only(top: 2), child: pw.Text(tr('TVA non applicable'), style: pw.TextStyle(fontSize: 8, color: grey))),
             if (currency != session.currency && rate > 0) ...[
               pw.SizedBox(height: 2),
               pw.Text(tr('Contrevaleur : ${money(toDouble(doc['total']) * rate, session.currency)} (1 $currency = ${number(rate, decimals: rate == rate.roundToDouble() ? 0 : 3)})'), style: pw.TextStyle(fontSize: 8, color: grey)),
@@ -178,6 +215,16 @@ Future<Uint8List> buildDocumentPdf({
           ]),
         ),
       ]),
+      if (words) ...[
+        pw.SizedBox(height: 12),
+        pw.RichText(
+          text: pw.TextSpan(style: const pw.TextStyle(fontSize: 9.5), children: [
+            pw.TextSpan(text: tr('Arrêté${doc['type'] == 'quote' || doc['type'] == 'credit_note' ? '' : 'e'} $docWord à la somme de : ')),
+            pw.TextSpan(text: tr(_cap(amountInWords(toDouble(doc['total']), currency))), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.TextSpan(text: tr(noVat ? '.' : ' TTC.')),
+          ]),
+        ),
+      ],
       // Coordonnées de paiement (factures de vente)
       if (config.entity == 'sales_documents' && (doc['type'] == 'invoice' || doc['type'] == 'quote')) ...() {
         final banks = [for (final b in (session.companySettings['bank_accounts'] as List? ?? const [])) if (b is Map && b['on_invoices'] != false) b];
@@ -252,6 +299,31 @@ Future<Uint8List> buildDocumentPdf({
           ),
         ];
       }(),
+      // Case « Pour décharge » : signature du client à la remise de la facture ou de la marchandise
+      if (receiptBox) ...[
+        pw.SizedBox(height: 20),
+        pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          for (final (title, hint) in [
+            ('Pour décharge — le client', 'Nom, date, signature et cachet'),
+            ('Pour ${company['name'] ?? 'la société'}', 'Signature et cachet'),
+          ]) ...[
+            pw.Expanded(
+              child: pw.Container(
+                height: 90,
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: pw.BorderRadius.circular(4)),
+                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.Text(tr(title), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: night)),
+                  pw.Text(tr(hint), style: pw.TextStyle(fontSize: 8, color: grey)),
+                  pw.Spacer(),
+                  if (title.startsWith('Pour décharge')) pw.Text(tr('Reçu le : ____ / ____ / ________'), style: pw.TextStyle(fontSize: 8, color: grey)),
+                ]),
+              ),
+            ),
+            if (title.startsWith('Pour décharge')) pw.SizedBox(width: 16),
+          ],
+        ]),
+      ],
       if (session.companySettings['invoice_footer'] != null) ...[
         pw.SizedBox(height: 24),
         pw.Text(tr('${session.companySettings['invoice_footer']}'), style: pw.TextStyle(fontSize: 9, color: grey)),
@@ -262,3 +334,4 @@ Future<Uint8List> buildDocumentPdf({
   return pdf.save();
 }
 
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
