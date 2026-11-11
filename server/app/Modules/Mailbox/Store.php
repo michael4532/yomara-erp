@@ -67,6 +67,14 @@ class Store
     public static function upsert(Account $a, Folder $f, string $remoteId, array $p, array $flags = [], int $size = 0, bool $bodyLoaded = true): Message
     {
         $m = Message::withTrashed()->firstOrNew(['folder_id' => $f->id, 'remote_id' => $remoteId]);
+        // Copie locale d'un message envoyé (« local:<id> ») : la copie du serveur la remplace, sans doublon
+        if (! $m->exists && ! empty($p['message_id']) && ! str_starts_with($remoteId, 'local:')) {
+            $local = Message::withTrashed()->where('folder_id', $f->id)->where('remote_id', 'local:'.trim($p['message_id'], '<> '))->first();
+            if ($local) {
+                $local->remote_id = $remoteId;
+                $m = $local;
+            }
+        }
         $isNew = ! $m->exists;
         $html = isset($p['html']) && $p['html'] !== null ? Mime::sanitize($p['html']) : null;
         if ($html === null && ! empty($p['text'])) {

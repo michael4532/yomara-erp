@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.46 — correctifs : double authentification, réponses dans la conversation, mode sombre
+
+- Double authentification : « Activation expirée » à la saisie du code corrigé. L'activation en cours et les codes de connexion sont conservés en base de données (chiffrés) et non plus dans le cache du serveur, qui peut être vidé ou isolé sur un hébergement mutualisé.
+- Boîte mail : une réponse envoyée apparaît tout de suite dans « Éléments envoyés » et en haut de la conversation, y compris avec Microsoft 365, Gmail et les serveurs qui ne renvoient pas leur copie ; la copie du serveur la remplace ensuite, sans doublon. La conversation affiche les messages les plus récents en premier.
+- Mode sombre : les e-mails restent lisibles. Un e-mail simple (Outlook…) suit le thème sombre, ses couleurs de texte imposées (noir) sont retirées ; une lettre d'information mise en page est affichée sur fond clair, comme dans Gmail et Outlook.
+
 ## 0.99.45 — double authentification, tableau de bord d'adoption, reprise Sage
 
 - **Double authentification** (Paramètres › Mon compte › Sécurité) : après le mot de passe, un code à 6 chiffres — application d'authentification (Google Authenticator, Microsoft Authenticator, Authy : QR code à scanner) ou code envoyé par e-mail. 8 codes de secours à usage unique en cas de téléphone perdu. « Ne plus demander sur cet appareil pendant 30 jours » (annulé si le mot de passe change). Obligatoire pour le super administrateur ; un administrateur peut l'exiger pour toute sa société, et la réinitialiser pour un utilisateur qui a perdu son téléphone (fiche de l'utilisateur). Code rejoué refusé, 5 essais par connexion, toutes les autres sessions fermées à l'activation. Les clés d'API des intégrations ne sont pas concernées.

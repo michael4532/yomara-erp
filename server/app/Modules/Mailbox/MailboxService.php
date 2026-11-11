@@ -123,6 +123,12 @@ class MailboxService
     {
         $a = $m->account;
         Store::flags($m, $flags);
+        // Copie locale d'un envoi pas encore remplacée par celle du serveur : rien à changer à distance
+        if ($a->provider !== 'pop3' && str_starts_with((string) $m->remote_id, 'local:')) {
+            Store::counts($m->folder);
+
+            return;
+        }
         $this->driver($a)->setFlags($a, $m, $flags);
         Store::counts($m->folder);
     }
@@ -131,7 +137,11 @@ class MailboxService
     {
         abort_unless($target->account_id === $m->account_id, 422, 'Déplacement possible uniquement dans le même compte.');
         $from = $m->folder;
-        $this->driver($m->account)->move($m->account, $m, $target);
+        if ($m->account->provider !== 'pop3' && str_starts_with((string) $m->remote_id, 'local:')) {
+            $m->forceFill(['folder_id' => $target->id])->save(); // copie locale : déplacée ici seulement
+        } else {
+            $this->driver($m->account)->move($m->account, $m, $target);
+        }
         Store::counts($from);
         Store::counts($target);
     }
@@ -181,7 +191,11 @@ class MailboxService
 
             return;
         }
-        $this->driver($m->account)->destroy($m->account, $m);
+        if ($m->account->provider !== 'pop3' && str_starts_with((string) $m->remote_id, 'local:')) {
+            $m->delete(); // copie locale d'un envoi : supprimée ici seulement
+        } else {
+            $this->driver($m->account)->destroy($m->account, $m);
+        }
         Store::counts($from);
     }
 
@@ -247,6 +261,7 @@ class MailboxService
             }
             $this->driver($a)->send($a, $mail);
             Antispam::recordSuccess($a);
+            $this->keepSentCopy($a, $mail);
             DB::table('mb_outbox')->where('id', $id)->update(['status' => 'sent', 'sent_at' => now(), 'error' => null, 'attempts' => $row->attempts + 1, 'updated_at' => now(),
                 'payload' => json_encode(array_merge($payload, ['attachments' => array_map(fn ($x) => array_diff_key($x, ['data' => 1]), $payload['attachments'] ?? [])]))]);
             if ($mail['original'] && in_array($mail['mode'], ['reply', 'reply_all'], true)) {
@@ -275,6 +290,30 @@ class MailboxService
             return false;
         } finally {
             $this->close();
+        }
+    }
+
+    /**
+     * Le message envoyé apparaît tout de suite dans « Éléments envoyés » et dans la conversation, même quand le serveur
+     * ne renvoie pas l'identifiant de sa copie (Microsoft 365, Gmail, serveurs sans UIDPLUS) : copie locale, remplacée
+     * par celle du serveur à la synchronisation suivante.
+     */
+    protected function keepSentCopy(Account $a, array $mail): void
+    {
+        try {
+            $mid = Mime::mid($mail['message_id'] ?? null);
+            if (! $mid || Message::withoutGlobalScopes()->where('account_id', $a->id)->where('message_id', $mid)->exists()) {
+                return;
+            }
+            $sent = Folder::where('account_id', $a->id)->where('role', 'sent')->first();
+            if (! $sent) {
+                return;
+            }
+            $raw = Composer::email($mail)->toString();
+            Store::upsert($a, $sent, 'local:'.trim($mid, '<>'), Mime::parse($raw), ['seen' => true], strlen($raw));
+            Store::counts($sent);
+        } catch (\Throwable) {
+            // la copie n'est pas bloquante : le message est parti
         }
     }
 

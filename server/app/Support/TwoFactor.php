@@ -6,7 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\User;
 use App\Platform\ClientComms;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
@@ -57,7 +57,7 @@ class TwoFactor
     public static function challenge(User $u, ?string $device, string $via): array
     {
         $token = Str::random(48);
-        Cache::put(self::key($token), ['user' => $u->id, 'attempts' => 0, 'device' => $device, 'via' => $via, 'sent' => 0, 'code' => null], self::CHALLENGE_TTL);
+        self::put(self::key($token), 'challenge', $u->id, ['user' => $u->id, 'attempts' => 0, 'device' => $device, 'via' => $via, 'sent' => 0, 'code' => null], self::CHALLENGE_TTL);
         if ($u->two_factor_method === 'email') {
             self::sendLoginCode($token);
         }
@@ -75,7 +75,7 @@ class TwoFactor
 
     public static function challengeData(string $token): ?array
     {
-        return strlen($token) === 48 ? Cache::get(self::key($token)) : null;
+        return strlen($token) === 48 ? self::get(self::key($token)) : null;
     }
 
     /** Envoie (ou renvoie) le code par e-mail pour un défi. */
@@ -92,7 +92,7 @@ class TwoFactor
         $code = self::randomCode();
         $ch['code'] = hash('sha256', $code);
         $ch['sent']++;
-        Cache::put(self::key($token), $ch, self::CHALLENGE_TTL);
+        self::put(self::key($token), 'challenge', $ch['user'], $ch, null);
         self::mailCode($u, $code, 'connexion');
     }
 
@@ -105,15 +105,15 @@ class TwoFactor
         $ch = self::challengeData($token) ?? throw new \DomainException('Code expiré : reconnectez-vous.');
         $u = User::find($ch['user']);
         if (! $u || ! $u->is_active) {
-            Cache::forget(self::key($token));
+            self::forget(self::key($token));
             throw new \DomainException('Ce compte est désactivé.');
         }
         if ($ch['attempts'] >= self::MAX_ATTEMPTS) {
-            Cache::forget(self::key($token));
+            self::forget(self::key($token));
             throw new \DomainException('Trop d\'essais : reconnectez-vous.');
         }
         $ch['attempts']++;
-        Cache::put(self::key($token), $ch, self::CHALLENGE_TTL);
+        self::put(self::key($token), 'challenge', $ch['user'], $ch, null);
 
         $ok = self::checkCode($u, $code, $ch['code']) ?? (self::useRecoveryCode($u, $code) ? 'recovery' : null);
         if (! $ok) {
@@ -121,7 +121,7 @@ class TwoFactor
             $left = self::MAX_ATTEMPTS - $ch['attempts'];
             throw new \DomainException('Code incorrect.'.($left > 0 ? ' Encore '.$left.' essai(s).' : ' Reconnectez-vous.'));
         }
-        Cache::forget(self::key($token));
+        self::forget(self::key($token));
         ActivityLog::record('auth.2fa.passed', $u, ['with' => $ok]);
 
         return ['user' => $u, 'device' => $ch['device'], 'via' => $ch['via'], 'with' => $ok];
@@ -134,9 +134,9 @@ class TwoFactor
         if ($u->two_factor_method === 'app' && $u->two_factor_secret) {
             $step = Totp::verify(Crypt::decryptString($u->two_factor_secret), $digits);
             // Un code déjà utilisé ne sert pas deux fois (vol par-dessus l'épaule, interception)
-            $last = (int) Cache::get('2fa:last-step:'.$u->id, 0);
+            $last = (int) $u->two_factor_last_step;
             if ($step !== null && $step > $last) {
-                Cache::put('2fa:last-step:'.$u->id, $step, 180);
+                $u->forceFill(['two_factor_last_step' => $step])->saveQuietly();
 
                 return 'app';
             }
@@ -155,12 +155,12 @@ class TwoFactor
     {
         if ($method === 'app') {
             $secret = Totp::secret();
-            Cache::put('2fa:setup:'.$u->id, ['method' => 'app', 'secret' => Crypt::encryptString($secret)], 1800);
+            self::put('2fa:setup:'.$u->id, 'setup', $u->id, ['method' => 'app', 'secret' => Crypt::encryptString($secret)], 3600);
 
             return ['method' => 'app', 'secret' => $secret, 'uri' => Totp::uri($secret, $u->email, (string) config('erp.name', 'Yomara ERP'))];
         }
         $code = self::randomCode();
-        Cache::put('2fa:setup:'.$u->id, ['method' => 'email', 'code' => hash('sha256', $code), 'attempts' => 0], 900);
+        self::put('2fa:setup:'.$u->id, 'setup', $u->id, ['method' => 'email', 'code' => hash('sha256', $code), 'attempts' => 0], 900);
         self::mailCode($u, $code, 'activation');
 
         return ['method' => 'email', 'email_hint' => self::maskEmail($u->email)];
@@ -169,26 +169,26 @@ class TwoFactor
     /** Confirme l'activation avec un premier code ; renvoie les codes de secours (affichés une seule fois). */
     public static function confirmSetup(User $u, string $code): array
     {
-        $p = Cache::get('2fa:setup:'.$u->id) ?? throw new \DomainException('Activation expirée : recommencez.');
+        $p = self::get('2fa:setup:'.$u->id) ?? throw new \DomainException('Activation expirée (plus d\'une heure) : touchez « Retour » puis recommencez.');
         $digits = preg_replace('/\D/', '', $code);
         if ($p['method'] === 'app') {
             $step = Totp::verify(Crypt::decryptString($p['secret']), $digits);
             if ($step === null) {
                 throw new \DomainException('Code incorrect. Vérifiez que l\'heure du téléphone est automatique, puis saisissez le code affiché.');
             }
-            Cache::put('2fa:last-step:'.$u->id, $step, 180);
+            $u->forceFill(['two_factor_last_step' => $step])->saveQuietly();
         } else {
             $p['attempts'] = ($p['attempts'] ?? 0) + 1;
-            Cache::put('2fa:setup:'.$u->id, $p, 900);
+            self::put('2fa:setup:'.$u->id, 'setup', $u->id, $p, null);
             if ($p['attempts'] > self::MAX_ATTEMPTS) {
-                Cache::forget('2fa:setup:'.$u->id);
+                self::forget('2fa:setup:'.$u->id);
                 throw new \DomainException('Trop d\'essais : recommencez l\'activation.');
             }
             if (! hash_equals($p['code'], hash('sha256', $digits))) {
                 throw new \DomainException('Code incorrect.');
             }
         }
-        Cache::forget('2fa:setup:'.$u->id);
+        self::forget('2fa:setup:'.$u->id);
         $codes = self::newRecoveryCodes();
         $u->forceFill([
             'two_factor_method' => $p['method'],
@@ -250,6 +250,49 @@ class TwoFactor
     protected static function key(string $token): string
     {
         return '2fa:ch:'.hash('sha256', $token);
+    }
+
+    // Stockage en base (table two_factor_pending), contenu chiffré : indépendant du cache de l'hébergement
+
+    /** $ttl null : garde l'échéance existante. */
+    protected static function put(string $key, string $kind, int $userId, array $data, ?int $ttl): void
+    {
+        $h = hash('sha256', $key);
+        $row = ['kind' => $kind, 'user_id' => $userId, 'data' => Crypt::encryptString(json_encode($data)), 'updated_at' => now()];
+        if ($ttl !== null) {
+            $row['expires_at'] = now()->addSeconds($ttl);
+        }
+        if (DB::table('two_factor_pending')->where('token_hash', $h)->update($row) === 0) {
+            DB::table('two_factor_pending')->insert($row + ['token_hash' => $h, 'created_at' => now(), 'expires_at' => now()->addSeconds($ttl ?? self::CHALLENGE_TTL)]);
+        }
+        // Ménage des défis et activations expirés
+        if (random_int(1, 20) === 1) {
+            DB::table('two_factor_pending')->where('expires_at', '<', now()->subDay())->delete();
+        }
+    }
+
+    protected static function get(string $key): ?array
+    {
+        $r = DB::table('two_factor_pending')->where('token_hash', hash('sha256', $key))->where('expires_at', '>', now())->first();
+        if (! $r) {
+            return null;
+        }
+        try {
+            return json_decode(Crypt::decryptString($r->data), true) ?: null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    protected static function forget(string $key): void
+    {
+        DB::table('two_factor_pending')->where('token_hash', hash('sha256', $key))->delete();
+    }
+
+    /** Pour les tests : contenu d'un défi ou d'une activation en cours. */
+    public static function pending(string $key): ?array
+    {
+        return self::get($key);
     }
 
     protected static function randomCode(): string

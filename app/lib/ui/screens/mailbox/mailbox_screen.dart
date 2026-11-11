@@ -1703,7 +1703,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
       for (final a in (m['attachments'] as List? ?? const []))
         if (a['inline'] != true) asMap(a),
     ];
-    final thread = _s.thread(m).where((x) => x['id'] != m['id']).toList();
+    // Conversation : les plus récents d'abord (une réponse envoyée apparaît en haut)
+    final thread = _s.thread(m).where((x) => x['id'] != m['id']).toList().reversed.toList();
     final folder = _s.folder(m['folder_id']);
     final accountFolders = _s.foldersOf(m['account_id'] as int).where((f) => f['id'] != m['folder_id']).toList();
     final partner = asMapOrNull(m['partner']);

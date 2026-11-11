@@ -16,7 +16,7 @@ class User extends Authenticatable
         'company_id', 'role_id', 'manager_id', 'job_title', 'name', 'email', 'phone', 'password', 'is_super_admin', 'is_active',
     ];
 
-    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_last_step'];
 
     protected function casts(): array
     {

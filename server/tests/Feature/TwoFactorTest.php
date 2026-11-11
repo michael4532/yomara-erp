@@ -37,7 +37,9 @@ class TwoFactorTest extends TestCase
         $api()->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'mauvais'])->assertStatus(422);
         $setup = $api()->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->assertOk()->json();
         $this->assertStringStartsWith('otpauth://totp/', $setup['uri']);
-        $api()->postJson('/api/auth/2fa/confirm', ['code' => '000000'])->assertStatus(422);
+        // Cache du serveur vidé entre le QR code et le code (hébergement mutualisé) : l'activation tient toujours
+        Cache::flush();
+        $api()->postJson('/api/auth/2fa/confirm', ['code' => '000000'])->assertStatus(422)->assertJsonFragment(['code' => ['Code incorrect. Vérifiez que l\'heure du téléphone est automatique, puis saisissez le code affiché.']]);
         $codes = $api()->postJson('/api/auth/2fa/confirm', ['code' => Totp::code($setup['secret'], intdiv(time(), 30))])->assertOk()->json('recovery_codes');
         $this->assertCount(8, $codes);
         $this->assertTrue($api()->getJson('/api/auth/me')->json('user.two_factor'));
@@ -47,6 +49,7 @@ class TwoFactorTest extends TestCase
         // Connexion : pas de jeton avant le code
         $r = $this->login($admin->email)->assertOk()->json();
         $this->assertTrue($r['two_factor']);
+        Cache::flush(); // idem pendant la connexion
         $this->assertArrayNotHasKey('token', $r);
         $this->postJson('/api/auth/2fa/verify', ['challenge' => $r['challenge'], 'code' => '123456'])->assertStatus(422);
         // Le code déjà utilisé à l'activation ne peut pas être rejoué : on prend le pas suivant
@@ -96,7 +99,7 @@ class TwoFactorTest extends TestCase
         $r = $this->login('awa@mail.ci')->assertOk()->json();
         $this->assertSame('email', $r['method']);
         $this->postJson('/api/auth/2fa/send', ['challenge' => $r['challenge']])->assertOk();
-        $ch = Cache::get('2fa:ch:'.hash('sha256', $r['challenge']));
+        $ch = \App\Support\TwoFactor::pending('2fa:ch:'.hash('sha256', $r['challenge']));
         $this->assertSame(2, $ch['sent']);
 
         // Téléphone / boîte perdue : l'administrateur réinitialise, toutes les sessions sont fermées
@@ -138,7 +141,7 @@ class TwoFactorTest extends TestCase
     /** Code e-mail en attente : on le régénère ici en lisant le hash (les tests n'ont pas accès au code en clair). */
     protected function lastCode(int $userId, string $prefix): string
     {
-        $p = Cache::get($prefix.$userId);
+        $p = \App\Support\TwoFactor::pending($prefix.$userId);
         for ($i = 0; $i <= 999999; $i++) {
             $c = str_pad((string) $i, 6, '0', STR_PAD_LEFT);
             if (hash('sha256', $c) === $p['code']) {
