@@ -29,6 +29,7 @@ class RequireModule
         }
 
         app(\App\Support\ModuleRegistry::class)->ensureSetup($company, [$module]);
+        \App\Platform\Adoption::touch($company->id, $module);
 
         return $next($request);
     }

@@ -52,6 +52,7 @@ class _UserEditorState extends State<_UserEditor> {
   int? _roleId;
   int? _managerId;
   late bool _active = (widget.user?['is_active'] as bool?) ?? true;
+  late bool _twoFactor = widget.user?['two_factor'] == true;
   late final Set<String> _branches = {...List<String>.from(widget.user?['branch_ids'] as List? ?? const [])};
   // Modules cochés ; null tant que l'utilisateur n'a rien touché (= ceux de la fonction)
   Set<String>? _modules;
@@ -321,6 +322,33 @@ class _UserEditorState extends State<_UserEditor> {
                 subtitle: Text(tr('Action par action, dans chaque module')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => showUserAccessDialog(context, widget.user!),
+              ),
+            // Téléphone perdu sans code de secours : l'administrateur retire la double authentification
+            if (!_isMe && _twoFactor)
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined, color: YColors.success),
+                title: Text(tr('Double authentification activée')),
+                subtitle: Text(tr('Téléphone perdu ? Réinitialisez-la : la personne la réactivera à sa prochaine connexion.')),
+                trailing: TextButton(
+                  onPressed: () async {
+                    if (!await confirm(context, tr('Réinitialiser la double authentification ?'),
+                        tr('${widget.user!['name']} sera déconnecté(e) de tous ses appareils et pourra se reconnecter avec son seul mot de passe.'),
+                        ok: tr('Réinitialiser'), danger: true)) {
+                      return;
+                    }
+                    if (!mounted) return;
+                    final api = context.read<Session>().api;
+                    try {
+                      await api.post('users/${widget.user!['id']}/2fa/reset');
+                      if (!mounted) return;
+                      setState(() => _twoFactor = false);
+                      toast(context, tr('Double authentification réinitialisée.'));
+                    } catch (e) {
+                      if (mounted) toast(context, errorText(e), error: true);
+                    }
+                  },
+                  child: Text(tr('Réinitialiser')),
+                ),
               ),
           ]),
         ),

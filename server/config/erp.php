@@ -13,7 +13,7 @@ return [
 
     'name' => env('ERP_NAME', 'Yomara ERP'),
 
-    'version' => '0.99.44',
+    'version' => '0.99.45',
 
     // Fiches officielles des applications (proposées dans Administration › Boutique › Liens de téléchargement)
     'store_links' => [
@@ -31,6 +31,11 @@ return [
     // Délai (secondes) pendant lequel un utilisateur est considéré "en ligne"
     // après sa dernière requête / son dernier heartbeat.
     'presence_window' => (int) env('ERP_PRESENCE_WINDOW', 120),
+
+    // Double authentification obligatoire pour le super administrateur (compte qui gère toute la plateforme)
+    'two_factor' => [
+        'super_admin' => (bool) env('ERP_2FA_SUPER_ADMIN', true),
+    ],
     // Domaine court des liens (yma.ci/abc12), à pointer vers ce serveur ; vide : https://domaine-du-logiciel/l/abc12
     // Notifications push (Firebase Cloud Messaging) : clé JSON du compte de service du projet Firebase
     'push' => [

@@ -32,6 +32,9 @@ Route::middleware('installed')->group(function () {
     Route::get('updates/latest', [\App\Http\Controllers\Api\UpdateController::class, 'latest'])->middleware('throttle:60,1');
     Route::get('updates/download/{id}/{sha}', [\App\Http\Controllers\Api\UpdateController::class, 'download'])->whereNumber('id')->middleware('throttle:20,1');
     Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    // Double authentification : code demandé après le mot de passe (le défi tient lieu de session)
+    Route::post('auth/2fa/send', [\App\Http\Controllers\Api\TwoFactorController::class, 'send'])->middleware('throttle:6,1');
+    Route::post('auth/2fa/verify', [\App\Http\Controllers\Api\TwoFactorController::class, 'verify'])->middleware('throttle:twofactor');
     Route::post('auth/forgot', [\App\Http\Controllers\PasswordResetController::class, 'request'])->middleware('throttle:5,10');
     // Licences : activation et vérification périodique des installations chez les clients (plateforme SaaS)
     Route::post('license/activate', [\App\Http\Controllers\Api\Licensing\LicenseServerController::class, 'activate'])->middleware('throttle:20,1');
@@ -110,7 +113,7 @@ Route::middleware('installed')->group(function () {
     // SMS de confirmation Mobile Money transférés depuis le téléphone marchand → encaissements rapprochés
     Route::post('hooks/momo/{token}', [\App\Modules\Tresorerie\Momo\MomoController::class, 'hook'])->middleware('throttle:inbound');
 
-    Route::middleware(['auth:sanctum', 'presence'])->group(function () {
+    Route::middleware(['auth:sanctum', 'presence', 'twofactor'])->group(function () {
         // Tâches personnelles (« Ma journée »)
         Route::get('me/todos', [\App\Http\Controllers\Api\TodoController::class, 'index']);
         Route::post('me/todos', [\App\Http\Controllers\Api\TodoController::class, 'store']);
@@ -139,6 +142,13 @@ Route::middleware('installed')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/password', [AuthController::class, 'changePassword']);
+        Route::prefix('auth/2fa')->controller(\App\Http\Controllers\Api\TwoFactorController::class)->group(function () {
+            Route::get('/', 'status');
+            Route::post('setup', 'setup')->middleware('throttle:10,1');
+            Route::post('confirm', 'confirm')->middleware('throttle:10,1');
+            Route::post('disable', 'disable')->middleware('throttle:10,1');
+            Route::post('recovery-codes', 'recoveryCodes')->middleware('throttle:10,1');
+        });
         // Notifications push : l'application enregistre le jeton Firebase de l'appareil
         Route::post('me/push-token', [\App\Http\Controllers\Api\PushController::class, 'store'])->middleware('throttle:30,1');
         Route::delete('me/push-token', [\App\Http\Controllers\Api\PushController::class, 'destroy']);
@@ -312,6 +322,7 @@ Route::middleware('installed')->group(function () {
                 Route::delete('users/{id}', [UserController::class, 'destroy'])->whereNumber('id');
                 Route::get('users/{id}/access', [UserController::class, 'access'])->whereNumber('id');
                 Route::put('users/{id}/access', [UserController::class, 'updateAccess'])->whereNumber('id');
+                Route::post('users/{id}/2fa/reset', [UserController::class, 'resetTwoFactor'])->whereNumber('id');
 
                 Route::get('permissions', [RoleController::class, 'permissions']);
                 Route::get('roles', [RoleController::class, 'index']);
@@ -334,6 +345,8 @@ Route::middleware('installed')->group(function () {
             Route::get('social-apps', [\App\Modules\Social\SocialController::class, 'apps']);
             Route::put('social-apps/{provider}', [\App\Modules\Social\SocialController::class, 'saveApp']);
 
+            // Adoption : qui utilise vraiment le logiciel, quels modules, qui relancer
+            Route::get('adoption', fn () => app(\App\Platform\Adoption::class)->report());
             // Ma configuration : tout ce qui doit être réglé pour que les clients utilisent la plateforme sans accroc
             Route::get('setup', fn () => app(\App\Platform\SetupChecklist::class)->run());
             // Logiciels à télécharger déposés sur le serveur (Windows, macOS, Linux, Android, serveur)

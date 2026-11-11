@@ -17,6 +17,7 @@ import '../../i18n/i18n.dart';
 import '../../i18n/language_picker.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
+import 'two_factor_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.startRegister = false});
 
@@ -135,6 +136,13 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await session.login(_server.text, _email.text, _password.text);
       }
+    } on TwoFactorChallenge catch (ch) {
+      // Mot de passe correct : code de double authentification, puis ouverture de la session
+      try {
+        if (mounted) await showTwoFactorLogin(context, ch);
+      } catch (e) {
+        if (mounted) setState(() => _error = errorText(e));
+      }
     } catch (e) {
       if (mounted) setState(() => _error = errorText(e));
     } finally {
@@ -154,6 +162,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final idToken = await FirebaseSetup.googleIdToken();
       if (idToken == null) return; // choix du compte annulé
       await session.loginWithGoogle(_server.text, idToken);
+    } on TwoFactorChallenge catch (ch) {
+      try {
+        if (mounted) await showTwoFactorLogin(context, ch);
+      } catch (e) {
+        if (mounted) setState(() => _error = errorText(e));
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e is ApiException ? errorText(e) : tr('Connexion Google impossible sur cet appareil. Connectez-vous avec votre e-mail et votre mot de passe.'));
     } finally {

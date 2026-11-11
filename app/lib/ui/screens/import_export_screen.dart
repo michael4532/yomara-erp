@@ -10,13 +10,25 @@ import '../widgets/common.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
-const _entityIcons = {'partners': Icons.people_outline, 'products': Icons.sell_outlined, 'stock': Icons.inventory_2_outlined, 'invoices': Icons.receipt_long_outlined};
+const _entityIcons = {
+  'partners': Icons.people_outline,
+  'products': Icons.sell_outlined,
+  'stock': Icons.inventory_2_outlined,
+  'invoices': Icons.receipt_long_outlined,
+  'opening_balance': Icons.account_balance_outlined,
+  'entries': Icons.menu_book_outlined,
+};
 const _entityHelp = {
   'partners': 'Clients et fournisseurs : nom, type, téléphone, e-mail, ville, NCC… Un réimport met à jour les fiches existantes sans créer de doublon.',
   'products': 'Articles avec prix HT ou TTC, prix d\'achat, TVA, famille (créée au besoin) et stock actuel.',
   'stock': 'Inventaire : quantités comptées par article (et par dépôt). L\'écart avec le stock connu devient un ajustement.',
   'invoices': 'Factures clients encore impayées dans l\'ancien logiciel : seul le reste dû est repris, en à-nouveaux comptables, sans chiffre d\'affaires.',
+  'opening_balance': 'Balance de fin d\'exercice de l\'ancien logiciel (Sage, Ciel, Excel…) : une écriture d\'à-nouveaux au début de l\'exercice. Les comptes Sage à 8 chiffres retrouvent ceux du plan.',
+  'entries': 'Écritures exportées de Sage ou d\'Excel (journal, date, pièce, compte, débit / crédit ou montant + sens) : une écriture par pièce, refusée si elle n\'est pas équilibrée.',
 };
+
+/// Reprises comptables : tout le fichier forme une ou plusieurs écritures, pas de mode « mise à jour ».
+const _batchEntities = {'opening_balance', 'entries'};
 
 class ImportExportScreen extends StatefulWidget {
   const ImportExportScreen({super.key});
@@ -218,7 +230,7 @@ class _ImportTabState extends State<_ImportTab> {
         const SizedBox(height: 16),
         Text(tr('4. Options'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        if (_def!['key'] != 'stock')
+        if (_def!['key'] != 'stock' && !_batchEntities.contains(_def!['key']))
           SegmentedButton<String>(
             segments: [
               ButtonSegment(value: 'upsert', label: Text(tr('Ajouter et mettre à jour'))),
@@ -338,6 +350,8 @@ class _Report extends StatelessWidget {
           StatusChip('${report['updated']} ${dry ? 'à mettre à jour' : 'mise(s) à jour'}', color: YColors.blue, icon: Icons.edit),
           if ((report['skipped'] as num? ?? 0) > 0) StatusChip(tr('${report['skipped']} ignorée(s)'), color: YColors.muted),
           if (failed > 0) StatusChip(tr('$failed refusée(s)'), color: YColors.danger, icon: Icons.error_outline),
+          if (!dry && report['entries_created'] != null) StatusChip(tr('${report['entries_created']} écriture(s) comptable(s)'), color: YColors.success, icon: Icons.menu_book_outlined),
+          if (!dry && report['entry'] != null) StatusChip(tr('Écriture d\'à-nouveaux ${report['entry']}'), color: YColors.success, icon: Icons.account_balance_outlined),
         ]),
         if (errors.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -453,7 +467,14 @@ class _JobsTabState extends State<_JobsTab> {
   @override
   Widget build(BuildContext context) {
     if (_rows == null) return _error != null ? OnlineOnlyNotice(error: _error!, onRetry: _load) : const LoadingSkeleton();
-    const labels = {'partners': 'Clients & fournisseurs', 'products': 'Articles', 'stock': 'Inventaire', 'invoices': 'Factures impayées'};
+    const labels = {
+      'partners': 'Clients & fournisseurs',
+      'products': 'Articles',
+      'stock': 'Inventaire',
+      'invoices': 'Factures impayées',
+      'opening_balance': 'Balance d\'ouverture',
+      'entries': 'Écritures comptables',
+    };
     const status = {'analyzed': 'Fichier déposé', 'checked': 'Vérifié', 'done': 'Importé'};
     return RefreshIndicator(
       onRefresh: _load,

@@ -16,13 +16,14 @@ class User extends Authenticatable
         'company_id', 'role_id', 'manager_id', 'job_title', 'name', 'email', 'phone', 'password', 'is_super_admin', 'is_active',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
             'is_active' => 'boolean',

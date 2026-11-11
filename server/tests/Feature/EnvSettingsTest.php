@@ -40,6 +40,7 @@ class EnvSettingsTest extends TestCase
         $this->assertSame(30, config('erp.trial_days'));
         $this->assertSame('https://erp.yomaratechnologies.com', config('app.url'));
         $this->assertTrue(config('erp.updates.publisher'));
+        config(['erp.two_factor.super_admin' => false]); // relu par apply() : la double authentification est testée ailleurs
 
         // secret laissé vide = inchangé ; chaîne vide sur un champ = retour au .env
         $this->api($token)->putJson('/api/admin/system/env', ['values' => ['AI_API_KEY' => '', 'MAIL_HOST' => '']])->assertOk();

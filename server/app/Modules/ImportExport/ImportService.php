@@ -22,6 +22,9 @@ class ImportService
 {
     public function __construct(protected EntityWriter $writer) {}
 
+    /** Lignes comptables en attente (balance, écritures), enregistrées ensemble à la fin du fichier. */
+    protected array $batch = ['lines' => [], 'groups' => []];
+
     /** Types importables : champs, synonymes d'en-têtes reconnus, clés de rapprochement. */
     public function definitions(Company $company): array
     {
@@ -31,15 +34,15 @@ class ImportService
                 'module' => 'core',
                 'keys' => ['name' => 'Nom', 'tax_id' => 'N° contribuable', 'email' => 'E-mail', 'phone' => 'Téléphone', 'code' => 'Code'],
                 'fields' => [
-                    'name' => ['Nom / raison sociale', ['nom', 'raison sociale', 'client', 'fournisseur', 'societe', 'name', 'nom complet', 'tiers'], true],
-                    'type' => ['Type (client, fournisseur, les deux)', ['type', 'categorie', 'nature']],
-                    'code' => ['Code', ['code', 'code client', 'code tiers', 'reference', 'ref']],
-                    'phone' => ['Téléphone', ['telephone', 'tel', 'mobile', 'portable', 'phone', 'contact', 'cellulaire']],
-                    'email' => ['E-mail', ['email', 'e mail', 'mail', 'courriel', 'adresse email']],
-                    'address' => ['Adresse', ['adresse', 'address', 'rue']],
-                    'city' => ['Ville', ['ville', 'commune', 'city', 'localite', 'quartier']],
-                    'tax_id' => ['N° contribuable (NCC)', ['ncc', 'n cc', 'cc', 'n contribuable', 'numero contribuable', 'compte contribuable', 'nif', 'tax id', 'ifu', 'rccm']],
-                    'credit_limit' => ['Plafond de crédit', ['plafond', 'encours max', 'credit', 'limite de credit']],
+                    'name' => ['Nom / raison sociale', ['nom', 'raison sociale', 'client', 'fournisseur', 'societe', 'name', 'nom complet', 'tiers', 'intitule', 'ct intitule', 'intitule du tiers'], true],
+                    'type' => ['Type (client, fournisseur, les deux)', ['type', 'categorie', 'nature', 'ct type', 'type de tiers']],
+                    'code' => ['Code', ['code', 'code client', 'code tiers', 'reference', 'ref', 'ct num', 'n compte tiers', 'numero compte tiers', 'compte tiers', 'numero de tiers']],
+                    'phone' => ['Téléphone', ['telephone', 'tel', 'mobile', 'portable', 'phone', 'contact', 'cellulaire', 'ct telephone', 'ct telecopie']],
+                    'email' => ['E-mail', ['email', 'e mail', 'mail', 'courriel', 'adresse email', 'ct email']],
+                    'address' => ['Adresse', ['adresse', 'address', 'rue', 'ct adresse']],
+                    'city' => ['Ville', ['ville', 'commune', 'city', 'localite', 'quartier', 'ct ville']],
+                    'tax_id' => ['N° contribuable (NCC)', ['ncc', 'n cc', 'cc', 'n contribuable', 'numero contribuable', 'compte contribuable', 'nif', 'tax id', 'ifu', 'rccm', 'ct identifiant', 'identifiant', 'n identifiant']],
+                    'credit_limit' => ['Plafond de crédit', ['plafond', 'encours max', 'credit', 'limite de credit', 'ct encours', 'encours autorise']],
                     'notes' => ['Notes', ['notes', 'commentaire', 'observations', 'remarque']],
                 ],
             ],
@@ -48,15 +51,15 @@ class ImportService
                 'module' => 'core',
                 'keys' => ['sku' => 'Référence', 'barcode' => 'Code-barres', 'name' => 'Désignation'],
                 'fields' => [
-                    'name' => ['Désignation', ['designation', 'libelle', 'nom', 'article', 'produit', 'description courte', 'name'], true],
-                    'sku' => ['Référence', ['reference', 'ref', 'code', 'code article', 'sku']],
-                    'barcode' => ['Code-barres', ['code barre', 'code barres', 'ean', 'ean13', 'gencod', 'barcode']],
-                    'category' => ['Catégorie / famille', ['categorie', 'famille', 'rayon', 'groupe', 'category']],
+                    'name' => ['Désignation', ['designation', 'libelle', 'nom', 'article', 'produit', 'description courte', 'name', 'ar design'], true],
+                    'sku' => ['Référence', ['reference', 'ref', 'code', 'code article', 'sku', 'ar ref', 'reference article']],
+                    'barcode' => ['Code-barres', ['code barre', 'code barres', 'ean', 'ean13', 'gencod', 'barcode', 'ar codebarre']],
+                    'category' => ['Catégorie / famille', ['categorie', 'famille', 'rayon', 'groupe', 'category', 'fa codefamille', 'code famille', 'famille article']],
                     'type' => ['Type (produit / service)', ['type', 'nature']],
-                    'unit' => ['Unité', ['unite', 'unit', 'u m', 'conditionnement']],
-                    'sale_price' => ['Prix de vente HT', ['prix de vente ht', 'pv ht', 'prix ht', 'prix vente ht', 'tarif ht']],
+                    'unit' => ['Unité', ['unite', 'unit', 'u m', 'conditionnement', 'ar unitevente', 'unite de vente']],
+                    'sale_price' => ['Prix de vente HT', ['prix de vente ht', 'pv ht', 'prix ht', 'prix vente ht', 'tarif ht', 'ar prixven']],
                     'sale_price_ttc' => ['Prix de vente TTC', ['prix de vente ttc', 'pv ttc', 'prix ttc', 'prix de vente', 'prix', 'pv', 'tarif']],
-                    'purchase_price' => ['Prix d\'achat HT', ['prix d achat', 'prix achat', 'pa', 'pa ht', 'cout', 'cout d achat', 'prix de revient']],
+                    'purchase_price' => ['Prix d\'achat HT', ['prix d achat', 'prix achat', 'pa', 'pa ht', 'cout', 'cout d achat', 'prix de revient', 'ar prixach', 'dernier prix d achat', 'cmup']],
                     'tax_rate' => ['TVA (%)', ['tva', 'taux tva', 'taux de tva', 'taxe']],
                     'min_stock' => ['Seuil d\'alerte', ['stock mini', 'stock minimum', 'seuil', 'seuil d alerte', 'alerte']],
                     'stock' => ['Stock actuel', ['stock', 'quantite', 'qte', 'stock actuel', 'quantite en stock', 'stock initial']],
@@ -90,6 +93,40 @@ class ImportService
                     'due_date' => ['Échéance', ['echeance', 'date echeance', 'date d echeance', 'a payer le']],
                     'amount' => ['Montant TTC', ['montant', 'montant ttc', 'total', 'total ttc', 'ttc'], true],
                     'paid' => ['Déjà payé', ['deja paye', 'paye', 'regle', 'acompte', 'montant regle', 'encaisse']],
+                ],
+            ];
+        }
+
+        if ($company->hasModule('compta')) {
+            $defs['opening_balance'] = [
+                'label' => 'Balance d\'ouverture (comptabilité : Sage, Excel…)',
+                'module' => 'compta',
+                'batch' => true,
+                'keys' => ['account' => 'N° de compte'],
+                'fields' => [
+                    'account' => ['N° de compte', ['compte', 'n compte', 'numero de compte', 'n de compte', 'compte general', 'cg num', 'account', 'numero'], true],
+                    'name' => ['Intitulé du compte', ['intitule', 'libelle', 'nom du compte', 'cg intitule', 'intitule du compte', 'designation']],
+                    'debit' => ['Solde débiteur', ['solde debiteur', 'debit', 'solde debit', 'sd', 'debiteur']],
+                    'credit' => ['Solde créditeur', ['solde crediteur', 'credit', 'solde credit', 'sc', 'crediteur']],
+                    'balance' => ['Solde (positif = débit, négatif = crédit)', ['solde', 'solde final', 'solde de cloture', 'montant']],
+                ],
+            ];
+            $defs['entries'] = [
+                'label' => 'Écritures comptables (journaux : Sage, Excel…)',
+                'module' => 'compta',
+                'batch' => true,
+                'keys' => ['piece' => 'Journal + date + n° de pièce'],
+                'fields' => [
+                    'journal' => ['Code journal', ['journal', 'code journal', 'jo num', 'jnl', 'jl']],
+                    'date' => ['Date', ['date', 'date ecriture', 'date piece', 'ec date', 'date de l ecriture', 'jour'], true],
+                    'piece' => ['N° de pièce', ['piece', 'n piece', 'numero de piece', 'ec piece', 'n de piece', 'reference piece', 'ec refpiece']],
+                    'account' => ['N° de compte', ['compte', 'compte general', 'cg num', 'n compte', 'numero de compte', 'n de compte'], true],
+                    'label' => ['Libellé', ['libelle', 'ec intitule', 'intitule', 'libelle ecriture', 'designation']],
+                    'debit' => ['Débit', ['debit', 'montant debit', 'mouvement debit']],
+                    'credit' => ['Crédit', ['credit', 'montant credit', 'mouvement credit']],
+                    'amount' => ['Montant (avec la colonne Sens)', ['montant', 'ec montant']],
+                    'direction' => ['Sens (D / C, ou 0 / 1)', ['sens', 'ec sens', 'd c', 'debit credit']],
+                    'partner' => ['Compte tiers (client / fournisseur)', ['compte tiers', 'ct num', 'tiers', 'n tiers', 'code tiers']],
                 ],
             ];
         }
@@ -195,9 +232,16 @@ class ImportService
                 throw new \DomainException('Associez une colonne au champ obligatoire « '.$d[0].' ».');
             }
         }
+        if ($job->entity === 'opening_balance' && ! isset($mapping['debit']) && ! isset($mapping['credit']) && ! isset($mapping['balance'])) {
+            throw new \DomainException('Associez les colonnes « Solde débiteur » et « Solde créditeur », ou la colonne « Solde ».');
+        }
+        if ($job->entity === 'entries' && ! isset($mapping['debit']) && ! isset($mapping['credit']) && ! (isset($mapping['amount']) && isset($mapping['direction']))) {
+            throw new \DomainException('Associez les colonnes « Débit » et « Crédit », ou « Montant » avec « Sens ».');
+        }
         [, $rows] = Sheet::read(\Illuminate\Support\Facades\Storage::disk('local')->path($job->path));
         $report = ['rows' => count($rows), 'created' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => []];
         $ctx = $this->context($job->entity, $key);
+        $this->batch = ['lines' => [], 'groups' => []];
 
         DB::beginTransaction();
         try {
@@ -205,19 +249,30 @@ class ImportService
                 $line = $i + 2; // ligne Excel (en-tête = 1)
                 $get = fn (string $f) => isset($mapping[$f]) ? ($row[$mapping[$f]] ?? null) : null;
                 try {
-                    $res = DB::transaction(fn () => match ($job->entity) {
+                    // Contexte passé par référence : une fiche créée plus haut dans le fichier est retrouvée (pas de doublon)
+                    $res = DB::transaction(function () use ($job, $get, $mode, $key, &$ctx, $company, $line) {
+                        return match ($job->entity) {
                         'partners' => $this->partner($get, $mode, $key, $ctx),
                         'products' => $this->product($get, $mode, $key, $ctx, $company),
                         'stock' => $this->stock($get, $key, $ctx),
                         'invoices' => $this->invoice($get, $mode, $ctx),
+                        'opening_balance' => $this->balanceLine($get, $line, $ctx),
+                        'entries' => $this->entryLine($get, $line, $ctx),
+                        };
                     });
-                    $report[$res]++;
+                    if ($res !== 'pending') {
+                        $report[$res]++;
+                    }
                 } catch (\DomainException $e) {
                     $report['failed']++;
                     if (count($report['errors']) < 500) {
                         $report['errors'][] = ['row' => $line, 'message' => $e->getMessage()];
                     }
                 }
+            }
+            // Reprises comptables : une écriture par pièce (ou une seule pour la balance), équilibrée
+            if (! empty($def['batch'])) {
+                $this->finishBatch($job->entity, $this->batch, $report, $company);
             }
             ($dryRun || ($atomic && $report['failed'] > 0)) ? DB::rollBack() : DB::commit();
             $report['rolled_back'] = ! $dryRun && $atomic && $report['failed'] > 0;
@@ -246,6 +301,7 @@ class ImportService
                 'sku' => $index(Product::all(), 'sku'), 'barcode' => $index(Product::all(), 'barcode'), 'name' => $index(Product::all(), 'name'),
             ], 'wh' => Warehouse::all()->keyBy(fn ($w) => self::norm($w->name))->all()],
             'invoices' => ['partners' => $index(Partner::all(), 'name'), 'refs' => SalesDocument::where('type', 'invoice')->whereNotNull('reference')->pluck('reference')->map(fn ($r) => self::norm($r))->flip()->all()],
+            'opening_balance', 'entries' => ['lines' => [], 'groups' => []],
         };
     }
 
@@ -305,7 +361,7 @@ class ImportService
             'type' => match (true) {
                 $type === '' => null,
                 str_contains($type, 'deux') || (str_contains($type, 'client') && str_contains($type, 'fourn')) || $type === 'both' => 'both',
-                str_contains($type, 'fourn') || $type === 'supplier' || $type === 'f' => 'supplier',
+                str_contains($type, 'fourn') || $type === 'supplier' || $type === 'f' || $type === '1' => 'supplier', // Sage : 0 client, 1 fournisseur
                 default => 'customer',
             },
             'code' => $get('code'), 'phone' => $get('phone') !== null ? (string) $get('phone') : null, 'email' => $get('email') ? strtolower((string) $get('email')) : null,
@@ -455,6 +511,197 @@ class ImportService
         $ctx['refs'][self::norm($ref)] = true;
 
         return 'created';
+    }
+
+    // ---------- Reprise comptable ----------
+
+    /** Numéro de compte : chiffres seulement (« 521 100 », « 52110000 »). */
+    protected static function accountCode($v): string
+    {
+        $c = preg_replace('/\D/', '', preg_replace('/\.0+$/', '', (string) $v));
+        if ($c === '' || $c[0] === '0') {
+            throw new \DomainException('N° de compte « '.$v.' » invalide : il doit commencer par la classe (1 à 9).');
+        }
+
+        return $c;
+    }
+
+    /** Débit / crédit d'une ligne : colonnes Débit et Crédit, ou Solde signé, ou Montant + Sens. */
+    protected static function amounts(\Closure $get, bool $signed): array
+    {
+        $d = self::number($get('debit')) ?? 0;
+        $c = self::number($get('credit')) ?? 0;
+        if ($signed && $d == 0 && $c == 0 && ($s = self::number($get('balance'))) !== null) {
+            [$d, $c] = $s >= 0 ? [$s, 0] : [0, -$s];
+        }
+        if ($d == 0 && $c == 0 && ($m = self::number($get('amount'))) !== null) {
+            $sens = self::norm((string) $get('direction'));
+            $credit = in_array($sens, ['c', 'cr', 'credit', '1'], true);
+            if (! $credit && ! in_array($sens, ['d', 'db', 'debit', '0'], true)) {
+                throw new \DomainException('Sens « '.$get('direction').' » inconnu : attendu D ou C (Sage : 0 = débit, 1 = crédit).');
+            }
+            [$d, $c] = $credit ? [0, $m] : [$m, 0];
+        }
+        // Montant négatif dans une colonne : on le passe de l'autre côté
+        if ($d < 0) {
+            [$d, $c] = [0, $c - $d];
+        }
+        if ($c < 0) {
+            [$d, $c] = [$d - $c, 0];
+        }
+        // Débit et crédit sur la même ligne : on garde le solde
+        if ($d > 0 && $c > 0) {
+            [$d, $c] = $d >= $c ? [$d - $c, 0] : [0, $c - $d];
+        }
+
+        return [round($d, 2), round($c, 2)];
+    }
+
+    protected function balanceLine(\Closure $get, int $line, array &$ctx): string
+    {
+        $code = self::accountCode($get('account'));
+        [$d, $c] = self::amounts($get, true);
+        if ($d == 0 && $c == 0) {
+            return 'skipped'; // compte soldé
+        }
+        $this->batch['lines'][] = ['row' => $line, 'code' => $code, 'name' => trim((string) $get('name')), 'debit' => $d, 'credit' => $c];
+
+        return 'pending';
+    }
+
+    protected function entryLine(\Closure $get, int $line, array &$ctx): string
+    {
+        $code = self::accountCode($get('account'));
+        [$d, $c] = self::amounts($get, false);
+        if ($d == 0 && $c == 0) {
+            return 'skipped';
+        }
+        $date = self::date($get('date')) ?? throw new \DomainException('Date manquante.');
+        $journal = strtoupper(trim((string) $get('journal'))) ?: 'OD';
+        $piece = trim((string) $get('piece'));
+        $key = $journal.'|'.$date.'|'.($piece !== '' ? $piece : '#');
+        $this->batch['groups'][$key][] = ['row' => $line, 'code' => $code, 'label' => trim((string) $get('label')), 'debit' => $d, 'credit' => $c,
+            'partner' => trim((string) $get('partner')), 'journal' => $journal, 'date' => $date, 'piece' => $piece];
+
+        return 'pending';
+    }
+
+    /** Compte existant (numéro exact, ou même numéro sans les zéros de fin de Sage : 52110000 → 5211), sinon créé. */
+    protected function account(string $code, string $name, array &$cache): \App\Modules\Compta\Models\Account
+    {
+        if (isset($cache[$code])) {
+            return $cache[$code];
+        }
+        $q = fn (string $c) => \App\Modules\Compta\Models\Account::where('code', $c)->first();
+        $acc = $q($code);
+        for ($c = $code; ! $acc && strlen($c) > 3 && str_ends_with($c, '0');) {
+            $c = substr($c, 0, -1);
+            $acc = $q($c);
+        }
+        if (! $acc) {
+            $short = rtrim($code, '0');
+            $short = strlen($short) >= 3 ? $short : substr($code, 0, max(3, strlen($short)));
+            if (strlen($short) > 10) {
+                throw new \DomainException('N° de compte « '.$code.' » trop long (10 chiffres au plus).');
+            }
+            $acc = \App\Modules\Compta\Models\Account::create(['code' => $short, 'name' => $name !== '' ? mb_substr($name, 0, 255) : 'Compte '.$short]);
+        }
+
+        return $cache[$code] = $acc;
+    }
+
+    protected function journal(string $code): \App\Modules\Compta\Models\Journal
+    {
+        $code = mb_substr($code, 0, 10);
+
+        return \App\Modules\Compta\Models\Journal::firstOrCreate(['code' => $code], ['name' => 'Journal '.$code.' (repris)', 'type' => 'misc']);
+    }
+
+    protected function finishBatch(string $entity, array $ctx, array &$report, Company $company): void
+    {
+        $posting = app(\App\Modules\Compta\Posting::class);
+        \App\Modules\Compta\Chart::ensure($company);
+        $cache = [];
+        $fail = function (array $rows, string $msg) use (&$report) {
+            $report['failed'] += count($rows);
+            if (count($report['errors']) < 500) {
+                $report['errors'][] = ['row' => min(array_column($rows, 'row')), 'message' => $msg];
+            }
+        };
+
+        if ($entity === 'opening_balance') {
+            $lines = $ctx['lines'];
+            if (! $lines) {
+                return;
+            }
+            $d = round(array_sum(array_column($lines, 'debit')), 2);
+            $c = round(array_sum(array_column($lines, 'credit')), 2);
+            if (abs($d - $c) > 0.5) {
+                $fail($lines, sprintf('Balance déséquilibrée : débit %s, crédit %s (écart %s). Vérifiez que toutes les lignes sont présentes (classes 1 à 5).',
+                    number_format($d, 0, ',', ' '), number_format($c, 0, ',', ' '), number_format($d - $c, 0, ',', ' ')));
+
+                return;
+            }
+            $date = \App\Modules\Compta\FiscalCalendar::startOf($company, now()->toDateString());
+            $an = $this->journal('AN');
+            if (\App\Modules\Compta\Models\Entry::where('journal_id', $an->id)->where('reference', 'REPRISE-BALANCE')->whereDate('date', $date)->whereNull('reversed_by_id')->exists()) {
+                $fail($lines, 'Une balance d\'ouverture a déjà été importée pour cet exercice : contre-passez-la dans la comptabilité avant d\'en importer une autre.');
+
+                return;
+            }
+            try {
+                $entry = $posting->manual($company, $an->id, $date, 'Reprise de la balance d\'ouverture', 'REPRISE-BALANCE', array_map(fn ($l) => [
+                    'account_id' => $this->account($l['code'], $l['name'], $cache)->id, 'debit' => $l['debit'], 'credit' => $l['credit'], 'label' => 'À-nouveau '.($l['name'] ?: $l['code']),
+                ], $lines), auth()->id());
+                $report['created'] += count($lines);
+                $report['entry'] = $entry->number ?? $entry->id;
+            } catch (\DomainException $e) {
+                $fail($lines, $e->getMessage());
+            }
+
+            return;
+        }
+
+        // Écritures : une par journal + date + pièce
+        $partners = null;
+        foreach ($ctx['groups'] as $rows) {
+            $d = round(array_sum(array_column($rows, 'debit')), 2);
+            $c = round(array_sum(array_column($rows, 'credit')), 2);
+            $first = $rows[0];
+            $what = 'Pièce '.($first['piece'] ?: 'sans numéro').' du '.date('d/m/Y', strtotime($first['date'])).' (journal '.$first['journal'].')';
+            if (abs($d - $c) > 0.004) {
+                $fail($rows, $what.' déséquilibrée : débit '.number_format($d, 2, ',', ' ').', crédit '.number_format($c, 2, ',', ' ').'.');
+
+                continue;
+            }
+            if ($first['piece'] !== '' && \App\Modules\Compta\Models\Entry::where('reference', $first['piece'])->whereDate('date', $first['date'])
+                ->whereHas('journal', fn ($q) => $q->where('code', mb_substr($first['journal'], 0, 10)))->exists()) {
+                $report['skipped'] += count($rows); // déjà reprise
+
+                continue;
+            }
+            try {
+                $sp = DB::transaction(function () use ($rows, $first, $posting, $company, &$cache, &$partners) {
+                    $lines = [];
+                    foreach ($rows as $r) {
+                        $pid = null;
+                        if ($r['partner'] !== '') {
+                            $partners ??= Partner::all()->flatMap(fn ($p) => array_filter([self::norm((string) $p->code) => $p->id, self::norm((string) $p->name) => $p->id], fn ($v, $k) => $k !== '', ARRAY_FILTER_USE_BOTH))->all();
+                            $pid = $partners[self::norm($r['partner'])] ?? null;
+                        }
+                        $lines[] = ['account_id' => $this->account($r['code'], '', $cache)->id, 'debit' => $r['debit'], 'credit' => $r['credit'],
+                            'label' => $r['label'] !== '' ? mb_substr($r['label'], 0, 255) : null, 'partner_id' => $pid];
+                    }
+                    $label = collect($rows)->pluck('label')->filter()->first() ?: 'Écriture reprise';
+
+                    return $posting->manual($company, $this->journal($first['journal'])->id, $first['date'], mb_substr($label, 0, 255), $first['piece'] !== '' ? mb_substr($first['piece'], 0, 100) : null, $lines, auth()->id());
+                });
+                $report['created'] += count($rows);
+                $report['entries_created'] = ($report['entries_created'] ?? 0) + 1;
+            } catch (\DomainException $e) {
+                $fail($rows, $what.' : '.$e->getMessage());
+            }
+        }
     }
 
     /** Création / mise à jour selon le mode : create (nouveaux seulement), update (existants seulement), upsert. */

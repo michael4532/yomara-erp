@@ -22,6 +22,8 @@ abstract class TestCase extends BaseTestCase
         $this->seed(PlatformSeeder::class);
         // le client de test annonce « en-us » : les pages publiques restent en français sauf demande explicite
         config(['erp.web_browser_locale' => false]);
+        // Double authentification du super administrateur : testée dans TwoFactorTest, hors du chemin des autres tests
+        config(['erp.two_factor.super_admin' => false]);
     }
 
     /** Crée une société + son administrateur, renvoie [company, user, token]. */

@@ -267,6 +267,20 @@ class UserController extends Controller
             'manager_id' => $u->manager_id, 'job_title' => $u->job_title,
             'online' => $u->isOnline(), 'last_seen_at' => $u->last_seen_at, 'last_platform' => $u->last_platform,
             'custom_access' => (bool) ($u->modules_denied || $u->permission_grants || $u->permission_denies),
+            'two_factor' => \App\Support\TwoFactor::enabled($u),
         ];
+    }
+
+    /** Téléphone perdu sans code de secours : l'administrateur retire la double authentification, l'utilisateur la réactive. */
+    public function resetTwoFactor(Request $request, int $id)
+    {
+        $user = $this->query()->findOrFail($id);
+        abort_if($user->id === $request->user()->id, 422, 'Désactivez votre propre double authentification depuis « Mon compte ».');
+        abort_unless(\App\Support\Delegation::within($request->user(), $user), 403, 'Ce compte a plus de droits que vous : seul un administrateur peut le modifier.');
+        abort_if($user->is_super_admin && ! $request->user()->is_super_admin, 403);
+        \App\Support\TwoFactor::disable($user, 'admin');
+        $user->tokens()->delete(); // reconnexion obligatoire sur tous les appareils
+
+        return ['data' => $this->row($user->fresh())];
     }
 }

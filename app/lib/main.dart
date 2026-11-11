@@ -15,6 +15,7 @@ import 'state/session.dart';
 import 'ui/screens/boot_screen.dart';
 import 'ui/screens/intro_screen.dart';
 import 'ui/screens/login_screen.dart';
+import 'ui/screens/two_factor_screen.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
 import 'ui/widgets/popup_guard.dart';
@@ -84,7 +85,9 @@ class YomaraErpApp extends StatelessWidget {
         FlutterQuillLocalizations.delegate,
       ],
       // Application installée, premier lancement : présentation avant la connexion (le site web a déjà sa vitrine)
-      home: session.isLoggedIn ? _ShellWithBoot(preparing: session.preparing) : const _Entry(),
+      home: session.twoFactorSetup
+          ? const TwoFactorSetupScreen(forced: true)
+          : (session.isLoggedIn ? _ShellWithBoot(preparing: session.preparing) : const _Entry()),
       ),
       ),
     );

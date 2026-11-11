@@ -18,6 +18,8 @@ class ImportExportController extends Controller
         'products' => ['core.products.manage'],
         'stock' => ['stock.manage'],
         'invoices' => ['ventes.manage', 'ventes.validate'],
+        'opening_balance' => ['compta.manage'],
+        'entries' => ['compta.manage'],
     ];
 
     public static function canImport($user, string $entity): bool
@@ -62,6 +64,8 @@ class ImportExportController extends Controller
             'products' => ['Coca-Cola 33cl', 'COCA33', '5449000000996', 'Boissons', 'produit', 'unité', '', 500, 350, 18, 24, 120, '', 'oui'],
             'stock' => ['COCA33', 118, 'Boutique', 350],
             'invoices' => ['Maquis Chez Tantie', 'FA-2025-0412', '15/09/2026', '15/10/2026', 125000, 25000],
+            'opening_balance' => ['521100', 'Banque SGBCI', 2500000, '', ''],
+            'entries' => ['VT', '15/09/2026', 'FA-0412', '411000', 'Facture Maquis Chez Tantie', 125000, '', '', '', ''],
         ][$entity] ?? [];
         $headers = collect($def['fields'])->map(fn ($f) => $f[0])->values()->all();
         $path = tempnam(sys_get_temp_dir(), 'tpl').'.xlsx';

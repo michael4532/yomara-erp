@@ -29,7 +29,7 @@ class ImportExportTest extends TestCase
         $api = fn () => $this->api($token);
         $api()->postJson('/api/stock/warehouses', ['name' => 'Magasin Treichville', 'is_default' => true])->assertCreated();
         $ent = $api()->getJson('/api/import_export/entities')->assertOk()->json('data');
-        $this->assertEqualsCanonicalizing(['partners', 'products', 'stock', 'invoices'], array_column($ent['imports'], 'key'));
+        $this->assertEqualsCanonicalizing(['partners', 'products', 'stock', 'invoices', 'opening_balance', 'entries'], array_column($ent['imports'], 'key'));
         $api()->get('/api/import_export/template/products')->assertOk()->assertDownload('modele_import_products.xlsx');
 
         // Valeurs « à la française »

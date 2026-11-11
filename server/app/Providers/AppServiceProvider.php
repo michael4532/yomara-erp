@@ -36,6 +36,8 @@ class AppServiceProvider extends ServiceProvider
         // + plafond par compte quelle que soit l'adresse (devinette de mot de passe répartie) : 10 essais / 15 min
         RateLimiter::for('login', fn (Request $r) => [Limit::perMinute(10)->by(strtolower((string) $r->input('email')).'|'.$r->ip()), Limit::perMinute(40)->by('lg-ip|'.$r->ip()),
             Limit::perMinutes(15, 10)->by('lg-acct|'.strtolower(trim((string) $r->input('email'))))]);
+        // Code de double authentification : 5 essais par défi (vérifiés par le défi lui-même), plafond par adresse IP
+        RateLimiter::for('twofactor', fn (Request $r) => [Limit::perMinute(10)->by('2fa|'.sha1((string) $r->input('challenge'))), Limit::perMinute(30)->by('2fa-ip|'.$r->ip())]);
         // Inscriptions : par adresse IP uniquement (évite les essais gratuits à répétition)
         RateLimiter::for('register', fn (Request $r) => [Limit::perHour(5)->by('rg|'.$r->ip()), Limit::perDay(20)->by('rg-d|'.$r->ip())]);
         // Boutique : vérification des paiements et commandes, par utilisateur

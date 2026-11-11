@@ -11,3 +11,6 @@ double clampSize(num v, num lo, num hi) => hi < lo ? (hi < 0 ? 0.0 : hi.toDouble
 
 /// Pour un nombre de colonnes ou d'éléments : au moins [lo].
 int clampCount(int v, int lo, int hi) => hi < lo ? lo : v.clamp(lo, hi);
+
+/// Liste reçue du serveur, ou liste vide si la valeur est absente ou d'un autre type.
+List<dynamic> asList(Object? v) => v is List ? v : const [];

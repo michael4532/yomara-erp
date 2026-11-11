@@ -35,7 +35,7 @@ class ModulesServiceProvider extends ServiceProvider
             }
 
             if (! $this->app->routesAreCached() && file_exists($manifest['path'].'/routes.php')) {
-                Route::middleware(['api', 'installed', 'auth:sanctum', 'tenant', 'presence', 'module:'.$key])
+                Route::middleware(['api', 'installed', 'auth:sanctum', 'tenant', 'presence', 'twofactor', 'module:'.$key])
                     ->prefix('api/'.$key)
                     ->name($key.'.')
                     ->group($manifest['path'].'/routes.php');

@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'installed' => \App\Http\Middleware\EnsureInstalled::class,
             'tenant' => \App\Http\Middleware\SetTenant::class,
             'presence' => \App\Http\Middleware\TrackPresence::class,
+            'twofactor' => \App\Http\Middleware\RequireTwoFactorSetup::class,
             'module' => \App\Http\Middleware\RequireModule::class,
             'perm' => \App\Http\Middleware\RequirePermission::class,
             'superadmin' => \App\Http\Middleware\SuperAdminOnly::class,

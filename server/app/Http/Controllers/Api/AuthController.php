@@ -34,6 +34,7 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
             'device_name' => 'nullable|string|max:100',
+            'trust_token' => 'nullable|string|max:200',
         ]);
 
         $user = User::where('email', strtolower($data['email']))->first();
@@ -48,8 +49,15 @@ class AuthController extends Controller
         return $this->issue($request, $user, $data['device_name'] ?? null);
     }
 
-    protected function issue(Request $request, User $user, ?string $device, string $via = 'password'): array
+    /**
+     * Ouvre la session, ou demande d'abord le code de double authentification (sauf appareil de confiance).
+     * $passed : le code vient d'être vérifié.
+     */
+    public function issue(Request $request, User $user, ?string $device, string $via = 'password', bool $passed = false): array
     {
+        if (! $passed && \App\Support\TwoFactor::enabled($user) && ! \App\Support\TwoFactor::trusted($user, $request->input('trust_token'))) {
+            return \App\Support\TwoFactor::challenge($user, $device, $via);
+        }
         // Plateforme déclarée par l'application (android, ios, windows…) : valeur courte et contrôlée
         $platform = (string) $request->header('X-Client-Platform', 'web');
         $platform = preg_match('/^[a-z]{2,15}$/', $platform) ? $platform : 'web';
@@ -69,7 +77,7 @@ class AuthController extends Controller
     public function google(Request $request)
     {
         abort_unless(config('erp.google_signin.enabled'), 404);
-        $data = $request->validate(['id_token' => 'required|string|max:4096', 'device_name' => 'nullable|string|max:100']);
+        $data = $request->validate(['id_token' => 'required|string|max:4096', 'device_name' => 'nullable|string|max:100', 'trust_token' => 'nullable|string|max:200']);
         $claims = static::verifyGoogleToken($data['id_token']);
         if (! $claims) {
             throw ValidationException::withMessages(['id_token' => 'Connexion Google refusée. Réessayez ou connectez-vous avec votre e-mail.']);
@@ -183,7 +191,7 @@ class AuthController extends Controller
         return ['ok' => true];
     }
 
-    protected function userPayload(User $user): array
+    public function userPayload(User $user): array
     {
         return [
             'id' => $user->id,
@@ -194,6 +202,9 @@ class AuthController extends Controller
             'role' => $user->role?->name,
             'is_super_admin' => $user->is_super_admin,
             'onboarded' => (bool) $user->onboarded_at,
+            'two_factor' => \App\Support\TwoFactor::enabled($user),
+            'two_factor_method' => \App\Support\TwoFactor::enabled($user) ? $user->two_factor_method : null,
+            'two_factor_required' => \App\Support\TwoFactor::setupRequired($user),
         ];
     }
 }

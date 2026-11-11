@@ -41,6 +41,9 @@ class Session extends ChangeNotifier {
   Map<String, dynamic>? bootstrap;
   bool restoring = true;
 
+  /// Double authentification exigée mais pas encore activée : l'écran d'activation remplace l'application.
+  bool twoFactorSetup = false;
+
   /// Écran « Nous configurons votre interface » : affiché jusqu'à la fin du premier chargement des données.
   bool preparing = false;
   final bootStep = ValueNotifier<String>('Ouverture de votre espace');
@@ -194,15 +197,10 @@ class Session extends ChangeNotifier {
       'email': email.trim(),
       'password': password,
       'device_name': '${AppConfig.appName} ${clientPlatform()}',
+      if (_trustToken(email) != null) 'trust_token': _trustToken(email),
     }));
-    api.token = res['token'] as String;
-    await LocalDb.meta.put('server_url', api.baseUrl);
-    await _saveToken();
-    await LocalDb.meta.put('last_email', email.trim());
-    await refreshBootstrap(throwOnError: true);
-    await _openLocal();
-    _start();
-    unawaited(_prepare(firstTime: sync.neverSynced));
+    if (res['two_factor'] == true) throw TwoFactorChallenge(res, email.trim());
+    await _finishLogin(res, email.trim());
   }
 
   /// « Se connecter avec Google » : le serveur vérifie le jeton et ouvre le compte qui a la même adresse.
@@ -211,15 +209,54 @@ class Session extends ChangeNotifier {
     final insecure = kIsWeb ? null : ApiClient.insecureReason(api.baseUrl);
     if (insecure != null) throw ApiException(insecure, status: 400, code: 'insecure_url');
     api.token = null;
+    final last = '${LocalDb.meta.get('last_email') ?? ''}';
     final res = Map<String, dynamic>.from(await api.post('auth/google', {
       'id_token': idToken,
       'device_name': '${AppConfig.appName} ${clientPlatform()}',
+      if (_trustToken(last) != null) 'trust_token': _trustToken(last),
     }));
+    if (res['two_factor'] == true) throw TwoFactorChallenge(res, last);
+    await _finishLogin(res, '${res['user']?['email'] ?? ''}');
+  }
+
+  /// Deuxième étape : vérifie le code (application, e-mail ou secours). Renvoie la réponse à passer à [finishTwoFactor].
+  Future<Map<String, dynamic>> verifyTwoFactor(TwoFactorChallenge ch, String code, {bool trust = false}) async {
+    final res = Map<String, dynamic>.from(await api.post('auth/2fa/verify', {'challenge': ch.challenge, 'code': code.trim(), 'trust_device': trust}));
+    final email = '${res['user']?['email'] ?? ch.email}';
+    if (res['trust_token'] is String) await LocalDb.meta.put(_trustKey(email), res['trust_token']);
+    return res;
+  }
+
+  /// Ouvre la session après un code accepté (chargement des données).
+  Future<void> finishTwoFactor(TwoFactorChallenge ch, Map<String, dynamic> res) => _finishLogin(res, '${res['user']?['email'] ?? ch.email}');
+
+  Future<void> resendTwoFactorCode(TwoFactorChallenge ch) async {
+    await api.post('auth/2fa/send', {'challenge': ch.challenge});
+  }
+
+  String _trustKey(String email) => 'trust_${Uri.tryParse(api.baseUrl)?.host ?? ''}_${email.trim().toLowerCase()}';
+  String? _trustToken(String email) => email.trim().isEmpty ? null : LocalDb.meta.get(_trustKey(email)) as String?;
+
+  Future<void> _finishLogin(Map<String, dynamic> res, String email) async {
     api.token = res['token'] as String;
     await LocalDb.meta.put('server_url', api.baseUrl);
     await _saveToken();
-    final email = '${res['user']?['email'] ?? ''}';
     if (email.isNotEmpty) await LocalDb.meta.put('last_email', email);
+    // Double authentification obligatoire mais pas encore activée : on l'active d'abord
+    if (res['user']?['two_factor_required'] == true) {
+      twoFactorSetup = true;
+      notifyListeners();
+      return;
+    }
+    await refreshBootstrap(throwOnError: true);
+    await _openLocal();
+    _start();
+    unawaited(_prepare(firstTime: sync.neverSynced));
+  }
+
+  /// Après l'activation obligatoire : ouverture normale de l'application.
+  Future<void> twoFactorSetupDone() async {
+    twoFactorSetup = false;
     await refreshBootstrap(throwOnError: true);
     await _openLocal();
     _start();
@@ -269,6 +306,11 @@ class Session extends ChangeNotifier {
       await LocalDb.meta.put(scopeKey, scope);
       notifyListeners();
     } on ApiException catch (e) {
+      if (e.code == 'two_factor_setup_required' && !throwOnError) {
+        twoFactorSetup = true;
+        notifyListeners();
+        return;
+      }
       if (throwOnError) rethrow;
       if (e.code == 'company_suspended') {
         bootstrap = {...?bootstrap, 'suspended': e.message};
@@ -381,6 +423,7 @@ class Session extends ChangeNotifier {
     RapportsMeta.reset();
     api.token = null;
     bootstrap = null;
+    twoFactorSetup = false;
     await _saveToken();
     await LocalDb.meta.delete('bootstrap');
     final tenant = LocalDb.tenant;
@@ -400,4 +443,20 @@ class Session extends ChangeNotifier {
     sync.dispose();
     super.dispose();
   }
+}
+
+/// Le mot de passe est bon, le serveur attend maintenant le code de double authentification.
+class TwoFactorChallenge implements Exception {
+  TwoFactorChallenge(this.data, this.email);
+
+  final Map<String, dynamic> data;
+  final String email;
+
+  String get challenge => '${data['challenge']}';
+  String get method => '${data['method'] ?? 'app'}';
+  String get emailHint => '${data['email_hint'] ?? ''}';
+  int get trustDays => (data['trust_days'] as num?)?.toInt() ?? 30;
+
+  @override
+  String toString() => 'Code de double authentification demandé.';
 }

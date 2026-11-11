@@ -14,6 +14,7 @@ import 'screens/event_extras.dart' show AdminEventsScreen;
 import 'screens/admin/admin_modules_screen.dart';
 import 'screens/admin/admin_storage_screen.dart';
 import 'screens/admin/admin_online_screen.dart';
+import 'screens/admin/admin_adoption_screen.dart';
 import 'screens/admin/admin_overview_screen.dart';
 import 'screens/admin/admin_console_screen.dart';
 import 'screens/admin/admin_licenses_screen.dart';
@@ -469,6 +470,7 @@ class _AppShellState extends State<AppShell> {
       NavItem('admin_support', tr('Support clients'), Icons.support_agent_rounded, (_) => const AdminSupportScreen(), section: 'Super admin'),
       NavItem('admin', tr('Système & serveur'), Icons.insights, (_) => const AdminOverviewScreen(), section: 'Super admin'),
       NavItem('admin_online', tr('Connectés'), Icons.wifi_tethering, (_) => const AdminOnlineScreen(), section: 'Super admin'),
+      NavItem('admin_adoption', tr('Adoption clients'), Icons.insights_outlined, (_) => const AdminAdoptionScreen(), section: 'Super admin'),
       NavItem('admin_sites', tr('Sites vitrines'), Icons.language, (_) => const AdminSitesScreen(), section: 'Super admin'),
       NavItem('admin_events', tr('Événements (plateforme)'), Icons.event_available_outlined, (_) => const AdminEventsScreen(), section: 'Super admin'),
       if (!selfHosted) NavItem('admin_store', tr('Ventes de modules'), Icons.shopping_bag_outlined, (_) => const AdminStoreScreen(), section: 'Super admin'),

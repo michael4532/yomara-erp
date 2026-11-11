@@ -20,6 +20,7 @@ import 'messaging_settings_screen.dart';
 import 'team/functions_screen.dart';
 import 'team/user_editor.dart';
 import '../../i18n/i18n.dart';
+import 'two_factor_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -193,6 +194,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
             ],
           ),
+          // Sécurité : double authentification
+          const Divider(height: 28),
+          const TwoFactorPanel(),
         ],
       ),
     );
