@@ -244,14 +244,19 @@ class LicenseClient
     }
 
     /** Relie l'installation au compte en ligne (e-mail et mot de passe de l'administrateur) : une clé est créée et activée. */
-    public static function link(string $email, string $password, ?string $company = null): array
+    public static function link(string $email, string $password, ?string $company = null, ?string $challenge = null, ?string $code = null): array
     {
         try {
-            $r = Http::timeout(20)->acceptJson()->post(self::server().'/api/license/link', [
+            $r = Http::timeout(20)->acceptJson()->post(self::server().'/api/license/link', array_filter([
                 'email' => $email, 'password' => $password, 'fingerprint' => self::fingerprint(), 'device' => self::device($company),
-            ]);
+                'challenge' => $challenge, 'code' => $code,
+            ], fn ($v) => $v !== null));
         } catch (\Throwable) {
             throw new \RuntimeException('Impossible de joindre '.self::server().'. Vérifiez la connexion internet de cet appareil.');
+        }
+        // Compte protégé par la double authentification : le code est demandé à la personne
+        if ($r->status() === 409 && $r->json('two_factor')) {
+            throw new TwoFactorRequired((array) $r->json());
         }
         if (! $r->successful()) {
             throw new \RuntimeException((string) ($r->json('message') ?: 'Liaison refusée (code '.$r->status().').'));

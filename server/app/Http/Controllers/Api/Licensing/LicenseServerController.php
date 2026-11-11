@@ -56,7 +56,8 @@ class LicenseServerController extends Controller
         if (! LicenseSigner::ready()) {
             return response()->json(['message' => 'La plateforme Yomara n\'a pas encore activé la signature des licences. Réessayez plus tard.'], 503);
         }
-        $d = $r->validate(['email' => 'required|email', 'password' => 'required|string', 'fingerprint' => 'required|string|size:64', 'device' => 'nullable|array']);
+        $d = $r->validate(['email' => 'required|email', 'password' => 'required|string', 'fingerprint' => 'required|string|size:64', 'device' => 'nullable|array',
+            'challenge' => 'nullable|string|size:48', 'code' => 'nullable|string|max:20']);
         // Plafond par compte, quelle que soit l'adresse IP : pas de devinette de mot de passe par cette porte
         $key = 'lic-link|'.strtolower(trim($d['email']));
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, 10)) {
@@ -67,6 +68,22 @@ class LicenseServerController extends Controller
             \Illuminate\Support\Facades\RateLimiter::hit($key, 900);
 
             return response()->json(['message' => 'E-mail ou mot de passe incorrect. Utilisez le compte créé sur '.rtrim(config('app.url'), '/').'.'], 422);
+        }
+        // Double authentification : le mot de passe seul ne suffit pas à relier une installation (clé de licence)
+        if (\App\Support\TwoFactor::enabled($user)) {
+            if (empty($d['challenge']) || empty($d['code'])) {
+                return response()->json(\App\Support\TwoFactor::challenge($user, 'installation', 'license') + [
+                    'message' => 'Saisissez le code de double authentification de ce compte. Installation plus ancienne : mettez-la à jour, ou reliez-la avec une clé de licence.',
+                ], 409);
+            }
+            try {
+                $ok = \App\Support\TwoFactor::verifyChallenge($d['challenge'], $d['code']);
+            } catch (\DomainException $e) {
+                \Illuminate\Support\Facades\RateLimiter::hit($key, 900);
+
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+            abort_unless($ok['user']->id === $user->id, 422, 'Code expiré : recommencez.');
         }
         \Illuminate\Support\Facades\RateLimiter::clear($key);
         $owner = \App\Models\Company::find($user->company_id);

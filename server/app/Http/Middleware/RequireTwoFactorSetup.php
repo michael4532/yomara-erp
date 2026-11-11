@@ -19,7 +19,9 @@ class RequireTwoFactorSetup
     {
         $u = $request->user();
         $token = $u?->currentAccessToken();
-        $isApiKey = $token && str_starts_with((string) ($token->name ?? ''), 'api:');
+        // Clé d'API d'intégration : droits limités (read / write) ; une session de connexion a tous les droits (« * »).
+        // On se fie aux droits, pas au nom : le nom d'appareil est choisi par le client à la connexion.
+        $isApiKey = $token instanceof \Laravel\Sanctum\PersonalAccessToken && ! in_array('*', (array) $token->abilities, true);
         if ($u && ! $isApiKey && ! $request->is(...self::OPEN) && TwoFactor::setupRequired($u)) {
             return response()->json([
                 'code' => 'two_factor_setup_required',

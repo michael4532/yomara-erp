@@ -919,3 +919,18 @@ Artisan::command('erp:tokens-prune', function () {
     $this->info("Sessions inactives supprimées : {$n}.");
 })->purpose('Sécurité : supprime les jetons de connexion inutilisés depuis 90 jours');
 Schedule::command('erp:tokens-prune')->dailyAt('03:40');
+
+// Dernier recours (accès au serveur) : téléphone et codes de secours perdus, notamment pour le super administrateur
+Artisan::command('erp:2fa-reset {email : adresse du compte}', function (string $email) {
+    $u = \App\Models\User::where('email', strtolower(trim($email)))->first();
+    if (! $u) {
+        $this->error('Aucun compte avec cette adresse.');
+
+        return 1;
+    }
+    \App\Support\TwoFactor::disable($u, 'admin');
+    $u->tokens()->delete();
+    $this->info("Double authentification retirée pour {$u->email}. Reconnectez-vous avec le mot de passe".(\App\Support\TwoFactor::required($u) ? ' : elle sera demandée à nouveau.' : '.'));
+
+    return 0;
+})->purpose('Retire la double authentification d\'un compte (téléphone et codes de secours perdus)');

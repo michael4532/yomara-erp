@@ -61,6 +61,8 @@ class AuthController extends Controller
         // Plateforme déclarée par l'application (android, ios, windows…) : valeur courte et contrôlée
         $platform = (string) $request->header('X-Client-Platform', 'web');
         $platform = preg_match('/^[a-z]{2,15}$/', $platform) ? $platform : 'web';
+        // Nom d'appareil libre, mais jamais confondu avec une clé d'API (« api:… »)
+        $device = preg_replace('/^\s*api\s*:/i', '', (string) $device);
         $token = $user->createToken(($device ?: 'app').' ('.$platform.')')->plainTextToken;
 
         $user->forceFill(['last_seen_at' => now(), 'last_platform' => $platform, 'last_ip' => $request->ip()])->saveQuietly();

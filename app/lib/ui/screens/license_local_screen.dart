@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/api_client.dart';
 import '../../core/json.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
@@ -75,6 +76,9 @@ class _LicenseLocalScreenState extends State<LicenseLocalScreen> {
     var busy = false;
     var hidden = true;
     String? failure;
+    // Compte protégé par la double authentification : défi reçu, code à saisir
+    Map<String, dynamic>? twoFa;
+    final code = TextEditingController();
     final relink = _info?['linked'] == true;
     final done = await showFormDialog<bool>(
       context,
@@ -89,13 +93,26 @@ class _LicenseLocalScreenState extends State<LicenseLocalScreen> {
             setS(() => failure = tr('Saisissez l\'e-mail et le mot de passe de votre compte Yomara.'));
             return;
           }
+          if (twoFa != null && code.text.trim().isEmpty) {
+            setS(() => failure = tr('Saisissez le code de double authentification.'));
+            return;
+          }
           setS(() => (busy = true, failure = null));
           try {
-            final r = await context.read<Session>().api.post('license/activate-local', {'email': e, 'password': password.text});
+            final r = await context.read<Session>().api.post('license/activate-local', {
+              'email': e,
+              'password': password.text,
+              if (twoFa != null) 'challenge': twoFa!['challenge'],
+              if (twoFa != null) 'code': code.text.trim(),
+            });
             if (mounted) setState(() => _info = asMap(asMap(r)['data']));
             if (dc.mounted) Navigator.pop(dc, true);
           } catch (err) {
-            if (dc.mounted) setS(() => failure = errorText(err));
+            if (err is ApiException && err.status == 409 && asMap(err.body)['two_factor'] == true) {
+              if (dc.mounted) setS(() => twoFa = asMap(err.body));
+            } else if (dc.mounted) {
+              setS(() => failure = errorText(err));
+            }
           } finally {
             if (dc.mounted) setS(() => busy = false);
           }
@@ -146,6 +163,23 @@ class _LicenseLocalScreenState extends State<LicenseLocalScreen> {
               onSubmitted: (_) => busy ? null : submit(),
             ),
           ),
+          if (twoFa != null) ...[
+            const SizedBox(height: 10),
+            Field(
+              label: twoFa!['method'] == 'email'
+                  ? 'Code reçu par e-mail (${twoFa!['email_hint'] ?? ''})'
+                  : 'Code de votre application d\'authentification (ou code de secours)',
+              child: TextField(
+                controller: code,
+                autofocus: true,
+                textAlign: TextAlign.center,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 6),
+                decoration: const InputDecoration(hintText: '000000', prefixIcon: Icon(Icons.verified_user_outlined)),
+                onSubmitted: (_) => busy ? null : submit(),
+              ),
+            ),
+          ],
           if (failure != null) ...[
             const SizedBox(height: 12),
             Container(

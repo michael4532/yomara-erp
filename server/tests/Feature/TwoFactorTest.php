@@ -128,6 +128,11 @@ class TwoFactorTest extends TestCase
         // Les clés d'API d'intégration ne sont pas bloquées
         $key = $sa->createToken('api:compta', ['read'])->plainTextToken;
         $this->api($key)->getJson('/api/core/partners')->assertOk();
+        // Un nom d'appareil « api:… » choisi à la connexion ne contourne pas l'obligation
+        $this->app['auth']->forgetGuards();
+        $this->flushHeaders();
+        $t = $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/auth/login', ['email' => $sa->email, 'password' => 'secret123', 'device_name' => 'api:malin'])->json('token');
+        $this->api($t)->getJson('/api/core/partners')->assertStatus(403);
     }
 
     /** Code e-mail en attente : on le régénère ici en lisant le hash (les tests n'ont pas accès au code en clair). */
@@ -141,5 +146,28 @@ class TwoFactorTest extends TestCase
             }
         }
         $this->fail('code introuvable');
+    }
+
+    public function test_installation_link_and_console_reset(): void
+    {
+        config(['erp.mode' => 'saas']); // la plateforme relie les installations
+        \App\Licensing\LicenseSigner::publicKey();
+        [$company, $admin, $token] = $this->makeCompany('Licence SARL');
+        $s = $this->api($token)->postJson('/api/auth/2fa/setup', ['method' => 'app', 'password' => 'secret123'])->json();
+        $this->api($token)->postJson('/api/auth/2fa/confirm', ['code' => Totp::code($s['secret'], intdiv(time(), 30))])->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        // Relier une installation : le mot de passe seul ne suffit plus
+        $body = ['email' => $admin->email, 'password' => 'secret123', 'fingerprint' => str_repeat('a', 64)];
+        $r = $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/license/link', $body);
+        if ($r->status() === 503) {
+            $this->markTestSkipped('signature des licences non configurée dans ce test');
+        }
+        $r->assertStatus(409)->assertJsonPath('two_factor', true);
+        $this->postJson('/api/license/link', $body + ['challenge' => $r->json('challenge'), 'code' => '000000'])->assertStatus(422);
+
+        // Dernier recours en console
+        $this->artisan('erp:2fa-reset', ['email' => $admin->email])->assertExitCode(0);
+        $this->assertFalse(\App\Support\TwoFactor::enabled($admin->fresh()));
     }
 }
