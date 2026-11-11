@@ -21,6 +21,14 @@ jobs:
         # Même Flutter que les versions publiées (Shorebird : SB_FLUTTER dans app/scripts/shorebird-commun.sh)
         with: { flutter-version: '3.47.9', channel: stable, cache: true }
       - run: flutter pub get
+      - name: Configuration Firebase factice (le vrai fichier reste sur le poste de publication)
+        run: |
+          cat > android/app/google-services.json <<'J'
+          {"project_info":{"project_number":"0","project_id":"ci-placeholder"},
+           "client":[{"client_info":{"mobilesdk_app_id":"1:0:android:0","android_client_info":{"package_name":"com.yomaratechnologies.yomaraerp"}},
+                      "oauth_client":[],"api_key":[{"current_key":"ci-placeholder"}],"services":{}}],
+           "configuration_version":"1"}
+          J
       - name: APK release (non signé)
         env: { YOMARA_UNSIGNED: '1' }
         run: flutter build apk --release --no-tree-shake-icons
