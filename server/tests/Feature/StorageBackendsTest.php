@@ -31,6 +31,14 @@ class StorageBackendsTest extends TestCase
         $this->assertSame('local', $local['provider']);
         $this->assertArrayHasKey('r2', $list['providers']);
 
+        // Adresses internes refusées (métadonnées du serveur, réseau local sauf MinIO)
+        $base = ['name' => 'X', 'region' => 'auto', 'bucket' => 'b', 'access_key' => 'AK', 'secret_key' => 'SK'];
+        $this->api($sa)->postJson('/api/admin/storage', $base + ['provider' => 'other', 'endpoint' => 'http://169.254.169.254/latest'])->assertStatus(422)->assertJsonValidationErrors('endpoint');
+        $this->api($sa)->postJson('/api/admin/storage', $base + ['provider' => 'other', 'endpoint' => 'http://127.0.0.1:9000'])->assertStatus(422);
+        $this->api($sa)->postJson('/api/admin/storage', $base + ['provider' => 'minio', 'endpoint' => 'http://[fe80::1]:9000'])->assertStatus(422);
+        $this->assertNull(\App\Storage\S3Lite::blockedReason('http://10.0.0.5:9000', true)); // MinIO sur le réseau local : permis
+        $this->assertSame(1, StorageBackend::count());
+
         // R2 ajouté et testé ; les clés ne sont jamais renvoyées
         $r = $this->api($sa)->postJson('/api/admin/storage', ['name' => 'R2 principal', 'provider' => 'r2', 'endpoint' => 'https://acc.r2.cloudflarestorage.com', 'region' => 'auto',
             'bucket' => 'yomara', 'access_key' => 'AK', 'secret_key' => 'SK', 'capacity_mb' => 10240])->assertOk()->json();

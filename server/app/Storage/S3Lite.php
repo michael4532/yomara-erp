@@ -22,6 +22,59 @@ class S3Lite
         $this->region = $region ?: 'auto';
     }
 
+    /**
+     * Adresse refusée pour un stockage : raison, ou null si elle est acceptable.
+     * Toujours refusé : adresses de liaison locale (169.254.x.x, dont les métadonnées cloud) et non routables.
+     * Réseau interne (127.x, 10.x, 192.168.x…) : seulement si $allowPrivate (serveur MinIO à vous).
+     */
+    public static function blockedReason(string $endpoint, bool $allowPrivate = false): ?string
+    {
+        $p = parse_url($endpoint);
+        $host = strtolower(trim((string) ($p['host'] ?? ''), '[]'));
+        if (! in_array(strtolower((string) ($p['scheme'] ?? '')), ['http', 'https'], true) || $host === '' || isset($p['user']) || isset($p['pass'])) {
+            return 'Adresse invalide : utilisez https://hôte[:port].';
+        }
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : array_merge((array) @gethostbynamel($host), self::aaaa($host));
+        if ($host === 'localhost' || str_ends_with($host, '.localhost') || str_ends_with($host, '.internal')) {
+            $ips[] = '127.0.0.1';
+        }
+        foreach (array_filter($ips) as $ip) {
+            if (self::isLinkLocal($ip)) {
+                return 'Adresse interdite (réseau de liaison locale / métadonnées du serveur).';
+            }
+            if (! $allowPrivate && ! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return 'Adresse interne refusée : seul un serveur MinIO à vous peut être sur le réseau local.';
+            }
+        }
+
+        return null;
+    }
+
+    protected static function aaaa(string $host): array
+    {
+        $r = @dns_get_record($host, DNS_AAAA);
+
+        return is_array($r) ? array_column($r, 'ipv6') : [];
+    }
+
+    protected static function isLinkLocal(string $ip): bool
+    {
+        if (str_starts_with($ip, '::ffff:')) {
+            $ip = substr($ip, 7);
+        }
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $n = ip2long($ip);
+
+            return ($n & 0xFFFF0000) === (ip2long('169.254.0.0') & 0xFFFF0000) || $ip === '100.100.100.200' || ($n & 0xFF000000) === 0;
+        }
+        $b = @inet_pton($ip);
+
+        return $b !== false && (ord($b[0]) === 0xFE && (ord($b[1]) & 0xC0) === 0x80 || $ip === '::' || str_starts_with(strtolower($ip), 'fd00:ec2'));
+    }
+
+    /** Réseau interne autorisé (serveur MinIO de l'administrateur). */
+    public bool $allowPrivate = true;
+
     /** Heure fixe pour les tests de signature. */
     public ?string $fixedNow = null;
 
@@ -95,7 +148,11 @@ class S3Lite
     protected function send(string $method, string $path, string $body = '', array $headers = [])
     {
         [$url, $h] = $this->sign($method, $path, $body, $headers);
-        $req = Http::timeout(120)->withHeaders($h);
+        // Vérifié à chaque requête (le nom d'hôte peut changer d'adresse après l'enregistrement)
+        if ($why = self::blockedReason($this->endpoint, $this->allowPrivate)) {
+            throw new \RuntimeException($why);
+        }
+        $req = Http::timeout(120)->withoutRedirecting()->withHeaders($h);
 
         return $method === 'PUT' ? $req->withBody($body, $headers['Content-Type'] ?? 'application/octet-stream')->put($url) : $req->send($method, $url);
     }

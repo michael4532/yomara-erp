@@ -43,6 +43,8 @@ class _OfficeFrameState extends State<OfficeFrame> {
     popupDepth.addListener(_guard);
     _guard();
     _listener = ((web.MessageEvent e) {
+      // Seuls les messages venant de la page de l'éditeur (même origine que l'URL ouverte) sont pris en compte
+      if (e.origin != Uri.parse(widget.url).origin) return;
       final d = e.data.dartify();
       if (d is Map && d['type'] == 'yomara-office') {
         if (d['event'] == 'close') widget.onClose?.call();

@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.42 — correctifs de sécurité
+
+- Signatures d'e-mail : les adresses d'image, de logo, de photo et de site saisies dans le formulaire sont vérifiées (http/https ou image intégrée) et échappées ; une adresse piégée ne peut plus injecter de code dans la signature.
+- Yomara Office : une session d'édition cesse immédiatement de fonctionner si le compte est désactivé ou supprimé ; la page de l'éditeur interdit les scripts extérieurs, ne transmet jamais son adresse (jeton) aux sites tiers et ne peut pas être intégrée dans un autre site ; le contenu des fichiers n'est plus interprétable par le navigateur.
+- Application web : l'éditeur intégré n'accepte que les messages venant de sa propre page.
+- Super admin › Stockage des documents : les adresses internes (métadonnées du serveur, 169.254.x.x, réseau local) sont refusées, sauf le réseau local pour un serveur MinIO ; contrôle refait à chaque requête et sans suivi des redirections.
+
 ## 0.99.41 — Word et Excel en ligne, PDF dans l'application, stockage partagé et stockages externes
 
 - Documents : **Yomara Office**. Les fichiers Word (.docx) et Excel (.xlsx, .xls, .ods, .csv) s'ouvrent et se modifient dans l'application, avec une interface moderne en français : barre d'outils complète, mise en page réelle des documents Word, formules, filtres, mise en forme conditionnelle et onglets pour Excel. Enregistrement automatique (3 s après la dernière frappe, Ctrl+S) en nouvelle version. Une seule personne modifie à la fois : les autres voient le fichier en lecture et savent qui le modifie. Bouton « Nouveau » : document Word ou classeur Excel vierge. Les .xls et .ods sont enregistrés en .xlsx. Les présentations PowerPoint se téléchargent pour l'instant.

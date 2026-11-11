@@ -74,7 +74,12 @@ class OfficeController extends Controller
         abort_unless($s, 410, 'Session expirée : rouvrez le document depuis l\'application.');
         $company = Company::findOrFail($s['company']);
         app()->instance('tenant', $company);
-        $user = User::where('company_id', $company->id)->findOrFail($s['user']);
+        $user = User::where('company_id', $company->id)->find($s['user']);
+        // Compte désactivé ou supprimé depuis l'ouverture : la session de l'éditeur ne vaut plus rien
+        if (! $user || ! $user->is_active) {
+            Cache::forget('office:'.$token);
+            abort(410, 'Session expirée : rouvrez le document depuis l\'application.');
+        }
         auth()->setUser($user);
         $f = DocFile::findOrFail($s['file']);
 
@@ -104,7 +109,11 @@ class OfficeController extends Controller
             ],
             'ver' => config('erp.version'),
             'entry' => self::entry(),
-        ])->header('Cache-Control', 'no-store')->header('X-Robots-Tag', 'noindex');
+        ])->header('Cache-Control', 'no-store')->header('X-Robots-Tag', 'noindex')
+            // Le jeton est dans l'URL : il ne doit jamais partir dans un en-tête Referer vers un site tiers
+            ->header('Referrer-Policy', 'no-referrer')
+            ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Content-Security-Policy', "default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
     }
 
     public function content(string $token)
@@ -118,7 +127,7 @@ class OfficeController extends Controller
             $bytes = BlankFiles::toXlsx($bytes, $ext);
         }
 
-        return response($bytes, 200, ['Content-Type' => 'application/octet-stream', 'Cache-Control' => 'no-store']);
+        return response($bytes, 200, ['Content-Type' => 'application/octet-stream', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff', 'Content-Disposition' => 'attachment']);
     }
 
     public function save(Request $r, string $token)

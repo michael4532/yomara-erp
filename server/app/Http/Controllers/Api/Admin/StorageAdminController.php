@@ -45,9 +45,18 @@ class StorageAdminController extends Controller
         ];
     }
 
+    /** Refuse les adresses internes (métadonnées du serveur, réseau local sauf MinIO). */
+    protected function guardEndpoint(string $endpoint, string $provider): void
+    {
+        if ($why = \App\Storage\S3Lite::blockedReason($endpoint, $provider === 'minio')) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['endpoint' => $why]);
+        }
+    }
+
     public function store(Request $r)
     {
         $v = $r->validate(['name' => 'required|string|max:100', 'endpoint' => 'required', 'bucket' => 'required', 'access_key' => 'required', 'secret_key' => 'required'] + $this->rules(false));
+        $this->guardEndpoint($v['endpoint'], $v['provider'] ?? 'other');
         $v['priority'] = (int) StorageBackend::max('priority') + 1;
         $b = StorageBackend::create($v);
         ActivityLog::record('admin.storage.created', null, ['id' => $b->id, 'provider' => $b->provider]);
@@ -67,6 +76,9 @@ class StorageAdminController extends Controller
         }
         if ($b->isLocal() && array_key_exists('is_active', $v) && ! $v['is_active'] && ! StorageBackend::where('id', '!=', $b->id)->where('is_active', true)->exists()) {
             return response()->json(['message' => 'Gardez au moins un stockage actif.'], 422);
+        }
+        if (! $b->isLocal() && (isset($v['endpoint']) || isset($v['provider']))) {
+            $this->guardEndpoint($v['endpoint'] ?? (string) $b->endpoint, $v['provider'] ?? (string) $b->provider);
         }
         $b->update($v);
         ActivityLog::record('admin.storage.updated', null, ['id' => $b->id]);

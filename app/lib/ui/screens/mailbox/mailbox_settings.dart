@@ -868,24 +868,42 @@ class _SignatureEditorState extends State<_SignatureEditor> {
         _ => _htmlFromForm(),
       };
 
+  /// Adresse d'image ou de lien sûre pour un attribut HTML : http(s) ou image en data:, échappée.
+  static String _safeUrl(String raw, {bool image = false}) {
+    var u = raw.trim();
+    if (u.isEmpty) return '';
+    final lower = u.toLowerCase();
+    if (image && lower.startsWith('data:image/') && !lower.startsWith('data:image/svg')) {
+      return const HtmlEscape(HtmlEscapeMode.attribute).convert(u);
+    }
+    if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+      if (lower.contains(':') && !RegExp(r'^[a-z0-9.-]+(:\d+)?(/|$)').hasMatch(lower)) return '';
+      u = 'https://$u';
+    }
+    final uri = Uri.tryParse(u);
+    if (uri == null || uri.host.isEmpty) return '';
+    return const HtmlEscape(HtmlEscapeMode.attribute).convert(u);
+  }
+
   String _htmlFromImage() {
-    final src = _img.text.trim();
+    final src = _safeUrl(_img.text, image: true);
     if (src.isEmpty) return '';
     final w = _imgWidth.round();
     final img = '<img src="$src" alt="" width="$w" style="display:block;width:${w}px;max-width:100%;height:auto;border:0">';
-    final link = _imgLink.text.trim();
-    return link.isEmpty ? img : '<a href="${link.startsWith('http') ? link : 'https://$link'}" style="text-decoration:none">$img</a>';
+    final link = _safeUrl(_imgLink.text);
+    return link.isEmpty ? img : '<a href="$link" style="text-decoration:none">$img</a>';
   }
 
   String _htmlFromForm() {
     String v(String k) => const HtmlEscape().convert(_c[k]!.text.trim());
-    final logo = _c['logo']!.text.trim();
-    final photo = _c['photo']!.text.trim();
+    final logo = _safeUrl(_c['logo']!.text, image: true);
+    final photo = _safeUrl(_c['photo']!.text, image: true);
+    final site = _safeUrl(_c['website']!.text);
     final lines = <String>[
       if (v('phone').isNotEmpty) 'Tél. ${v('phone')}',
       if (v('mobile').isNotEmpty) 'Mobile ${v('mobile')}',
       if (v('email').isNotEmpty) '<a href="mailto:${v('email')}" style="color:$_color;text-decoration:none">${v('email')}</a>',
-      if (v('website').isNotEmpty) '<a href="${v('website').startsWith('http') ? v('website') : 'https://${v('website')}'}" style="color:$_color;text-decoration:none">${v('website')}</a>',
+      if (site.isNotEmpty) '<a href="$site" style="color:$_color;text-decoration:none">${v('website')}</a>',
     ];
     return '<table cellpadding="0" cellspacing="0" style="font-family:Segoe UI,Arial,sans-serif;font-size:13px;color:#1B1F24"><tr>'
         '${photo.isNotEmpty ? '<td style="padding-right:12px;vertical-align:top"><img src="$photo" alt="" width="72" height="72" style="width:72px;height:72px;border-radius:50%;object-fit:cover"></td>' : ''}'

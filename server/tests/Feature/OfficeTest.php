@@ -26,6 +26,9 @@ class OfficeTest extends TestCase
         $this->flushHeaders();
         $page = $this->get('/office/'.$d['token'])->assertOk();
         $page->assertSee('"mode":"edit"', false)->assertSee('Budget 2027.xlsx', false);
+        // Le jeton est dans l'adresse : jamais transmis en Referer ; page non intégrable ailleurs
+        $page->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->assertStringContainsString("frame-ancestors 'self'", $page->headers->get('Content-Security-Policy'));
         $bytes = $this->get('/api/office/'.$d['token'].'/content')->assertOk()->getContent();
         $this->assertStringStartsWith('PK', $bytes);
 
@@ -47,6 +50,11 @@ class OfficeTest extends TestCase
         $this->assertSame('Nouveau document.docx', $w['file']['name']);
         $this->flushHeaders();
         $this->get('/office/'.str_repeat('a', 40))->assertStatus(410);
+
+        // Compte désactivé après l'ouverture : la session de l'éditeur ne donne plus accès au fichier
+        $awa->forceFill(['is_active' => false])->save();
+        $this->get('/api/office/'.$s2.'/content')->assertStatus(410);
+        $this->post('/api/office/'.$s2.'/save', ['file' => UploadedFile::fake()->createWithContent('x.xlsx', $bytes)])->assertStatus(410);
         $this->assertSame(3, DocFile::withoutGlobalScopes()->where('company_id', $company->id)->count() + 1);
     }
 }

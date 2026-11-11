@@ -23,7 +23,10 @@ class StoragePool
 
     public function client(StorageBackend $b): S3Lite
     {
-        return new S3Lite((string) $b->endpoint, (string) $b->region, (string) $b->bucket, (string) $b->access_key, (string) $b->secret_key);
+        $c = new S3Lite((string) $b->endpoint, (string) $b->region, (string) $b->bucket, (string) $b->access_key, (string) $b->secret_key);
+        $c->allowPrivate = $b->provider === 'minio';
+
+        return $c;
     }
 
     /** Dépose le fichier ; renvoie l'identifiant du stockage utilisé (null : disque du serveur, sans table des stockages). */
