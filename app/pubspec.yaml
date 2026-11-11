@@ -164,3 +164,8 @@ msix_config:
   capabilities: internetClient, privateNetworkClientServer, webcam, microphone
   store: true
   build_windows: false
+
+# Plugin Android du navigateur intégré, corrigé pour Android Gradle 9 (voir third_party/flutter_inappwebview_android/YOMARA-PATCH.md)
+dependency_overrides:
+  flutter_inappwebview_android:
+    path: third_party/flutter_inappwebview_android

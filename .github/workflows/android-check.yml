@@ -1,0 +1,25 @@
+# Yomara ERP — contrôle de la compilation Android (APK release non signé), lancé à la demande.
+# Ne publie rien et n'utilise aucun secret : vérifie seulement que Gradle et les plugins compilent.
+#
+# Copyright © 2026 Yomara Technologies — licence AGPL-3.0 (voir LICENSE et NOTICE.md).
+name: Contrôle Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - name: APK release (non signé)
+        env: { YOMARA_UNSIGNED: '1' }
+        run: flutter build apk --release --no-tree-shake-icons
