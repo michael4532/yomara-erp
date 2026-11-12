@@ -43,13 +43,42 @@ const defaultBlocks = <Map<String, dynamic>>[
 ];
 
 /// Styles d'en-tête et de tableau proposés dans le studio.
-const headerStyles = {'box': 'Cartouche', 'plain': 'Épuré', 'band': 'Bandeau', 'centered': 'Centré', 'split': 'Deux tons'};
+const headerStyles = {
+  'box': 'Cartouche',
+  'plain': 'Épuré',
+  'band': 'Bandeau',
+  'centered': 'Centré',
+  'split': 'Deux tons',
+  'stacked': 'Grand titre',
+  'overlay': 'Sur le décor (bandeau, vague, oblique)',
+};
 const tableStyles = {'dark': 'Foncé', 'accent': 'Couleur d\'accent', 'light': 'Clair', 'lines': 'Filets', 'striped': 'Zébré'};
-const fontChoices = {'roboto': 'Roboto', 'inter': 'Inter'};
+const fontChoices = {'roboto': 'Roboto', 'inter': 'Inter', 'poppins': 'Poppins', 'lora': 'Lora (à empattements)'};
+
+/// Police des titres (nom de la société, titre du document) ; vide = celle du texte.
+const titleFontChoices = {'': 'Comme le texte', 'playfair': 'Playfair (élégante)', 'lora': 'Lora (classique)', 'poppins': 'Poppins (géométrique)', 'inter': 'Inter'};
+
+/// Décors de page (arrière-plan).
+const decorChoices = {
+  'none': 'Aucun',
+  'band': 'Bandeau pleine largeur',
+  'wave': 'Vague',
+  'diagonal': 'Oblique',
+  'circles': 'Cercles',
+  'kente': 'Frise tissée',
+  'frame': 'Double cadre',
+  'stripes': 'Filets haut et bas',
+};
+
+/// Mise en valeur du total.
+const totalsStyles = {'tint': 'Fond clair', 'solid': 'Fond plein', 'line': 'Souligné'};
+
+/// Familles de la bibliothèque (filtre).
+const templateFamilies = ['Essentiels', 'Luxe', 'Moderne', 'Corporate', 'Créatif', 'Métiers'];
 
 /// Modèle intégré.
 class DocTemplate {
-  const DocTemplate({required this.id, required this.name, required this.description, required this.style, this.blocks = defaultBlocks, this.module, this.price, this.titles = const {}, this.tags = const []});
+  const DocTemplate({required this.id, required this.name, required this.description, required this.style, this.blocks = defaultBlocks, this.module, this.price, this.titles = const {}, this.tags = const [], this.family = 'Essentiels'});
 
   final String id;
   final String name;
@@ -66,6 +95,9 @@ class DocTemplate {
   /// Titres par type de document (ex. « OFFRE COMMERCIALE » pour un devis).
   final Map<String, String> titles;
   final List<String> tags;
+
+  /// Famille de la bibliothèque (Luxe, Moderne…).
+  final String family;
 
   bool get premium => module != null;
 
@@ -96,6 +128,7 @@ const builtinTemplates = <DocTemplate>[
   ),
   DocTemplate(
     id: 'prestige',
+    family: 'Luxe',
     name: 'Prestige',
     description: 'Noir et or, en-tête centré : pour l\'hôtellerie, le luxe, les cabinets.',
     style: {'primary': '#1A1A1A', 'accent': '#B8935A', 'font': 'inter', 'header': 'centered', 'table': 'lines', 'radius': 2},
@@ -105,6 +138,7 @@ const builtinTemplates = <DocTemplate>[
   ),
   DocTemplate(
     id: 'horizon',
+    family: 'Moderne',
     name: 'Horizon',
     description: 'Bandeau émeraude, accents corail, lignes zébrées.',
     style: {'primary': '#0E7C7B', 'accent': '#F4A259', 'font': 'inter', 'header': 'band', 'table': 'striped', 'radius': 10},
@@ -114,6 +148,7 @@ const builtinTemplates = <DocTemplate>[
   ),
   DocTemplate(
     id: 'offre_pro',
+    family: 'Corporate',
     name: 'Offre commerciale',
     description: 'Devis et proformas présentés en offre : validité, « Bon pour accord » signé par le client.',
     style: {'primary': '#3B2F8F', 'accent': '#7C6CF2', 'font': 'inter', 'header': 'split', 'table': 'accent', 'radius': 8},
@@ -137,6 +172,7 @@ const builtinTemplates = <DocTemplate>[
   ),
   DocTemplate(
     id: 'ivoire',
+    family: 'Créatif',
     name: 'Ivoire',
     description: 'Orange et vert, deux tons : chaleureux et très lisible.',
     style: {'primary': '#F77F00', 'accent': '#009E60', 'font': 'roboto', 'header': 'split', 'table': 'accent', 'radius': 6},
@@ -146,6 +182,7 @@ const builtinTemplates = <DocTemplate>[
   ),
   DocTemplate(
     id: 'executive',
+    family: 'Corporate',
     name: 'Executive',
     description: 'Bleu ardoise, liseré latéral, cartouche : pour les grands comptes et les marchés publics.',
     style: {'primary': '#23395B', 'accent': '#8EA8C3', 'font': 'inter', 'header': 'box', 'table': 'dark', 'radius': 4, 'sidebar': true},
@@ -153,7 +190,122 @@ const builtinTemplates = <DocTemplate>[
     price: 20000,
     tags: ['Facture', 'Marchés publics', 'Premium'],
   ),
+  // ---------------- Collection premium 2026 ----------------
+  DocTemplate(
+    id: 'onyx',
+    family: 'Luxe',
+    name: 'Onyx',
+    description: 'Bandeau noir pleine largeur, titres à empattements dorés, total sur fond noir : hôtels, joaillerie, cabinets.',
+    style: {'primary': '#141414', 'accent': '#C9A45C', 'font': 'inter', 'title_font': 'playfair', 'header': 'overlay', 'decor': 'band', 'table': 'lines', 'totals': 'solid', 'radius': 2},
+    module: 'modele_onyx',
+    price: 20000,
+    tags: ['Facture', 'Proforma', 'Luxe'],
+  ),
+  DocTemplate(
+    id: 'royal',
+    family: 'Luxe',
+    name: 'Royal',
+    description: 'Violet profond et or, double cadre, filigrane du logo : événementiel, beauté, prestige.',
+    style: {'primary': '#3C1F5C', 'accent': '#C9A227', 'font': 'inter', 'title_font': 'playfair', 'header': 'centered', 'decor': 'frame', 'table': 'dark', 'totals': 'solid', 'radius': 2, 'watermark': true},
+    module: 'modele_royal',
+    price: 20000,
+    tags: ['Facture', 'Devis', 'Luxe'],
+  ),
+  DocTemplate(
+    id: 'atelier',
+    family: 'Luxe',
+    name: 'Atelier',
+    description: 'Typographie à empattements, double cadre ardoise et cuivre : architectes, avocats, notaires.',
+    style: {'primary': '#2F3E46', 'accent': '#B08968', 'font': 'lora', 'title_font': 'playfair', 'header': 'centered', 'decor': 'frame', 'table': 'lines', 'totals': 'line', 'radius': 0},
+    module: 'modele_atelier',
+    price: 15000,
+    tags: ['Facture', 'Honoraires', 'Luxe'],
+  ),
+  DocTemplate(
+    id: 'lagon',
+    family: 'Moderne',
+    name: 'Lagon',
+    description: 'Vague bleu lagon en tête et en pied, police géométrique : services, tourisme, transport.',
+    style: {'primary': '#0B5D7A', 'accent': '#3FC1C9', 'font': 'poppins', 'header': 'overlay', 'decor': 'wave', 'table': 'light', 'totals': 'solid', 'radius': 8},
+    module: 'modele_lagon',
+    price: 15000,
+    tags: ['Facture', 'Devis', 'Moderne'],
+  ),
+  DocTemplate(
+    id: 'geometrie',
+    family: 'Créatif',
+    name: 'Géométrie',
+    description: 'Cercles en arrière-plan, grand titre et montant dû en avant : agences, studios, startups.',
+    style: {'primary': '#4B32C3', 'accent': '#FF7A59', 'font': 'poppins', 'header': 'stacked', 'decor': 'circles', 'table': 'striped', 'totals': 'solid', 'radius': 10},
+    module: 'modele_geometrie',
+    price: 15000,
+    tags: ['Facture', 'Devis', 'Créatif'],
+  ),
+  DocTemplate(
+    id: 'monochrome',
+    family: 'Moderne',
+    name: 'Monochrome',
+    description: 'Noir et blanc, très grand titre, cases d\'informations : designers, consultants, freelances. Économe en encre.',
+    style: {'primary': '#000000', 'accent': '#000000', 'font': 'inter', 'title_font': 'poppins', 'header': 'stacked', 'table': 'lines', 'totals': 'solid', 'radius': 0},
+    module: 'modele_monochrome',
+    price: 10000,
+    tags: ['Facture', 'Impression', 'Moderne'],
+  ),
+  DocTemplate(
+    id: 'kente',
+    family: 'Créatif',
+    name: 'Kente',
+    description: 'Frise inspirée des tissages, or, vert et rouge en tête et en pied : commerce, artisanat, culture.',
+    style: {'primary': '#0B7A3B', 'accent': '#E8B10D', 'third': '#C1272D', 'font': 'poppins', 'header': 'box', 'decor': 'kente', 'table': 'dark', 'totals': 'tint', 'radius': 4},
+    module: 'modele_kente',
+    price: 15000,
+    tags: ['Facture', 'Proforma', 'Créatif'],
+  ),
+  DocTemplate(
+    id: 'oblique',
+    family: 'Corporate',
+    name: 'Oblique',
+    description: 'Bandeau oblique bleu marine et rouge, angle rappelé en pied : BTP, industrie, logistique.',
+    style: {'primary': '#1D2A4D', 'accent': '#E63946', 'font': 'poppins', 'header': 'overlay', 'decor': 'diagonal', 'table': 'dark', 'totals': 'line', 'radius': 2},
+    module: 'modele_oblique',
+    price: 15000,
+    tags: ['Facture', 'Marchés', 'Corporate'],
+  ),
+  DocTemplate(
+    id: 'azur',
+    family: 'Corporate',
+    name: 'Azur',
+    description: 'Bandeau bleu roi, filigrane du logo, lignes zébrées : PME, distribution, services.',
+    style: {'primary': '#0A3D91', 'accent': '#00A8E8', 'font': 'inter', 'header': 'overlay', 'decor': 'band', 'table': 'striped', 'totals': 'solid', 'radius': 6, 'watermark': true},
+    module: 'modele_azur',
+    price: 10000,
+    tags: ['Facture', 'Proforma', 'Corporate'],
+  ),
+  DocTemplate(
+    id: 'savane',
+    family: 'Métiers',
+    name: 'Savane',
+    description: 'Vague brun et ocre, typographie chaleureuse : restauration, agroalimentaire, hôtellerie.',
+    style: {'primary': '#6B4423', 'accent': '#DDA15E', 'font': 'lora', 'title_font': 'lora', 'header': 'overlay', 'decor': 'wave', 'table': 'striped', 'totals': 'tint', 'radius': 6},
+    module: 'modele_savane',
+    price: 15000,
+    tags: ['Facture', 'Restauration', 'Métiers'],
+  ),
+  DocTemplate(
+    id: 'sante',
+    family: 'Métiers',
+    name: 'Santé',
+    description: 'Sarcelle apaisante, filets en tête et en pied, grand titre : cliniques, pharmacies, laboratoires.',
+    style: {'primary': '#0F766E', 'accent': '#5EC8B8', 'font': 'inter', 'header': 'stacked', 'decor': 'stripes', 'table': 'light', 'totals': 'solid', 'radius': 6},
+    module: 'modele_sante',
+    price: 10000,
+    tags: ['Facture', 'Santé', 'Métiers'],
+  ),
 ];
+
+/// Collection premium : un seul achat débloque tous les modèles premium, présents et à venir.
+const templateCollectionModule = 'modeles_collection';
+const templateCollectionPrice = 60000;
 
 /// Module de la boutique qui donne accès au studio (création de modèles).
 const templateStudioModule = 'modeles_studio';
@@ -167,7 +319,7 @@ DocTemplate? builtinById(String? id) => builtinTemplates.where((t) => t.id == id
 /// Modèle utilisable ? (gratuit, premium acheté ou modèle de la société)
 bool templateUnlocked(Session s, String id) {
   final b = builtinById(id);
-  if (b != null) return b.module == null || s.hasModule(b.module!);
+  if (b != null) return b.module == null || s.hasModule(b.module!) || s.hasModule(templateCollectionModule);
   return customTemplates(s).any((t) => t['id'] == id);
 }
 

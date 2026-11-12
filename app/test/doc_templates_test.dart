@@ -38,5 +38,19 @@ void main() {
     };
     final bytes = await buildDocumentPdf(session: Session(), config: DocConfig.sale, doc: sampleDocument('quote'), template: custom);
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    // Chaque décor, en-tête, total et police, combinés (sur plusieurs pages)
+    final long = sampleDocument('invoice');
+    long['lines'] = [for (var i = 0; i < 60; i++) ...(long['lines'] as List)];
+    for (final d in decorChoices.keys) {
+      for (final h in headerStyles.keys) {
+        final spec = {
+          'id': 'tpl_d',
+          'name': 'D',
+          'style': {'primary': '#123456', 'accent': '#ABCDEF', 'decor': d, 'header': h, 'totals': totalsStyles.keys.elementAt(h.length % 3), 'font': fontChoices.keys.elementAt(d.length % 4), 'title_font': titleFontChoices.keys.elementAt(h.length % 5), 'watermark': true, 'footer_band': true},
+        };
+        final b = await buildDocumentPdf(session: Session(), config: DocConfig.sale, doc: d == 'wave' ? long : sampleDocument('invoice'), template: spec);
+        expect(String.fromCharCodes(b.take(5)), '%PDF-', reason: '$d / $h');
+      }
+    }
   });
 }

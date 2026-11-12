@@ -58,6 +58,165 @@ PdfColor _tint(PdfColor c, double t) => PdfColor(c.red + (1 - c.red) * t, c.gree
 /// Texte lisible sur une couleur de fond.
 PdfColor _on(PdfColor c) => (0.299 * c.red + 0.587 * c.green + 0.114 * c.blue) > 0.62 ? PdfColor.fromHex('#111827') : PdfColors.white;
 
+/// Fichier d'une police des modèles (corps ou titres).
+String _fontAsset(String? family, String weight) => switch (family) {
+      'inter' => 'assets/fonts/Inter-$weight.ttf',
+      'lora' => 'assets/fonts/pdf/Lora-$weight.ttf',
+      'playfair' => 'assets/fonts/pdf/Playfair-$weight.ttf',
+      'poppins' => 'assets/fonts/pdf/Poppins-$weight.ttf',
+      _ => 'assets/fonts/Roboto-$weight.ttf',
+    };
+
+final _fontCache = <String, pw.Font>{};
+
+Future<pw.Font> _font(String? family, String weight) async {
+  final path = _fontAsset(family, weight);
+  return _fontCache[path] ??= pw.Font.ttf(await rootBundle.load(path));
+}
+
+/// Hauteur (depuis le haut de la page) des décors qui portent l'en-tête « sur fond ».
+const _bandHeight = 172.0;
+
+/// Décors de page (arrière-plan) des modèles : bandeau, vague, oblique, cercles, frise, cadre, filets.
+/// Repère PDF : origine en bas à gauche. Sur les pages suivantes, seul un rappel discret reste en haut.
+void _paintDecor(PdfGraphics c, PdfPoint size, String decor, PdfColor primary, PdfColor accent, PdfColor third, bool first) {
+  final w = size.x, h = size.y;
+  void rect(double x, double y, double rw, double rh, PdfColor col) => c
+    ..setFillColor(col)
+    ..drawRect(x, y, rw, rh)
+    ..fillPath();
+  void poly(List<List<double>> pts, PdfColor col) {
+    c
+      ..setFillColor(col)
+      ..moveTo(pts.first[0], pts.first[1]);
+    for (final p in pts.skip(1)) {
+      c.lineTo(p[0], p[1]);
+    }
+    c
+      ..closePath()
+      ..fillPath();
+  }
+
+  void circle(double x, double y, double r, PdfColor col) => c
+    ..setFillColor(col)
+    ..drawEllipse(x, y, r, r)
+    ..fillPath();
+
+  switch (decor) {
+    case 'band':
+      if (!first) return rect(0, h - 10, w, 10, primary);
+      rect(0, h - _bandHeight, w, _bandHeight, primary);
+      rect(0, h - _bandHeight - 4, w, 4, accent);
+      rect(0, 0, w, 8, primary);
+    case 'wave':
+      if (!first) return rect(0, h - 10, w, 10, primary);
+      // Vague du haut : fond plein, bord inférieur ondulé, liseré d'accent qui suit la vague
+      void wave(double base, PdfColor col) {
+        c
+          ..setFillColor(col)
+          ..moveTo(0, h)
+          ..lineTo(w, h)
+          ..lineTo(w, h - base + 18)
+          ..curveTo(w * .72, h - base - 26, w * .45, h - base + 30, w * .22, h - base - 4)
+          ..curveTo(w * .12, h - base - 18, w * .05, h - base - 10, 0, h - base + 2)
+          ..closePath()
+          ..fillPath();
+      }
+      wave(_bandHeight - 2, accent);
+      wave(_bandHeight - 10, primary);
+      // Vague du bas, sous le pied de page
+      c
+        ..setFillColor(_tint(primary, .82))
+        ..moveTo(0, 0)
+        ..lineTo(0, 22)
+        ..curveTo(w * .3, 40, w * .6, 4, w, 26)
+        ..lineTo(w, 0)
+        ..closePath()
+        ..fillPath();
+    case 'diagonal':
+      if (!first) return rect(0, h - 10, w, 10, primary);
+      poly([
+        [0, h],
+        [w, h],
+        [w, h - _bandHeight - 12],
+        [0, h - _bandHeight + 22],
+      ], accent);
+      poly([
+        [0, h],
+        [w, h],
+        [w, h - _bandHeight - 4],
+        [0, h - _bandHeight + 30],
+      ], primary);
+      poly([
+        [w, 0],
+        [w - 150, 0],
+        [w, 46],
+      ], accent);
+      poly([
+        [w, 0],
+        [w - 90, 0],
+        [w, 28],
+      ], primary);
+    case 'circles':
+      // Cercles teintés, en partie hors de la page : lisibles sous le texte
+      if (first) {
+        circle(w - 30, h - 20, 150, _tint(primary, .9));
+        circle(w - 215, h - 18, 30, _tint(accent, .78));
+        circle(w + 20, h - 150, 44, _tint(accent, .86));
+      } else {
+        circle(w - 10, h - 10, 70, _tint(primary, .92));
+      }
+      circle(-30, 60, 110, _tint(primary, .93));
+      circle(60, 20, 34, _tint(accent, .82));
+    case 'kente':
+      // Frise inspirée des tissages : blocs de couleurs alternés, petits carrés intérieurs
+      void frieze(double y, double fh) {
+        const seg = 28.0;
+        final cols = [primary, accent, third, accent];
+        var i = 0;
+        for (var x = 0.0; x < w; x += seg, i++) {
+          final col = cols[i % cols.length];
+          rect(x, y, seg, fh, col);
+          final inner = i.isEven ? third == col ? accent : third : primary == col ? accent : primary;
+          final q = fh / 3;
+          rect(x + seg / 2 - q / 2, y + q, q, q, inner);
+          rect(x + 2, y + fh - 3, seg - 4, 1.2, PdfColors.white);
+          rect(x + 2, y + 1.8, seg - 4, 1.2, PdfColors.white);
+        }
+      }
+      frieze(h - (first ? 22 : 12), first ? 22 : 12);
+      frieze(0, 12);
+    case 'frame':
+      // Double cadre fin et coins marqués
+      c
+        ..setStrokeColor(primary)
+        ..setLineWidth(1.4)
+        ..drawRect(16, 16, w - 32, h - 32)
+        ..strokePath()
+        ..setStrokeColor(accent)
+        ..setLineWidth(.6)
+        ..drawRect(21, 21, w - 42, h - 42)
+        ..strokePath();
+      for (final p in [
+        [12.0, 12.0],
+        [w - 20, 12.0],
+        [12.0, h - 20],
+        [w - 20, h - 20],
+      ]) {
+        rect(p[0], p[1], 8, 8, accent);
+      }
+    case 'stripes':
+      rect(0, h - 10, w, 10, primary);
+      rect(0, h - 14, w, 2.5, accent);
+      rect(0, h - 17, w, 1, _tint(primary, .6));
+      rect(0, 0, w, 6, primary);
+      rect(0, 8, w, 1.5, accent);
+  }
+}
+
+/// Décors qui posent un fond foncé sous l'en-tête (texte de l'en-tête en clair).
+const _darkTopDecors = {'band', 'wave', 'diagonal'};
+
 /// PDF du document (impression, envoi par e-mail ou WhatsApp).
 /// [template] : spécification imposée (aperçu du studio) ; sinon modèle du document ou par défaut.
 Future<Uint8List> buildDocumentPdf({
@@ -72,9 +231,11 @@ Future<Uint8List> buildDocumentPdf({
   final blocks = [for (final b in (spec['blocks'] as List? ?? defaultBlocks)) if (b is Map && b['hidden'] != true) Map<String, dynamic>.from(b)];
   final titles = asMap(spec['titles']);
 
-  final font = style['font'] == 'inter' ? 'Inter' : 'Roboto';
-  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/$font-Regular.ttf'));
-  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/$font-Bold.ttf'));
+  final regular = await _font(style['font'] as String?, 'Regular');
+  final bold = await _font(style['font'] as String?, 'Bold');
+  // Police des titres (nom de la société, titre du document) : celle du corps si aucune n'est choisie
+  final titleFontName = '${style['title_font'] ?? ''}';
+  final titleFont = titleFontName.isEmpty ? bold : await _font(titleFontName, 'Bold');
   final company = session.company;
   final currency = '${doc['currency'] ?? session.currency}';
   final rate = toDouble(doc['exchange_rate'] ?? 1);
@@ -82,8 +243,15 @@ Future<Uint8List> buildDocumentPdf({
   final accent = _hex(style['accent'], '#FFC531');
   final grey = PdfColor.fromHex('#5B6B85');
   final radius = toDouble(style['radius'] ?? 6);
-  final headerStyle = '${style['header'] ?? 'box'}';
+  final third = _hex(style['third'], '#C1272D');
+  final decor = '${style['decor'] ?? 'none'}';
+  final totalsStyle = '${style['totals'] ?? 'tint'}';
+  // En-tête « sur fond » : seulement sur un décor foncé ; sinon on retombe sur le cartouche
+  var headerStyle = '${style['header'] ?? 'box'}';
+  if (headerStyle == 'overlay' && !_darkTopDecors.contains(decor)) headerStyle = 'box';
   final tableStyle = '${style['table'] ?? 'dark'}';
+  pw.TextStyle titleStyle({PdfColor? color, double size = 16, double spacing = 0}) =>
+      pw.TextStyle(font: titleFont, fontBold: titleFont, fontWeight: pw.FontWeight.bold, color: color, fontSize: size, letterSpacing: spacing);
 
   final typeLabel = '${titles[doc['type']] ?? (config.types[doc['type']] ?? 'Document').toUpperCase()}';
   final docNumber = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
@@ -133,11 +301,11 @@ Future<Uint8List> buildDocumentPdf({
 
   final pdf = pw.Document(version: PdfVersion.pdf_1_4, theme: pw.ThemeData.withFont(base: regular, bold: bold));
 
-  pw.Widget kv(String k, String v, {bool strong = false}) => pw.Padding(
+  pw.Widget kv(String k, String v, {bool strong = false, PdfColor? color, double? size}) => pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 2),
         child: pw.Row(children: [
-          pw.Expanded(child: pw.Text(tr(k), style: pw.TextStyle(fontWeight: strong ? pw.FontWeight.bold : null, color: strong ? primary : null))),
-          pw.Text(tr(v), style: pw.TextStyle(fontWeight: strong ? pw.FontWeight.bold : null, color: strong ? primary : null)),
+          pw.Expanded(child: pw.Text(tr(k), style: pw.TextStyle(fontWeight: strong ? pw.FontWeight.bold : null, color: color ?? (strong ? primary : null), fontSize: size))),
+          pw.Text(tr(v), style: pw.TextStyle(fontWeight: strong ? pw.FontWeight.bold : null, color: color ?? (strong ? primary : null), fontSize: size)),
         ]),
       );
 
@@ -153,7 +321,7 @@ Future<Uint8List> buildDocumentPdf({
     final c = color ?? PdfColors.black;
     final small = pw.TextStyle(color: color == null ? grey : _tint(color, .15), fontSize: 9);
     return [
-      if (showName) pw.Text(tr('${company['name'] ?? ''}'), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: color ?? primary)),
+      if (showName) pw.Text(tr('${company['name'] ?? ''}'), style: titleStyle(size: 18, color: color ?? primary)),
       if (legal.isNotEmpty) pw.Text(tr(legal), style: small),
       if (company['address'] != null) pw.Text(tr('${company['address']}'), style: pw.TextStyle(color: c)),
       if (company['city'] != null) pw.Text(tr('${company['city']}'), style: pw.TextStyle(color: c)),
@@ -163,7 +331,7 @@ Future<Uint8List> buildDocumentPdf({
   }
 
   List<pw.Widget> titleLines(PdfColor titleColor, PdfColor textColor, {pw.CrossAxisAlignment align = pw.CrossAxisAlignment.end, double size = 16}) => [
-        pw.Text(tr(typeLabel), style: pw.TextStyle(color: titleColor, fontWeight: pw.FontWeight.bold, fontSize: size)),
+        pw.Text(tr(typeLabel), style: titleStyle(color: titleColor, size: size)),
         pw.Text(tr('$docNumber'), style: pw.TextStyle(color: textColor)),
         pw.SizedBox(height: 4),
         pw.Text(tr('Date : ${dateFr(doc['date'])}'), style: pw.TextStyle(color: textColor, fontSize: 9)),
@@ -200,7 +368,7 @@ Future<Uint8List> buildDocumentPdf({
         return [
           pw.Center(child: pw.Column(children: [
             if (logo != null) pw.Padding(padding: const pw.EdgeInsets.only(bottom: 6), child: logoW(56)),
-            pw.Text(tr('${company['name'] ?? ''}'), style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: primary, letterSpacing: 1.5)),
+            pw.Text(tr('${company['name'] ?? ''}'), style: titleStyle(size: 20, color: primary, spacing: 1.5)),
             if (legal.isNotEmpty) pw.Text(tr(legal), style: pw.TextStyle(color: grey, fontSize: 9)),
             pw.Text(
               tr([company['address'], company['city'], if (company['phone'] != null) 'Tél. ${company['phone']}', company['email']].where((e) => e != null && '$e'.isNotEmpty).join(' · ')),
@@ -210,7 +378,7 @@ Future<Uint8List> buildDocumentPdf({
             pw.SizedBox(height: 12),
             pw.Row(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
               pw.Container(width: 60, height: 1, color: accent),
-              pw.Padding(padding: const pw.EdgeInsets.symmetric(horizontal: 10), child: pw.Text(tr(typeLabel), style: pw.TextStyle(color: accent, fontWeight: pw.FontWeight.bold, fontSize: 16, letterSpacing: 2))),
+              pw.Padding(padding: const pw.EdgeInsets.symmetric(horizontal: 10), child: pw.Text(tr(typeLabel), style: titleStyle(color: accent, size: 16, spacing: 2))),
               pw.Container(width: 60, height: 1, color: accent),
             ]),
             pw.SizedBox(height: 4),
@@ -241,6 +409,67 @@ Future<Uint8List> buildDocumentPdf({
             ),
           ]),
           pw.Container(height: 4, color: accent),
+        ];
+      case 'overlay':
+        // Texte posé sur le décor foncé du haut de page (bandeau, vague, oblique)
+        final on = _on(primary);
+        return [
+          pw.SizedBox(
+            height: _bandHeight - 36 - 26,
+            child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              if (logo != null)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(right: 12),
+                  child: pw.Container(padding: const pw.EdgeInsets.all(5), decoration: pw.BoxDecoration(color: PdfColors.white, borderRadius: pw.BorderRadius.circular(radius.clamp(0, 8))), child: logoW(46)),
+                ),
+              pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: companyLines(color: on))),
+              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: titleLines(accent == primary ? on : accent, on, size: 24)),
+            ]),
+          ),
+          pw.SizedBox(height: 40),
+        ];
+      case 'stacked':
+        // Grand titre, coordonnées à droite, bandeau d'informations avec le montant dû mis en avant
+        final due = config.payableTypes.contains(doc['type']) ? toDouble(doc['total']) - toDouble(doc['amount_paid']) : toDouble(doc['total']);
+        pw.Widget cell(String label, String value, {bool strong = false}) => pw.Expanded(
+              flex: strong ? 3 : 2,
+              child: pw.Container(
+                height: 50,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                color: strong ? primary : null,
+                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.Text(tr(label), style: pw.TextStyle(fontSize: 8, color: strong ? _tint(_on(primary), .2) : grey)),
+                  pw.SizedBox(height: 2),
+                  pw.Text(tr(value), style: pw.TextStyle(fontSize: strong ? 12 : 10, fontWeight: pw.FontWeight.bold, color: strong ? _on(primary) : null)),
+                ]),
+              ),
+            );
+        return [
+          pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Expanded(
+              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                if (logo != null) pw.Padding(padding: const pw.EdgeInsets.only(bottom: 10), child: logoW(42)),
+                pw.Text(tr(typeLabel), style: titleStyle(color: primary, size: typeLabel.length > 14 ? 26 : 34, spacing: .5)),
+                pw.Container(margin: const pw.EdgeInsets.only(top: 4), width: 46, height: 4, color: accent),
+              ]),
+            ),
+            pw.SizedBox(width: 16),
+            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+              pw.Text(tr('${company['name'] ?? ''}'), style: titleStyle(size: 13, color: primary)),
+              for (final l in [legal, company['address'], company['city'], if (company['phone'] != null) 'Tél. ${company['phone']}', company['email']])
+                if (l != null && '$l'.isNotEmpty) pw.Text(tr('$l'), style: pw.TextStyle(fontSize: 9, color: grey)),
+            ]),
+          ]),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            decoration: pw.BoxDecoration(border: pw.Border.all(color: _tint(primary, .75)), borderRadius: pw.BorderRadius.circular(radius.clamp(0, 8))),
+            child: pw.Row(children: [
+              cell('Numéro', '$docNumber'),
+              cell('Date', dateFr(doc['date'])),
+              if (doc['due_date'] != null) cell(offer ? 'Valable jusqu\'au' : 'Échéance', dateFr(doc['due_date'])),
+              cell(offer ? 'Montant' : (config.payableTypes.contains(doc['type']) ? 'Montant dû' : 'Total'), money(due, currency), strong: true),
+            ]),
+          ),
         ];
       default: // 'box'
         final on = _on(primary);
@@ -341,12 +570,28 @@ Future<Uint8List> buildDocumentPdf({
               if (!noVat && vatByRate.length <= 1) kv(vatByRate.length == 1 ? 'TVA ${vatPct(vatByRate.keys.first)} %' : 'TVA', money(toDouble(doc['tax_total']), currency)),
               if (!noVat && vatByRate.length > 1)
                 for (final e in (vatByRate.entries.toList()..sort((a, b) => b.key.compareTo(a.key)))) kv('TVA ${vatPct(e.key)} %', money(e.value, currency)),
-              pw.Container(
-                margin: const pw.EdgeInsets.only(top: 4),
-                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: pw.BoxDecoration(color: _tint(primary, .9), borderRadius: pw.BorderRadius.circular(radius.clamp(0, 6))),
-                child: kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true),
-              ),
+              switch (totalsStyle) {
+                // Total sur fond plein, en grand
+                'solid' => pw.Container(
+                    margin: const pw.EdgeInsets.only(top: 6),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: pw.BoxDecoration(color: primary, borderRadius: pw.BorderRadius.circular(radius.clamp(0, 6))),
+                    child: kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true, color: _on(primary), size: 12),
+                  ),
+                // Total souligné d'un trait d'accent
+                'line' => pw.Container(
+                    margin: const pw.EdgeInsets.only(top: 6),
+                    padding: const pw.EdgeInsets.only(top: 6, bottom: 4),
+                    decoration: pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: accent, width: 2), bottom: pw.BorderSide(color: accent, width: .6))),
+                    child: kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true, size: 12),
+                  ),
+                _ => pw.Container(
+                    margin: const pw.EdgeInsets.only(top: 4),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: pw.BoxDecoration(color: _tint(primary, .9), borderRadius: pw.BorderRadius.circular(radius.clamp(0, 6))),
+                    child: kv(noVat ? 'Total' : 'Total TTC', money(toDouble(doc['total']), currency), strong: true),
+                  ),
+              },
               if (noVat) pw.Padding(padding: const pw.EdgeInsets.only(top: 2), child: pw.Text(tr('TVA non applicable'), style: pw.TextStyle(fontSize: 8, color: grey))),
               if (currency != session.currency && rate > 0) ...[
                 pw.SizedBox(height: 2),
@@ -537,11 +782,22 @@ Future<Uint8List> buildDocumentPdf({
   pdf.addPage(pw.MultiPage(
     pageTheme: pw.PageTheme(
       pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.fromLTRB(style['sidebar'] == true ? 46 : 36, 36, 36, 48),
+      margin: decor == 'frame' ? const pw.EdgeInsets.fromLTRB(44, 44, 44, 52) : pw.EdgeInsets.fromLTRB(style['sidebar'] == true ? 46 : 36, decor == 'kente' ? 40 : 36, 36, 48),
       theme: pw.ThemeData.withFont(base: regular, bold: bold),
       buildBackground: (ctx) => pw.FullPage(
         ignoreMargins: true,
         child: pw.Stack(children: [
+          // Décor du modèle (le premier en-tête n'est que sur la première page)
+          if (decor != 'none')
+            pw.Positioned.fill(child: pw.CustomPaint(painter: (c, size) => _paintDecor(c, size, decor, primary, accent, third, ctx.pageNumber == 1))),
+          // Filigrane : le logo de la société, très clair, au centre de la page
+          if (style['watermark'] == true && logo != null)
+            pw.Center(child: pw.Opacity(opacity: .06, child: pw.Image(logo, width: 300, fit: pw.BoxFit.contain))),
+          // Bandeau de pied de page
+          if (style['footer_band'] == true && !{'band', 'wave', 'diagonal', 'kente', 'stripes'}.contains(decor)) ...[
+            pw.Positioned(left: 0, right: 0, bottom: 0, child: pw.Container(height: 8, color: primary)),
+            pw.Positioned(left: 0, right: 0, bottom: 8, child: pw.Container(height: 2.5, color: accent)),
+          ],
           // Liseré latéral (modèles qui le prévoient)
           if (style['sidebar'] == true) pw.Positioned(left: 0, top: 0, bottom: 0, child: pw.Container(width: 12, color: primary)),
           if (style['sidebar'] == true) pw.Positioned(left: 12, top: 0, bottom: 0, child: pw.Container(width: 3, color: accent)),

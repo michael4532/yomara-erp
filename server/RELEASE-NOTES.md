@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.49 — bibliothèque de modèles premium
+
+- **11 nouveaux modèles premium** de factures, proformas, devis et offres (Paramètres › Modèles de documents), tous avec aperçu : **Onyx** (bandeau noir et or, 20 000 F), **Royal** (violet et or, double cadre, filigrane du logo, 20 000 F), **Atelier** (empattements, double cadre, 15 000 F), **Lagon** (vague bleue, 15 000 F), **Géométrie** (cercles, grand titre, 15 000 F), **Monochrome** (noir et blanc, 10 000 F), **Kente** (frise tissée or, vert et rouge, 15 000 F), **Oblique** (bandeau oblique, 15 000 F), **Azur** (bandeau bleu roi, filigrane, 10 000 F), **Savane** (vague brun et ocre, 15 000 F), **Santé** (sarcelle, filets, 10 000 F).
+- **Collection premium** (60 000 F, achat définitif) : tous les modèles premium, présents et à venir, en un seul achat.
+- Bibliothèque classée par famille : Gratuits, Luxe, Moderne, Corporate, Créatif, Métiers.
+- Nouveaux éléments de mise en page, aussi disponibles dans le Studio de modèles : décors de page (bandeau pleine largeur, vague, oblique, cercles, frise tissée, double cadre, filets), en-tête « Grand titre » avec cases Numéro / Date / Échéance et **montant dû mis en avant**, en-tête posé sur le décor, total sur fond plein ou souligné, police des titres (Playfair, Lora, Poppins), polices Poppins et Lora pour le texte, filigrane du logo, bandeau en pied de page.
+
 ## 0.99.48 — double authentification : applications déjà installées
 
 - Correctif : une application installée avant la double authentification (téléphone, Windows, Mac) affichait « type 'Null' is not a subtype of type 'String' » à la connexion d'un compte protégé. Elle affiche maintenant un message clair, et permet de se connecter en saisissant dans « Mot de passe » le mot de passe suivi directement du code à 6 chiffres de l'application d'authentification (« motdepasse123456 »), en attendant la mise à jour depuis les stores. Code vérifié comme d'habitude (essais limités, code rejoué refusé).

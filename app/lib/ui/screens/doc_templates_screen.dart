@@ -120,6 +120,7 @@ class DocTemplatesScreen extends StatefulWidget {
 
 class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
   String _kind = 'invoice';
+  String _family = '';
 
   Future<void> _saveSettings(Map<String, dynamic> settings) async {
     final session = context.read<Session>();
@@ -304,7 +305,39 @@ class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
         const SizedBox(height: 20),
         Text(tr('Bibliothèque'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
-        _grid([for (final t in builtinTemplates) _card(t.toSpec(), builtin: t)]),
+        // Collection premium : tous les modèles premium en un seul achat
+        if (!session.hasModule(templateCollectionModule) && builtinTemplates.any((t) => t.premium && !templateUnlocked(session, t.id)))
+          Card(
+            color: const Color(0xFF1A1A1A),
+            child: ListTile(
+              leading: const Icon(Icons.workspace_premium, color: Color(0xFFC9A45C), size: 32),
+              title: Text(tr('Collection premium'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+              subtitle: Text(
+                tr('Les ${builtinTemplates.where((t) => t.premium).length} modèles premium, et ceux à venir, en un seul achat définitif : ${money(templateCollectionPrice, 'XOF')}.'),
+                style: const TextStyle(color: Colors.white70),
+              ),
+              trailing: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC9A45C), foregroundColor: const Color(0xFF1A1A1A)),
+                onPressed: () => buyModule(context, templateCollectionModule),
+                child: Text(tr('Débloquer tout')),
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final f in ['', 'Gratuits', ...templateFamilies])
+            if (f == '' || f == 'Gratuits' || builtinTemplates.any((t) => t.family == f))
+              FilterChip(
+                label: Text(tr(f == '' ? 'Tous (${builtinTemplates.length})' : f)),
+                selected: _family == f,
+                onSelected: (_) => setState(() => _family = f),
+              ),
+        ]),
+        const SizedBox(height: 10),
+        _grid([
+          for (final t in builtinTemplates)
+            if (_family == '' || (_family == 'Gratuits' ? !t.premium : t.family == _family)) _card(t.toSpec(), builtin: t),
+        ]),
       ]),
     );
   }
@@ -670,6 +703,13 @@ class _TemplateStudioState extends State<TemplateStudio> {
         const SizedBox(height: 14),
         _choice('font', 'Police', fontChoices),
         const SizedBox(height: 14),
+        _choice('title_font', 'Police des titres', titleFontChoices),
+        const SizedBox(height: 14),
+        _choice('decor', 'Décor de page', decorChoices),
+        if (_style['decor'] == 'kente') ...[const SizedBox(height: 14), _color('third', 'Troisième couleur de la frise')],
+        const SizedBox(height: 14),
+        _choice('totals', 'Total', totalsStyles),
+        const SizedBox(height: 14),
         Text(tr('Arrondis'), style: const TextStyle(fontWeight: FontWeight.w700)),
         Slider(
           value: toDouble(_style['radius'] ?? 6).clamp(0, 14),
@@ -688,6 +728,25 @@ class _TemplateStudioState extends State<TemplateStudio> {
           value: _style['sidebar'] == true,
           onChanged: (v) {
             _style['sidebar'] = v;
+            _changed();
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(tr('Filigrane du logo')),
+          subtitle: Text(tr('Votre logo, très clair, au centre de chaque page')),
+          value: _style['watermark'] == true,
+          onChanged: (v) {
+            _style['watermark'] = v;
+            _changed();
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(tr('Bandeau en pied de page')),
+          value: _style['footer_band'] == true,
+          onChanged: (v) {
+            _style['footer_band'] = v;
             _changed();
           },
         ),

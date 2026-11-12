@@ -116,6 +116,8 @@ flutter:
     - assets/customer_display.html
     - assets/i18n/
     - assets/brand/
+    # Polices des modèles de documents PDF (licence SIL OFL, voir OFL.txt)
+    - assets/fonts/pdf/
     - shorebird.yaml
 
   # To add assets to your application, add an assets section, like this:
