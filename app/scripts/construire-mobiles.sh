@@ -33,9 +33,15 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "android" ]; then
   fi
   STORE="$(grep -E '^storeFile=' android/key.properties | cut -d= -f2-)"
   [ -f "$STORE" ] || { echo "Le keystore indiqué dans android/key.properties est introuvable : $STORE" >&2; exit 1; }
+  # Jamais d'anciens fichiers : s'ils restaient, un échec de construction passerait inaperçu
+  rm -f build/app/outputs/flutter-apk/app-release.apk build/app/outputs/bundle/release/app-release.aab
   if sb_actif; then
     echo "== Android : App Bundle et APK signés, enregistrés comme version de base des mises à jour à distance"
-    shorebird release android --flutter-version="$SB_FLUTTER" --artifact apk -- $SB_ICONES && echo oui > "$ROOT/scripts/icones-mobile.txt"
+    if ! shorebird release android --flutter-version="$SB_FLUTTER" --artifact apk -- $SB_ICONES; then
+      echo "ÉCHEC de la construction Android (détails ci-dessus)." >&2
+      exit 1
+    fi
+    echo oui > "$ROOT/scripts/icones-mobile.txt"
   else
     echo "== Android : APK signé"
     flutter build apk --release $SB_ICONES
@@ -79,6 +85,7 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "ios" ]; then
       perl -0pi -e 's/shellScript = \(\n(.*?)\n\s*\);/my $b=$1; my @l = $b =~ m{^\s*"((?:[^"\\]|\\.)*)",?\s*$}mg; "shellScript = \"".join("\\n",@l)."\\n\";"/gse; s/objectVersion = 100;/objectVersion = 54;/; s/\n\s*preferredProjectObjectVersion = \d+;//' "$P"
     done
     echo "== iPhone : IPA signé (App Store Connect)"
+    rm -rf build/ios/ipa
     (cd ios && pod install --repo-update >/dev/null 2>&1 || pod install)
     if sb_actif; then
       shorebird release ios --flutter-version="$SB_FLUTTER" --export-options-plist="$PLIST" -- $SB_ICONES

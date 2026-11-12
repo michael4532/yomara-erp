@@ -39,6 +39,8 @@ sed -i '' -E "s/^([[:space:]]*msix_version:).*/\1 $NOM.0/" pubspec.yaml
 SORTIE="${SORTIE:-$(cd .. && pwd)/sorties/stores-$NOM}"
 LOGS="$SORTIE/journaux"
 mkdir -p "$SORTIE" "$LOGS"
+# Repère de début : seuls les fichiers produits pendant CETTE lancée comptent dans le récapitulatif
+touch "$LOGS/.debut"
 export SORTIE
 DEBUT=$(date +%s)
 echo "Yomara ERP $V — toutes les applications dans :"
@@ -110,12 +112,12 @@ if [ -n "$GH_PID" ]; then
 fi
 
 # DMG : celui de GitHub s'il existe, sinon construit ici (signé avec votre certificat s'il est installé)
-if veut dmg && ! find "$SORTIE" -type f -name '*.dmg' -not -path '*/journaux/*' | grep -q .; then
+if veut dmg && ! find "$SORTIE" -type f -name '*.dmg' -not -path '*/journaux/*' -newer "$LOGS/.debut" | grep -q .; then
   etape dmg "Mac : DMG (téléchargement direct)" env SORTIE="$SORTIE/mac" ./scripts/construire-macos.sh
 fi
 
 # ---------------------------------------------------------------- 5. Récapitulatif : chaque format attendu, présent ou non
-trouve() { find "$SORTIE" -type f -name "*.$1" -not -path '*/journaux/*' 2>/dev/null | sort; }
+trouve() { find "$SORTIE" -type f -name "*.$1" -not -path '*/journaux/*' -newer "$LOGS/.debut" 2>/dev/null | sort; }
 LISTE="$SORTIE/LISTE-DES-FICHIERS.txt"
 {
   echo "Yomara ERP $V — $(date '+%d/%m/%Y %H:%M') — durée $(( ($(date +%s) - DEBUT) / 60 )) min"
