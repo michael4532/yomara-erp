@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.51 — bornes d'accueil : ticket imprimé, numéro de ticket, enchaînement des visiteurs
+
+- **Ticket imprimé après chaque inscription** (et à chaque retour d'un visiteur) : événement, nom, entreprise, ville, **numéro de ticket** en gros (01-0042), QR code, date et heure d'entrée, borne. Formats : rouleau 80 mm, rouleau 58 mm, A6 ou A4 ; choix de l'imprimante et ticket d'essai dans les réglages de la borne. Impression directe sans fenêtre sur Windows, Mac, iPad et Linux ; sur Android et dans un navigateur, la fenêtre d'impression du système s'affiche (Chrome en mode borne `--kiosk --kiosk-printing` imprime sans fenêtre).
+- **Numéro de ticket court** : numéro de la borne + compteur (borne 1 : 01-0001, 01-0002… ; borne 2 : 02-0001…). Les jours suivants, le visiteur tape simplement ce numéro (ou son téléphone, ou présente le QR code). Deux bornes réglées sur le même numéro sont signalées ; si cela arrive quand même hors ligne, aucune inscription n'est perdue.
+- **Enchaînement** : la borne s'ouvre directement sur le formulaire ; 5 secondes après l'inscription, elle revient au formulaire vide pour le visiteur suivant (bouton « Visiteur suivant » pour aller plus vite). « Déjà inscrit ? Mon numéro » reste accessible en haut du formulaire.
+- **Aucun compteur affiché au public** : le nombre d'inscrits et d'entrées de la borne n'apparaît que dans le menu protégé par le code.
+
 ## 0.99.50 — bornes d'accueil des salons et fréquentation par jour
 
 - **Mode borne d'accueil** (Événements › un événement › Billetterie › « Mode borne d'accueil ») : à l'entrée d'un salon, les visiteurs s'inscrivent eux-mêmes sur une tablette, un ordinateur tactile ou un téléphone, en plein écran : prénom, nom, téléphone, e-mail, entreprise, ville / commune, pays, questions personnalisées (profil, « comment avez-vous connu le salon ? »…), consentement. L'inscription vaut entrée du jour ; le visiteur reçoit un QR code à l'écran (et par e-mail s'il l'a donné).

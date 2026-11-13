@@ -173,6 +173,12 @@ class TicketService
                         $pool = $pool->reject(fn ($t) => $t['id'] === $pre['id']);
                     }
                     $id = $pre['id'] ?? (string) Str::uuid();
+                    // Numéro déjà pris (deux bornes réglées sur le même numéro, hors ligne) : l'inscription n'est pas perdue,
+                    // le billet reçoit un autre code ; le visiteur reste retrouvé par son téléphone ou son QR code.
+                    if (! empty($pre['code']) && Ticket::withoutGlobalScopes()->where('company_id', $o->company_id)->where('code', strtoupper(trim($pre['code'])))->where('id', '!=', $id)->exists()) {
+                        $pre['code'] = null;
+                        $pre['token'] = null;
+                    }
                     $res = app(EntityWriter::class)->upsert(Ticket::class, $id, array_filter([
                         'event_id' => $o->event_id, 'type_id' => $it['type_id'], 'holder_name' => ($pre['holder_name'] ?? null) ?: $o->buyer_name,
                         'holder_phone' => $o->buyer_phone, 'holder_email' => $o->buyer_email, 'company_name' => $o->buyer_company, 'code' => $pre['code'] ?? null, 'token' => $pre['token'] ?? null,

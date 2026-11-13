@@ -130,6 +130,29 @@ class KioskAttendanceTest extends TestCase
         $this->api($opToken)->get("/api/billetterie/events/$ev/attendance/export")->assertForbidden();
     }
 
+    public function test_same_kiosk_number_on_two_kiosks_never_loses_a_registration(): void
+    {
+        Carbon::setTestNow('2026-12-01 08:00:00');
+        [, , $token] = $this->makeCompany('Salon C');
+        $api = fn () => $this->api($token);
+        $api()->getJson('/api/sync/pull?cursor=0')->assertOk();
+        $ev = $this->uuid();
+        $push = fn (string $entity, array $data, ?string $id = null) => $api()->postJson('/api/sync/push', ['mutations' => [['id' => $this->uuid(), 'entity' => $entity, 'op' => 'upsert', 'record_id' => $id ?? $this->uuid(), 'data' => $data]]])->json('results.0');
+        $push('ev_events', ['name' => 'S', 'start_date' => '2026-12-01', 'end_date' => '2026-12-02', 'status' => 'open'], $ev);
+        $type = $push('ev_ticket_types', ['event_id' => $ev, 'name' => 'Visiteur', 'price' => 0])['record'];
+        $order = fn (string $name, string $kiosk) => $push('ev_ticket_orders', ['event_id' => $ev, 'buyer_name' => $name, 'buyer_phone' => '07'.random_int(10000000, 99999999), 'kiosk' => $kiosk,
+            'items' => [['type_id' => $type['id'], 'quantity' => 1]], 'tickets' => [['id' => $this->uuid(), 'type_id' => $type['id'], 'code' => '010001', 'token' => \Illuminate\Support\Str::random(32)]]]);
+        // Numéro de ticket court tapé par le visiteur les jours suivants : « 01-0001 » = « 010001 »
+        $this->assertSame('applied', $order('Awa', 'Borne Nord')['status']);
+        $this->assertSame('010001', Ticket::where('holder_name', 'Awa')->first()->code);
+        // Deuxième borne réglée par erreur sur le même numéro : l'inscription passe, avec un autre code
+        $this->assertSame('applied', $order('Yao', 'Borne Sud')['status']);
+        $this->assertNotSame('010001', Ticket::where('holder_name', 'Yao')->first()->code);
+        $this->assertSame(2, TicketOrder::count());
+        // Le numéro court est accepté au contrôle d'entrée, avec ou sans tiret
+        $this->assertSame('ok', $push('ev_checkins', ['event_id' => $ev, 'code' => '01-0001', 'gate' => 'Borne Nord'])['record']['result']);
+    }
+
     public function test_registered_at_in_the_future_or_absent_falls_back_to_now(): void
     {
         Carbon::setTestNow('2026-12-01 08:00:00');

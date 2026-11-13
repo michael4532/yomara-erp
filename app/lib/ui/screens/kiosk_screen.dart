@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/billetterie.dart';
@@ -13,6 +15,7 @@ import '../../core/json.dart';
 import '../../core/local_db.dart';
 import '../../core/sync_engine.dart';
 import '../../i18n/i18n.dart';
+import '../../pdf/tickets_pdf.dart';
 import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -29,6 +32,35 @@ String _hash(String pin) => sha256.convert(utf8.encode('yomara-borne:$pin')).toS
 
 String _today() => DateTime.now().toIso8601String().substring(0, 10);
 
+/// Prochain numéro de ticket de la borne n° [kk] : « 01 » + compteur sur 4 chiffres (« 010042 », affiché « 01-0042 »).
+/// Le compteur repart du plus grand numéro connu sur l'appareil (billets synchronisés compris) : pas de doublon
+/// tant que chaque borne a son propre numéro.
+String kioskNextCode(int kk) {
+  final prefix = kk.toString().padLeft(2, '0');
+  final re = RegExp('^$prefix(\\d{4,})\$');
+  var max = 0;
+  if (LocalDb.hasEntity('ev_tickets')) {
+    for (final t in LocalDb.all('ev_tickets')) {
+      final m = re.firstMatch('${t['code'] ?? ''}');
+      if (m != null) max = math.max(max, int.parse(m.group(1)!));
+    }
+  }
+  return '$prefix${(max + 1).toString().padLeft(4, '0')}';
+}
+
+/// Autre borne ayant déjà émis des tickets avec ce numéro (réglage à corriger).
+String? kioskNumberUsedBy(int kk, String name) {
+  if (!LocalDb.hasEntity('ev_tickets') || !LocalDb.hasEntity('ev_ticket_orders')) return null;
+  final prefix = kk.toString().padLeft(2, '0');
+  final orders = {for (final o in LocalDb.all('ev_ticket_orders')) '${o['id']}': o};
+  for (final t in LocalDb.all('ev_tickets')) {
+    if (!RegExp('^$prefix\\d{4,}\$').hasMatch('${t['code'] ?? ''}')) continue;
+    final k = '${orders['${t['order_id']}']?['kiosk'] ?? ''}';
+    if (k.isNotEmpty && k != name) return k;
+  }
+  return null;
+}
+
 /// Le compte utilisé sur la borne doit pouvoir inscrire (vente) et enregistrer les entrées (contrôle).
 bool kioskAllowed(Session s) => (s.can('billetterie.sell') && s.can('billetterie.scan')) || s.can('billetterie.manage');
 
@@ -44,6 +76,16 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   final form = regForm(event);
   final name = TextEditingController(text: '${LocalDb.meta.get('kiosk_name') ?? 'Borne 1'}');
   final pin = TextEditingController();
+  final digits = RegExp(r'\d+').firstMatch(name.text)?.group(0);
+  final number = TextEditingController(text: '${LocalDb.meta.get('kiosk_number') ?? int.tryParse(digits ?? '') ?? 1}');
+  var print = LocalDb.meta.get('kiosk_print') != false;
+  var paper = '${LocalDb.meta.get('kiosk_paper') ?? 'roll80'}';
+  Printer? printer = LocalDb.meta.get('kiosk_printer_url') == null ? null : Printer(url: '${LocalDb.meta.get('kiosk_printer_url')}', name: '${LocalDb.meta.get('kiosk_printer_name') ?? ''}');
+  final info = await Printing.info();
+  final printers = info.canListPrinters ? await Printing.listPrinters().catchError((_) => <Printer>[]) : <Printer>[];
+  if (printer != null && printers.isNotEmpty && !printers.any((x) => x.url == printer!.url)) printer = null;
+  printer ??= printers.where((x) => x.isDefault).firstOrNull;
+  if (!context.mounted) return;
   String? typeId = types.any((t) => t['id'] == form['kiosk_type_id']) ? '${form['kiosk_type_id']}' : types.firstOrNull?['id'] as String?;
   final ok = await showDialog<bool>(
     context: context,
@@ -61,6 +103,16 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
             TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom de cette borne'), helperText: tr('Ex. : Borne 1, Entrée Nord. Sert aux statistiques par borne.'))),
             const SizedBox(height: 10),
             TextField(
+              controller: number,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+              decoration: InputDecoration(
+                labelText: tr('Numéro de la borne (1 à 99)'),
+                helperText: tr('Début des numéros de ticket : borne 1 → 01-0001, 01-0002… Un numéro différent par borne.'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
               controller: pin,
               keyboardType: TextInputType.number,
               obscureText: true,
@@ -68,6 +120,63 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(labelText: tr('Code de sortie (4 à 6 chiffres)'), helperText: tr('Demandé pour quitter la borne. Restez discret en le tapant.')),
             ),
+            const Divider(height: 24),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: print,
+              onChanged: (v) => set(() => print = v),
+              title: Text(tr('Imprimer le ticket après chaque inscription')),
+              subtitle: Text(tr(info.directPrint
+                  ? 'Impression directe, sans fenêtre.'
+                  : (kIsWeb
+                      ? 'Le navigateur affiche sa fenêtre d\'impression ; pour imprimer sans fenêtre, ouvrez Chrome en mode borne avec --kiosk --kiosk-printing.'
+                      : 'Cet appareil affiche la fenêtre d\'impression à chaque ticket ; un PC Windows, un Mac ou un iPad imprime directement.'))),
+            ),
+            if (print) ...[
+              DropdownButtonFormField<String>(
+                initialValue: paper,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr('Format du ticket')),
+                items: [for (final f in kioskPaperFormats.entries) DropdownMenuItem(value: f.key, child: Text(tr(f.value)))],
+                onChanged: (v) => set(() => paper = v ?? paper),
+              ),
+              if (printers.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  initialValue: printer?.url,
+                  isExpanded: true,
+                  decoration: InputDecoration(labelText: tr('Imprimante')),
+                  items: [for (final x in printers) DropdownMenuItem(value: x.url, child: Text(tr('${x.name}${x.isDefault ? ' (par défaut)' : ''}')))],
+                  onChanged: (v) => set(() => printer = printers.firstWhere((x) => x.url == v)),
+                )
+              else if (info.directPrint)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final p = await Printing.pickPrinter(context: c, title: tr('Imprimante des tickets'));
+                      if (p != null) set(() => printer = p);
+                    },
+                    icon: const Icon(Icons.print_outlined),
+                    label: Text(tr(printer == null ? 'Choisir l\'imprimante' : 'Imprimante : ${printer!.name}')),
+                  ),
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => printKioskTicket(
+                    event: event,
+                    ticket: {'code': '${(int.tryParse(number.text) ?? 1).toString().padLeft(2, '0')}0000', 'holder_name': 'Ticket d\'essai'},
+                    company: '${session.company['name'] ?? ''}',
+                    kiosk: name.text.trim(),
+                    paper: paper,
+                    printer: printer,
+                    direct: info.directPrint,
+                  ),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: Text(tr('Imprimer un ticket d\'essai')),
+                ),
+              ),
+            ],
             if (types.isEmpty)
               Card(
                 color: YColors.blue.withValues(alpha: .07),
@@ -93,6 +202,10 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
             onPressed: () {
               if (name.text.trim().isEmpty) return toast(c, tr('Donnez un nom à la borne.'), error: true);
               if (pin.text.length < 4) return toast(c, tr('Choisissez un code de sortie de 4 à 6 chiffres.'), error: true);
+              final n = int.tryParse(number.text) ?? 0;
+              if (n < 1 || n > 99) return toast(c, tr('Numéro de borne : de 1 à 99.'), error: true);
+              final other = kioskNumberUsedBy(n, name.text.trim());
+              if (other != null) return toast(c, tr('Le numéro $n est déjà utilisé par « $other ». Donnez un autre numéro à cette borne.'), error: true);
               Navigator.pop(c, true);
             },
             icon: const Icon(Icons.fullscreen),
@@ -111,28 +224,59 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   }
   await LocalDb.meta.put('kiosk_name', name.text.trim());
   await LocalDb.meta.put('kiosk_pin', _hash(pin.text));
+  await LocalDb.meta.put('kiosk_number', int.parse(number.text));
+  await LocalDb.meta.put('kiosk_print', print);
+  await LocalDb.meta.put('kiosk_paper', paper);
+  await LocalDb.meta.put('kiosk_printer_url', printer?.url);
+  await LocalDb.meta.put('kiosk_printer_name', printer?.name);
   if (!context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute(
     fullscreenDialog: true,
-    builder: (_) => KioskScreen(eventId: '${event['id']}', kioskName: name.text.trim(), typeId: typeId!),
+    builder: (_) => KioskScreen(eventId: '${event['id']}', kioskName: name.text.trim(), typeId: typeId!, number: int.parse(number.text), print: print, paper: paper, printer: printer, directPrint: info.directPrint),
   ));
 }
 
-enum _Step { welcome, form, returning, done }
+/// Impression d'un ticket de borne : directe (Windows, Mac, iPad, Linux) ou par la fenêtre d'impression (Android, navigateur).
+Future<void> printKioskTicket({
+  required Map<String, dynamic> event,
+  required Map<String, dynamic> ticket,
+  required String company,
+  required String kiosk,
+  required String paper,
+  Printer? printer,
+  bool direct = false,
+  String? city,
+  bool returning = false,
+}) async {
+  final bytes = Uint8List.fromList(await kioskTicketPdf(event: event, ticket: ticket, company: company, kiosk: kiosk, at: DateTime.now(), city: city, format: paper, returning: returning));
+  final name = 'Ticket ${kioskRef('${ticket['code']}')}';
+  if (direct && printer != null) {
+    await Printing.directPrintPdf(printer: printer, name: name, onLayout: (_) async => bytes, usePrinterSettings: paper.startsWith('roll'));
+  } else {
+    await Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
+  }
+}
+
+enum _Step { form, returning, done }
 
 class KioskScreen extends StatefulWidget {
-  const KioskScreen({super.key, required this.eventId, required this.kioskName, required this.typeId});
+  const KioskScreen({super.key, required this.eventId, required this.kioskName, required this.typeId, this.number = 1, this.print = false, this.paper = 'roll80', this.printer, this.directPrint = false});
 
   final String eventId;
   final String kioskName;
   final String typeId;
+  final int number;
+  final bool print;
+  final String paper;
+  final Printer? printer;
+  final bool directPrint;
 
   @override
   State<KioskScreen> createState() => _KioskScreenState();
 }
 
 class _KioskScreenState extends State<KioskScreen> {
-  _Step _step = _Step.welcome;
+  _Step _step = _Step.form;
   Timer? _idle;
   Timer? _back;
   int _backIn = 0;
@@ -170,6 +314,7 @@ class _KioskScreenState extends State<KioskScreen> {
   @override
   void initState() {
     super.initState();
+    _country.text = '${_form['default_country'] ?? ''}';
     if (!kIsWeb && const {TargetPlatform.android, TargetPlatform.iOS}.contains(defaultTargetPlatform)) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
@@ -192,7 +337,6 @@ class _KioskScreenState extends State<KioskScreen> {
   /// Sans action pendant 90 s, la borne revient à l'accueil et efface ce qui a été saisi.
   void _touch() {
     _idle?.cancel();
-    if (_step == _Step.welcome) return;
     _idle = Timer(const Duration(seconds: 90), () => mounted ? _reset() : null);
   }
 
@@ -215,8 +359,10 @@ class _KioskScreenState extends State<KioskScreen> {
       _consent = false;
       _ticket = null;
       _notFound = null;
-      _step = _Step.welcome;
+      _step = _Step.form;
     });
+    _formKey.currentState?.reset();
+    _idle?.cancel();
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
@@ -255,14 +401,31 @@ class _KioskScreenState extends State<KioskScreen> {
     return r;
   }
 
-  void _showDone(Map<String, dynamic> t, String title, String message, {Color color = YColors.success}) {
+  void _showDone(Map<String, dynamic> t, String title, String message, {Color color = YColors.success, bool returning = false, String? city}) {
     _ticket = t;
     _title = title;
     _message = message;
     _color = color;
     _go(_Step.done);
     HapticFeedback.mediumImpact();
-    _backIn = 25;
+    // Ticket imprimé (entrée validée seulement), puis retour au formulaire pour le visiteur suivant
+    if (widget.print && color != YColors.warning) {
+      final session = context.read<Session>();
+      printKioskTicket(
+        event: _event,
+        ticket: t,
+        company: '${session.company['name'] ?? ''}',
+        kiosk: widget.kioskName,
+        paper: widget.paper,
+        printer: widget.printer,
+        direct: widget.directPrint,
+        city: city,
+        returning: returning,
+      ).catchError((Object e) {
+        if (mounted) toast(context, tr('Impression impossible : ${errorText(e)}'), error: true);
+      });
+    }
+    _backIn = color == YColors.warning ? 10 : 5;
     _back?.cancel();
     _back = Timer.periodic(const Duration(seconds: 1), (tm) {
       if (!mounted) return tm.cancel();
@@ -281,9 +444,9 @@ class _KioskScreenState extends State<KioskScreen> {
     if (!mounted) return;
     final who = _firstName(t);
     if (r.ok) {
-      _showDone(t, 'Bon retour${who.isEmpty ? '' : ', $who'} !', 'Votre entrée d\'aujourd\'hui est enregistrée. Bonne visite !');
+      _showDone(t, 'Bon retour${who.isEmpty ? '' : ', $who'} !', widget.print ? 'Votre entrée d\'aujourd\'hui est enregistrée. Récupérez votre ticket. Bonne visite !' : 'Votre entrée d\'aujourd\'hui est enregistrée. Bonne visite !', returning: true);
     } else if (r.result == 'duplicate') {
-      _showDone(t, 'Bienvenue${who.isEmpty ? '' : ', $who'} !', 'Votre entrée d\'aujourd\'hui était déjà enregistrée. Bonne visite !', color: YColors.blue);
+      _showDone(t, 'Bienvenue${who.isEmpty ? '' : ', $who'} !', 'Votre entrée d\'aujourd\'hui était déjà enregistrée. Bonne visite !', color: YColors.blue, returning: true);
     } else {
       _showDone(t, 'Adressez-vous à l\'accueil', r.reason ?? 'Ce billet n\'est pas valable aujourd\'hui.', color: YColors.warning);
     }
@@ -313,7 +476,7 @@ class _KioskScreenState extends State<KioskScreen> {
       final name = '${_first.text.trim()} ${_last.text.trim()}'.trim();
       final orderId = newId();
       final now = DateTime.now().toUtc().toIso8601String();
-      final ticket = {'id': newId(), 'type_id': widget.typeId, 'code': tkNewCode(), 'token': tkNewToken(), 'holder_name': name};
+      final ticket = {'id': newId(), 'type_id': widget.typeId, 'code': kioskNextCode(widget.number), 'token': tkNewToken(), 'holder_name': name};
       String? opt(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
       final answers = [
         for (final q in (f['questions'] as List? ?? const []).map(asMap))
@@ -366,7 +529,10 @@ class _KioskScreenState extends State<KioskScreen> {
       _showDone(
         local,
         'Bienvenue, ${_first.text.trim()} !',
-        'Votre inscription est enregistrée. Pour revenir les autres jours, présentez ce QR code (prenez-le en photo) ou donnez simplement votre numéro.${_email.text.trim().isEmpty ? '' : ' Il vous est aussi envoyé par e-mail.'}',
+        widget.print
+            ? 'Récupérez votre ticket. Les jours suivants, tapez simplement votre numéro sur la borne.'
+            : 'Notez votre numéro (ou prenez ce QR code en photo) : les jours suivants, tapez-le simplement sur la borne.',
+        city: opt(_city),
       );
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
@@ -379,7 +545,7 @@ class _KioskScreenState extends State<KioskScreen> {
     _touch();
     final t = tkFindVisitor(widget.eventId, raw);
     if (t == null) {
-      setState(() => _notFound = 'Aucune inscription trouvée pour « ${raw.trim()} ». Vérifiez le numéro, ou inscrivez-vous.');
+      setState(() => _notFound = 'Aucune inscription trouvée pour « ${raw.trim()} ». Vérifiez le numéro du ticket, ou inscrivez-vous.');
       return;
     }
     _welcomeBack(t);
@@ -393,6 +559,19 @@ class _KioskScreenState extends State<KioskScreen> {
   }
 
   // ------------------------------------------------------------------ sortie protégée
+
+  /// Inscriptions et entrées du jour sur cette borne (visibles seulement derrière le code).
+  (int, int) _todayCounts() {
+    final day = _today();
+    bool today(dynamic iso) => DateTime.tryParse('${iso ?? ''}')?.toLocal().toIso8601String().startsWith(day) == true;
+    final regs = LocalDb.hasEntity('ev_ticket_orders')
+        ? LocalDb.all('ev_ticket_orders').where((o) => o['event_id'] == widget.eventId && o['kiosk'] == widget.kioskName && today(o['registered_at'] ?? o['created_at'])).length
+        : 0;
+    final entries = LocalDb.hasEntity('ev_checkins')
+        ? LocalDb.all('ev_checkins').where((c) => c['event_id'] == widget.eventId && c['gate'] == widget.kioskName && c['result'] == 'ok' && today(c['scanned_at'])).map((c) => c['ticket_id']).toSet().length
+        : 0;
+    return (regs, entries);
+  }
 
   Future<void> _admin() async {
     final pin = TextEditingController();
@@ -429,6 +608,15 @@ class _KioskScreenState extends State<KioskScreen> {
       builder: (c) => YAlertDialog(
         title: Text(tr('Borne « ${widget.kioskName} »')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Builder(builder: (_) {
+            final (regs, entries) = _todayCounts();
+            final pending = context.read<SyncEngine>().pendingCount;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(tr('Aujourd\'hui sur cette borne : $regs inscription(s), $entries entrée(s).${pending > 0 ? ' $pending enregistrement(s) en attente d\'envoi.' : ' Tout est envoyé au serveur.'}'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            );
+          }),
           ListTile(leading: const Icon(Icons.insights_outlined), title: Text(tr('Voir la fréquentation')), onTap: () => Navigator.pop(c, 'stats')),
           ListTile(leading: const Icon(Icons.sync), title: Text(tr('Synchroniser maintenant')), onTap: () => Navigator.pop(c, 'sync')),
           ListTile(leading: const Icon(Icons.logout, color: YColors.danger), title: Text(tr('Quitter le mode borne')), onTap: () => Navigator.pop(c, 'exit')),
@@ -452,22 +640,20 @@ class _KioskScreenState extends State<KioskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final event = _event;
     final wide = MediaQuery.sizeOf(context).width >= 900;
     return PopScope(
       canPop: false,
       child: Listener(
         onPointerDown: (_) => _touch(),
         child: Scaffold(
-          backgroundColor: _step == _Step.welcome ? YColors.night : Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             child: Column(children: [
-              _StatusBar(eventId: widget.eventId, kiosk: widget.kioskName, dark: _step == _Step.welcome, onAdmin: _admin),
+              _StatusBar(kiosk: widget.kioskName, onAdmin: _admin),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
                   child: switch (_step) {
-                    _Step.welcome => _welcome(event, wide),
                     _Step.form => _formView(wide),
                     _Step.returning => _returningView(),
                     _Step.done => _doneView(),
@@ -481,56 +667,44 @@ class _KioskScreenState extends State<KioskScreen> {
     );
   }
 
-  Widget _welcome(Map<String, dynamic> event, bool wide) {
+  /// En-tête du formulaire : événement, message d'accueil, accès « Déjà inscrit ? ».
+  Widget _header(bool wide) {
+    final event = _event;
     final session = context.read<Session>();
     final dates = [
       if (event['start_date'] != null) dateFr(event['start_date']),
       if (event['end_date'] != null && event['end_date'] != event['start_date']) dateFr(event['end_date']),
     ].join(' au ');
-    final big = wide ? 64.0 : 40.0;
-    return Center(
-      key: const ValueKey('welcome'),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr('${session.company['name'] ?? ''}'), style: const TextStyle(color: YColors.yellow, fontWeight: FontWeight.w700, fontSize: 18)),
-            const SizedBox(height: 14),
-            Text(tr('${event['name'] ?? ''}'), style: TextStyle(color: Colors.white, fontSize: big, height: 1.05, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 12),
-            Text(
-              tr([dates, if (event['venue'] != null) '${event['venue']}', if (event['city'] != null) '${event['city']}'].where((s) => s.isNotEmpty).join(' · ')),
-              style: const TextStyle(color: Colors.white70, fontSize: 18),
-            ),
-            const SizedBox(height: 28),
-            Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: const TextStyle(color: Colors.white, fontSize: 22, height: 1.35)),
-            const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: YColors.yellow, foregroundColor: YColors.night, padding: const EdgeInsets.symmetric(vertical: 26), textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-                onPressed: () {
-                  _country.text = '${_form['default_country'] ?? ''}';
-                  _go(_Step.form);
-                },
-                icon: const Icon(Icons.edit_note, size: 32),
-                label: Text(tr('Je m\'inscris')),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white38, width: 1.5), padding: const EdgeInsets.symmetric(vertical: 22), textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-                onPressed: () => _go(_Step.returning),
-                icon: const Icon(Icons.qr_code_2, size: 28),
-                label: Text(tr('Déjà inscrit ? Mon QR code ou mon numéro')),
-              ),
-            ),
-          ]),
-        ),
-      ),
+    final returning = FilledButton.icon(
+      style: FilledButton.styleFrom(backgroundColor: YColors.yellow, foregroundColor: YColors.night, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+      onPressed: () => _go(_Step.returning),
+      icon: const Icon(Icons.qr_code_2, size: 24),
+      label: Text(tr('Déjà inscrit ? Mon numéro')),
+    );
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 22),
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(color: YColors.night, borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('${session.company['name'] ?? ''}'), style: const TextStyle(color: YColors.yellow, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 6),
+        Text(tr('${event['name'] ?? ''}'), style: TextStyle(color: Colors.white, fontSize: wide ? 34 : 26, height: 1.1, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 4),
+        Text(tr([dates, if (event['venue'] != null) '${event['venue']}', if (event['city'] != null) '${event['city']}'].where((x) => x.isNotEmpty).join(' · ')), style: const TextStyle(color: Colors.white70, fontSize: 15)),
+        const SizedBox(height: 14),
+        if (wide)
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(child: Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.35))),
+            const SizedBox(width: 16),
+            returning,
+          ])
+        else ...[
+          Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: const TextStyle(color: Colors.white, fontSize: 17, height: 1.35)),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: returning),
+        ],
+      ]),
     );
   }
 
@@ -568,7 +742,8 @@ class _KioskScreenState extends State<KioskScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 820),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Votre inscription'), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+                _header(wide),
+                Text(tr('Votre inscription'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
                 Text(tr('Une minute, et vous entrez.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 16)),
                 const SizedBox(height: 20),
@@ -605,7 +780,7 @@ class _KioskScreenState extends State<KioskScreen> {
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20)),
                     onPressed: _reset,
-                    child: Text(tr('Annuler'), style: const TextStyle(fontSize: 17)),
+                    child: Text(tr('Effacer'), style: const TextStyle(fontSize: 17)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -677,7 +852,7 @@ class _KioskScreenState extends State<KioskScreen> {
             child: Column(children: [
               Text(tr('Bon retour !'), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
               const SizedBox(height: 6),
-              Text(tr(_cam != null ? 'Présentez votre QR code devant la caméra, ou tapez votre numéro.' : 'Scannez votre QR code ou tapez votre numéro de téléphone.'),
+              Text(tr(_cam != null ? 'Tapez le numéro de votre ticket (ou votre téléphone), ou présentez son QR code devant la caméra.' : 'Tapez le numéro de votre ticket, ou votre numéro de téléphone.'),
                   textAlign: TextAlign.center, style: TextStyle(fontSize: 17, color: Theme.of(context).hintColor)),
               const SizedBox(height: 18),
               if (_cam != null)
@@ -697,7 +872,7 @@ class _KioskScreenState extends State<KioskScreen> {
                 controller: _lookup,
                 autofocus: _cam == null,
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                decoration: _dec('Téléphone, e-mail ou code du billet', icon: Icons.search),
+                decoration: _dec('Numéro du ticket (ex. 01-0042) ou téléphone', icon: Icons.confirmation_number_outlined),
                 onSubmitted: _find,
                 onChanged: (_) => _touch(),
               ),
@@ -733,6 +908,7 @@ class _KioskScreenState extends State<KioskScreen> {
 
   Widget _doneView() {
     final t = _ticket;
+    final total = _color == YColors.warning ? 10 : 5;
     return Center(
       key: const ValueKey('done'),
       child: SingleChildScrollView(
@@ -740,28 +916,40 @@ class _KioskScreenState extends State<KioskScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: Column(children: [
-            Icon(_color == YColors.warning ? Icons.info : Icons.check_circle, color: _color, size: 88),
+            Icon(_color == YColors.warning ? Icons.info : Icons.check_circle, color: _color, size: 84),
             const SizedBox(height: 8),
             Text(tr(_title), textAlign: TextAlign.center, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
             const SizedBox(height: 10),
             Text(tr(_message), textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, height: 1.4)),
             if (t != null && _color != YColors.warning) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: YColors.line)),
-                child: Column(children: [
-                  QrView(data: '${t['code']}', size: 220),
-                  const SizedBox(height: 8),
-                  Text(tr('${t['code']}'), style: const TextStyle(color: YColors.night, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 3)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  QrView(data: '${t['code']}', size: 130),
+                  const SizedBox(width: 20),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(tr('Votre numéro'), style: const TextStyle(color: YColors.muted, fontSize: 15)),
+                    Text(tr(kioskRef('${t['code']}')), style: const TextStyle(color: YColors.night, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 2)),
+                  ]),
                 ]),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
+            // Retour automatique au formulaire : barre de progression plutôt qu'un compte à rebours
+            SizedBox(
+              width: 260,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(value: (total - _backIn) / total, minHeight: 6, color: _color, backgroundColor: _color.withValues(alpha: .15)),
+              ),
+            ),
+            const SizedBox(height: 14),
             FilledButton(
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20), textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18), textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
               onPressed: _reset,
-              child: Text(tr('Terminer ($_backIn)')),
+              child: Text(tr('Visiteur suivant')),
             ),
           ]),
         ),
@@ -770,55 +958,31 @@ class _KioskScreenState extends State<KioskScreen> {
   }
 }
 
-/// Bandeau de la borne : nom (appui long = menu protégé), inscrits et entrées du jour ici, état de la synchronisation.
+/// Bandeau de la borne : son nom (appui long = menu protégé par le code) et l'état de l'envoi. Aucun compteur public.
 class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.eventId, required this.kiosk, required this.dark, required this.onAdmin});
+  const _StatusBar({required this.kiosk, required this.onAdmin});
 
-  final String eventId;
   final String kiosk;
-  final bool dark;
   final VoidCallback onAdmin;
 
   @override
   Widget build(BuildContext context) {
-    final sync = context.watch<SyncEngine>();
-    final fg = dark ? Colors.white70 : Theme.of(context).hintColor;
-    return ValueListenableBuilder(
-      valueListenable: LocalDb.listen('ev_checkins'),
-      builder: (context, _, _) {
-        final day = _today();
-        final regs = LocalDb.hasEntity('ev_ticket_orders')
-            ? LocalDb.all('ev_ticket_orders').where((o) => o['event_id'] == eventId && o['kiosk'] == kiosk && DateTime.tryParse('${o['registered_at'] ?? o['created_at'] ?? ''}')?.toLocal().toIso8601String().startsWith(day) == true).length
-            : 0;
-        final entries = LocalDb.hasEntity('ev_checkins')
-            ? LocalDb.all('ev_checkins')
-                .where((c) => c['event_id'] == eventId && c['gate'] == kiosk && c['result'] == 'ok' && DateTime.tryParse('${c['scanned_at'] ?? ''}')?.toLocal().toIso8601String().startsWith(day) == true)
-                .map((c) => c['ticket_id'])
-                .toSet()
-                .length
-            : 0;
-        final pending = sync.pendingCount;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Row(children: [
-            GestureDetector(
-              onLongPress: onAdmin,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(border: Border.all(color: fg.withValues(alpha: .35)), borderRadius: BorderRadius.circular(20)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.tablet_android, size: 16, color: fg), const SizedBox(width: 6), Text(tr(kiosk), style: TextStyle(color: fg, fontWeight: FontWeight.w700))]),
-              ),
-            ),
-            const Spacer(),
-            Text(tr('Aujourd\'hui ici : $regs inscrit(s) · $entries entrée(s)'), style: TextStyle(color: fg, fontSize: 13)),
-            const SizedBox(width: 12),
-            Tooltip(
-              message: trn(pending == 0 ? 'Tout est envoyé au serveur' : '$pending enregistrement(s) en attente d\'envoi'),
-              child: Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 20, color: pending == 0 ? (dark ? Colors.white54 : YColors.success) : YColors.warning),
-            ),
-          ]),
-        );
-      },
+    final pending = context.watch<SyncEngine>().pendingCount;
+    final fg = Theme.of(context).hintColor;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(children: [
+        GestureDetector(
+          onLongPress: onAdmin,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(border: Border.all(color: fg.withValues(alpha: .35)), borderRadius: BorderRadius.circular(20)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.tablet_android, size: 16, color: fg), const SizedBox(width: 6), Text(tr(kiosk), style: TextStyle(color: fg, fontWeight: FontWeight.w700))]),
+          ),
+        ),
+        const Spacer(),
+        Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 20, color: pending == 0 ? YColors.success : YColors.warning),
+      ]),
     );
   }
 }
