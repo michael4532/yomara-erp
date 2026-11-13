@@ -13,7 +13,7 @@ return [
 
     'name' => env('ERP_NAME', 'Yomara ERP'),
 
-    'version' => '0.99.52',
+    'version' => '0.99.53',
 
     // Fiches officielles des applications (proposées dans Administration › Boutique › Liens de téléchargement)
     'store_links' => [

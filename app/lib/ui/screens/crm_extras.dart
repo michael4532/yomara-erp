@@ -211,13 +211,17 @@ class _SequenceLibraryDialogState extends State<_SequenceLibraryDialog> {
                               const SizedBox(height: 6),
                               Text(tr('${i['description']}'), style: const TextStyle(color: YColors.muted, fontSize: 13, height: 1.35)),
                               const SizedBox(height: 10),
-                              for (final st in (i['steps'] as List? ?? const []).map(asMap))
+                              for (final (n, st) in (i['steps'] as List? ?? const []).map(asMap).indexed)
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 4),
                                   child: Row(children: [
                                     Icon(seqIcons[st['channel']] ?? Icons.circle, size: 15, color: YColors.muted),
                                     const SizedBox(width: 6),
-                                    Text(tr(st['delay_days'] == 0 ? 'Jour J' : 'J+${st['delay_days']}'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                                    // Jour réel de l'étape : délais cumulés depuis l'inscription du prospect
+                                    Builder(builder: (_) {
+                                      final day = (i['steps'] as List).take(n + 1).fold<int>(0, (t, x) => t + ((asMap(x)['delay_days'] as num?)?.toInt() ?? 0));
+                                      return Text(tr(day == 0 ? 'Jour J' : 'J+$day'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5));
+                                    }),
                                     const SizedBox(width: 6),
                                     Expanded(child: Text(tr(labels[st['channel']] ?? ''), style: const TextStyle(fontSize: 12.5, color: YColors.muted))),
                                   ]),

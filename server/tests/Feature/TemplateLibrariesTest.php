@@ -16,6 +16,8 @@ class TemplateLibrariesTest extends TestCase
         $this->assertEqualsCanonicalizing(['Situations', 'Métiers'], array_values(array_unique(array_column($lib, 'category'))));
         $quote = collect($lib)->firstWhere('key', 'after_quote');
         $this->assertSame(['whatsapp', 'email', 'call', 'email'], array_column($quote['steps'], 'channel'));
+        // Délais comptés depuis l'étape précédente : J+2, J+5, J+10, J+15 → 2, 3, 5, 5
+        $this->assertSame([2, 3, 5, 5], array_column($quote['steps'], 'delay_days'));
 
         // Copie du modèle dans les relances de la société : nom, description et étapes repris
         $s = $api()->postJson('/api/crm/sequences', ['preset' => 'after_quote'])->assertCreated()->json('data');

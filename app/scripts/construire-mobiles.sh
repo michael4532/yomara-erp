@@ -84,6 +84,8 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "ios" ]; then
       [ -f "$P" ] || continue
       perl -0pi -e 's/shellScript = \(\n(.*?)\n\s*\);/my $b=$1; my @l = $b =~ m{^\s*"((?:[^"\\]|\\.)*)",?\s*$}mg; "shellScript = \"".join("\\n",@l)."\\n\";"/gse; s/objectVersion = 100;/objectVersion = 54;/; s/\n\s*preferredProjectObjectVersion = \d+;//' "$P"
     done
+    # Widget d'écran d'accueil : cible ajoutée au projet Xcode si elle manque (outil xcodeproj de CocoaPods)
+    ruby scripts/ajouter-widget-ios.rb || echo "Note : widget iOS non ajouté (CocoaPods / xcodeproj introuvable) ; l'application est construite sans lui."
     echo "== iPhone : IPA signé (App Store Connect)"
     rm -rf build/ios/ipa
     (cd ios && pod install --repo-update >/dev/null 2>&1 || pod install)

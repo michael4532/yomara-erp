@@ -9,7 +9,24 @@ namespace App\Modules\Crm;
  */
 class SequenceLibrary
 {
+    /**
+     * Les étapes sont écrites en jours depuis l'inscription du prospect (J+2, J+5…) pour rester lisibles ;
+     * les relances comptent chaque délai depuis l'étape précédente : conversion ici.
+     */
     public static function all(): array
+    {
+        return array_map(function (array $p) {
+            $prev = 0;
+            foreach ($p['steps'] as $i => $st) {
+                $p['steps'][$i]['delay_days'] = max(0, $st['delay_days'] - $prev);
+                $prev = $st['delay_days'];
+            }
+
+            return $p;
+        }, self::presets());
+    }
+
+    protected static function presets(): array
     {
         $sign = "\n\n{{commercial}}\n{{entreprise}} · {{telephone_commercial}}";
 

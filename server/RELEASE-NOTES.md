@@ -1,5 +1,16 @@
 # Notes de version
 
+## 0.99.53 — reçus d'activation, lecture des e-mails, éditeur PDF façon Acrobat, bibliothèques de modèles, widgets
+
+- **Activation manuelle d'un module ou d'une formule** (console super admin) : l'interrupteur d'un module ouvre la fenêtre d'activation avec le prix du catalogue proposé et modifiable (plus cher ou moins cher), le mode de paiement (espèces, Orange Money, MTN, Moov, Wave, virement, chèque, carte, offert), la référence et la durée. Le client reçoit par e-mail la confirmation du paiement et le **reçu PDF** (logo et coordonnées de Yomara Technologies, RCCM, NCC, client, période, montant en chiffres et en lettres, mode de paiement, cachet « PAYÉ »). Option « Garder ce prix pour les renouvellements de ce client ». Les clients retrouvent leurs reçus dans la boutique.
+- **Boîte mail** : lecture d'un seul tenant comme sur Outlook et Mail (en-tête, pièces jointes, message en pleine hauteur), sans la barre de conversation ; **pièces jointes en liste de cartes** (nom, type, taille, menu), total et « Enregistrer les pièces jointes ».
+- **Éditeur PDF façon Acrobat** : à l'ouverture d'un PDF, tous ses textes sont encadrés et deviennent modifiables d'un clic, à la même place, même taille, gras et police reconnus. Le PDF enregistré reste modifiable ligne par ligne. Les PDF scannés (images) proposent « Remplacer un texte ».
+- **Factures plus simples** : barre « Brouillon → Validé → Payé » avec la prochaine étape en clair ; bouton « Valider ▾ » avec « Valider et encaisser » et « Valider et envoyer au client » en un seul geste.
+- **Modèles de documents** : 6 nouveaux modèles (Ardoise, Sobre, Fraîcheur gratuits ; Émeraude, Corail, Minuit premium), 25 au total. **« Personnaliser » gratuit** pour chaque modèle disponible : couleurs, polices, présentation du total, titres des documents, filigrane du logo, bandeau de pied ; le modèle personnalisé rejoint « Vos modèles ». Galerie complète ouverte au super administrateur.
+- **Relances prospect prêtes à l'emploi** (CRM › Relances) : 12 modèles par situation (après un devis, prospect qui ne répond plus, après un rendez-vous, demande reçue en ligne, rencontré sur un salon, offre qui expire, ancien client) et par métier (immobilier, école et formation, restaurant et traiteur, BTP, services et logiciels), avec WhatsApp, e-mail, SMS, appel et tâche ; copiés en un clic puis adaptés.
+- **Marketing** : 10 nouveaux e-mails (présentation à un prospect, relance après devis, prise de rendez-vous, merci pour le rendez-vous, vous nous manquez, merci et avis, fidélité, vœux et fêtes, nouveau catalogue, enquête), 20 au total ; 14 messages SMS et WhatsApp prêts à l'emploi.
+- **Widgets d'écran d'accueil** Android et iPhone/iPad : ventes du jour, reste à encaisser, factures en retard, mis à jour à chaque synchronisation (lisibles sans Internet), effacés à la déconnexion.
+
 ## 0.99.52 — bornes d'accueil : nouvelle interface
 
 - **Interface des bornes refaite** : sur grand écran, panneau aux couleurs de l'événement (logo, nom du salon, dates, lieu, message d'accueil, les 3 étapes) et formulaire en sections claires (Vous, Vos coordonnées, Votre activité, D'où venez-vous ?) ; sur tablette en hauteur, bandeau compact. Grands champs tactiles, réponses en tuiles larges, consentement en carte, bouton « Valider mon inscription » toujours visible.
