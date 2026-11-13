@@ -39,6 +39,8 @@ class RegistrationService
             // Bornes d'accueil
             'kiosk_welcome' => 'Bienvenue ! Inscrivez-vous en une minute pour entrer au salon.',
             'kiosk_type_id' => null,
+            'kiosk_color' => null, // couleur des bornes (#RRGGBB), sinon bleu nuit
+            'kiosk_logo' => true, // logo de la société sur les bornes et les tickets
         ];
     }
 
@@ -69,6 +71,8 @@ class RegistrationService
         $out['default_country'] = Str::limit(trim((string) $out['default_country']), 80, '');
         $out['kiosk_welcome'] = Str::limit(trim((string) $out['kiosk_welcome']), 300, '');
         $out['kiosk_type_id'] = Str::isUuid((string) $out['kiosk_type_id']) ? $out['kiosk_type_id'] : null;
+        $out['kiosk_color'] = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $out['kiosk_color']) ? strtoupper($out['kiosk_color']) : null;
+        $out['kiosk_logo'] = (bool) $out['kiosk_logo'];
 
         return $out;
     }

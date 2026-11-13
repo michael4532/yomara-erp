@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
@@ -59,6 +60,22 @@ String? kioskNumberUsedBy(int kk, String name) {
     if (k.isNotEmpty && k != name) return k;
   }
   return null;
+}
+
+/// Logo de la société pour la borne et ses tickets : téléchargé au démarrage et gardé sur l'appareil (hors ligne).
+Future<Uint8List?> kioskLogo(Session s) async {
+  final url = '${s.company['logo_url'] ?? ''}';
+  if (url.isEmpty) return null;
+  try {
+    final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+    if (r.statusCode == 200 && r.bodyBytes.isNotEmpty && r.bodyBytes.length < 3000000) {
+      await LocalDb.meta.put('kiosk_logo', base64Encode(r.bodyBytes));
+      await LocalDb.meta.put('kiosk_logo_url', url);
+      return r.bodyBytes;
+    }
+  } catch (_) {}
+  final cached = LocalDb.meta.get('kiosk_logo');
+  return cached is String && LocalDb.meta.get('kiosk_logo_url') == url ? base64Decode(cached) : null;
 }
 
 /// Le compte utilisé sur la borne doit pouvoir inscrire (vente) et enregistrer les entrées (contrôle).
@@ -229,10 +246,11 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   await LocalDb.meta.put('kiosk_paper', paper);
   await LocalDb.meta.put('kiosk_printer_url', printer?.url);
   await LocalDb.meta.put('kiosk_printer_name', printer?.name);
+  final logo = form['kiosk_logo'] == false ? null : await kioskLogo(session);
   if (!context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute(
     fullscreenDialog: true,
-    builder: (_) => KioskScreen(eventId: '${event['id']}', kioskName: name.text.trim(), typeId: typeId!, number: int.parse(number.text), print: print, paper: paper, printer: printer, directPrint: info.directPrint),
+    builder: (_) => KioskScreen(eventId: '${event['id']}', kioskName: name.text.trim(), typeId: typeId!, number: int.parse(number.text), print: print, paper: paper, printer: printer, directPrint: info.directPrint, logo: logo),
   ));
 }
 
@@ -247,8 +265,9 @@ Future<void> printKioskTicket({
   bool direct = false,
   String? city,
   bool returning = false,
+  Uint8List? logo,
 }) async {
-  final bytes = Uint8List.fromList(await kioskTicketPdf(event: event, ticket: ticket, company: company, kiosk: kiosk, at: DateTime.now(), city: city, format: paper, returning: returning));
+  final bytes = Uint8List.fromList(await kioskTicketPdf(event: event, ticket: ticket, company: company, kiosk: kiosk, at: DateTime.now(), city: city, format: paper, returning: returning, logo: logo));
   final name = 'Ticket ${kioskRef('${ticket['code']}')}';
   if (direct && printer != null) {
     await Printing.directPrintPdf(printer: printer, name: name, onLayout: (_) async => bytes, usePrinterSettings: paper.startsWith('roll'));
@@ -260,7 +279,7 @@ Future<void> printKioskTicket({
 enum _Step { form, returning, done }
 
 class KioskScreen extends StatefulWidget {
-  const KioskScreen({super.key, required this.eventId, required this.kioskName, required this.typeId, this.number = 1, this.print = false, this.paper = 'roll80', this.printer, this.directPrint = false});
+  const KioskScreen({super.key, required this.eventId, required this.kioskName, required this.typeId, this.number = 1, this.print = false, this.paper = 'roll80', this.printer, this.directPrint = false, this.logo});
 
   final String eventId;
   final String kioskName;
@@ -270,6 +289,7 @@ class KioskScreen extends StatefulWidget {
   final String paper;
   final Printer? printer;
   final bool directPrint;
+  final Uint8List? logo;
 
   @override
   State<KioskScreen> createState() => _KioskScreenState();
@@ -421,6 +441,7 @@ class _KioskScreenState extends State<KioskScreen> {
         direct: widget.directPrint,
         city: city,
         returning: returning,
+        logo: _form['kiosk_logo'] == false ? null : widget.logo,
       ).catchError((Object e) {
         if (mounted) toast(context, tr('Impression impossible : ${errorText(e)}'), error: true);
       });
@@ -638,77 +659,217 @@ class _KioskScreenState extends State<KioskScreen> {
 
   // ------------------------------------------------------------------ affichage
 
+  static const _bg = Color(0xFFF3F5F9);
+
+  Color get _accent {
+    final h = '${_form['kiosk_color'] ?? ''}'.replaceAll('#', '');
+    final v = h.length == 6 ? int.tryParse(h, radix: 16) : null;
+    return v == null ? YColors.night : Color(0xFF000000 | v);
+  }
+
+  Color get _onAccent => _accent.computeLuminance() > .5 ? YColors.night : Colors.white;
+
+  /// Couleur de mise en avant sur le panneau : jaune Yomara sur le bleu nuit par défaut, sinon blanc.
+  Color get _highlight => _accent == YColors.night ? YColors.yellow : _onAccent;
+
+  ThemeData _kioskTheme(BuildContext context) {
+    final base = Theme.of(context);
+    OutlineInputBorder border(Color c, [double w = 1.2]) => OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: w));
+    return base.copyWith(
+      colorScheme: base.colorScheme.copyWith(primary: _accent, onPrimary: _onAccent),
+      scaffoldBackgroundColor: _bg,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        border: border(YColors.line),
+        enabledBorder: border(YColors.line),
+        focusedBorder: border(_accent, 2),
+        errorBorder: border(YColors.danger),
+        focusedErrorBorder: border(YColors.danger, 2),
+        labelStyle: const TextStyle(fontSize: 17, color: YColors.muted),
+        floatingLabelStyle: TextStyle(color: _accent, fontWeight: FontWeight.w600),
+        prefixIconColor: YColors.muted,
+      ),
+    );
+  }
+
+  TextStyle _display(double size, {Color? color}) => TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700, fontSize: size, height: 1.1, letterSpacing: -.5, color: color ?? YColors.ink);
+
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 900;
     return PopScope(
       canPop: false,
       child: Listener(
         onPointerDown: (_) => _touch(),
-        child: Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: SafeArea(
-            child: Column(children: [
-              _StatusBar(kiosk: widget.kioskName, onAdmin: _admin),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: switch (_step) {
-                    _Step.form => _formView(wide),
-                    _Step.returning => _returningView(),
-                    _Step.done => _doneView(),
-                  },
-                ),
-              ),
-            ]),
+        child: Theme(
+          data: _kioskTheme(context),
+          child: Scaffold(
+            backgroundColor: _bg,
+            body: LayoutBuilder(builder: (context, box) {
+              final wide = box.maxWidth >= 1000;
+              final Widget content = switch (_step) {
+                _Step.form => _formView(wide),
+                _Step.returning => _returningView(wide),
+                _Step.done => _doneView(wide),
+              };
+              if (_step == _Step.done) return content;
+              if (wide) {
+                return Row(children: [
+                  SizedBox(width: math.min(520, box.maxWidth * .38), child: _brandPanel(full: true)),
+                  Expanded(child: content),
+                ]);
+              }
+              return Column(children: [_brandPanel(full: false), Expanded(child: content)]);
+            }),
           ),
         ),
       ),
     );
   }
 
-  /// En-tête du formulaire : événement, message d'accueil, accès « Déjà inscrit ? ».
-  Widget _header(bool wide) {
-    final event = _event;
-    final session = context.read<Session>();
-    final dates = [
-      if (event['start_date'] != null) dateFr(event['start_date']),
-      if (event['end_date'] != null && event['end_date'] != event['start_date']) dateFr(event['end_date']),
-    ].join(' au ');
-    final returning = FilledButton.icon(
-      style: FilledButton.styleFrom(backgroundColor: YColors.yellow, foregroundColor: YColors.night, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-      onPressed: () => _go(_Step.returning),
-      icon: const Icon(Icons.qr_code_2, size: 24),
-      label: Text(tr('Déjà inscrit ? Mon numéro')),
+  Widget _logoTile(double size) => widget.logo == null || _form['kiosk_logo'] == false
+      ? const SizedBox.shrink()
+      : Container(
+          width: size,
+          height: size,
+          padding: EdgeInsets.all(size * .12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(size * .24)),
+          child: Image.memory(widget.logo!, fit: BoxFit.contain),
+        );
+
+  /// Nom de la borne (appui long : menu protégé) et état de l'envoi au serveur. Aucun compteur public.
+  Widget _kioskChip(Color fg) {
+    final pending = context.watch<SyncEngine>().pendingCount;
+    return GestureDetector(
+      onLongPress: _admin,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(color: fg.withValues(alpha: .08), borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 15, color: pending == 0 ? fg.withValues(alpha: .7) : YColors.warning),
+          const SizedBox(width: 6),
+          Text(tr(widget.kioskName), style: TextStyle(color: fg.withValues(alpha: .7), fontSize: 12.5, fontWeight: FontWeight.w600)),
+        ]),
+      ),
     );
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 22),
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(color: YColors.night, borderRadius: BorderRadius.circular(20)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(tr('${session.company['name'] ?? ''}'), style: const TextStyle(color: YColors.yellow, fontWeight: FontWeight.w700, fontSize: 14)),
-        const SizedBox(height: 6),
-        Text(tr('${event['name'] ?? ''}'), style: TextStyle(color: Colors.white, fontSize: wide ? 34 : 26, height: 1.1, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4),
-        Text(tr([dates, if (event['venue'] != null) '${event['venue']}', if (event['city'] != null) '${event['city']}'].where((x) => x.isNotEmpty).join(' · ')), style: const TextStyle(color: Colors.white70, fontSize: 15)),
-        const SizedBox(height: 14),
-        if (wide)
+  }
+
+  String get _dates {
+    final e = _event;
+    return [
+      if (e['start_date'] != null) dateFr(e['start_date']),
+      if (e['end_date'] != null && e['end_date'] != e['start_date']) dateFr(e['end_date']),
+    ].join(' au ');
+  }
+
+  /// Panneau aux couleurs de l'événement : à gauche sur grand écran, en bandeau sur une tablette en hauteur.
+  Widget _brandPanel({required bool full}) {
+    final e = _event;
+    final on = _onAccent;
+    final company = '${context.read<Session>().company['name'] ?? ''}';
+    final place = [if (e['venue'] != null) '${e['venue']}', if (e['city'] != null) '${e['city']}'].join(', ');
+    final action = _step == _Step.form
+        ? FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: _highlight, foregroundColor: _highlight == Colors.white ? _accent : YColors.night, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            onPressed: () => _go(_Step.returning),
+            icon: const Icon(Icons.confirmation_number_outlined, size: 22),
+            label: Text(tr('Déjà inscrit ? Mon numéro')),
+          )
+        : OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: on, side: BorderSide(color: on.withValues(alpha: .5), width: 1.5), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            onPressed: _reset,
+            icon: const Icon(Icons.edit_note, size: 24),
+            label: Text(tr('Nouvelle inscription')),
+          );
+    final Widget body;
+    if (full) {
+      Widget step(int n, String label) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _highlight, width: 2)),
+                child: Text('$n', style: TextStyle(color: _highlight, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Text(tr(label), style: TextStyle(color: on, fontSize: 17))),
+            ]),
+          );
+      body = Padding(
+        padding: const EdgeInsets.fromLTRB(40, 36, 40, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            _logoTile(64),
+            if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
+            Expanded(child: Text(tr(company), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 15, fontWeight: FontWeight.w600))),
+          ]),
+          const Spacer(),
+          Text(tr('${e['name'] ?? ''}'), style: _display(46, color: on)),
+          const SizedBox(height: 18),
+          if (_dates.isNotEmpty) _infoLine(Icons.event_outlined, _dates, on),
+          if (place.isNotEmpty) _infoLine(Icons.place_outlined, place, on),
+          const SizedBox(height: 22),
+          Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: TextStyle(color: on, fontSize: 19, height: 1.45)),
+          const SizedBox(height: 28),
+          if (_step == _Step.form) ...[
+            step(1, 'Remplissez le formulaire'),
+            step(2, widget.print ? 'Récupérez votre ticket' : 'Notez votre numéro de ticket'),
+            step(3, 'Entrez, bonne visite !'),
+          ],
+          const Spacer(),
+          SizedBox(width: double.infinity, child: action),
+          const SizedBox(height: 18),
+          _kioskChip(on),
+        ]),
+      );
+    } else {
+      body = Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(tr(company), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 13, fontWeight: FontWeight.w600))),
+            _kioskChip(on),
+          ]),
+          const SizedBox(height: 10),
           Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Expanded(child: Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.35))),
-            const SizedBox(width: 16),
-            returning,
-          ])
-        else ...[
-          Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: const TextStyle(color: Colors.white, fontSize: 17, height: 1.35)),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: returning),
-        ],
+            _logoTile(54),
+            if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tr('${e['name'] ?? ''}'), style: _display(26, color: on)),
+                const SizedBox(height: 4),
+                Text(tr([_dates, place].where((x) => x.isNotEmpty).join(' · ')), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 14)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          SizedBox(width: double.infinity, child: action),
+        ]),
+      );
+    }
+    return Container(
+      color: _accent,
+      child: Stack(children: [
+        // Formes discrètes en arrière-plan
+        Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
+        SafeArea(right: !full, child: body),
       ]),
     );
   }
 
-  InputDecoration _dec(String label, {String? hint, IconData? icon}) => InputDecoration(labelText: tr(label), hintText: hint == null ? null : tr(hint), prefixIcon: icon == null ? null : Icon(icon));
+  Widget _infoLine(IconData icon, String text, Color on) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          Icon(icon, color: on.withValues(alpha: .75), size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(tr(text), style: TextStyle(color: on.withValues(alpha: .9), fontSize: 16))),
+        ]),
+      );
+
+  InputDecoration _dec(String label, {IconData? icon}) => InputDecoration(labelText: tr(label), prefixIcon: icon == null ? null : Icon(icon));
 
   Widget _field(TextEditingController c, String label, {bool required = false, TextInputType? type, IconData? icon, String? Function(String)? check, TextCapitalization cap = TextCapitalization.sentences, String? autofill}) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
@@ -717,112 +878,188 @@ class _KioskScreenState extends State<KioskScreen> {
           keyboardType: type,
           textCapitalization: cap,
           autofillHints: autofill == null ? null : [autofill],
-          style: const TextStyle(fontSize: 19),
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w500),
           decoration: _dec(required ? label : '$label (facultatif)', icon: icon),
           onChanged: (_) => _touch(),
           validator: (v) {
             final s = (v ?? '').trim();
-            if (required && s.isEmpty) return tr('Champ obligatoire');
+            if (required && s.isEmpty) return tr('À remplir');
             return s.isEmpty ? null : check?.call(s);
           },
         ),
+      );
+
+  Widget _section(String title, List<Widget> children) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(padding: const EdgeInsets.only(bottom: 12, top: 6), child: Text(tr(title), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: YColors.inkSoft))),
+          ...children,
+        ]),
       );
 
   Widget _formView(bool wide) {
     final f = _form;
     final questions = (f['questions'] as List? ?? const []).map(asMap).toList();
     Widget pair(Widget a, Widget b) => wide ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: a), const SizedBox(width: 14), Expanded(child: b)]) : Column(children: [a, b]);
+    final pad = wide ? 48.0 : 20.0;
     return Form(
       key: _formKey,
-      child: ListView(
-        key: const ValueKey('form'),
-        padding: EdgeInsets.symmetric(horizontal: wide ? 48 : 18, vertical: 18),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _header(wide),
-                Text(tr('Votre inscription'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 4),
-                Text(tr('Une minute, et vous entrez.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 16)),
-                const SizedBox(height: 20),
-                pair(
-                  _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
-                  _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
-                ),
-                pair(
-                  _field(_phone, 'Téléphone', required: true, type: TextInputType.phone, icon: Icons.phone_outlined, check: (s) => s.replaceAll(RegExp(r'\D'), '').length < 8 ? tr('Numéro incomplet') : null),
-                  _field(_email, 'E-mail', required: f['ask_email'] == 'required', type: TextInputType.emailAddress, icon: Icons.alternate_email, cap: TextCapitalization.none,
-                      check: (s) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s) ? null : tr('Adresse e-mail non valable')),
-                ),
-                if (f['ask_company'] == true || f['ask_job'] == true)
-                  pair(
-                    f['ask_company'] == true ? _field(_company, 'Entreprise / organisation', icon: Icons.business_outlined) : const SizedBox.shrink(),
-                    f['ask_job'] == true ? _field(_job, 'Fonction') : const SizedBox.shrink(),
-                  ),
-                if (f['ask_city'] != 'off' || f['ask_country'] != 'off')
-                  pair(
-                    f['ask_city'] != 'off' ? _field(_city, 'Ville / commune', required: f['ask_city'] == 'required', icon: Icons.place_outlined, cap: TextCapitalization.words) : const SizedBox.shrink(),
-                    f['ask_country'] != 'off' ? _field(_country, 'Pays', required: f['ask_country'] == 'required', icon: Icons.public, cap: TextCapitalization.words) : const SizedBox.shrink(),
-                  ),
-                for (final q in questions) _question(q),
-                const SizedBox(height: 6),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _consent,
-                  onChanged: (v) => setState(() => _consent = v == true),
-                  title: Text(tr('${f['consent_text'] ?? ''}'.replaceAll('{societe}', '${context.read<Session>().company['name'] ?? ''}')), style: const TextStyle(fontSize: 16)),
-                ),
-                const SizedBox(height: 18),
-                Row(children: [
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20)),
+      child: Column(children: [
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('form'),
+            padding: EdgeInsets.fromLTRB(pad, wide ? 44 : 22, pad, 24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tr('Inscription visiteur'), style: _display(wide ? 36 : 28)),
+                  const SizedBox(height: 6),
+                  Text(tr('Moins d\'une minute, puis vous entrez.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
+                  const SizedBox(height: 26),
+                  _section('Vous', [
+                    pair(
+                      _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
+                      _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
+                    ),
+                  ]),
+                  _section('Vos coordonnées', [
+                    pair(
+                      _field(_phone, 'Téléphone', required: true, type: TextInputType.phone, icon: Icons.phone_outlined, check: (s) => s.replaceAll(RegExp(r'\D'), '').length < 8 ? tr('Numéro incomplet') : null),
+                      _field(_email, 'E-mail', required: f['ask_email'] == 'required', type: TextInputType.emailAddress, icon: Icons.alternate_email, cap: TextCapitalization.none,
+                          check: (s) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s) ? null : tr('Adresse e-mail non valable')),
+                    ),
+                  ]),
+                  if (f['ask_company'] == true || f['ask_job'] == true)
+                    _section('Votre activité', [
+                      pair(
+                        f['ask_company'] == true ? _field(_company, 'Entreprise / organisation', icon: Icons.business_outlined) : const SizedBox.shrink(),
+                        f['ask_job'] == true ? _field(_job, 'Fonction', icon: Icons.badge_outlined) : const SizedBox.shrink(),
+                      ),
+                    ]),
+                  if (f['ask_city'] != 'off' || f['ask_country'] != 'off')
+                    _section('D\'où venez-vous ?', [
+                      pair(
+                        f['ask_city'] != 'off' ? _field(_city, 'Ville / commune', required: f['ask_city'] == 'required', icon: Icons.place_outlined, cap: TextCapitalization.words) : const SizedBox.shrink(),
+                        f['ask_country'] != 'off' ? _field(_country, 'Pays', required: f['ask_country'] == 'required', icon: Icons.public, cap: TextCapitalization.words) : const SizedBox.shrink(),
+                      ),
+                    ]),
+                  for (final q in questions) _question(q, wide),
+                  const SizedBox(height: 8),
+                  _consentCard(),
+                ]),
+              ),
+            ),
+          ),
+        ),
+        // Barre d'action toujours visible
+        Container(
+          decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: YColors.line))),
+          padding: EdgeInsets.fromLTRB(pad, 14, pad, 14),
+          child: SafeArea(
+            top: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Row(children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: YColors.muted, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18)),
                     onPressed: _reset,
-                    child: Text(tr('Effacer'), style: const TextStyle(fontSize: 17)),
+                    icon: const Icon(Icons.refresh),
+                    label: Text(tr('Effacer'), style: const TextStyle(fontSize: 16)),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 20), textStyle: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: _onAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 22),
+                        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                       onPressed: _saving ? null : _submit,
-                      icon: _saving ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)) : const Icon(Icons.check_circle_outline, size: 26),
-                      label: Text(tr('Valider mon inscription')),
+                      child: _saving
+                          ? SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3, color: _onAccent))
+                          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(tr('Valider mon inscription')), const SizedBox(width: 12), const Icon(Icons.arrow_forward_rounded, size: 26)]),
                     ),
                   ),
                 ]),
-                const SizedBox(height: 40),
-              ]),
+              ),
             ),
           ),
-        ],
+        ),
+      ]),
+    );
+  }
+
+  Widget _consentCard() {
+    final text = '${_form['consent_text'] ?? ''}'.replaceAll('{societe}', '${context.read<Session>().company['name'] ?? ''}');
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _consent ? _accent : YColors.line, width: _consent ? 2 : 1.2)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => setState(() => _consent = !_consent),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(children: [
+            Icon(Icons.mark_email_read_outlined, color: _consent ? _accent : YColors.muted),
+            const SizedBox(width: 14),
+            Expanded(child: Text(tr(text), style: const TextStyle(fontSize: 16, height: 1.35))),
+            Switch(value: _consent, onChanged: (v) => setState(() => _consent = v)),
+          ]),
+        ),
       ),
     );
   }
 
-  Widget _question(Map<String, dynamic> q) {
+  /// Réponse choisie dans une liste : grandes tuiles faciles à toucher.
+  Widget _tile(String label, bool selected, VoidCallback onTap, {double? width}) => SizedBox(
+        width: width,
+        child: Material(
+          color: selected ? _accent : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: selected ? _accent : YColors.line, width: 1.2)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              _touch();
+              onTap();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+              child: Row(mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max, children: [
+                Icon(selected ? Icons.check_circle : Icons.circle_outlined, size: 22, color: selected ? _onAccent : YColors.muted),
+                const SizedBox(width: 10),
+                Flexible(child: Text(tr(label), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: selected ? _onAccent : YColors.ink))),
+              ]),
+            ),
+          ),
+        ),
+      );
+
+  Widget _question(Map<String, dynamic> q, bool wide) {
     final id = '${q['id']}';
     final label = '${q['label']}${q['required'] == true ? '' : ' (facultatif)'}';
     switch (q['type']) {
       case 'select':
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr(label), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(spacing: 10, runSpacing: 10, children: [
-              for (final o in (q['options'] as List? ?? const []))
-                ChoiceChip(
-                  label: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6), child: Text(tr('$o'), style: const TextStyle(fontSize: 17))),
-                  selected: _answers[id] == '$o',
-                  onSelected: (s) => setState(() => _answers[id] = s ? '$o' : null),
-                ),
-            ]),
-          ]),
-        );
+        final options = [for (final o in (q['options'] as List? ?? const [])) '$o'];
+        return _section(label, [
+          LayoutBuilder(builder: (context, box) {
+            final cols = wide ? (options.length <= 4 ? 2 : 3) : 2;
+            final w = (box.maxWidth - 12 * (cols - 1)) / cols;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              for (final o in options) _tile(o, _answers[id] == o, () => setState(() => _answers[id] = _answers[id] == o ? null : o), width: w),
+            ]);
+          }),
+          const SizedBox(height: 8),
+        ]);
       case 'checkbox':
-        return SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('${q['label']}'), style: const TextStyle(fontSize: 17)), value: _answers[id] == true, onChanged: (v) => setState(() => _answers[id] = v));
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _tile('${q['label']}', _answers[id] == true, () => setState(() => _answers[id] = _answers[id] != true), width: double.infinity),
+        );
       default:
         final c = _text.putIfAbsent(id, () => TextEditingController());
         return Padding(
@@ -832,7 +1069,7 @@ class _KioskScreenState extends State<KioskScreen> {
             minLines: q['type'] == 'textarea' ? 2 : 1,
             maxLines: q['type'] == 'textarea' ? 4 : 1,
             keyboardType: q['type'] == 'number' ? TextInputType.number : (q['type'] == 'phone' ? TextInputType.phone : null),
-            style: const TextStyle(fontSize: 19),
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w500),
             decoration: _dec(label),
             onChanged: (v) {
               _answers[id] = v;
@@ -843,146 +1080,287 @@ class _KioskScreenState extends State<KioskScreen> {
     }
   }
 
-  Widget _returningView() => Center(
+  // ------------------------------------------------------------------ visiteur qui revient : pavé numérique
+
+  /// Chiffres saisis, présentés comme un numéro de ticket (01-0042) ou un téléphone (07 07 07 07 01).
+  String get _lookupDisplay {
+    final raw = _lookup.text;
+    if (raw.isEmpty) return '';
+    if (RegExp(r'[A-Za-z]').hasMatch(raw)) return raw.toUpperCase();
+    if (raw.length <= 6) return raw.length > 2 ? '${raw.substring(0, 2)}-${raw.substring(2)}' : raw;
+    return [for (var i = 0; i < raw.length; i += 2) raw.substring(i, math.min(i + 2, raw.length))].join(' ');
+  }
+
+  void _key(String k) {
+    _touch();
+    setState(() {
+      _notFound = null;
+      if (k == 'del') {
+        if (_lookup.text.isNotEmpty) _lookup.text = _lookup.text.substring(0, _lookup.text.length - 1);
+      } else if (_lookup.text.length < 14) {
+        _lookup.text += k;
+      }
+    });
+  }
+
+  /// Clavier physique ou douchette : chiffres, lettres (anciens codes), effacement, Entrée.
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent) return KeyEventResult.ignored;
+    if (e.logicalKey == LogicalKeyboardKey.backspace) {
+      _key('del');
+    } else if (e.logicalKey == LogicalKeyboardKey.enter || e.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (_lookup.text.isNotEmpty) _find(_lookup.text);
+    } else if (e.character != null && RegExp(r'^[A-Za-z0-9]$').hasMatch(e.character!)) {
+      _key(e.character!.toUpperCase());
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
+  }
+
+  Widget _returningView(bool wide) {
+    Widget key(String k, {Widget? child, Color? color, Color? fg, VoidCallback? onTap}) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: SizedBox(
+              height: wide ? 78 : 68,
+              child: Material(
+                color: color ?? Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color == null ? YColors.line : Colors.transparent)),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: onTap ?? () => _key(k),
+                  child: Center(child: child ?? Text(k, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: fg ?? YColors.ink))),
+                ),
+              ),
+            ),
+          ),
+        );
+    final display = _lookupDisplay;
+    final pad = Column(children: [
+      for (final row in const [
+        ['1', '2', '3'],
+        ['4', '5', '6'],
+        ['7', '8', '9'],
+      ])
+        Row(children: [for (final k in row) key(k)]),
+      Row(children: [
+        key('del', child: const Icon(Icons.backspace_outlined, size: 28, color: YColors.inkSoft)),
+        key('0'),
+        key('ok',
+            color: _lookup.text.isEmpty ? YColors.line : _accent,
+            onTap: _lookup.text.isEmpty ? () {} : () => _find(_lookup.text),
+            child: Text(tr('Valider'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _lookup.text.isEmpty ? YColors.muted : _onAccent))),
+      ]),
+    ]);
+    final camera = _cam == null
+        ? null
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: SizedBox(
+              height: wide ? 300 : 200,
+              child: MobileScanner(
+                controller: _cam,
+                onDetect: _onDetect,
+                errorBuilder: (context, error) => Container(
+                  color: YColors.night,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(20),
+                  child: Text(tr('Caméra indisponible : utilisez le pavé.'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                ),
+                // Cadre de visée : seulement quand la caméra fonctionne
+                overlayBuilder: (context, _) => IgnorePointer(
+                  child: Stack(children: [
+                    Center(child: Container(width: 170, height: 170, decoration: BoxDecoration(border: Border.all(color: Colors.white, width: 3), borderRadius: BorderRadius.circular(18)))),
+                    Positioned(left: 0, right: 0, bottom: 10, child: Text(tr('ou présentez le QR code de votre ticket'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, shadows: [Shadow(blurRadius: 6)]))),
+                  ]),
+                ),
+              ),
+            ),
+          );
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: SingleChildScrollView(
         key: const ValueKey('returning'),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(wide ? 48 : 20, wide ? 44 : 22, wide ? 48 : 20, 24),
+        child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(children: [
-              Text(tr('Bon retour !'), style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+            constraints: BoxConstraints(maxWidth: camera != null && wide ? 900 : 520),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('Bon retour !'), style: _display(wide ? 36 : 28)),
               const SizedBox(height: 6),
-              Text(tr(_cam != null ? 'Tapez le numéro de votre ticket (ou votre téléphone), ou présentez son QR code devant la caméra.' : 'Tapez le numéro de votre ticket, ou votre numéro de téléphone.'),
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 17, color: Theme.of(context).hintColor)),
-              const SizedBox(height: 18),
-              if (_cam != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: SizedBox(
-                    height: 300,
-                    child: MobileScanner(
-                      controller: _cam,
-                      onDetect: _onDetect,
-                      errorBuilder: (context, error) => Container(color: YColors.night, alignment: Alignment.center, padding: const EdgeInsets.all(20), child: Text(tr('Caméra indisponible : tapez votre numéro.'), style: const TextStyle(color: Colors.white))),
+              Text(tr('Tapez le numéro de votre ticket, ou votre numéro de téléphone.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
+              const SizedBox(height: 24),
+              Builder(builder: (_) {
+                final left = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Container(
+                    height: 92,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: _notFound != null ? YColors.danger : _accent, width: 2)),
+                    child: Text(
+                      display.isEmpty ? '01-0042' : display,
+                      style: TextStyle(fontFamily: 'Poppins', fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: 3, color: display.isEmpty ? YColors.line : YColors.ink),
                     ),
                   ),
-                ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _lookup,
-                autofocus: _cam == null,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                decoration: _dec('Numéro du ticket (ex. 01-0042) ou téléphone', icon: Icons.confirmation_number_outlined),
-                onSubmitted: _find,
-                onChanged: (_) => _touch(),
-              ),
-              if (_notFound != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(tr(_notFound!), textAlign: TextAlign.center, style: const TextStyle(color: YColors.danger, fontSize: 16))),
-              const SizedBox(height: 18),
-              Row(children: [
-                OutlinedButton(style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20)), onPressed: _reset, child: Text(tr('Retour'), style: const TextStyle(fontSize: 17))),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 20), textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                    onPressed: () => _find(_lookup.text),
-                    child: Text(tr('Valider')),
-                  ),
-                ),
-              ]),
-              if (_notFound != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: TextButton.icon(
-                    onPressed: () {
-                      _country.text = '${_form['default_country'] ?? ''}';
-                      _go(_Step.form);
-                    },
-                    icon: const Icon(Icons.edit_note),
-                    label: Text(tr('Je m\'inscris'), style: const TextStyle(fontSize: 18)),
-                  ),
-                ),
+                  if (_notFound != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, color: YColors.danger),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(tr(_notFound!), style: const TextStyle(color: YColors.danger, fontSize: 15.5))),
+                      ]),
+                    ),
+                  const SizedBox(height: 14),
+                  pad,
+                ]);
+                if (camera == null) return left;
+                return wide
+                    ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: left), const SizedBox(width: 28), Expanded(child: camera)])
+                    : Column(children: [left, const SizedBox(height: 16), camera]);
+              }),
             ]),
           ),
-        ),
-      );
-
-  Widget _doneView() {
-    final t = _ticket;
-    final total = _color == YColors.warning ? 10 : 5;
-    return Center(
-      key: const ValueKey('done'),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Column(children: [
-            Icon(_color == YColors.warning ? Icons.info : Icons.check_circle, color: _color, size: 84),
-            const SizedBox(height: 8),
-            Text(tr(_title), textAlign: TextAlign.center, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            Text(tr(_message), textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, height: 1.4)),
-            if (t != null && _color != YColors.warning) ...[
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: YColors.line)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  QrView(data: '${t['code']}', size: 130),
-                  const SizedBox(width: 20),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(tr('Votre numéro'), style: const TextStyle(color: YColors.muted, fontSize: 15)),
-                    Text(tr(kioskRef('${t['code']}')), style: const TextStyle(color: YColors.night, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                  ]),
-                ]),
-              ),
-            ],
-            const SizedBox(height: 26),
-            // Retour automatique au formulaire : barre de progression plutôt qu'un compte à rebours
-            SizedBox(
-              width: 260,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: (total - _backIn) / total, minHeight: 6, color: _color, backgroundColor: _color.withValues(alpha: .15)),
-              ),
-            ),
-            const SizedBox(height: 14),
-            FilledButton(
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18), textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-              onPressed: _reset,
-              child: Text(tr('Visiteur suivant')),
-            ),
-          ]),
         ),
       ),
     );
   }
-}
 
-/// Bandeau de la borne : son nom (appui long = menu protégé par le code) et l'état de l'envoi. Aucun compteur public.
-class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.kiosk, required this.onAdmin});
+  // ------------------------------------------------------------------ confirmation
 
-  final String kiosk;
-  final VoidCallback onAdmin;
-
-  @override
-  Widget build(BuildContext context) {
-    final pending = context.watch<SyncEngine>().pendingCount;
-    final fg = Theme.of(context).hintColor;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Row(children: [
-        GestureDetector(
-          onLongPress: onAdmin,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(border: Border.all(color: fg.withValues(alpha: .35)), borderRadius: BorderRadius.circular(20)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.tablet_android, size: 16, color: fg), const SizedBox(width: 6), Text(tr(kiosk), style: TextStyle(color: fg, fontWeight: FontWeight.w700))]),
+  Widget _doneView(bool wide) {
+    final t = _ticket;
+    final ok = _color != YColors.warning;
+    final total = ok ? 5 : 10;
+    final on = _onAccent;
+    return Container(
+      key: const ValueKey('done'),
+      color: _accent,
+      child: Stack(children: [
+        Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: .92, end: 1),
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeOutBack,
+                builder: (context, s, child) => Transform.scale(scale: s, child: child),
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .25), blurRadius: 40, offset: const Offset(0, 18))]),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(30, 34, 30, 22),
+                      child: Column(children: [
+                        Container(
+                          width: 76,
+                          height: 76,
+                          decoration: BoxDecoration(color: (ok ? _color : YColors.warning).withValues(alpha: .12), shape: BoxShape.circle),
+                          child: Icon(ok ? Icons.check_rounded : Icons.info_outline, color: ok ? _color : YColors.warning, size: 46),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(tr(_title), textAlign: TextAlign.center, style: _display(32)),
+                        const SizedBox(height: 10),
+                        Text(tr(_message), textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, height: 1.45, color: YColors.inkSoft)),
+                      ]),
+                    ),
+                    if (t != null && ok) ...[
+                      const _TicketDivider(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(30, 20, 30, 6),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          QrView(data: '${t['code']}', size: 118),
+                          const SizedBox(width: 22),
+                          Flexible(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(tr('Votre numéro'), style: const TextStyle(color: YColors.muted, fontSize: 15)),
+                              FittedBox(child: Text(tr(kioskRef('${t['code']}')), style: _display(44, color: YColors.night))),
+                              if (widget.print)
+                                Row(children: [
+                                  Icon(Icons.print_outlined, size: 18, color: _accent),
+                                  const SizedBox(width: 6),
+                                  Text(tr('Impression du ticket…'), style: TextStyle(color: _accent, fontWeight: FontWeight.w600)),
+                                ]),
+                            ]),
+                          ),
+                        ]),
+                      ),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(30, 18, 30, 26),
+                      child: Column(children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(value: (total - _backIn) / total, minHeight: 5, color: _accent, backgroundColor: _accent.withValues(alpha: .12)),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: on, padding: const EdgeInsets.symmetric(vertical: 18), textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                            onPressed: _reset,
+                            child: Text(tr('Visiteur suivant')),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
           ),
         ),
-        const Spacer(),
-        Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 20, color: pending == 0 ? YColors.success : YColors.warning),
       ]),
     );
   }
+}
+
+/// Séparation façon ticket : pointillés et encoches sur les bords.
+class _TicketDivider extends StatelessWidget {
+  const _TicketDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.primary;
+    return SizedBox(
+      height: 28,
+      child: Stack(alignment: Alignment.center, children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: LayoutBuilder(builder: (context, box) {
+            final n = (box.maxWidth / 12).floor();
+            return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [for (var i = 0; i < n; i++) Container(width: 6, height: 2, color: YColors.line)]);
+          }),
+        ),
+        Positioned(left: -14, child: Container(width: 28, height: 28, decoration: BoxDecoration(color: bg, shape: BoxShape.circle))),
+        Positioned(right: -14, child: Container(width: 28, height: 28, decoration: BoxDecoration(color: bg, shape: BoxShape.circle))),
+      ]),
+    );
+  }
+}
+
+/// Grands anneaux très légers en fond des panneaux de couleur.
+class _RingsPainter extends CustomPainter {
+  _RingsPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = color.withValues(alpha: .06);
+    final c = Offset(size.width * 1.05, size.height * .02);
+    for (var i = 1; i <= 5; i++) {
+      p.strokeWidth = 26.0 - i * 3;
+      canvas.drawCircle(c, size.shortestSide * .22 * i, p);
+    }
+    canvas.drawCircle(Offset(-size.width * .15, size.height * 1.02), size.shortestSide * .55, Paint()..color = color.withValues(alpha: .04));
+  }
+
+  @override
+  bool shouldRepaint(_RingsPainter old) => old.color != color;
 }

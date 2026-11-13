@@ -105,6 +105,12 @@ flutter:
           weight: 700
         - asset: assets/fonts/Inter-ExtraBold.ttf
           weight: 800
+    # Titres des bornes d'accueil (signalétique d'événement)
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/pdf/Poppins-Regular.ttf
+        - asset: assets/fonts/pdf/Poppins-Bold.ttf
+          weight: 700
     - family: Roboto
       fonts:
         - asset: assets/fonts/Roboto-Regular.ttf

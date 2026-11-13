@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.52 — bornes d'accueil : nouvelle interface
+
+- **Interface des bornes refaite** : sur grand écran, panneau aux couleurs de l'événement (logo, nom du salon, dates, lieu, message d'accueil, les 3 étapes) et formulaire en sections claires (Vous, Vos coordonnées, Votre activité, D'où venez-vous ?) ; sur tablette en hauteur, bandeau compact. Grands champs tactiles, réponses en tuiles larges, consentement en carte, bouton « Valider mon inscription » toujours visible.
+- **Visiteur qui revient** : pavé numérique à l'écran (numéro de ticket ou téléphone affiché en grand), lecture du QR code par la caméra à côté ; clavier et douchette acceptés.
+- **Confirmation** façon ticket : numéro en grand, QR code, « Impression du ticket… », retour automatique au formulaire.
+- **Personnalisation depuis l'administration** (Inscriptions & avis › Formulaire d'inscription) : couleur des bornes (palette ou code couleur) et logo de la société sur les bornes et les tickets ; le logo est gardé sur la borne pour fonctionner sans Internet.
+- Ticket imprimé : logo de la société en tête, mention « © Yomara ERP — un logiciel de Yomara Technologies » en pied.
+
 ## 0.99.51 — bornes d'accueil : ticket imprimé, numéro de ticket, enchaînement des visiteurs
 
 - **Ticket imprimé après chaque inscription** (et à chaque retour d'un visiteur) : événement, nom, entreprise, ville, **numéro de ticket** en gros (01-0042), QR code, date et heure d'entrée, borne. Formats : rouleau 80 mm, rouleau 58 mm, A6 ou A4 ; choix de l'imprimante et ticket d'essai dans les réglages de la borne. Impression directe sans fenêtre sur Windows, Mac, iPad et Linux ; sur Android et dans un navigateur, la fenêtre d'impression du système s'affiche (Chrome en mode borne `--kiosk --kiosk-printing` imprime sans fenêtre).

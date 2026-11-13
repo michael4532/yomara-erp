@@ -45,6 +45,12 @@ class KioskAttendanceTest extends TestCase
             ]]], $ev);
         $this->assertSame('required', $e['registration']['ask_city']);
         $this->assertSame('Bienvenue au SELAB', $e['registration']['kiosk_welcome']);
+        $this->assertNull($e['registration']['kiosk_color']); // couleur par défaut
+        $this->assertTrue($e['registration']['kiosk_logo']);
+        $e2 = $push('ev_events', ['registration' => array_merge($e['registration'], ['kiosk_color' => '#0e6b4f', 'kiosk_logo' => false])], $ev);
+        $this->assertSame('#0E6B4F', $e2['registration']['kiosk_color']);
+        $this->assertFalse($e2['registration']['kiosk_logo']);
+        $this->assertNull($push('ev_events', ['registration' => array_merge($e['registration'], ['kiosk_color' => 'red;}'])], $ev)['registration']['kiosk_color']);
         $type = $push('ev_ticket_types', ['event_id' => $ev, 'name' => 'Visiteur', 'price' => 0]);
 
         // Inscription sur une borne : commande gratuite + billet préparé sur la borne + entrée immédiate

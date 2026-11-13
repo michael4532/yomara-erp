@@ -17,6 +17,17 @@ import '../../core/json.dart';
 import 'package:yomara_erp/core/safe_launch.dart';
 // ======================================================================= Inscriptions
 
+/// Couleurs proposées pour les bornes d'accueil.
+const kioskColorPresets = {
+  '#0B1B3A': 'Bleu nuit',
+  '#0E6B4F': 'Vert',
+  '#7A1F2B': 'Bordeaux',
+  '#B35A00': 'Orange brûlé',
+  '#1F4FB8': 'Bleu roi',
+  '#4B2E83': 'Violet',
+  '#1F2937': 'Anthracite',
+};
+
 const regQuestionTypes = {'text': 'Texte court', 'textarea': 'Texte long', 'select': 'Choix dans une liste', 'checkbox': 'Case à cocher', 'phone': 'Téléphone', 'number': 'Nombre'};
 
 String regSourceLabel(String s) => const {'facebook': 'Facebook', 'whatsapp': 'WhatsApp', 'instagram': 'Instagram', 'linkedin': 'LinkedIn', 'tiktok': 'TikTok', 'google': 'Google', 'email': 'E-mail', 'sms': 'SMS'}[s.toLowerCase()] ?? s;
@@ -34,6 +45,8 @@ Map<String, dynamic> regForm(Map<String, dynamic> event) => {
       'default_country': 'Côte d\'Ivoire',
       'kiosk_welcome': 'Bienvenue ! Inscrivez-vous en une minute pour entrer au salon.',
       'kiosk_type_id': null,
+      'kiosk_color': null,
+      'kiosk_logo': true,
       ...?(event['registration'] is Map ? asMap(event['registration']) : null),
     };
 
@@ -365,6 +378,8 @@ class _RegFormState extends State<_RegForm> {
   late String _city = '${f['ask_city'] ?? 'optional'}', _country = '${f['ask_country'] ?? 'off'}';
   late final _defaultCountry = TextEditingController(text: '${f['default_country'] ?? ''}');
   late final _welcome = TextEditingController(text: '${f['kiosk_welcome'] ?? ''}');
+  late String? _kioskColor = f['kiosk_color'] as String?;
+  late bool _kioskLogo = f['kiosk_logo'] != false;
   late final _consent = TextEditingController(text: '${f['consent_text'] ?? ''}');
   late final _message = TextEditingController(text: '${f['confirmation_message'] ?? ''}');
   late final List<Map<String, dynamic>> _q = [
@@ -387,7 +402,7 @@ class _RegFormState extends State<_RegForm> {
     await context.read<SyncEngine>().save('ev_events', {
       'id': widget.event['id'],
       'registration': {'ask_email': _email, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions,
-        'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id']},
+        'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id'], 'kiosk_color': _kioskColor, 'kiosk_logo': _kioskLogo},
       'feedback_enabled': _feedback,
     });
     if (mounted) {
@@ -427,6 +442,47 @@ class _RegFormState extends State<_RegForm> {
         ),
       if (_country != 'off') Field(label: tr('Pays proposé par défaut'), child: TextField(controller: _defaultCountry)),
       Field(label: tr('Message d\'accueil des bornes'), child: TextField(controller: _welcome, maxLines: 2)),
+      Field(
+        label: tr('Couleur des bornes'),
+        child: Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final c in kioskColorPresets.entries)
+            Tooltip(
+              message: trn(c.value),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => setState(() => _kioskColor = c.key),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse('FF${c.key.substring(1)}', radix: 16)),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: (_kioskColor ?? '#0B1B3A') == c.key ? YColors.yellow : Colors.transparent, width: 3),
+                  ),
+                  child: (_kioskColor ?? '#0B1B3A') == c.key ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                ),
+              ),
+            ),
+          SizedBox(
+            width: 130,
+            child: TextFormField(
+              key: ValueKey(_kioskColor),
+              initialValue: _kioskColor ?? '',
+              decoration: InputDecoration(isDense: true, hintText: tr('#RRGGBB'), labelText: tr('Autre')),
+              onChanged: (v) {
+                if (RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(v.trim())) setState(() => _kioskColor = v.trim().toUpperCase());
+              },
+            ),
+          ),
+        ]),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(tr('Logo de la société sur les bornes et les tickets')),
+        subtitle: Text(tr('Le logo des Paramètres de la société ; il est gardé sur la borne pour fonctionner sans Internet.')),
+        value: _kioskLogo,
+        onChanged: (v) => setState(() => _kioskLogo = v),
+      ),
       const Divider(),
       Row(children: [
         Expanded(child: Text(tr('Questions personnalisées'), style: Theme.of(context).textTheme.titleSmall)),

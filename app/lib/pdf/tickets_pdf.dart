@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:barcode/barcode.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
@@ -106,6 +108,7 @@ Future<List<int>> kioskTicketPdf({
   String? city,
   String format = 'roll80',
   bool returning = false,
+  List<int>? logo,
 }) async {
   final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Regular.ttf'));
   final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Bold.ttf'));
@@ -134,6 +137,11 @@ Future<List<int>> kioskTicketPdf({
   doc.addPage(pw.Page(
     pageFormat: page,
     build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, mainAxisSize: pw.MainAxisSize.min, children: [
+      if (logo != null)
+        pw.Padding(
+          padding: pw.EdgeInsets.only(bottom: 3 * s),
+          child: pw.Image(pw.MemoryImage(Uint8List.fromList(logo)), height: 14 * s * PdfPageFormat.mm, fit: pw.BoxFit.contain),
+        ),
       pw.Text(tr(company), textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 8 * s)),
       pw.SizedBox(height: 2 * s),
       pw.Text(tr('${event['name'] ?? ''}'), textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 13 * s, fontWeight: pw.FontWeight.bold)),
@@ -161,6 +169,8 @@ Future<List<int>> kioskTicketPdf({
       rule(),
       pw.Text(tr('Les jours suivants : tapez votre numéro sur la borne (ou présentez ce QR code) pour entrer sans vous réinscrire.'),
           textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 7.5 * s)),
+      pw.SizedBox(height: 5 * s),
+      pw.Text('© ${at.year} Yomara ERP — un logiciel de Yomara Technologies', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 6.5 * s, color: PdfColors.grey700)),
     ]),
   ));
   return doc.save();
