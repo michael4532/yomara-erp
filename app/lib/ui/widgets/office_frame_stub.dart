@@ -2,8 +2,8 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'windows_webview_env.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 import '../../i18n/i18n.dart';
@@ -13,13 +13,7 @@ import 'auto_update.dart';
 /// sous Linux, dans le navigateur.
 bool get officeEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
 
-WebViewEnvironment? _winEnv;
-Future<WebViewEnvironment?> _windowsEnvironment() async {
-  if (_winEnv != null) return _winEnv;
-  if (await WebViewEnvironment.getAvailableVersion() == null) return null;
-  final dir = await getApplicationSupportDirectory();
-  return _winEnv = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: '${dir.path}\\WebView2'));
-}
+Future<WebViewEnvironment?> _windowsEnvironment() => windowsWebViewEnvironment();
 
 class OfficeFrame extends StatefulWidget {
   const OfficeFrame({super.key, required this.url, this.onClose, this.onSaved});

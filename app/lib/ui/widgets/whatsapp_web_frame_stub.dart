@@ -1,29 +1,57 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, File, Platform, Process, ProcessStartMode;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'windows_webview_env.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 import '../../i18n/i18n.dart';
 
-/// Applications installées (Android, iPhone, Mac, Windows) : WhatsApp Web s'affiche dans l'ERP ;
+/// Applications installées (Android, iPhone, Mac) : WhatsApp Web s'affiche dans l'ERP ;
 /// la session (QR code scanné une fois) est conservée dans le profil de la vue web.
-bool get whatsappEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
+/// Windows : le navigateur intégré (WebView2) peut s'arrêter brutalement et emporter tout le logiciel avec lui ;
+/// WhatsApp s'ouvre donc à part (application WhatsApp, sinon fenêtre d'application Edge), l'ERP reste stable.
+bool get whatsappEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
 
-Future<void> openWhatsAppWindow(String url) => safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+Future<void> openWhatsAppWindow(String url) async {
+  if (Platform.isWindows && await _windowsApp(url)) return;
+  await safeLaunchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+}
+
+/// Windows : conversation dans l'application WhatsApp si elle est installée, sinon WhatsApp Web dans une fenêtre
+/// d'application Edge (ou Chrome) sans barre d'adresse, avec un profil réservé à l'ERP (QR code scanné une seule fois).
+Future<bool> _windowsApp(String url) async {
+  try {
+    final u = Uri.parse(url);
+    // Application WhatsApp de bureau : lien direct vers la conversation
+    final phone = u.queryParameters['phone'];
+    if (phone != null && phone.isNotEmpty) {
+      final text = u.queryParameters['text'];
+      final app = Uri.parse('whatsapp://send?phone=$phone${text == null || text.isEmpty ? '' : '&text=${Uri.encodeComponent(text)}'}');
+      if (await canLaunchUrl(app) && await launchUrl(app, mode: LaunchMode.externalApplication)) return true;
+    }
+    final env = Platform.environment;
+    final candidates = [
+      for (final base in [env['ProgramFiles(x86)'], env['ProgramFiles'], env['LOCALAPPDATA']])
+        if (base != null) ...['$base\\Microsoft\\Edge\\Application\\msedge.exe', '$base\\Google\\Chrome\\Application\\chrome.exe'],
+    ];
+    final exe = candidates.where((p) => File(p).existsSync()).firstOrNull;
+    if (exe == null) return false;
+    final profile = '${(await getApplicationSupportDirectory()).path}\\WhatsApp';
+    Directory(profile).createSync(recursive: true);
+    await Process.start(exe, ['--app=$url', '--user-data-dir=$profile', '--no-first-run', '--no-default-browser-check', '--window-size=1100,800'], mode: ProcessStartMode.detached);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /// WhatsApp Web exige un navigateur de bureau récent : on se présente comme Chrome sur Windows.
 const _desktopUa = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-WebViewEnvironment? _winEnv;
-Future<WebViewEnvironment?> _windowsEnvironment() async {
-  if (_winEnv != null) return _winEnv;
-  if (await WebViewEnvironment.getAvailableVersion() == null) return null;
-  final dir = await getApplicationSupportDirectory();
-  return _winEnv = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: '${dir.path}\\WebView2'));
-}
+Future<WebViewEnvironment?> _windowsEnvironment() => windowsWebViewEnvironment();
 
 class WhatsAppWebView extends StatefulWidget {
   const WhatsAppWebView({super.key, this.url = 'https://web.whatsapp.com/'});

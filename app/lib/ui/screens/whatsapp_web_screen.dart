@@ -69,7 +69,8 @@ class WhatsAppWebScreen extends StatelessWidget {
               tr(kIsWeb
                   ? 'WhatsApp n\'autorise pas son affichage à l\'intérieur d\'une page web : il s\'ouvre dans une fenêtre accolée à droite de l\'ERP. '
                       'Scannez le QR code une fois avec votre téléphone, la session reste ouverte. Les boutons « WhatsApp » des fiches clients et des factures y ouvrent directement la conversation.'
-                  : 'Dans la version 1.0.9 de l\'application, WhatsApp Web s\'affiche ici même. En attendant la mise à jour, il s\'ouvre dans votre navigateur.'),
+                  : 'Sur ordinateur, WhatsApp s\'ouvre dans sa propre fenêtre : l\'application WhatsApp si elle est installée, sinon une fenêtre WhatsApp Web dédiée (sans barre d\'adresse). '
+                      'Scannez le QR code une seule fois, la session reste ouverte. Ainsi WhatsApp ne peut jamais bloquer ni fermer l\'ERP.'),
               textAlign: TextAlign.center,
               style: TextStyle(color: hint),
             ),

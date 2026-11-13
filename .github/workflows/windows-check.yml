@@ -1,0 +1,22 @@
+# Yomara ERP — contrôle de la compilation Windows (release), lancé à la demande.
+# Ne publie rien et n'utilise aucun secret : vérifie seulement que l'application et ses plugins compilent.
+#
+# Copyright © 2026 Yomara Technologies — licence AGPL-3.0 (voir LICENSE et NOTICE.md).
+name: Contrôle Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '3.47.9', channel: stable, cache: true }
+      - run: flutter pub get
+      - name: Application Windows (release)
+        run: flutter build windows --release --no-tree-shake-icons

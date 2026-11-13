@@ -2,9 +2,9 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'windows_webview_env.dart';
 
 import '../../i18n/i18n.dart';
 import 'auto_update.dart';
@@ -15,13 +15,7 @@ import 'package:yomara_erp/core/safe_launch.dart';
 bool get visioEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
 
 /// Windows : WebView2 range ses données dans le dossier de l'utilisateur (le dossier d'installation du Store est en lecture seule).
-WebViewEnvironment? _winEnv;
-Future<WebViewEnvironment?> _windowsEnvironment() async {
-  if (_winEnv != null) return _winEnv;
-  if (await WebViewEnvironment.getAvailableVersion() == null) return null; // WebView2 absent : navigateur
-  final dir = await getApplicationSupportDirectory();
-  return _winEnv = await WebViewEnvironment.create(settings: WebViewEnvironmentSettings(userDataFolder: '${dir.path}\\WebView2'));
-}
+Future<WebViewEnvironment?> _windowsEnvironment() => windowsWebViewEnvironment();
 
 class VisioFrame extends StatefulWidget {
   const VisioFrame({super.key, required this.url, this.onLeft});
