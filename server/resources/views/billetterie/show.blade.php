@@ -35,6 +35,8 @@
       <label for="email">E-mail (pour recevoir vos billets){{ $form['ask_email'] === 'required' ? '' : ' — facultatif' }}</label><input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="email" @required($form['ask_email'] === 'required')>
       @if($form['ask_company'])<label for="company">Entreprise / organisation (facultatif)</label><input id="company" name="company" value="{{ old('company') }}" autocomplete="organization">@endif
       @if($form['ask_job'])<label for="job">Fonction (facultatif)</label><input id="job" name="job" value="{{ old('job') }}" autocomplete="organization-title">@endif
+      @if(($form['ask_city'] ?? 'off') !== 'off')<label for="city">Ville / commune{{ $form['ask_city'] === 'required' ? '' : ' (facultatif)' }}</label><input id="city" name="city" value="{{ old('city') }}" maxlength="120" autocomplete="address-level2" @if($form['ask_city'] === 'required') required @endif>@endif
+      @if(($form['ask_country'] ?? 'off') !== 'off')<label for="country">Pays{{ $form['ask_country'] === 'required' ? '' : ' (facultatif)' }}</label><input id="country" name="country" value="{{ old('country', $form['default_country'] ?? '') }}" maxlength="80" autocomplete="country-name" @if($form['ask_country'] === 'required') required @endif>@endif
       @foreach($form['questions'] as $q)
         @php($n = 'q['.$q['id'].']')
         @if($q['type'] === 'checkbox')

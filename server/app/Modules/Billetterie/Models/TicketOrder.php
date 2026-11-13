@@ -27,7 +27,7 @@ class TicketOrder extends Model
 
     public static bool $systemWrite = false;
 
-    protected $fillable = ['event_id', 'partner_id', 'buyer_name', 'buyer_phone', 'buyer_email', 'items', 'status', 'payment_method', 'buyer_company', 'buyer_job', 'answers', 'consent', 'source'];
+    protected $fillable = ['event_id', 'partner_id', 'buyer_name', 'buyer_phone', 'buyer_email', 'items', 'status', 'payment_method', 'buyer_company', 'buyer_job', 'answers', 'consent', 'source', 'kiosk', 'buyer_city', 'buyer_country'];
 
     protected $attributes = ['status' => 'pending', 'channel' => 'box_office', 'total' => 0];
 
@@ -38,7 +38,7 @@ class TicketOrder extends Model
 
     protected function casts(): array
     {
-        return ['items' => 'array', 'total' => 'float', 'paid_at' => 'datetime', 'version' => 'integer', 'answers' => 'array', 'consent' => 'boolean'];
+        return ['items' => 'array', 'total' => 'float', 'paid_at' => 'datetime', 'version' => 'integer', 'answers' => 'array', 'consent' => 'boolean', 'registered_at' => 'datetime'];
     }
 
     public static function syncRules(): array
@@ -61,6 +61,10 @@ class TicketOrder extends Model
             'answers' => 'nullable|array|max:20',
             'consent' => 'nullable|boolean',
             'source' => 'nullable|string|max:60',
+            'kiosk' => 'nullable|string|max:60',
+            'registered_at' => 'nullable|date',
+            'buyer_city' => 'nullable|string|max:120',
+            'buyer_country' => 'nullable|string|max:80',
             'tickets' => 'nullable|array|max:500',
             'tickets.*.id' => 'required|uuid',
             'tickets.*.type_id' => 'required|uuid',
@@ -73,9 +77,11 @@ class TicketOrder extends Model
     public function beforeEntityWrite(array &$data, bool $creating): void
     {
         $this->clientTickets = $data['tickets'] ?? [];
-        unset($data['tickets']);
+        // Heure réelle de l'inscription (une borne hors ligne synchronise plus tard), jamais dans le futur
+        $at = $creating && ! empty($data['registered_at']) ? \Illuminate\Support\Carbon::parse($data['registered_at']) : null;
+        unset($data['tickets'], $data['registered_at']);
         if (! $creating) {
-            foreach (['event_id', 'items', 'partner_id'] as $k) {
+            foreach (['event_id', 'items', 'partner_id', 'kiosk'] as $k) {
                 unset($data[$k]);
             }
             $status = $data['status'] ?? $this->status;
@@ -94,7 +100,8 @@ class TicketOrder extends Model
         }
         $this->number = Sequence::next(app('tenant')->id, 'ev_ticket_order', 'BIL');
         $this->token = Str::random(40);
-        $this->channel = static::$systemWrite ? 'online' : 'box_office';
+        $this->channel = static::$systemWrite ? 'online' : (! empty($data['kiosk']) ? 'kiosk' : 'box_office');
+        $this->registered_at = $at && $at->lt(now()->addMinutes(5)) && $at->gt(now()->subDays(60)) ? $at : now();
         $items = [];
         $total = 0.0;
         // un même tarif répété sur plusieurs lignes est cumulé (sinon la limite par commande et le stock sont contournés)
@@ -163,6 +170,6 @@ class TicketOrder extends Model
     public function toSyncArray(): array
     {
         return $this->toArray() + ['number' => $this->number, 'total' => $this->total, 'channel' => $this->channel, 'invoice_id' => $this->invoice_id,
-            'paid_at' => $this->paid_at?->toIso8601String(), 'public_url' => $this->token ? $this->publicUrl() : null, 'last_error' => $this->last_error];
+            'paid_at' => $this->paid_at?->toIso8601String(), 'registered_at' => ($this->registered_at ?? $this->created_at)?->toIso8601String(), 'public_url' => $this->token ? $this->publicUrl() : null, 'last_error' => $this->last_error];
     }
 }

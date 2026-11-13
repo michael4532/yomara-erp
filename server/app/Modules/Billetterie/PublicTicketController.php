@@ -66,8 +66,9 @@ class PublicTicketController extends Controller
         $d = $r->validate([
             'name' => 'required|string|max:160', 'phone' => 'required_without:email|nullable|string|max:40', 'email' => ($form['ask_email'] === 'required' ? 'required' : 'nullable').'|email|max:255',
             'company' => 'nullable|string|max:160', 'job' => 'nullable|string|max:120', 'consent' => 'nullable|boolean', 'source' => 'nullable|string|max:60',
+            'city' => ($form['ask_city'] === 'required' ? 'required' : 'nullable').'|string|max:120', 'country' => ($form['ask_country'] === 'required' ? 'required' : 'nullable').'|string|max:80',
             'q' => 'nullable|array', 'qty' => 'required|array', 'qty.*' => 'nullable|integer|min:0|max:50', 'website' => 'max:0',
-        ], ['name.required' => 'Indiquez votre nom.', 'phone.required_without' => 'Indiquez votre téléphone ou votre e-mail.', 'email.required' => 'Indiquez votre e-mail : votre billet vous y est envoyé.']);
+        ], ['name.required' => 'Indiquez votre nom.', 'phone.required_without' => 'Indiquez votre téléphone ou votre e-mail.', 'email.required' => 'Indiquez votre e-mail : votre billet vous y est envoyé.', 'city.required' => 'Indiquez votre ville ou commune.', 'country.required' => 'Indiquez votre pays.']);
         try {
             $answers = $reg->answers($event, (array) ($d['q'] ?? []));
         } catch (\DomainException $e) {
@@ -87,7 +88,8 @@ class PublicTicketController extends Controller
         try {
             $res = app(EntityWriter::class)->upsert(TicketOrder::class, $id, ['event_id' => $raw->id, 'buyer_name' => $d['name'], 'buyer_phone' => $d['phone'] ?? null,
                 'buyer_email' => $d['email'] ?? null, 'items' => $items, 'status' => 'pending', 'buyer_company' => $d['company'] ?? null, 'buyer_job' => $d['job'] ?? null,
-                'answers' => $answers ?: null, 'consent' => (bool) ($d['consent'] ?? false), 'source' => $d['source'] ?? null]);
+                'answers' => $answers ?: null, 'consent' => (bool) ($d['consent'] ?? false), 'source' => $d['source'] ?? null,
+                'buyer_city' => $form['ask_city'] !== 'off' ? ($d['city'] ?? null) : null, 'buyer_country' => $form['ask_country'] !== 'off' ? ($d['country'] ?? null) : null]);
         } finally {
             TicketOrder::$systemWrite = false;
         }

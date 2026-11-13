@@ -8,6 +8,7 @@ use App\Modules\Billetterie\Models\TicketOrder;
 use App\Modules\Evenements\Models\Booking;
 use App\Modules\Evenements\Models\Event;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class BilletterieController extends Controller
 {
@@ -38,6 +39,70 @@ class BilletterieController extends Controller
     public function analytics(string $id)
     {
         return ['data' => app(RegistrationService::class)->analytics(Event::findOrFail($id))];
+    }
+
+    /** Fréquentation : inscrits et entrées par jour, par borne, visiteurs uniques, provenance. */
+    public function attendance(string $id)
+    {
+        return ['data' => app(RegistrationService::class)->attendance(Event::findOrFail($id))];
+    }
+
+    /** Rapport Excel de fréquentation : par jour, par borne, provenance, liste des inscrits avec leurs coordonnées. */
+    public function attendanceExport(string $id)
+    {
+        $e = Event::findOrFail($id);
+        $reg = app(RegistrationService::class);
+        $a = $reg->attendance($e);
+        [$head, $rows] = $reg->attendanceRows($e);
+        $x = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $sheet = function (string $title, array $header, array $data, array $widths = []) use ($x) {
+            $sh = $x->getSheetCount() === 1 && $x->getActiveSheet()->getTitle() === 'Worksheet' ? $x->getActiveSheet() : $x->createSheet();
+            $sh->setTitle(mb_substr($title, 0, 31));
+            $sh->fromArray($header, null, 'A1');
+            $last = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(max(1, count($header)));
+            $sh->getStyle('A1:'.$last.'1')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+            $sh->getStyle('A1:'.$last.'1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FF0B1B3A');
+            $r = 2;
+            foreach ($data as $row) {
+                $sh->fromArray(\App\Support\SafeCell::csvRow($row), null, 'A'.$r++, true);
+            }
+            foreach (range(1, count($header)) as $i) {
+                $sh->getColumnDimensionByColumn($i)->setWidth($widths[$i - 1] ?? 18);
+            }
+            $sh->freezePane('A2');
+
+            return $sh;
+        };
+        $fr = fn ($d) => \Carbon\Carbon::parse($d)->locale('fr')->isoFormat('ddd D MMM YYYY');
+        $days = array_map(fn ($d) => [$fr($d['date']), $d['registrations'], $d['kiosk'], $d['online'], $d['box_office'], $d['entries'], $d['new_visitors'], $d['returning'], $d['badges'], $d['peak_hour'] !== null ? $d['peak_hour'].' h' : ''], $a['days']);
+        $t = $a['totals'];
+        $days[] = ['TOTAL', $t['registrations'], $t['kiosk_registrations'], array_sum(array_column($a['days'], 'online')), array_sum(array_column($a['days'], 'box_office')), $t['entries'], $t['unique_visitors'], $t['returning_visitors'], array_sum(array_column($a['days'], 'badges')), ''];
+        $sh = $sheet('Par jour', ['Jour', 'Inscrits', 'dont aux bornes', 'dont en ligne', 'dont au guichet', 'Visiteurs entrés', 'Nouveaux visiteurs', 'Revenus d\'un autre jour', 'Badges (exposants, organisation)', 'Heure de pointe'], $days, [22, 12, 14, 14, 14, 16, 18, 20, 22, 14]);
+        $sh->getStyle('A'.(count($days) + 1).':J'.(count($days) + 1))->getFont()->setBold(true);
+        $kh = ['Borne'];
+        foreach ($a['days'] as $d) {
+            array_push($kh, 'Inscrits '.\Carbon\Carbon::parse($d['date'])->format('d/m'), 'Entrées '.\Carbon\Carbon::parse($d['date'])->format('d/m'));
+        }
+        array_push($kh, 'Total inscrits', 'Total entrées');
+        $sheet('Par borne', $kh, array_map(fn ($k) => array_merge([$k['name']], collect($k['days'])->flatMap(fn ($d) => [$d['registrations'], $d['entries']])->all(), [$k['registrations'], $k['entries']]), $a['kiosks']), [24]);
+        $prov = [];
+        foreach (['Ville' => $a['cities'], 'Pays' => $a['countries'], 'Canal d\'inscription' => $a['channels'], 'Connu par' => array_map(fn ($s) => ['name' => $s['source'], 'count' => $s['count']], $a['sources']), 'Société' => $a['top_companies']] as $label => $list) {
+            foreach ($list as $it) {
+                $prov[] = [$label, $it['name'], $it['count'], $t['registrations'] ? round($it['count'] * 100 / $t['registrations'], 1) : 0];
+            }
+        }
+        foreach ($a['answers'] as $q) {
+            foreach ($q['distribution'] as $it) {
+                $prov[] = [$q['label'], $it['value'], $it['count'], $t['registrations'] ? round($it['count'] * 100 / $t['registrations'], 1) : 0];
+            }
+        }
+        $sheet('Provenance', ['Critère', 'Valeur', 'Inscrits', '% des inscrits'], $prov, [26, 34, 12, 14]);
+        $sheet('Inscrits', $head, $rows, [14, 8, 10, 16, 26, 18, 30, 24, 20, 18, 16, 16]);
+        $x->setActiveSheetIndex(0);
+        $path = tempnam(sys_get_temp_dir(), 'att');
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($x))->save($path);
+
+        return response()->download($path, 'frequentation-'.Str::slug($e->name).'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend();
     }
 
     /** Envoyer maintenant la demande d'avis aux participants. */

@@ -1,5 +1,15 @@
 # Notes de version
 
+## 0.99.50 — bornes d'accueil des salons et fréquentation par jour
+
+- **Mode borne d'accueil** (Événements › un événement › Billetterie › « Mode borne d'accueil ») : à l'entrée d'un salon, les visiteurs s'inscrivent eux-mêmes sur une tablette, un ordinateur tactile ou un téléphone, en plein écran : prénom, nom, téléphone, e-mail, entreprise, ville / commune, pays, questions personnalisées (profil, « comment avez-vous connu le salon ? »…), consentement. L'inscription vaut entrée du jour ; le visiteur reçoit un QR code à l'écran (et par e-mail s'il l'a donné).
+- Visiteur qui revient un autre jour : « Déjà inscrit ? » puis son QR code (caméra) ou simplement son numéro de téléphone ; une personne déjà inscrite qui remplit à nouveau le formulaire est reconnue (même téléphone ou e-mail), sans doublon.
+- Fonctionne **sans Internet** : inscriptions et entrées restent sur la borne et partent au serveur au retour de la connexion, comptées au jour et à l'heure réels. Icône d'envoi en attente sur la borne.
+- Borne verrouillée : retour automatique à l'accueil après 90 s sans action, sortie protégée par un code (appui long sur le nom de la borne), compteur du jour de la borne. Plusieurs bornes en même temps, chacune avec son nom.
+- **Fréquentation** (nouvel onglet de l'événement, aussi accessible depuis la borne) : inscrits et visiteurs entrés par jour (bornes, en ligne, guichet), nouveaux et revenants, visiteurs uniques sur tout l'événement, heure de pointe et entrées par heure, chaque borne jour par jour, provenance (villes, pays, canal, réponses aux questions, entreprises). Exposants et organisation comptés à part.
+- **Rapport Excel** : feuilles Par jour, Par borne, Provenance et Inscrits (coordonnées, réponses, jours de présence). Réservé aux gestionnaires de l'événement, pas aux comptes des bornes.
+- Formulaire d'inscription : ville / commune et pays (non demandé, facultatif ou obligatoire, pays proposé par défaut), message d'accueil des bornes ; aussi sur la page d'inscription en ligne.
+
 ## 0.99.49 — bibliothèque de modèles premium
 
 - **11 nouveaux modèles premium** de factures, proformas, devis et offres (Paramètres › Modèles de documents), tous avec aperçu : **Onyx** (bandeau noir et or, 20 000 F), **Royal** (violet et or, double cadre, filigrane du logo, 20 000 F), **Atelier** (empattements, double cadre, 15 000 F), **Lagon** (vague bleue, 15 000 F), **Géométrie** (cercles, grand titre, 15 000 F), **Monochrome** (noir et blanc, 10 000 F), **Kente** (frise tissée or, vert et rouge, 15 000 F), **Oblique** (bandeau oblique, 15 000 F), **Azur** (bandeau bleu roi, filigrane, 10 000 F), **Savane** (vague brun et ocre, 15 000 F), **Santé** (sarcelle, filets, 10 000 F).

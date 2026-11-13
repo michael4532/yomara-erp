@@ -13,6 +13,7 @@ import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
 import 'document_editor.dart';
 import 'documents_screen.dart' show DocConfig;
+import 'attendance_screen.dart' show AttendanceView;
 import 'billetterie_screen.dart' show TicketingTab, exhibitorBadges;
 import 'event_extras.dart';
 import '../../i18n/i18n.dart';
@@ -224,7 +225,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         if (event == null) return Scaffold(appBar: AppBar(), body: EmptyState(icon: Icons.storefront_outlined, title: tr('Événement introuvable')));
         final ticketing = session.hasModule('billetterie');
         return DefaultTabController(
-          length: ticketing ? 6 : 4,
+          length: ticketing ? 7 : 4,
           child: Scaffold(
             appBar: AppBar(
               title: Text(tr('${event['name']}')),
@@ -240,6 +241,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 Tab(icon: Icon(Icons.insights_outlined, size: 18), text: tr('Bilan')),
                 if (ticketing) Tab(icon: Icon(Icons.confirmation_number_outlined, size: 18), text: tr('Billetterie')),
                 if (ticketing) Tab(icon: Icon(Icons.how_to_reg_outlined, size: 18), text: tr('Inscriptions & avis')),
+                if (ticketing) Tab(icon: Icon(Icons.groups_outlined, size: 18), text: tr('Fréquentation')),
               ]),
             ),
             body: ValueListenableBuilder(
@@ -253,6 +255,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   _StatsTab(event: event),
                   if (ticketing) TicketingTab(event: event),
                   if (ticketing) RegistrationsTab(event: event),
+                  if (ticketing) AttendanceView(eventId: '${event['id']}'),
                 ]),
               ),
             ),

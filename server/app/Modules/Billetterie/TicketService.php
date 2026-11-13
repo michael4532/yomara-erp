@@ -101,7 +101,7 @@ class TicketService
             $this->issue($o, $clientTickets);
             $reg = app(RegistrationService::class);
             rescue(fn () => $reg->capture($o), null, false); // contact versé dans la liste de l'événement (Marketing)
-            if ($o->channel === 'online' || ($o->buyer_email && $o->channel === 'box_office' && (float) $o->total <= 0)) {
+            if ($o->channel === 'online' || ($o->buyer_email && in_array($o->channel, ['box_office', 'kiosk'], true) && (float) $o->total <= 0)) {
                 $reg->confirm(app('tenant'), $o);
             }
         }

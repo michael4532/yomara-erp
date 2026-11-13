@@ -84,3 +84,25 @@ int? tkLeft(Map<String, dynamic> type) {
   final n = (q is num ? q.toInt() : int.tryParse('$q') ?? 0) - sold;
   return n < 0 ? 0 : n;
 }
+
+/// Visiteur déjà inscrit à l'événement, retrouvé par son QR code, son code de billet, son e-mail ou son téléphone
+/// (8 derniers chiffres : « 07 07 07 07 01 » = « +225 0707070701 »). Billets visiteurs valides seulement.
+Map<String, dynamic>? tkFindVisitor(String eventId, String query) {
+  final raw = query.trim();
+  if (raw.isEmpty || !LocalDb.hasEntity('ev_tickets')) return null;
+  final byCode = tkFind(raw);
+  if (byCode != null && byCode['event_id'] == eventId) return byCode;
+  final email = raw.contains('@') ? raw.toLowerCase() : null;
+  final digits = raw.replaceAll(RegExp(r'\D'), '');
+  if (email == null && digits.length < 8) return null;
+  final last8 = digits.length >= 8 ? digits.substring(digits.length - 8) : '';
+  for (final t in LocalDb.all('ev_tickets')) {
+    if (t['event_id'] != eventId || t['status'] != 'valid') continue;
+    if (email != null && '${t['holder_email'] ?? ''}'.trim().toLowerCase() == email) return t;
+    if (email == null) {
+      final p = '${t['holder_phone'] ?? ''}'.replaceAll(RegExp(r'\D'), '');
+      if (p.length >= 8 && p.substring(p.length - 8) == last8) return t;
+    }
+  }
+  return null;
+}

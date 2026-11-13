@@ -32,6 +32,13 @@ class RegistrationService
             'consent_text' => 'J\'accepte de recevoir les informations de {societe} (prochains événements, offres).',
             'confirmation_message' => 'Votre inscription est confirmée. Présentez le QR code de votre billet à l\'entrée.',
             'global_list' => true,
+            // Provenance : off, optional, required
+            'ask_city' => 'optional',
+            'ask_country' => 'off',
+            'default_country' => 'Côte d\'Ivoire',
+            // Bornes d'accueil
+            'kiosk_welcome' => 'Bienvenue ! Inscrivez-vous en une minute pour entrer au salon.',
+            'kiosk_type_id' => null,
         ];
     }
 
@@ -55,7 +62,15 @@ class RegistrationService
                 'options' => $type === 'select' ? array_values(array_filter(array_map(fn ($o) => Str::limit(trim((string) $o), 80, ''), (array) ($x['options'] ?? [])))) : []];
         }
 
-        return array_intersect_key(array_replace(self::defaults(), $v, ['questions' => array_slice($q, 0, 20)]), self::defaults());
+        $out = array_intersect_key(array_replace(self::defaults(), $v, ['questions' => array_slice($q, 0, 20)]), self::defaults());
+        foreach (['ask_city', 'ask_country'] as $k) {
+            $out[$k] = in_array($out[$k], ['off', 'optional', 'required'], true) ? $out[$k] : 'off';
+        }
+        $out['default_country'] = Str::limit(trim((string) $out['default_country']), 80, '');
+        $out['kiosk_welcome'] = Str::limit(trim((string) $out['kiosk_welcome']), 300, '');
+        $out['kiosk_type_id'] = Str::isUuid((string) $out['kiosk_type_id']) ? $out['kiosk_type_id'] : null;
+
+        return $out;
     }
 
     /** Réponses validées, ou exception avec le premier message d'erreur. */
@@ -294,7 +309,7 @@ class RegistrationService
 
             return $r + ['cumulative' => $cum];
         });
-        $sources = $orders->groupBy(fn ($o) => $o->source ?: ($o->channel === 'online' ? 'Site / lien direct' : 'Guichet'))->map(fn ($g, $k) => ['source' => $k, 'count' => $g->count()])->sortByDesc('count')->values();
+        $sources = $orders->groupBy(fn ($o) => $o->source ?: ['online' => 'Site / lien direct', 'kiosk' => 'Bornes d\'accueil'][$o->channel] ?? 'Guichet')->map(fn ($g, $k) => ['source' => $k, 'count' => $g->count()])->sortByDesc('count')->values();
         $answers = [];
         foreach ($this->form($e)['questions'] as $q) {
             $vals = $orders->flatMap(fn ($o) => collect($o->answers ?? [])->where('id', $q['id'])->pluck('value'));
@@ -327,5 +342,183 @@ class RegistrationService
             ],
             'checkins_by_hour' => Checkin::where('event_id', $e->id)->where('result', 'ok')->get()->groupBy(fn ($x) => $x->scanned_at->format('Y-m-d H:00'))->map->count()->sortKeys()->all(),
         ];
+    }
+
+    // ------------------------------------------------------------------ fréquentation (bornes d'accueil)
+
+    /** Jour local d'un instant (fuseau de l'application). */
+    protected static function day($at): ?string
+    {
+        return $at ? Carbon::parse($at)->timezone(config('app.timezone'))->toDateString() : null;
+    }
+
+    /** Ville / pays écrits de façons différentes (« abidjan », « ABIDJAN ») regroupés. */
+    protected static function place(?string $v): ?string
+    {
+        $v = trim(preg_replace('/\s+/', ' ', (string) $v));
+
+        return $v === '' ? null : mb_convert_case(mb_strtolower($v), MB_CASE_TITLE);
+    }
+
+    /**
+     * Fréquentation de l'événement : inscrits et entrées par jour, par borne et par heure, visiteurs uniques,
+     * nouveaux et revenants, provenance (ville, pays, canal), réponses aux questions.
+     * Les entrées comptent les visiteurs (billets visiteur, VIP, presse) ; les badges exposants et organisation sont à part.
+     */
+    public function attendance(Event $e): array
+    {
+        $tz = config('app.timezone');
+        $orders = TicketOrder::where('event_id', $e->id)->where('status', '!=', 'cancelled')->get();
+        $visitorKinds = ['visitor', 'vip', 'press'];
+        $tickets = Ticket::where('event_id', $e->id)->where('status', 'valid')->get(['id', 'kind', 'order_id', 'checked_in_at']);
+        $kindOf = $tickets->pluck('kind', 'id');
+        $checks = Checkin::where('event_id', $e->id)->orderBy('scanned_at')->get(['ticket_id', 'scanned_at', 'gate', 'result']);
+        $ok = $checks->where('result', 'ok')->filter(fn ($c) => $c->ticket_id);
+
+        // jours : ceux de l'événement, plus tout jour qui a des données
+        $days = [];
+        if ($e->start_date) {
+            for ($d = $e->start_date->copy(); $d->lte($e->end_date ?? $e->start_date) && count($days) < 60; $d->addDay()) {
+                $days[$d->toDateString()] = true;
+            }
+        }
+        $regDay = fn ($o) => self::day($o->registered_at ?? $o->created_at);
+        foreach ($orders as $o) {
+            $days[$regDay($o)] = true;
+        }
+        foreach ($ok as $c) {
+            $days[self::day($c->scanned_at)] = true;
+        }
+        ksort($days);
+
+        // visiteurs entrés : premier jour de présence de chaque billet
+        $firstDay = [];
+        $daySets = [];
+        $staffDay = [];
+        foreach ($ok as $c) {
+            $d = self::day($c->scanned_at);
+            if (! in_array($kindOf[$c->ticket_id] ?? 'visitor', $visitorKinds, true)) {
+                $staffDay[$d][$c->ticket_id] = true;
+
+                continue;
+            }
+            $firstDay[$c->ticket_id] ??= $d;
+            $daySets[$d][$c->ticket_id] = true;
+        }
+        $kioskNames = $orders->pluck('kiosk')->merge($ok->pluck('gate'))->filter()->unique()->sort()->values();
+
+        $byDay = [];
+        foreach (array_keys($days) as $d) {
+            $regs = $orders->filter(fn ($o) => $regDay($o) === $d);
+            $entered = array_keys($daySets[$d] ?? []);
+            $new = count(array_filter($entered, fn ($id) => $firstDay[$id] === $d));
+            $hours = [];
+            foreach ($ok as $c) {
+                if (self::day($c->scanned_at) === $d && in_array($kindOf[$c->ticket_id] ?? 'visitor', $visitorKinds, true)) {
+                    $h = (int) Carbon::parse($c->scanned_at)->timezone($tz)->format('G');
+                    $hours[$h] = ($hours[$h] ?? 0) + 1;
+                }
+            }
+            ksort($hours);
+            $peak = $hours ? array_search(max($hours), $hours, true) : null;
+            $byDay[] = [
+                'date' => $d,
+                'registrations' => $regs->count(),
+                'kiosk' => $regs->where('channel', 'kiosk')->count(),
+                'online' => $regs->where('channel', 'online')->count(),
+                'box_office' => $regs->where('channel', 'box_office')->count(),
+                'entries' => count($entered),
+                'new_visitors' => $new,
+                'returning' => count($entered) - $new,
+                'badges' => count($staffDay[$d] ?? []),
+                'refused' => $checks->where('result', '!=', 'ok')->filter(fn ($c) => self::day($c->scanned_at) === $d)->count(),
+                'peak_hour' => $peak,
+                'by_hour' => collect($hours)->map(fn ($n, $h) => ['hour' => $h, 'count' => $n])->values()->all(),
+            ];
+        }
+
+        // par borne : inscriptions (borne d'inscription) et entrées (point de contrôle) de chaque jour
+        $byKiosk = [];
+        foreach ($kioskNames as $k) {
+            $row = ['name' => $k, 'registrations' => 0, 'entries' => 0, 'days' => []];
+            foreach (array_keys($days) as $d) {
+                $r = $orders->filter(fn ($o) => $o->kiosk === $k && $regDay($o) === $d)->count();
+                $en = $ok->filter(fn ($c) => $c->gate === $k && self::day($c->scanned_at) === $d && in_array($kindOf[$c->ticket_id] ?? 'visitor', $visitorKinds, true))->pluck('ticket_id')->unique()->count();
+                $row['days'][] = ['date' => $d, 'registrations' => $r, 'entries' => $en];
+                $row['registrations'] += $r;
+                $row['entries'] += $en;
+            }
+            $byKiosk[] = $row;
+        }
+
+        $count = fn ($col) => $col->filter()->countBy()->sortDesc()->map(fn ($n, $k) => ['name' => (string) $k, 'count' => $n])->values();
+        $cities = $count($orders->map(fn ($o) => self::place($o->buyer_city)));
+        $countries = $count($orders->map(fn ($o) => self::place($o->buyer_country)));
+        $channels = $orders->groupBy('channel')->map(fn ($g, $k) => ['name' => ['kiosk' => 'Bornes', 'online' => 'En ligne', 'box_office' => 'Guichet'][$k] ?? $k, 'count' => $g->count()])->sortByDesc('count')->values();
+        $unique = count($firstDay);
+        $entries = array_sum(array_column($byDay, 'entries'));
+        $eventDays = collect($byDay)->filter(fn ($r) => $r['entries'] > 0)->count();
+        $best = collect($byDay)->sortByDesc('entries')->first();
+        $an = $this->analytics($e);
+
+        return [
+            'event' => ['id' => $e->id, 'name' => $e->name, 'start_date' => $e->start_date?->toDateString(), 'end_date' => $e->end_date?->toDateString(), 'venue' => $e->venue, 'city' => $e->city],
+            'totals' => [
+                'registrations' => $orders->count(),
+                'kiosk_registrations' => $orders->where('channel', 'kiosk')->count(),
+                'unique_visitors' => $unique,
+                'entries' => $entries,
+                'average_per_day' => $eventDays ? round($entries / $eventDays, 1) : 0,
+                'returning_visitors' => collect($daySets)->flatMap(fn ($set) => array_keys($set))->countBy()->filter(fn ($n) => $n > 1)->count(),
+                'registered_not_entered' => $tickets->whereIn('kind', $visitorKinds)->whereNull('checked_in_at')->count(),
+                'with_email' => $orders->filter(fn ($o) => $o->buyer_email)->count(),
+                'with_phone' => $orders->filter(fn ($o) => $o->buyer_phone)->count(),
+                'consent' => $orders->where('consent', true)->count(),
+                'best_day' => $best && $best['entries'] > 0 ? ['date' => $best['date'], 'entries' => $best['entries']] : null,
+                'capacity' => $e->capacity,
+            ],
+            'days' => $byDay,
+            'kiosks' => $byKiosk,
+            'cities' => $cities->take(20)->all(),
+            'countries' => $countries->take(20)->all(),
+            'channels' => $channels->all(),
+            // lien partagé (?source=facebook…) : seulement les inscriptions qui en indiquent un ; le canal est déjà dans « channels »
+            'sources' => $count($orders->map(fn ($o) => $o->source))->map(fn ($x) => ['source' => $x['name'], 'count' => $x['count']])->all(),
+            'answers' => $an['answers'],
+            'top_companies' => $an['top_companies'],
+        ];
+    }
+
+    /** Liste des inscrits pour Excel : coordonnées, provenance, réponses, jours de présence. */
+    public function attendanceRows(Event $e): array
+    {
+        $tz = config('app.timezone');
+        $form = $this->form($e);
+        $orders = TicketOrder::where('event_id', $e->id)->where('status', '!=', 'cancelled')->get()->sortBy(fn ($o) => ($o->registered_at ?? $o->created_at)->timestamp);
+        $tickets = Ticket::where('event_id', $e->id)->get(['id', 'order_id', 'code']);
+        $byOrder = $tickets->groupBy('order_id');
+        $presence = Checkin::where('event_id', $e->id)->where('result', 'ok')->whereNotNull('ticket_id')->get(['ticket_id', 'scanned_at'])
+            ->groupBy('ticket_id')->map(fn ($g) => $g->map(fn ($c) => self::day($c->scanned_at))->unique()->sort()->values());
+        $head = ['Date d\'inscription', 'Heure', 'Canal', 'Borne', 'Nom', 'Téléphone', 'E-mail', 'Société', 'Fonction', 'Ville', 'Pays', 'Connu par'];
+        foreach ($form['questions'] as $q) {
+            $head[] = $q['label'];
+        }
+        array_push($head, 'Accepte les informations', 'Jours de présence', 'Nombre de jours', 'Billet');
+        $rows = [];
+        foreach ($orders as $o) {
+            $at = ($o->registered_at ?? $o->created_at)->copy()->timezone($tz);
+            $ts = $byOrder[$o->id] ?? collect();
+            $days = $ts->flatMap(fn ($t) => $presence[$t->id] ?? [])->unique()->sort()->values();
+            $row = [$at->format('d/m/Y'), $at->format('H:i'), ['kiosk' => 'Borne', 'online' => 'En ligne', 'box_office' => 'Guichet'][$o->channel] ?? $o->channel, $o->kiosk,
+                $o->buyer_name, $o->buyer_phone, $o->buyer_email, $o->buyer_company, $o->buyer_job, self::place($o->buyer_city), self::place($o->buyer_country), $o->source];
+            $ans = collect($o->answers ?? [])->keyBy('id');
+            foreach ($form['questions'] as $q) {
+                $row[] = $ans[$q['id']]['value'] ?? null;
+            }
+            array_push($row, $o->consent ? 'Oui' : 'Non', $days->map(fn ($d) => Carbon::parse($d)->format('d/m'))->implode(', '), $days->count(), $ts->pluck('code')->implode(', '));
+            $rows[] = $row;
+        }
+
+        return [$head, $rows];
     }
 }

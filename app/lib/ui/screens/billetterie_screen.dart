@@ -21,6 +21,7 @@ import '../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 import '../widgets/pdf_viewer.dart';
+import 'kiosk_screen.dart' show kioskAllowed, startKiosk;
 bool tkCanManage(Session s) => s.can('billetterie.manage');
 bool tkCanSell(Session s) => s.can('billetterie.sell') || s.can('billetterie.manage');
 bool tkCanScan(Session s) => s.can('billetterie.scan') || s.can('billetterie.manage');
@@ -127,6 +128,7 @@ class _TicketingTabState extends State<TicketingTab> {
             Wrap(spacing: 8, runSpacing: 8, children: [
               if (tkCanScan(session)) FilledButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ScanScreen(eventId: '${e['id']}'))), icon: const Icon(Icons.qr_code_scanner), label: Text(tr('Contrôle d\'entrée'))),
               if (tkCanSell(session) && types.isNotEmpty) FilledButton.tonalIcon(onPressed: () => boxOfficeSale(context, e), icon: const Icon(Icons.point_of_sale), label: Text(tr('Vendre au guichet'))),
+              if (kioskAllowed(session)) FilledButton.tonalIcon(onPressed: () => startKiosk(context, e), icon: const Icon(Icons.tablet_android), label: Text(tr('Mode borne d\'accueil'))),
               if (tkCanManage(session)) OutlinedButton.icon(onPressed: () => issueBadges(context, e), icon: const Icon(Icons.badge_outlined), label: Text(tr('Badges / invitations'))),
               if (tkCanManage(session)) OutlinedButton.icon(onPressed: () => editTicketType(context, e), icon: const Icon(Icons.add), label: Text(tr('Tarif'))),
               if (e['ticketing_url'] != null && e['ticketing_enabled'] == true)

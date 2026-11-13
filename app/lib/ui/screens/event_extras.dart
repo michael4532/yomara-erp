@@ -29,6 +29,11 @@ Map<String, dynamic> regForm(Map<String, dynamic> event) => {
       'consent_text': 'J\'accepte de recevoir les informations de {societe} (prochains événements, offres).',
       'confirmation_message': 'Votre inscription est confirmée. Présentez le QR code de votre billet à l\'entrée.',
       'global_list': true,
+      'ask_city': 'optional',
+      'ask_country': 'off',
+      'default_country': 'Côte d\'Ivoire',
+      'kiosk_welcome': 'Bienvenue ! Inscrivez-vous en une minute pour entrer au salon.',
+      'kiosk_type_id': null,
       ...?(event['registration'] is Map ? asMap(event['registration']) : null),
     };
 
@@ -357,6 +362,9 @@ class _RegFormState extends State<_RegForm> {
   late String _email = '${f['ask_email']}';
   late bool _company = f['ask_company'] == true, _job = f['ask_job'] == true, _global = f['global_list'] != false;
   late bool _feedback = widget.event['feedback_enabled'] != false;
+  late String _city = '${f['ask_city'] ?? 'optional'}', _country = '${f['ask_country'] ?? 'off'}';
+  late final _defaultCountry = TextEditingController(text: '${f['default_country'] ?? ''}');
+  late final _welcome = TextEditingController(text: '${f['kiosk_welcome'] ?? ''}');
   late final _consent = TextEditingController(text: '${f['consent_text'] ?? ''}');
   late final _message = TextEditingController(text: '${f['confirmation_message'] ?? ''}');
   late final List<Map<String, dynamic>> _q = [
@@ -378,7 +386,8 @@ class _RegFormState extends State<_RegForm> {
     if (questions.any((q) => q['type'] == 'select' && (q['options'] as List).isEmpty)) return toast(context, tr('Ajoutez les choix proposés pour chaque liste.'), error: true);
     await context.read<SyncEngine>().save('ev_events', {
       'id': widget.event['id'],
-      'registration': {'ask_email': _email, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions},
+      'registration': {'ask_email': _email, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions,
+        'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id']},
       'feedback_enabled': _feedback,
     });
     if (mounted) {
@@ -403,6 +412,21 @@ class _RegFormState extends State<_RegForm> {
       ),
       SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Demander l\'entreprise')), value: _company, onChanged: (v) => setState(() => _company = v)),
       SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Demander la fonction')), value: _job, onChanged: (v) => setState(() => _job = v)),
+      // Provenance des visiteurs (statistiques de fréquentation)
+      for (final (label, value, set) in [
+        ('Ville / commune', _city, (String v) => _city = v),
+        ('Pays', _country, (String v) => _country = v),
+      ])
+        Field(
+          label: tr(label),
+          child: SegmentedButton<String>(
+            segments: [ButtonSegment(value: 'off', label: Text(tr('Non demandé'))), ButtonSegment(value: 'optional', label: Text(tr('Facultatif'))), ButtonSegment(value: 'required', label: Text(tr('Obligatoire')))],
+            selected: {value},
+            onSelectionChanged: (s) => setState(() => set(s.first)),
+          ),
+        ),
+      if (_country != 'off') Field(label: tr('Pays proposé par défaut'), child: TextField(controller: _defaultCountry)),
+      Field(label: tr('Message d\'accueil des bornes'), child: TextField(controller: _welcome, maxLines: 2)),
       const Divider(),
       Row(children: [
         Expanded(child: Text(tr('Questions personnalisées'), style: Theme.of(context).textTheme.titleSmall)),
