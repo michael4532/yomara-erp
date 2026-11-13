@@ -16,6 +16,12 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+      - name: Xcode 26 (comme sur le Mac de publication)
+        working-directory: .
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
       - uses: subosito/flutter-action@v2
         with: { flutter-version: '3.47.9', channel: stable, cache: true }
       - run: flutter pub get
