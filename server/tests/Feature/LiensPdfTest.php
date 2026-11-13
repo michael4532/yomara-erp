@@ -118,6 +118,55 @@ class LiensPdfTest extends TestCase
         return $n;
     }
 
+    /** « Modifier le texte » : les lignes du PDF sont détectées avec leur place et leur taille, puis remplacées. */
+    public function test_pdf_edit_existing_text_like_acrobat(): void
+    {
+        $p = new \TCPDF('P', 'mm', 'A4');
+        $p->setPrintHeader(false);
+        $p->setPrintFooter(false);
+        $p->AddPage();
+        $p->SetFont('helvetica', 'B', 18);
+        $p->Text(20, 20, 'FACTURE N° 2026-0042');
+        $p->SetFont('helvetica', '', 11);
+        $p->Text(20, 40, 'Total à payer : 150 000 FCFA');
+        $p->SetFont('times', '', 11);
+        $p->Text(120, 40, 'Abidjan, le 13/11/2026');
+        $file = UploadedFile::fake()->createWithContent('facture.pdf', $p->Output('', 'S'));
+        $r = $this->api($this->t)->post('/api/pdf/texts', ['files' => [$file]])->assertOk()->json();
+        $this->assertTrue($r['has_text']);
+        $blocks = collect($r['pages'][0]['blocks'])->keyBy('text');
+        $this->assertArrayHasKey('FACTURE N° 2026-0042', $blocks);
+        $this->assertArrayHasKey('Total à payer : 150 000 FCFA', $blocks);
+        $title = $blocks['FACTURE N° 2026-0042'];
+        $this->assertTrue($title['bold']);
+        $this->assertEqualsWithDelta(20 / 210, $title['x'], .01);
+        $this->assertEqualsWithDelta(18 * 0.352778 / 297, $title['size'], .002); // 18 pt
+        $this->assertSame('times', $blocks['Abidjan, le 13/11/2026']['font']);
+        // Deux textes sur la même ligne mais éloignés restent séparés
+        $this->assertNotSame('Total à payer : 150 000 FCFA Abidjan, le 13/11/2026', $blocks->keys()->implode('|'));
+
+        // Remplacement : le montant modifié est écrit à la même place, l'ancien est masqué
+        $t = $blocks['Total à payer : 150 000 FCFA'];
+        $edited = ['type' => 'text', 'page' => 1, 'x' => $t['x'], 'y' => $t['y'], 'w' => $t['w'], 'h' => $t['h'], 'size' => $t['size'], 'font' => $t['font'], 'bold' => $t['bold'], 'text' => 'Total à payer : 175 000 FCFA', 'bg' => '#FFFFFF'];
+        // L'application envoie aussi la carte des textes à jour (ligne modifiée à la place de l'ancienne)
+        $map = [['page' => 1, 'blocks' => $blocks->map(fn ($b, $k) => $k === 'Total à payer : 150 000 FCFA' ? array_merge($b, ['text' => $edited['text']]) : $b)->values()->all()]];
+        $out = $this->api($this->t)->post('/api/pdf/edit', ['files' => [UploadedFile::fake()->createWithContent('facture.pdf', $p->Output('', 'S'))], 'options' => json_encode(['items' => [$edited], 'blocks' => $map])])->assertOk()->getContent();
+        $after = $this->api($this->t)->post('/api/pdf/texts', ['files' => [UploadedFile::fake()->createWithContent('modifie.pdf', $out)]])->assertOk()->json('pages.0.blocks');
+        $this->assertContains('Total à payer : 175 000 FCFA', array_column($after, 'text'));
+        $this->assertNotContains('Total à payer : 150 000 FCFA', array_column($after, 'text'));
+        $this->assertContains('FACTURE N° 2026-0042', array_column($after, 'text'));
+        // Sans carte (PDF venu d'ailleurs, page tournée…) : rien n'est inventé, l'édition reste possible par-dessus
+        $plain = $this->api($this->t)->post('/api/pdf/edit', ['files' => [UploadedFile::fake()->createWithContent('facture.pdf', $p->Output('', 'S'))], 'options' => json_encode(['items' => [$edited]])])->assertOk()->getContent();
+        $this->assertStringStartsWith('%PDF', $plain);
+
+        // PDF sans texte (image scannée) : liste vide, l'application propose « Remplacer un texte »
+        $scan = new \TCPDF();
+        $scan->setPrintHeader(false);
+        $scan->setPrintFooter(false);
+        $scan->AddPage();
+        $this->assertFalse($this->api($this->t)->post('/api/pdf/texts', ['files' => [UploadedFile::fake()->createWithContent('scan.pdf', $scan->Output('', 'S'))]])->assertOk()->json('has_text'));
+    }
+
     public function test_pdf_tools(): void
     {
         $r = $this->api($this->t)->post('/api/pdf/merge', ['files' => [$this->pdf(2), $this->pdf(3)]])->assertOk();

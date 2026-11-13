@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import 'api_client.dart';
 import 'config.dart';
+import 'home_widgets.dart';
 import 'local_db.dart';
 import 'records_offline.dart';
 import 'json.dart';
@@ -245,6 +246,8 @@ class SyncEngine extends ChangeNotifier {
       lastError = null;
       lastSyncAt = DateTime.now();
       LocalDb.state().put('last_sync_at', lastSyncAt!.toIso8601String());
+      // Widgets d'écran d'accueil : chiffres du jour à jour après chaque synchronisation
+      unawaited(HomeWidgets.refresh());
     } on ApiException catch (e) {
       online = !e.isNetwork;
       lastError = e.isNetwork ? null : e.detail;

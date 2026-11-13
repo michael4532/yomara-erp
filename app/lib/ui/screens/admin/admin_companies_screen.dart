@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import '../../../core/json.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/filter_bar.dart';
+import '../../widgets/pdf_viewer.dart';
 import 'admin_common.dart';
 import 'admin_store_demo.dart';
 import '../../../i18n/i18n.dart';
@@ -257,17 +259,25 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     }
   }
 
-  Future<void> _grant() async {
+  Future<void> _grant([String? moduleKey]) async {
     final r = await showFormDialog<Map<String, dynamic>>(
       context,
-      title: 'Activer manuellement',
-      builder: (_) => _GrantDialog(modules: _modules.where((m) => m['is_core'] != true && m['available'] == true).toList(), plans: _plans),
+      title: moduleKey == null ? 'Activer manuellement' : 'Activer « ${_modules.firstWhere((m) => m['key'] == moduleKey)['name']} »',
+      builder: (_) => _GrantDialog(modules: _modules.where((m) => m['is_core'] != true && m['available'] == true).toList(), plans: _plans, initialKey: moduleKey),
     );
     if (r == null || !mounted) return;
     final session = context.read<Session>();
     try {
       final res = await session.api.post('admin/companies/${widget.companyId}/grant', r);
       if (mounted) toast(context, '${res['message']}');
+      final order = res['order'] is Map ? asMap(res['order']) : null;
+      if (order != null && mounted) {
+        final see = await confirm(context, tr('Activation enregistrée'), tr('${res['message']}\n\nVoulez-vous voir le reçu ${order['number']} ?'), ok: tr('Voir le reçu'));
+        if (see && mounted) {
+          final bytes = await session.api.download('admin/store/orders/${order['id']}/receipt');
+          await previewPdf(name: 'Reçu ${order['number']}', onLayout: (_) async => Uint8List.fromList(bytes));
+        }
+      }
       await _load();
       if (session.company['id'] == widget.companyId) await session.refreshBootstrap();
     } catch (e) {
@@ -456,7 +466,15 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           onTap: m['available'] == true ? () => _moduleOptions(m) : null,
                           trailing: Switch(
                             value: m['enabled'] == true,
-                            onChanged: m['available'] == true && m['globally_active'] == true ? (v) => _setModule(m, {'enabled': v}) : null,
+                            // Activer : prix, paiement et reçu envoyé au client ; désactiver : après confirmation
+                            onChanged: m['available'] == true && m['globally_active'] == true
+                                ? (v) async {
+                                    if (v) return _grant('${m['key']}');
+                                    if (await confirm(context, tr('Désactiver « ${m['name']} » ?'), tr('La société n\'y aura plus accès. Ses données sont conservées.'), ok: tr('Désactiver'), danger: true)) {
+                                      await _setModule(m, {'enabled': false});
+                                    }
+                                  }
+                                : null,
                           ),
                         ),
                     ]),
@@ -527,6 +545,28 @@ class _CompanyModulesEditorState extends State<_CompanyModulesEditor> {
     }
   }
 
+  /// Activation avec prix, mode de paiement et reçu envoyé au client.
+  Future<void> _grantModule(Map<String, dynamic> m) async {
+    final body = await showFormDialog<Map<String, dynamic>>(
+      context,
+      title: 'Activer « ${m['name']} »',
+      builder: (_) => _GrantDialog(modules: [m], plans: const [], initialKey: '${m['key']}'),
+    );
+    if (body == null || !mounted) return;
+    setState(() => _busy = '${m['key']}');
+    try {
+      final r = await context.read<Session>().api.post('admin/companies/${widget.companyId}/grant', body);
+      if (mounted) {
+        toast(context, '${r['message']}');
+        setState(() => _modules = [for (final e in (r['modules'] as List? ?? const [])) asMap(e)]);
+      }
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
   Future<void> _pickExpiry(Map<String, dynamic> m) async {
     final current = DateTime.tryParse('${asMap(m['override'])['expires_at'] ?? ''}');
     final d = await pickDate(context, initialDate: current ?? DateTime.now().add(const Duration(days: 30)), firstDate: DateTime(2020), lastDate: DateTime(2100));
@@ -567,7 +607,7 @@ class _CompanyModulesEditorState extends State<_CompanyModulesEditor> {
                     IconButton(tooltip: tr('Retirer le forçage'), onPressed: () => _set(m, {'reset': true}), icon: const Icon(Icons.undo_rounded, size: 20)),
                   Switch(
                     value: m['enabled'] == true,
-                    onChanged: m['available'] == true && m['globally_active'] == true && _busy == null ? (v) => _set(m, {'enabled': v}) : null,
+                    onChanged: m['available'] == true && m['globally_active'] == true && _busy == null ? (v) => v ? _grantModule(m) : _set(m, {'enabled': false}) : null,
                   ),
                 ]),
         ),
@@ -578,9 +618,12 @@ class _CompanyModulesEditorState extends State<_CompanyModulesEditor> {
 
 /// Choix de l'activation manuelle : module ou formule, durée, montant reçu éventuel.
 class _GrantDialog extends StatefulWidget {
-  const _GrantDialog({required this.modules, required this.plans});
+  const _GrantDialog({required this.modules, required this.plans, this.initialKey});
   final List<Map<String, dynamic>> modules;
   final List<dynamic> plans;
+
+  /// Module déjà choisi (activation depuis l'interrupteur du module).
+  final String? initialKey;
 
   @override
   State<_GrantDialog> createState() => _GrantDialogState();
@@ -588,18 +631,72 @@ class _GrantDialog extends StatefulWidget {
 
 class _GrantDialogState extends State<_GrantDialog> {
   String _type = 'module';
-  String? _key;
+  late String? _key = widget.initialKey;
+  bool _keepPrice = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPrice();
+  }
+
   int? _plan;
   int _months = 1;
   String _q = '';
   final _amount = TextEditingController();
   final _note = TextEditingController();
+  final _reference = TextEditingController();
+  String _method = 'cash';
+  bool _sendReceipt = true;
+  bool _amountEdited = false;
+
+  static const _methods = {
+    'cash': 'Espèces',
+    'orange_money': 'Orange Money',
+    'mtn_momo': 'MTN Mobile Money',
+    'moov_money': 'Moov Money',
+    'wave': 'Wave',
+    'bank_transfer': 'Virement bancaire',
+    'cheque': 'Chèque',
+    'card': 'Carte bancaire',
+    'free': 'Offert (geste commercial)',
+  };
 
   @override
   void dispose() {
     _amount.dispose();
     _note.dispose();
+    _reference.dispose();
     super.dispose();
+  }
+
+  /// Prix du catalogue pour le choix en cours (module ou formule, durée) : proposé, modifiable.
+  double? get _catalogPrice {
+    if (_type == 'module') {
+      final m = widget.modules.where((x) => x['key'] == _key).firstOrNull;
+      if (m == null) return null;
+      final monthly = toDouble(m['price_monthly']), yearly = toDouble(m['price_yearly']), once = toDouble(m['price_one_time']);
+      if (_months == 0) return once > 0 ? once : null;
+      if (_months % 12 == 0 && yearly > 0) return yearly * _months / 12;
+      return monthly > 0 ? monthly * _months : (once > 0 ? once : null);
+    }
+    final p = widget.plans.map(asMap).where((x) => x['id'] == _plan).firstOrNull;
+    if (p == null || _months == 0) return null;
+    final monthly = toDouble(p['price_monthly']), yearly = toDouble(p['price_yearly']);
+    if (_months % 12 == 0 && yearly > 0) return yearly * _months / 12;
+    return monthly * _months;
+  }
+
+  /// Le montant suit le catalogue tant que l'éditeur ne l'a pas changé lui-même.
+  void _refreshPrice() {
+    if (_amountEdited) return;
+    final p = _catalogPrice;
+    _amount.text = p == null ? '' : '${p.round()}';
+  }
+
+  void _change(VoidCallback f) {
+    setState(f);
+    _refreshPrice();
   }
 
   @override
@@ -610,13 +707,23 @@ class _GrantDialogState extends State<_GrantDialog> {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
         Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SegmentedButton<String>(
+          if (widget.initialKey == null) SegmentedButton<String>(
             segments: [ButtonSegment(value: 'module', label: Text(tr('Un module')), icon: const Icon(Icons.extension_outlined)), ButtonSegment(value: 'plan', label: Text(tr('Une formule')), icon: const Icon(Icons.workspace_premium_outlined))],
             selected: {_type},
-            onSelectionChanged: (v) => setState(() => _type = v.first),
+            onSelectionChanged: (v) => _change(() => _type = v.first),
           ),
           const SizedBox(height: 14),
-          if (_type == 'module') ...[
+          if (_type == 'module' && widget.initialKey != null)
+            Builder(builder: (_) {
+              final m = widget.modules.firstWhere((x) => x['key'] == widget.initialKey);
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.extension_outlined, color: YColors.blue),
+                title: Text(tr('${m['name']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(tr('Prix du catalogue : ${money(toDouble(m['price_monthly']), context.read<Session>().currency)}/mois')),
+              );
+            })
+          else if (_type == 'module') ...[
             TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: tr('Rechercher un module'), isDense: true), onChanged: (v) => setState(() => _q = v)),
             const SizedBox(height: 8),
             SizedBox(
@@ -631,7 +738,7 @@ class _GrantDialogState extends State<_GrantDialog> {
                     leading: Icon(_key == m['key'] ? Icons.radio_button_checked : Icons.radio_button_off, color: _key == m['key'] ? YColors.blue : null),
                     title: Text('${m['name']}'),
                     subtitle: Text([if (m['category'] != null) '${m['category']}', if (m['enabled'] == true) tr('déjà actif : la durée s\'ajoute')].join(' · ')),
-                    onTap: () => setState(() => _key = '${m['key']}'),
+                    onTap: () => _change(() => _key = '${m['key']}'),
                   ),
               ]),
             ),
@@ -640,19 +747,58 @@ class _GrantDialogState extends State<_GrantDialog> {
               initialValue: _plan,
               decoration: InputDecoration(labelText: tr('Formule')),
               items: [for (final p in widget.plans) DropdownMenuItem(value: p['id'] as int, child: Text('${p['name']}'))],
-              onChanged: (v) => setState(() => _plan = v),
+              onChanged: (v) => _change(() => _plan = v),
             ),
           const SizedBox(height: 14),
           Text(tr('Durée'), style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final (m, l) in const [(1, '1 mois'), (3, '3 mois'), (6, '6 mois'), (12, '1 an'), (24, '2 ans'), (0, 'Sans fin')])
-              ChoiceChip(label: Text(tr(l)), selected: _months == m, onSelected: (_) => setState(() => _months = m)),
+              ChoiceChip(label: Text(tr(l)), selected: _months == m, onSelected: (_) => _change(() => _months = m)),
           ]),
           const SizedBox(height: 14),
-          TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Montant reçu (facultatif, pour vos statistiques)'))),
+          Text(tr('Paiement'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final e in _methods.entries) ChoiceChip(label: Text(tr(e.value)), selected: _method == e.key, onSelected: (_) => setState(() => _method = e.key)),
+          ]),
+          const SizedBox(height: 12),
+          if (_method != 'free') ...[
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => setState(() => (_amountEdited = true, _keepPrice = true)),
+              decoration: InputDecoration(
+                labelText: tr('Montant encaissé'),
+                suffixText: tr(context.read<Session>().currency == 'XOF' ? 'FCFA' : context.read<Session>().currency),
+                helperText: tr(_catalogPrice == null
+                    ? 'Saisissez le montant reçu.'
+                    : 'Prix du catalogue : ${money(_catalogPrice!, context.read<Session>().currency)}. Vous pouvez le modifier (prix négocié, options en plus…).'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_type == 'module' && _months > 0)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _keepPrice,
+                onChanged: (v) => setState(() => _keepPrice = v == true),
+                title: Text(tr('Garder ce prix pour les renouvellements de ce client')),
+                subtitle: Text(tr('Prix mensuel de ce client : montant ÷ durée.')),
+              ),
+            if (_method != 'cash')
+              TextField(controller: _reference, decoration: InputDecoration(labelText: tr('Référence du paiement (facultatif)'), hintText: tr('N° de transaction, de chèque, de virement…'))),
+          ],
           const SizedBox(height: 8),
-          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note interne (ex. payé en espèces au bureau)'))),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note interne (facultatif)'))),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _sendReceipt,
+            onChanged: (v) => setState(() => _sendReceipt = v),
+            title: Text(tr('Envoyer le reçu au client par e-mail')),
+            subtitle: Text(tr('Confirmation du paiement et reçu PDF (vos coordonnées, montant, mode de paiement, période).')),
+          ),
         ]),
         const SizedBox(height: 20),
         Align(
@@ -667,11 +813,15 @@ class _GrantDialogState extends State<_GrantDialog> {
                         if (_type == 'module') 'key': _key,
                         if (_type == 'plan') 'plan_id': _plan,
                         'months': _months,
-                        if (_amount.text.trim().isNotEmpty) 'amount': double.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+                        'amount': _method == 'free' ? 0 : double.tryParse(_amount.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+                        'payment_method': _method,
+                        if (_reference.text.trim().isNotEmpty && _method != 'free') 'reference': _reference.text.trim(),
+                        'send_receipt': _sendReceipt,
+                        if (_type == 'module' && _months > 0 && _method != 'free') 'keep_price': _keepPrice,
                         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
                       }),
               icon: const Icon(Icons.bolt),
-              label: Text(tr('Activer et prévenir le client')),
+              label: Text(tr(_sendReceipt ? 'Valider et envoyer le reçu' : 'Valider l\'activation')),
             ),
           ]),
         ),

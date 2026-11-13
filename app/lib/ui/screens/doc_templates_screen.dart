@@ -155,9 +155,31 @@ class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
     await previewPdf(name: '${spec['name']} — ${_docKinds[_kind]!.$3}.pdf', onLayout: (_) async => bytes);
   }
 
+  /// Personnalisation simple, sans studio : couleurs, polices, total, titres, filigrane. Un modèle de la bibliothèque
+  /// devient « votre » modèle (copie) ; un modèle à vous est modifié directement.
+  Future<void> _tune(Map<String, dynamic> spec, {required bool builtin}) async {
+    final session = context.read<Session>();
+    final base = builtin
+        ? {...spec, 'id': 'tpl_${newId().substring(0, 8)}', 'name': '${spec['name']} — ${session.company['name'] ?? 'ma société'}'.trim(), 'builtin': false, 'base': spec['id']}
+        : Map<String, dynamic>.from(spec);
+    final saved = await showFormDialog<Map<String, dynamic>>(context, title: 'Personnaliser « ${spec['name']} »', maxWidth: 640, builder: (_) => _TuneTemplate(spec: base, onPreview: _preview));
+    if (saved == null || !mounted) return;
+    final list = customTemplates(session)..removeWhere((t) => t['id'] == saved['id']);
+    list.add(saved..remove('builtin'));
+    await _saveSettings({'doc_templates': list});
+    if (!mounted) return;
+    if (!builtin) {
+      toast(context, tr('Modèle « ${saved['name']} » enregistré.'));
+      return;
+    }
+    if (await confirm(context, tr('Modèle enregistré'), tr('« ${saved['name']} » est dans « Vos modèles ». L\'utiliser pour les ${_docKinds[_kind]!.$3.toLowerCase()} ?'), ok: tr('Utiliser')) && mounted) {
+      await _useAsDefault('${saved['id']}');
+    }
+  }
+
   Future<void> _openStudio([Map<String, dynamic>? spec, bool copy = false]) async {
     final session = context.read<Session>();
-    if (!session.hasModule(templateStudioModule)) {
+    if (!templateStudioUnlocked(session)) {
       final go = await confirm(context, tr('Studio de modèles'), tr('Créer et personnaliser vos propres modèles par glisser-déposer demande le module « Studio de modèles » (achat définitif). Ouvrir la boutique ?'), ok: tr('Voir le module'));
       if (go && mounted) await buyModule(context, templateStudioModule);
       return;
@@ -235,14 +257,16 @@ class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
                 onSelected: (v) => switch (v) {
                   'all' => _useAsDefault(id, everywhere: true),
                   'copy' => _openStudio(spec, true),
+                  'tune' => _tune(spec, builtin: builtin != null),
                   'edit' => _openStudio(spec),
                   'delete' => _delete(spec),
                   _ => null,
                 },
                 itemBuilder: (_) => [
+                  if (unlocked) PopupMenuItem(value: 'tune', child: Text(tr('Personnaliser (couleurs, polices, titres)'))),
                   if (unlocked) PopupMenuItem(value: 'all', child: Text(tr('Utiliser pour tous les documents'))),
                   if (builtin == null) PopupMenuItem(value: 'edit', child: Text(tr('Modifier dans le studio'))),
-                  if (unlocked) PopupMenuItem(value: 'copy', child: Text(tr('Personnaliser une copie'))),
+                  if (unlocked) PopupMenuItem(value: 'copy', child: Text(tr('Recomposer dans le studio'))),
                   if (builtin == null) PopupMenuItem(value: 'delete', child: Text(tr('Supprimer'))),
                 ],
               ),
@@ -270,7 +294,7 @@ class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
     final session = context.watch<Session>();
     final mine = customTemplates(session);
     final hint = Theme.of(context).hintColor;
-    final studio = session.hasModule(templateStudioModule);
+    final studio = templateStudioUnlocked(session);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Modèles de documents')), actions: [
         if (session.can('core.settings.manage'))
@@ -306,7 +330,7 @@ class _DocTemplatesScreenState extends State<DocTemplatesScreen> {
         Text(tr('Bibliothèque'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         // Collection premium : tous les modèles premium en un seul achat
-        if (!session.hasModule(templateCollectionModule) && builtinTemplates.any((t) => t.premium && !templateUnlocked(session, t.id)))
+        if (!session.isSuperAdmin && !session.hasModule(templateCollectionModule) && builtinTemplates.any((t) => t.premium && !templateUnlocked(session, t.id)))
           Card(
             color: const Color(0xFF1A1A1A),
             child: ListTile(
@@ -848,4 +872,112 @@ class _TemplateStudioState extends State<TemplateStudio> {
       ),
     );
   }
+}
+
+/// Fenêtre « Personnaliser » : réglages courants d'un modèle, accessibles à tous (le studio sert à recomposer la mise en page).
+class _TuneTemplate extends StatefulWidget {
+  const _TuneTemplate({required this.spec, required this.onPreview});
+
+  final Map<String, dynamic> spec;
+  final Future<void> Function(Map<String, dynamic>) onPreview;
+
+  @override
+  State<_TuneTemplate> createState() => _TuneTemplateState();
+}
+
+class _TuneTemplateState extends State<_TuneTemplate> {
+  late final Map<String, dynamic> _style = Map<String, dynamic>.from(widget.spec['style'] as Map? ?? const {});
+  late final Map<String, dynamic> _titles = Map<String, dynamic>.from(widget.spec['titles'] as Map? ?? const {});
+  late final _name = TextEditingController(text: '${widget.spec['name'] ?? ''}');
+  late final _titleCtl = {
+    for (final k in const ['invoice', 'proforma', 'quote']) k: TextEditingController(text: '${_titles[k] ?? ''}'),
+  };
+
+  Map<String, dynamic> get _result {
+    final titles = {..._titles};
+    for (final e in _titleCtl.entries) {
+      final v = e.value.text.trim().toUpperCase();
+      if (v.isEmpty) {
+        titles.remove(e.key);
+      } else {
+        titles[e.key] = v;
+      }
+    }
+    return {...widget.spec, 'name': _name.text.trim().isEmpty ? '${widget.spec['name']}' : _name.text.trim(), 'style': _style, 'titles': titles};
+  }
+
+  Widget _colors(String key, String label) {
+    final cur = '${_style[key] ?? '#0B1B3A'}'.toUpperCase();
+    return Field(
+      label: tr(label),
+      child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        for (final c in _swatches)
+          InkWell(
+            onTap: () => setState(() => _style[key] = c),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(color: Color(int.parse('FF${c.substring(1)}', radix: 16)), shape: BoxShape.circle, border: Border.all(color: cur == c ? YColors.blue : Colors.black12, width: cur == c ? 3 : 1)),
+            ),
+          ),
+        SizedBox(
+          width: 110,
+          child: TextFormField(
+            key: ValueKey('$key$cur'),
+            initialValue: cur,
+            decoration: const InputDecoration(isDense: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[#0-9a-fA-F]')), LengthLimitingTextInputFormatter(7)],
+            onChanged: (v) {
+              if (RegExp(r'^#?[0-9a-fA-F]{6}$').hasMatch(v)) setState(() => _style[key] = v.startsWith('#') ? v.toUpperCase() : '#${v.toUpperCase()}');
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _drop(String key, String label, Map<String, String> options) => Field(
+        label: tr(label),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.containsKey('${_style[key] ?? ''}') ? '${_style[key] ?? ''}' : options.keys.first,
+          isExpanded: true,
+          items: [for (final o in options.entries) DropdownMenuItem(value: o.key, child: Text(tr(o.value)))],
+          onChanged: (v) => setState(() => _style[key] = v),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(24, 4, 24, 24), children: [
+        Text(tr('Adaptez ce modèle à votre image. La mise en page reste celle du modèle ; pour la recomposer bloc par bloc, utilisez le studio.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
+        const SizedBox(height: 12),
+        Field(label: tr('Nom du modèle'), child: TextField(controller: _name)),
+        _colors('primary', 'Couleur principale'),
+        _colors('accent', 'Couleur d\'accent'),
+        Row(children: [
+          Expanded(child: _drop('font', 'Police du texte', fontChoices)),
+          const SizedBox(width: 12),
+          Expanded(child: _drop('title_font', 'Police des titres', titleFontChoices)),
+        ]),
+        _drop('totals', 'Présentation du total', totalsStyles),
+        Text(tr('Titres des documents (vide = titre habituel)'), style: const TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Row(children: [
+          for (final (k, hint) in const [('invoice', 'FACTURE'), ('proforma', 'FACTURE PROFORMA'), ('quote', 'DEVIS')]) ...[
+            Expanded(child: TextField(controller: _titleCtl[k], textCapitalization: TextCapitalization.characters, decoration: InputDecoration(isDense: true, hintText: tr(hint)))),
+            if (k != 'quote') const SizedBox(width: 8),
+          ],
+        ]),
+        const SizedBox(height: 6),
+        SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Filigrane du logo')), value: _style['watermark'] == true, onChanged: (v) => setState(() => _style['watermark'] = v)),
+        SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Bandeau en pied de page')), value: _style['footer_band'] == true, onChanged: (v) => setState(() => _style['footer_band'] = v)),
+        const SizedBox(height: 10),
+        Row(children: [
+          OutlinedButton.icon(onPressed: () => widget.onPreview(_result), icon: const Icon(Icons.visibility_outlined), label: Text(tr('Aperçu'))),
+          const Spacer(),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Annuler'))),
+          const SizedBox(width: 8),
+          FilledButton.icon(onPressed: () => Navigator.pop(context, _result), icon: const Icon(Icons.check), label: Text(tr('Enregistrer'))),
+        ]),
+      ]);
 }

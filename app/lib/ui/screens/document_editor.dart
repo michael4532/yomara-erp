@@ -307,28 +307,29 @@ class _DocumentEditorState extends State<DocumentEditor> {
     };
   }
 
-  Future<void> _save({String? status}) async {
+  /// Enregistre (et valide si [status] = « validated ») ; vrai si l'enregistrement a eu lieu.
+  Future<bool> _save({String? status}) async {
     if (_lines.any((l) => '${l['description'] ?? ''}'.trim().isEmpty)) {
       toast(context, tr('Chaque ligne doit avoir une désignation.'), error: true);
-      return;
+      return false;
     }
     final cfErr = context.read<Session>().hasModule('champs') ? customRequiredError(cfg.entity, _custom) : null;
     if (cfErr != null) {
       toast(context, cfErr, error: true);
-      return;
+      return false;
     }
     if (status == 'validated') {
       final missing = _missingSerials();
       if (missing != null) {
         toast(context, missing, error: true);
-        return;
+        return false;
       }
       if (_lines.isEmpty) {
         toast(context, tr('Ajoutez au moins une ligne avant de valider.'), error: true);
-        return;
+        return false;
       }
-      if (_doc['partner_id'] == null && !await confirm(context, tr('Aucun ${cfg.partnerLabel.toLowerCase()}'), tr('Valider sans ${cfg.partnerLabel.toLowerCase()} ?'))) return;
-      if (!mounted) return;
+      if (_doc['partner_id'] == null && !await confirm(context, tr('Aucun ${cfg.partnerLabel.toLowerCase()}'), tr('Valider sans ${cfg.partnerLabel.toLowerCase()} ?'))) return false;
+      if (!mounted) return false;
       // Bon de commande au-delà du seuil : approbation préalable (sauf pour l'approbateur)
       final session = context.read<Session>();
       final limit = purchaseApprovalLimit(session);
@@ -337,12 +338,12 @@ class _DocumentEditorState extends State<DocumentEditor> {
           LocalDb.get(cfg.entity, '${_doc['id']}')?['approved_at'] == null && !session.can('achats.approve')) {
         await _save();
         if (mounted) toast(context, tr('Montant HT au-delà du seuil d\'approbation (${money(limit, session.currency)}) : brouillon enregistré, demandez l\'approbation.'), error: true);
-        return;
+        return false;
       }
     }
     final payload = _payload(status: status);
     final saved = await context.read<SyncEngine>().save(cfg.entity, payload);
-    if (!mounted) return;
+    if (!mounted) return false;
     setState(() {
       _doc = saved;
       _dirty = false;
@@ -356,6 +357,27 @@ class _DocumentEditorState extends State<DocumentEditor> {
           rule != null && !approvalImplicitFor(rule, session.user)
               ? 'Circuit « ${rule['name']} » : le document part en approbation et sera validé après accord.'
               : (status == 'validated' ? 'Document validé : le numéro sera attribué à la synchronisation.' : 'Enregistré.'));
+    }
+    return true;
+  }
+
+  /// Valider puis enchaîner sans quitter l'écran : encaisser tout de suite (client qui paie sur place) ou envoyer au client.
+  Future<void> _validateThen(String next) async {
+    final session = context.read<Session>();
+    if (!await _save(status: 'validated') || !mounted) return;
+    if (_doc['status'] != 'validated') return; // parti en approbation : la suite se fera après accord
+    if (next == 'pay') {
+      await _addPayment(session);
+    } else if (next == 'send') {
+      // Le numéro est attribué par le serveur : on synchronise d'abord quand c'est possible
+      final sync = context.read<SyncEngine>();
+      if (sync.online) {
+        await sync.sync();
+        if (!mounted) return;
+        setState(() => _doc = LocalDb.get(cfg.entity, _doc['id']) ?? _doc);
+      }
+      final payments = LocalDb.hasEntity(cfg.paymentEntity) ? LocalDb.all(cfg.paymentEntity).where((p) => p['document_id'] == _doc['id']).toList() : <Map<String, dynamic>>[];
+      await _sendDoc(session, payments);
     }
   }
 
@@ -1048,9 +1070,19 @@ class _DocumentEditorState extends State<DocumentEditor> {
 
     final actions = <Widget>[
       if (editable) ...[
-        OutlinedButton(onPressed: _save, child: Text(tr('Enregistrer'))),
+        OutlinedButton(onPressed: _save, child: Text(tr(_doc['status'] == 'draft' ? 'Enregistrer le brouillon' : 'Enregistrer'))),
         if (session.can(cfg.validatePerm ?? cfg.managePerm))
-          FilledButton.icon(onPressed: () => _save(status: 'validated'), icon: const Icon(Icons.check), label: Text(tr('Valider')))
+          // Une seule étape au lieu de trois : valider, et si besoin encaisser ou envoyer dans la foulée
+          _SplitAction(
+            label: 'Valider',
+            icon: Icons.check,
+            onPressed: () => _save(status: 'validated'),
+            options: [
+              if (cfg.payableTypes.contains(_doc['type']) && session.can(cfg.paymentPerm)) ('pay', Icons.payments_outlined, cfg.entity == 'sales_documents' ? 'Valider et encaisser' : 'Valider et régler'),
+              if (cfg.entity == 'sales_documents') ('send', Icons.send_outlined, 'Valider et envoyer au client'),
+            ],
+            onOption: _validateThen,
+          )
         else
           Tooltip(message: tr('Une personne habilitée validera ce document'), child: FilledButton.icon(onPressed: null, icon: const Icon(Icons.lock_outline), label: Text(tr('Validation réservée')))),
       ],
@@ -1165,6 +1197,7 @@ class _DocumentEditorState extends State<DocumentEditor> {
                   Expanded(child: Text(tr('Modifications en attente d\'envoi au serveur.'), style: TextStyle(color: Theme.of(context).hintColor))),
                 ]),
               ),
+            if (cfg.payableTypes.contains(_doc['type'])) _DocProgress(doc: _doc, cfg: cfg, currency: _cur),
             if (!_isNew) ApprovalBanner(recordId: '${_doc['id']}'),
             if (cfg.entity == 'purchase_documents' && _doc['type'] == 'purchase_order' && !_isNew) PurchaseOrderPanel(id: '${_doc['id']}'),
             header,
@@ -1865,5 +1898,103 @@ class _AccountingStatus extends StatelessWidget {
     } catch (e) {
       if (context.mounted) toast(context, errorText(e), error: true);
     }
+  }
+}
+
+/// Bouton principal avec ses variantes (« Valider » ▾ « Valider et encaisser », « Valider et envoyer »).
+class _SplitAction extends StatelessWidget {
+  const _SplitAction({required this.label, required this.icon, required this.onPressed, required this.options, required this.onOption});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final List<(String, IconData, String)> options;
+  final void Function(String) onOption;
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) return FilledButton.icon(onPressed: onPressed, icon: Icon(icon), label: Text(tr(label)));
+    final primary = Theme.of(context).colorScheme.primary;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      FilledButton.icon(
+        style: FilledButton.styleFrom(shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(left: Radius.circular(20)))),
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(tr(label)),
+      ),
+      const SizedBox(width: 1.5),
+      PopupMenuButton<String>(
+        tooltip: tr('Valider et…'),
+        onSelected: onOption,
+        itemBuilder: (_) => [
+          for (final (k, i, l) in options) PopupMenuItem(value: k, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(i), title: Text(tr(l)))),
+        ],
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(color: primary, borderRadius: const BorderRadius.horizontal(right: Radius.circular(20))),
+          child: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.onPrimary),
+        ),
+      ),
+    ]);
+  }
+}
+
+/// Où en est le document : Brouillon → Validé(e) → Payé(e), avec la prochaine étape en clair.
+class _DocProgress extends StatelessWidget {
+  const _DocProgress({required this.doc, required this.cfg, required this.currency});
+
+  final Map<String, dynamic> doc;
+  final DocConfig cfg;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = '${doc['status']}';
+    if (status == 'cancelled') {
+      return Card(
+        color: Colors.grey.withValues(alpha: .1),
+        child: ListTile(leading: const Icon(Icons.block, color: Colors.grey), title: Text(tr('Document annulé')), subtitle: Text(tr('Il n\'est plus dû et n\'apparaît plus dans les impayés.'))),
+      );
+    }
+    final total = toDouble(doc['total']), paid = toDouble(doc['amount_paid']);
+    final ps = '${doc['payment_status'] ?? 'unpaid'}';
+    final purchase = cfg.entity == 'purchase_documents';
+    final step = status == 'draft' ? 0 : (ps == 'paid' ? 2 : 1);
+    final steps = [
+      ('Brouillon', Icons.edit_outlined),
+      ('Validée', Icons.verified_outlined),
+      (purchase ? 'Réglée' : 'Payée', Icons.task_alt),
+    ];
+    final next = switch (step) {
+      0 => 'Prochaine étape : valider (numéro définitif). « Valider et encaisser » si le client paie maintenant.',
+      1 => ps == 'partial'
+          ? 'Payée en partie : ${money(paid, currency)} sur ${money(total, currency)}. Reste ${money(total - paid, currency)} à ${purchase ? 'régler' : 'encaisser'}.'
+          : (purchase ? 'Prochaine étape : enregistrer le règlement.' : 'Prochaine étape : envoyer au client et encaisser le paiement.'),
+      _ => purchase ? 'Facture réglée.' : 'Facture payée. Le reçu se trouve dans « Imprimer ».',
+    };
+    final hint = Theme.of(context).hintColor;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          for (var i = 0; i < steps.length; i++) ...[
+            if (i > 0) Expanded(child: Container(height: 3, margin: const EdgeInsets.symmetric(horizontal: 8), color: i <= step ? YColors.success : YColors.line)),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: i < step || step == 2 ? YColors.success : (i == step ? YColors.blue : YColors.line)),
+                child: Icon(i < step || step == 2 ? Icons.check : steps[i].$2, size: 17, color: i <= step ? Colors.white : hint),
+              ),
+              const SizedBox(width: 8),
+              Text(tr(steps[i].$1), style: TextStyle(fontWeight: i == step ? FontWeight.w800 : FontWeight.w600, color: i <= step ? null : hint)),
+            ]),
+          ],
+        ]),
+        const SizedBox(height: 8),
+        Text(tr(next), style: TextStyle(color: hint, fontSize: 13)),
+      ]),
+    );
   }
 }

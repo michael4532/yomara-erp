@@ -5,5 +5,10 @@
 	<!-- Notifications push (Firebase Cloud Messaging) ; Xcode passe en « production » à l'export App Store -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- Groupe partagé avec le widget d'écran d'accueil -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.yomaratechnologies.yomaraerp</string>
+	</array>
 </dict>
 </plist>

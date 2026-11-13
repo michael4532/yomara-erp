@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CompanyModule;
 use App\Models\Module;
+use App\Models\ModuleOrder;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Billing;
@@ -137,6 +138,9 @@ class CompanyAdminController extends Controller
             'in_plan' => in_array($m->key, $planModules, true),
             'override' => $overrides->get($m->key),
             'price_monthly' => $overrides->get($m->key)?->price_override ?? $m->price_monthly,
+            'price_yearly' => (float) $m->price_yearly,
+            'price_one_time' => (float) $m->price_one_time,
+            'billing_mode' => $m->billing_mode,
             'enabled' => in_array($m->key, $enabled, true),
         ])];
     }
@@ -186,6 +190,15 @@ class CompanyAdminController extends Controller
         return $this->modules($id, $registry);
     }
 
+    /** Reçu PDF d'une commande payée (activation manuelle ou achat en ligne). */
+    public function receipt(int $order)
+    {
+        $o = ModuleOrder::findOrFail($order);
+        abort_unless($o->status === 'paid', 422, 'Cette commande n\'est pas payée.');
+
+        return response(\App\Platform\OrderReceipt::pdf($o), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.\App\Platform\OrderReceipt::filename($o).'"']);
+    }
+
     /**
      * Activation manuelle par l'éditeur : un module ou une formule pour N mois (0 = sans fin), sans paiement en ligne
      * (geste commercial, paiement reçu en direct…). Trace dans les commandes, client prévenu par notification et e-mail.
@@ -198,10 +211,16 @@ class CompanyAdminController extends Controller
             'key' => 'required_if:type,module|nullable|string|max:60',
             'plan_id' => 'required_if:type,plan|nullable|integer|exists:plans,id',
             'months' => 'required|integer|min:0|max:120',
-            'amount' => 'nullable|numeric|min:0',
+            'amount' => 'nullable|numeric|min:0|max:100000000',
+            'payment_method' => 'nullable|in:'.implode(',', array_keys(ModuleOrder::PAYMENT_METHODS)),
+            'reference' => 'nullable|string|max:120',
+            'send_receipt' => 'sometimes|boolean',
+            'keep_price' => 'sometimes|boolean',
             'note' => 'nullable|string|max:300',
         ]);
         $months = (int) $d['months'];
+        $amount = ($d['payment_method'] ?? null) === 'free' ? 0.0 : round((float) ($d['amount'] ?? 0), 2);
+        $method = $d['payment_method'] ?? ($amount > 0 ? 'cash' : 'free');
         if ($d['type'] === 'plan') {
             $plan = Plan::findOrFail($d['plan_id']);
             $start = $company->plan_id === $plan->id && $company->subscription_ends_at?->isFuture() ? $company->subscription_ends_at->copy() : now();
@@ -222,6 +241,10 @@ class CompanyAdminController extends Controller
             $start = $cm->exists && $cm->enabled && $cm->expires_at?->isFuture() ? $cm->expires_at->copy() : now();
             $end = $months > 0 ? $start->copy()->addMonthsNoOverflow($months) : null;
             $cm->fill(['enabled' => true, 'expires_at' => $end, 'source' => 'purchase', 'billing' => $months === 0 ? 'one_time' : ($months % 12 === 0 ? 'yearly' : 'monthly')]);
+            // Prix négocié gardé pour les renouvellements : prix mensuel de cette société
+            if ($request->boolean('keep_price') && $months > 0 && $amount > 0) {
+                $cm->price_override = round($amount / $months, 2);
+            }
             $cm->expiry_notice = null;
             $cm->save();
             $key = $module->key;
@@ -233,14 +256,20 @@ class CompanyAdminController extends Controller
         }
         $order = \App\Models\ModuleOrder::create([
             'company_id' => $company->id, 'user_id' => null, 'module_key' => $key, 'billing' => $months === 0 ? 'one_time' : ($months % 12 === 0 ? 'yearly' : 'monthly'),
-            'amount' => (float) ($d['amount'] ?? 0), 'base_amount' => (float) ($d['amount'] ?? 0), 'currency' => config('erp.defaults.currency', 'XOF'), 'status' => 'paid', 'paid_at' => now(),
+            'amount' => $amount, 'base_amount' => $amount, 'currency' => config('erp.defaults.currency', 'XOF'), 'status' => 'paid', 'paid_at' => now(),
+            'payment_method' => $method, 'payer_reference' => $d['reference'] ?? null,
             'period_start' => $start, 'period_end' => $end, 'validated_by' => $request->user()->id, 'kind' => 'new', 'number' => 'TMP-'.uniqid(),
             'notes' => trim('Activation manuelle par '.$request->user()->name.'. '.($d['note'] ?? '')),
         ]);
         $order->update(['number' => sprintf('MAN-%s-%05d', now()->format('Y'), $order->id)]);
         ActivityLog::record('admin.company.grant', $company, ['what' => $key, 'months' => $months, 'order' => $order->number]);
-        rescue(fn () => \App\Platform\PlatformNotifier::grantedByAdmin($company, $label, $end?->format('d/m/Y')), null, false);
+        // Le client reçoit l'e-mail de confirmation avec le reçu PDF (sauf si l'éditeur ne le veut pas)
+        if ($request->boolean('send_receipt', true)) {
+            rescue(fn () => \App\Platform\PlatformNotifier::grantedWithReceipt($company, $order->fresh()), null, false);
+        } else {
+            rescue(fn () => \App\Platform\PlatformNotifier::grantedByAdmin($company, $label, $end?->format('d/m/Y')), null, false);
+        }
 
-        return ['message' => $label.' activé pour '.$company->name.($end ? ' jusqu\'au '.$end->format('d/m/Y') : ' sans date de fin').'.', 'modules' => $this->modules($id, $registry)['data'], 'company' => $company->fresh('plan')];
+        return ['message' => $label.' activé pour '.$company->name.($end ? ' jusqu\'au '.$end->format('d/m/Y') : ' sans date de fin').($request->boolean('send_receipt', true) ? '. Reçu envoyé au client.' : '.'), 'order' => ['id' => $order->id, 'number' => $order->number], 'modules' => $this->modules($id, $registry)['data'], 'company' => $company->fresh('plan')];
     }
 }

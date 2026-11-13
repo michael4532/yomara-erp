@@ -49,6 +49,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
   late final MailStore _s = MailStore(context.read<Session>());
   _View _view = _View(role: 'inbox', title: tr('Boîte de réception'));
   final _search = TextEditingController();
+  final _readerScroll = ScrollController();
   String _q = '';
 
   /// Recherche : dans toutes les boîtes (par défaut, comme Outlook) ou seulement dans le dossier ouvert.
@@ -179,6 +180,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
     _s.arrivals.removeListener(_arrived);
     _s.removeListener(_changed);
     _s.dispose();
+    _readerScroll.dispose();
     super.dispose();
   }
 
@@ -1703,8 +1705,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
       for (final a in (m['attachments'] as List? ?? const []))
         if (a['inline'] != true) asMap(a),
     ];
-    // Conversation : les plus récents d'abord (une réponse envoyée apparaît en haut)
-    final thread = _s.thread(m).where((x) => x['id'] != m['id']).toList().reversed.toList();
     final folder = _s.folder(m['folder_id']);
     final accountFolders = _s.foldersOf(m['account_id'] as int).where((f) => f['id'] != m['folder_id']).toList();
     final partner = asMapOrNull(m['partner']);
@@ -1811,14 +1811,19 @@ class _MailboxScreenState extends State<MailboxScreen> {
             ),
           ),
           if (_openLoading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: box.maxHeight * (box.maxWidth < 560 ? .42 : .5)),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+          // Lecture d'un seul tenant (comme Mail sur iPhone) : en-tête, pièces jointes, actions puis le message en pleine hauteur
+          Expanded(
+            child: Scrollbar(
+              controller: _readerScroll,
+              child: SingleChildScrollView(
+                key: ValueKey('reader-${m['id']}'),
+                controller: _readerScroll,
+                padding: EdgeInsets.fromLTRB(box.maxWidth < 560 ? 14 : 24, 6, box.maxWidth < 560 ? 14 : 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 10, 22, 6),
+                    padding: const EdgeInsets.fromLTRB(0, 6, 0, 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1921,7 +1926,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                             ),
                           ],
                         ),
-                        if (partner != null || m['warning'] != null || atts.isNotEmpty) const SizedBox(height: 10),
+                        if (partner != null || m['warning'] != null) const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -1933,14 +1938,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
                                 visualDensity: VisualDensity.compact,
                                 shape: const StadiumBorder(),
                               ),
-                            for (final a in atts)
-                              ActionChip(
-                                shape: const StadiumBorder(),
-                                visualDensity: VisualDensity.compact,
-                                avatar: Icon(_attIcon('${a['mime']}'), size: 18, color: p.accent),
-                                label: Text(tr('${a['name']} · ${fileSize(a['size'])}')),
-                                onPressed: a['url'] == null ? null : () => safeLaunchUrl(Uri.parse('${a['url']}'), mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank'),
-                              ),
                           ],
                         ),
                         if (m['warning'] != null)
@@ -1951,65 +1948,27 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       ],
                     ),
                   ),
+                    if (atts.isNotEmpty) _attachmentsBlock(atts, box.maxWidth - (box.maxWidth < 560 ? 28 : 48)),
                   MailActionsBar(
-                    message: m,
-                    onAction: (a, [start]) => _mailAction(m, a, start),
-                    onAcceptInvite: () => _do(() async {
-                      final r = await _s.api.post('mailbox/messages/${m['id']}/accept-invite');
-                      if (mounted) toast(context, '${r['message']}');
-                    }),
-                  ),
-                  MailAssistBar(
-                    store: _s,
-                    message: m,
-                    onReply: (body) => openComposer(context, _s, mode: 'reply', original: m, bodyText: '$body\n\n'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: dark ? const Color(0xFF151B26) : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: p.line),
+                      message: m,
+                      onAction: (a, [start]) => _mailAction(m, a, start),
+                      onAcceptInvite: () => _do(() async {
+                        final r = await _s.api.post('mailbox/messages/${m['id']}/accept-invite');
+                        if (mounted) toast(context, '${r['message']}');
+                      }),
+                    ),
+                    MailAssistBar(
+                      store: _s,
+                      message: m,
+                      onReply: (body) => openComposer(context, _s, mode: 'reply', original: m, bodyText: '$body\n\n'),
+                    ),
+                    Divider(height: 26, color: p.line),
+                    MailHtml(key: ValueKey('mail-${m['id']}-${(m['html'] ?? '').hashCode}'), html: html, dark: dark, scroll: _readerScroll),
+                  ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                child: MailHtml(key: ValueKey('mail-${m['id']}-${(m['html'] ?? '').hashCode}'), html: html, dark: dark),
               ),
             ),
           ),
-          if (thread.isNotEmpty)
-            Container(
-              constraints: BoxConstraints(maxHeight: box.maxWidth < 560 ? 96 : 150),
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(color: p.soft, borderRadius: BorderRadius.circular(12)),
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 2),
-                    child: Text(
-                      tr('Conversation (${thread.length + 1} messages)'),
-                      style: TextStyle(color: p.muted, fontWeight: FontWeight.w700, fontSize: 12),
-                    ),
-                  ),
-                  for (final t in thread)
-                    ListTile(
-                      dense: true,
-                      leading: Icon(_s.folder(t['folder_id'])?['role'] == 'sent' ? Icons.call_made : Icons.call_received, size: 16),
-                      title: Text(tr('${(t['from_name'] ?? '').toString().isNotEmpty ? t['from_name'] : t['from_email']} — ${t['snippet'] ?? ''}'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: Text(tr(_shortDate('${t['date']}')), style: TextStyle(color: p.muted, fontSize: 11.5)),
-                      onTap: () => _openMessage(t),
-                    ),
-                ],
-              ),
-            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
             child: Wrap(
@@ -2088,6 +2047,92 @@ class _MailboxScreenState extends State<MailboxScreen> {
       toast(context, '${r['message']}');
       if (r['join_url'] != null) safeLaunchUrl(Uri.parse('${r['join_url']}'), webOnlyWindowName: '_blank');
     });
+  }
+
+  /// Pièces jointes en liste de cartes (nom, type, taille, menu), puis le total et « Enregistrer les pièces jointes ».
+  Widget _attachmentsBlock(List<Map<String, dynamic>> atts, double width) {
+    final p = _p;
+    final cols = width >= 640 ? 3 : (width >= 380 ? 2 : 1);
+    final w = (width - 10 * (cols - 1)) / cols;
+    String kind(Map<String, dynamic> a) {
+      final name = '${a['name'] ?? ''}';
+      final ext = name.contains('.') ? name.split('.').last.toUpperCase() : '';
+      if (ext.isNotEmpty && ext.length <= 5) return ext;
+      final mime = '${a['mime'] ?? ''}';
+      return mime.contains('/') ? mime.split('/').last.toUpperCase() : 'FICHIER';
+    }
+
+    void open(Map<String, dynamic> a) {
+      if (a['url'] != null) safeLaunchUrl(Uri.parse('${a['url']}'), mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank');
+    }
+
+    final total = atts.fold<num>(0, (t, a) => t + (a['size'] is num ? a['size'] as num : 0));
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final a in atts)
+            SizedBox(
+              width: w,
+              child: Material(
+                color: p.dark ? const Color(0xFF1A2130) : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: p.line)),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: a['url'] == null ? null : () => open(a),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 2, 10),
+                    child: Row(children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(color: p.accent.withValues(alpha: .1), borderRadius: BorderRadius.circular(8)),
+                        child: Icon(_attIcon('${a['mime']}'), color: p.accent, size: 21),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(tr('${a['name'] ?? 'pièce jointe'}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600, color: p.ink, fontSize: 14)),
+                          const SizedBox(height: 2),
+                          Text(tr('${kind(a)} - ${fileSize(a['size'])}'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                        ]),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: tr('Options'),
+                        icon: Icon(Icons.more_vert_rounded, color: p.muted, size: 20),
+                        enabled: a['url'] != null,
+                        onSelected: (_) => open(a),
+                        itemBuilder: (_) => [
+                          PopupMenuItem(value: 'open', child: Text(tr('Ouvrir'))),
+                          PopupMenuItem(value: 'save', child: Text(tr('Enregistrer'))),
+                        ],
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Icon(Icons.attach_file_rounded, size: 18, color: p.muted),
+          const SizedBox(width: 6),
+          Text(tr('${atts.length} pièce${atts.length > 1 ? 's' : ''} jointe${atts.length > 1 ? 's' : ''}${total > 0 ? ' (${fileSize(total)})' : ''}'), style: TextStyle(color: p.muted, fontSize: 13.5)),
+        ]),
+        if (atts.any((a) => a['url'] != null))
+          TextButton.icon(
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), foregroundColor: p.accent),
+            onPressed: () async {
+              for (final a in atts) {
+                open(a);
+                await Future<void>.delayed(const Duration(milliseconds: 400));
+              }
+            },
+            icon: const Icon(Icons.download_rounded, size: 19),
+            label: Text(tr(atts.length > 1 ? 'Enregistrer les pièces jointes' : 'Enregistrer la pièce jointe'), style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+      ]),
+    );
   }
 
   static IconData _attIcon(String mime) => mime.startsWith('image/')

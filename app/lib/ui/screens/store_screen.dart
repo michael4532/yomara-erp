@@ -1,4 +1,5 @@
 import 'package:yomara_erp/ui/widgets/adaptive_sheet.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import '../../core/json.dart';
 import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/pdf_viewer.dart';
 import '../../i18n/i18n.dart';
 import '../navigation.dart';
 
@@ -2581,15 +2583,28 @@ class _Orders extends StatelessWidget {
                   Text(tr(money(o['amount'] as num, '${o['currency'] ?? 'XOF'}')), style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   StatusChip('${o['status_label']}', color: orderStatusColor(o['status'])),
+                  if (o['status'] == 'paid') Text(tr('Reçu'), style: const TextStyle(fontSize: 12, color: YColors.blue, fontWeight: FontWeight.w600)),
                 ],
               ),
-              onTap: o['status'] != 'pending'
-                  ? null
-                  : () => o['gateway_online'] == true ? showPendingPayment(context, o, onChanged) : showOfflineInstructions(context, o, '${o['instructions'] ?? ''}', const [], onChanged),
+              onTap: o['status'] == 'paid'
+                  ? () => _openReceipt(context, o)
+                  : o['status'] != 'pending'
+                      ? null
+                      : () => o['gateway_online'] == true ? showPendingPayment(context, o, onChanged) : showOfflineInstructions(context, o, '${o['instructions'] ?? ''}', const [], onChanged),
             ),
           ),
       ],
     );
+  }
+}
+
+/// Reçu PDF d'une commande payée (avec les coordonnées de l'éditeur et le mode de paiement).
+Future<void> _openReceipt(BuildContext context, Map<String, dynamic> o) async {
+  try {
+    final bytes = await context.read<Session>().api.download('store/orders/${o['id']}/receipt');
+    await previewPdf(name: 'Reçu ${o['number']}', onLayout: (_) async => Uint8List.fromList(bytes));
+  } catch (e) {
+    if (context.mounted) toast(context, errorText(e), error: true);
   }
 }
 

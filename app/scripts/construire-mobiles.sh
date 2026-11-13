@@ -74,7 +74,7 @@ if [ "$WHAT" = "tout" ] || [ "$WHAT" = "ios" ]; then
     PBX=ios/Runner.xcodeproj/project.pbxproj
     if ! grep -q "DEVELOPMENT_TEAM = $TEAM;" "$PBX"; then
       perl -0pi -e 's/\s*DEVELOPMENT_TEAM = [A-Z0-9]+;//g' "$PBX"
-      perl -pi -e 's/^(\s*)(PRODUCT_BUNDLE_IDENTIFIER = com\.yomaratechnologies\.yomaraerp;)/$1DEVELOPMENT_TEAM = '"$TEAM"';\n$1$2/' "$PBX"
+      perl -pi -e 's/^(\s*)(PRODUCT_BUNDLE_IDENTIFIER = com\.yomaratechnologies\.yomaraerp(\.widgets)?;)/$1DEVELOPMENT_TEAM = '"$TEAM"';\n$1$2/' "$PBX"
     fi
     PLIST="$ROOT/build/ExportOptions.plist"
     sb_export_ios "$PLIST" "$TEAM"

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -18,7 +19,7 @@ import '../widgets/pdf_viewer.dart';
 import '../widgets/common.dart';
 
 /// Outils de l'éditeur. Les positions sont des fractions de page (0 à 1) : indépendantes du zoom et identiques côté serveur.
-enum _T { select, text, replace, whiteout, highlight, rect, ellipse, line, arrow, pen, signature, image, check, cross, date }
+enum _T { select, edittext, text, replace, whiteout, highlight, rect, ellipse, line, arrow, pen, signature, image, check, cross, date }
 
 class _ToolDef {
   const _ToolDef(this.t, this.label, this.icon, this.hint);
@@ -30,6 +31,7 @@ class _ToolDef {
 
 const _toolDefs = [
   _ToolDef(_T.select, 'Sélection', Icons.near_me_outlined, 'Cliquez un élément pour le déplacer, le redimensionner ou le modifier (double-clic sur un texte).'),
+  _ToolDef(_T.edittext, 'Modifier le texte', Icons.edit_note, 'Tous les textes du PDF sont encadrés : cliquez-en un pour le modifier directement, comme dans Acrobat.'),
   _ToolDef(_T.text, 'Texte', Icons.title, 'Tracez une zone puis écrivez.'),
   _ToolDef(_T.replace, 'Remplacer un texte', Icons.find_replace, 'Encadrez le texte existant : il est masqué et vous écrivez le nouveau à sa place.'),
   _ToolDef(_T.whiteout, 'Masquer', Icons.format_color_reset_outlined, 'Encadrez ce qui doit disparaître (texte, tampon, chiffre…).'),
@@ -92,6 +94,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   int _imgSeq = 0;
 
   _T _tool = _T.select;
+
+  /// Textes du PDF détectés par le serveur (« Modifier le texte ») : page → lignes avec position, taille, police.
+  Map<int, List<Map<String, dynamic>>>? _blocks;
+  bool _blocksLoading = false;
   Map<String, dynamic>? _sel;
   Map<String, dynamic>? _editing; // texte en cours de saisie
   final _textCtl = TextEditingController();
@@ -134,6 +140,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   Future<void> _load(Uint8List bytes, String name) async {
+    _blocks = null;
     setState(() {
       _loading = true;
       _error = null;
@@ -155,6 +162,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         if (i >= 300) break;
       }
       if (_pages.isEmpty) _error = tr('Ce PDF n\'a pas pu être affiché.');
+      // Comme « Modifier le PDF » d'Acrobat : les textes deviennent modifiables dès l'ouverture
+      if (_pages.isNotEmpty && mounted) {
+        setState(() => _tool = _T.edittext);
+        unawaited(_loadBlocks());
+      }
     } catch (e) {
       _error = tr('Ce PDF n\'a pas pu être ouvert (protégé par mot de passe ou endommagé).');
     }
@@ -284,6 +296,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     if (it == null) return;
     setState(() {
       it['text'] = _textCtl.text;
+      // Texte du PDF modifié plus long que l'original : la zone s'élargit (sans dépasser la page) au lieu de passer à la ligne
+      if (it['src'] != null && it['orig_len'] is num && (it['orig_len'] as num) > 0) {
+        final ratio = _textCtl.text.length / (it['orig_len'] as num);
+        final w0 = (it['orig_w'] as num).toDouble();
+        it['w'] = math.min(1 - (it['x'] as num).toDouble(), math.max(w0, w0 * ratio * 1.05));
+      }
       _editing = null;
       // un texte vide sans fond ne sert à rien ; avec fond, c'est un masquage
       if (_textCtl.text.trim().isEmpty && it['bg'] == null) _items.remove(it);
@@ -374,6 +392,50 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     });
     if (t == _T.signature) _makeSignature();
     if (t == _T.image) _pickImage();
+    if (t == _T.edittext && _blocks == null) _loadBlocks();
+  }
+
+  /// Demande au serveur la position de chaque ligne de texte du PDF.
+  Future<void> _loadBlocks() async {
+    final bytes = _bytes;
+    if (bytes == null || _blocksLoading) return;
+    setState(() => _blocksLoading = true);
+    try {
+      final r = asMapLoose(await context.read<Session>().api.upload('pdf/texts', 'files[0]', bytes, _name));
+      final out = <int, List<Map<String, dynamic>>>{};
+      for (final pg in (r['pages'] as List? ?? const [])) {
+        final m = asMapLoose(pg);
+        out[(m['page'] as num).toInt()] = [for (final b in (m['blocks'] as List? ?? const [])) asMapLoose(b)];
+      }
+      if (!mounted) return;
+      setState(() => _blocks = out);
+      if (r['has_text'] != true) {
+        toast(context, tr('Ce PDF ne contient pas de texte modifiable (document scanné ou image) : utilisez « Remplacer un texte » pour écrire par-dessus.'), error: true);
+      }
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _blocksLoading = false);
+    }
+  }
+
+  /// Un texte du PDF cliqué : il devient une zone modifiable à la même place, même taille, même graisse (l'ancien est masqué).
+  void _editBlock(int page, int i, Map<String, dynamic> b) {
+    _finishEditing();
+    final key = '$page:$i';
+    final existing = _items.where((x) => x['src'] == key).firstOrNull;
+    if (existing != null) {
+      setState(() => _startEditing(existing));
+      return;
+    }
+    _commit();
+    final it = <String, dynamic>{
+      'type': 'text', 'page': page, 'x': b['x'], 'y': b['y'], 'w': b['w'], 'h': b['h'], 'text': '${b['text']}', 'size': b['size'],
+      'color': _color, 'bold': b['bold'] == true, 'italic': b['italic'] == true, 'font': '${b['font'] ?? 'helvetica'}', 'align': 'L', 'bg': '#FFFFFF',
+      'src': key, 'orig_w': b['w'], 'orig_len': '${b['text']}'.length,
+    };
+    setState(() => _items.add(it));
+    _startEditing(it);
   }
 
   /// Applique un réglage à l'élément sélectionné (et le garde pour les suivants).
@@ -407,8 +469,28 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         }
         items.add(c);
       }
+      // Carte des textes à jour (lignes modifiées remplacées, textes ajoutés) : le PDF enregistré reste modifiable ligne par ligne
+      final blocks = _blocks == null
+          ? null
+          : [
+              for (final page in {..._blocks!.keys, for (final it in _items) if (it['type'] == 'text') (it['page'] as num).toInt()}.toList()..sort())
+                {
+                  'page': page,
+                  'blocks': [
+                    for (final (i, b) in (_blocks![page] ?? const <Map<String, dynamic>>[]).indexed)
+                      if (_items.where((x) => x['src'] == '$page:$i').firstOrNull case final it?)
+                        if ('${it['text']}'.trim().isNotEmpty) {for (final k in const ['x', 'y', 'w', 'h', 'size', 'font', 'bold', 'italic', 'text']) k: it[k]} else ...[]
+                      else
+                        b,
+                    for (final it in _items)
+                      if (it['type'] == 'text' && it['src'] == null && it['page'] == page && '${it['text']}'.trim().isNotEmpty)
+                        {for (final k in const ['x', 'y', 'w', 'h', 'size', 'font', 'bold', 'italic', 'text']) k: it[k]},
+                  ],
+                },
+            ];
       final options = {
         'items': items,
+        'blocks': ?blocks,
         'pages': {
           'delete': [for (final p in _pages) if (p.deleted) p.index],
           'rotate': {for (final p in _pages) if (p.rotation != 0) '${p.index}': p.rotation},
@@ -865,6 +947,18 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   height: (it['h'] as num) * ph,
                   child: IgnorePointer(child: Opacity(opacity: ((it['opacity'] as num?) ?? 1).toDouble().clamp(.05, 1), child: Image.memory(_imgs[it['img']]!, fit: BoxFit.contain))),
                 ),
+            // « Modifier le texte » : chaque ligne de texte du PDF est encadrée et se modifie d'un clic
+            if (_tool == _T.edittext && _blocks != null)
+              for (final (i, b) in (_blocks![p.index] ?? const <Map<String, dynamic>>[]).indexed)
+                if (!_items.any((x) => x['src'] == '${p.index}:$i'))
+                  Positioned(
+                    left: (b['x'] as num) * pw - 2,
+                    top: (b['y'] as num) * ph - 1,
+                    width: math.max(8, (b['w'] as num) * pw + 4),
+                    height: math.max(8, (b['h'] as num) * ph + 2),
+                    child: _TextBlockTarget(onTap: () => _editBlock(p.index, i, b)),
+                  ),
+            if (_tool == _T.edittext && _blocksLoading) const Positioned(left: 0, right: 0, top: 0, child: LinearProgressIndicator(minHeight: 3)),
             if (_sel != null && _sel!['page'] == p.index && _editing == null) ..._handles(_sel!, pw, ph),
             if (_editing != null && _editing!['page'] == p.index) _editor(_editing!, pw, ph),
           ]),
@@ -1079,6 +1173,39 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 }
 
 String? _family(String f) => switch (f) { 'times' => 'serif', 'courier' => 'monospace', _ => null };
+
+Map<String, dynamic> asMapLoose(dynamic v) => v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+/// Cadre d'une ligne de texte du PDF : discret, plus visible au survol, cliquable.
+class _TextBlockTarget extends StatefulWidget {
+  const _TextBlockTarget({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  State<_TextBlockTarget> createState() => _TextBlockTargetState();
+}
+
+class _TextBlockTargetState extends State<_TextBlockTarget> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+        cursor: SystemMouseCursors.text,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: YColors.blue.withValues(alpha: _hover ? .12 : .04),
+              border: Border.all(color: YColors.blue.withValues(alpha: _hover ? .9 : .35), width: _hover ? 1.5 : 1),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      );
+}
 
 class _ItemsPainter extends CustomPainter {
   _ItemsPainter(this.items, this.cache, this.pw, this.ph, this.editing);

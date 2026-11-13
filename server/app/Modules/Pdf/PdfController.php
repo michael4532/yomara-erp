@@ -9,7 +9,7 @@ use Illuminate\Http\UploadedFile;
 
 class PdfController extends Controller
 {
-    public const OPS = ['info', 'merge', 'split', 'organize', 'rotate', 'watermark', 'edit', 'annotate', 'numbers', 'protect', 'unlock', 'images'];
+    public const OPS = ['info', 'texts', 'merge', 'split', 'organize', 'rotate', 'watermark', 'edit', 'annotate', 'numbers', 'protect', 'unlock', 'images'];
 
     protected function pdfFile(UploadedFile $f): string
     {
@@ -50,7 +50,7 @@ class PdfController extends Controller
         $r->validate([
             'files' => 'nullable|array|max:30', 'files.*' => 'file|max:51200',
             'images' => 'nullable|array|max:60', 'images.*' => 'file|max:15360',
-            'image' => 'nullable|file|max:15360', 'options' => 'nullable|string|max:20000',
+            'image' => 'nullable|file|max:15360', 'options' => 'nullable|string|max:3000000',
         ]);
         $o = json_decode((string) $r->input('options', '{}'), true) ?: [];
         @set_time_limit(180);
@@ -62,12 +62,13 @@ class PdfController extends Controller
             }
             $out = match ($op) {
                 'info' => $pdf->info($files[0]),
+                'texts' => $pdf->texts($files[0]),
                 'merge' => $pdf->merge($files, (array) ($o['ranges'] ?? [])),
                 'organize' => $pdf->organize($files[0], $o['order'] ?? null, (array) ($o['rotations'] ?? [])),
                 'rotate' => $pdf->rotate($files[0], (int) ($o['angle'] ?? 90), $o['pages'] ?? null),
                 'split' => $pdf->split($files[0], $o['groups'] ?? null, (int) ($o['every'] ?? 0)),
                 'watermark' => $pdf->watermark($files[0], ['image' => $this->imageFile($r->file('image'))] + $o),
-                'edit' => $pdf->edit($files[0], $this->items($r, (array) ($o['items'] ?? []), 800), (array) ($o['pages'] ?? [])),
+                'edit' => $pdf->edit($files[0], $this->items($r, (array) ($o['items'] ?? []), 800), (array) ($o['pages'] ?? []), isset($o['blocks']) && is_array($o['blocks']) ? $o['blocks'] : null),
                 'annotate' => $pdf->annotate($files[0], $this->items($r, (array) ($o['items'] ?? []))),
                 'numbers' => $pdf->numbers($files[0], $o),
                 'protect' => $pdf->protect($files[0], (string) ($o['password'] ?? ''), $o['owner_password'] ?? null, (array) ($o['allow'] ?? [])),
@@ -78,7 +79,7 @@ class PdfController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
         ActivityLog::record('pdf.'.$op, null, ['files' => count($r->file('files') ?? []) + count($r->file('images') ?? [])]);
-        if ($op === 'info') {
+        if ($op === 'info' || $op === 'texts') {
             return $out;
         }
         if (is_array($out)) {

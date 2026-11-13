@@ -108,7 +108,7 @@ class InvoiceVatTest extends TestCase
         $this->assertSame('prestige', \App\Modules\Ventes\Models\SalesDocument::withoutGlobalScopes()->find($id)->template);
 
         // Modèles premium et studio : achat définitif dans la boutique, jamais réalignés sur un abonnement
-        foreach (['modele_prestige' => 10000, 'modele_horizon' => 10000, 'modele_offre' => 10000, 'modele_ivoire' => 15000, 'modele_executive' => 20000, 'modele_onyx' => 20000, 'modele_royal' => 20000, 'modele_atelier' => 15000, 'modele_lagon' => 15000, 'modele_geometrie' => 15000, 'modele_monochrome' => 10000, 'modele_kente' => 15000, 'modele_oblique' => 15000, 'modele_azur' => 10000, 'modele_savane' => 15000, 'modele_sante' => 10000, 'modeles_collection' => 60000, 'modeles_studio' => 15000] as $key => $price) {
+        foreach (['modele_prestige' => 10000, 'modele_horizon' => 10000, 'modele_offre' => 10000, 'modele_ivoire' => 15000, 'modele_executive' => 20000, 'modele_onyx' => 20000, 'modele_royal' => 20000, 'modele_atelier' => 15000, 'modele_lagon' => 15000, 'modele_geometrie' => 15000, 'modele_monochrome' => 10000, 'modele_kente' => 15000, 'modele_oblique' => 15000, 'modele_azur' => 10000, 'modele_savane' => 15000, 'modele_sante' => 10000, 'modele_emeraude' => 15000, 'modele_corail' => 10000, 'modele_minuit' => 15000, 'modeles_collection' => 60000, 'modeles_studio' => 15000] as $key => $price) {
             $m = \App\Models\Module::where('key', $key)->first();
             $this->assertNotNull($m, $key);
             $this->assertSame(['one_time' => (float) $price], $m->offers());

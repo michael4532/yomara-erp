@@ -64,8 +64,17 @@ String? kioskNumberUsedBy(int kk, String name) {
 
 /// Logo de la société pour la borne et ses tickets : téléchargé au démarrage et gardé sur l'appareil (hors ligne).
 Future<Uint8List?> kioskLogo(Session s) async {
-  final url = '${s.company['logo_url'] ?? ''}';
+  final url = '${s.company['logo'] ?? ''}';
   if (url.isEmpty) return null;
+  // Logo intégré (data:image/png;base64,…)
+  if (url.startsWith('data:image') && url.contains(',')) {
+    try {
+      return base64Decode(url.substring(url.indexOf(',') + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+  if (!url.startsWith('http')) return null;
   try {
     final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
     if (r.statusCode == 200 && r.bodyBytes.isNotEmpty && r.bodyBytes.length < 3000000) {

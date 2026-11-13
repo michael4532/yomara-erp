@@ -27,7 +27,7 @@ class MarketingStudioController extends Controller
 
     public function layouts()
     {
-        return ['data' => EmailLayouts::all()];
+        return ['data' => EmailLayouts::all(), 'texts' => EmailLayouts::texts()];
     }
 
     public function rss(Request $r)

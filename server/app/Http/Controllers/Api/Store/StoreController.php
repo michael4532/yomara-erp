@@ -180,6 +180,15 @@ class StoreController extends Controller
         return ['order' => $this->orderArray($order)];
     }
 
+    /** Reçu PDF d'une commande payée de la société. */
+    public function receipt(int $id)
+    {
+        $o = ModuleOrder::whereIn('company_id', $this->ownedCompanyIds())->findOrFail($id);
+        abort_unless($o->status === 'paid', 422, 'Cette commande n\'est pas payée.');
+
+        return response(\App\Platform\OrderReceipt::pdf($o), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.\App\Platform\OrderReceipt::filename($o).'"']);
+    }
+
     public function cancel(int $id)
     {
         $order = $this->mine($id);

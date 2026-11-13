@@ -1,3 +1,4 @@
+import '../core/home_widgets.dart';
 import 'package:yomara_erp/ui/widgets/mail_alerts.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -283,6 +284,7 @@ class Session extends ChangeNotifier {
     try {
       final res = Map<String, dynamic>.from(await api.get('bootstrap'));
       bootstrap = res;
+      HomeWidgets.company = '${res['company']?['name'] ?? ''}';
       // Langue : celle choisie par l'utilisateur, sinon celle de la société
       final loc = (res['user']?['locale'] as String?) ?? (res['company']?['settings']?['locale'] as String?);
       if (loc != null && loc != I18n.lang && I18n.languages.containsKey(loc)) {
@@ -393,6 +395,7 @@ class Session extends ChangeNotifier {
 
   Future<void> _logout({required bool remote, bool? wipe}) async {
     MailAlerts.clear(); // les alertes de messagerie ne passent pas à la personne suivante
+    unawaited(HomeWidgets.clear()); // ni les chiffres de la société sur l'écran d'accueil
     if (remote) {
       // Les modifications non envoyées restent stockées localement
       try {

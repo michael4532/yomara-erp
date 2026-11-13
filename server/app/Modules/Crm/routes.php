@@ -19,6 +19,7 @@ Route::middleware('perm:crm.view,crm.manage')->group(function () {
 
 Route::middleware('perm:crm.view,crm.manage')->group(function () {
     Route::get('sequences', [Seq::class, 'index']);
+    Route::get('sequences/library', [Seq::class, 'library']);
     Route::get('leads/{lead}/sequence', [Seq::class, 'leadRuns'])->whereUuid('lead');
 });
 Route::middleware('perm:crm.manage')->group(function () {

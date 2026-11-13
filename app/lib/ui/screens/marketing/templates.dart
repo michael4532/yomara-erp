@@ -59,6 +59,11 @@ class TemplatesTab extends StatelessWidget {
     if (channel == 'email' && start == 'layout') {
       layout = await pickLayout(context);
       if (layout == null || !context.mounted) return;
+    } else if (channel != 'email') {
+      // SMS / WhatsApp : message prêt à l'emploi ou message vide
+      final picked = await pickTextTemplate(context);
+      if (picked == null || !context.mounted) return;
+      if (picked.isNotEmpty) layout = picked;
     }
     try {
       final t = mkMap(await context.read<Session>().api.post('marketing/templates', {
@@ -208,4 +213,54 @@ class _TemplateScreenState extends State<TemplateScreen> {
       body: _t == null ? const Center(child: CircularProgressIndicator()) : ContentEditor(key: _editor, initial: _t!),
     );
   }
+}
+
+/// Messages SMS / WhatsApp prêts à l'emploi. Renvoie {} pour un message vide, null si annulé.
+Future<Map<String, dynamic>?> pickTextTemplate(BuildContext context) async {
+  List<Map<String, dynamic>> texts;
+  try {
+    texts = mkList(mkMap(await context.read<Session>().api.get('marketing/layouts'))['texts']);
+  } catch (e) {
+    if (context.mounted) toast(context, errorText(e), error: true);
+    return null;
+  }
+  if (!context.mounted) return null;
+  var cat = '';
+  final cats = [for (final c in {for (final t in texts) '${t['category']}'}) c];
+  return showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) => YAlertDialog(
+        title: Text(tr('Partir d\'un message prêt à l\'emploi')),
+        content: SizedBox(
+          width: 620,
+          height: 520,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              ChoiceChip(label: Text(tr('Tous')), selected: cat.isEmpty, onSelected: (_) => set(() => cat = '')),
+              for (final k in cats) ChoiceChip(label: Text(tr(k)), selected: cat == k, onSelected: (_) => set(() => cat = k)),
+            ]),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView(children: [
+                for (final t in texts.where((t) => cat.isEmpty || t['category'] == cat))
+                  Card(
+                    child: ListTile(
+                      onTap: () => Navigator.pop(c, t),
+                      title: Text(tr('${t['name']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(verbatim('${t['text']}'))),
+                      trailing: Text(tr('${t['category']}'), style: const TextStyle(color: YColors.blue, fontSize: 12)),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+          OutlinedButton(onPressed: () => Navigator.pop(c, <String, dynamic>{}), child: Text(tr('Message vide'))),
+        ],
+      ),
+    ),
+  );
 }

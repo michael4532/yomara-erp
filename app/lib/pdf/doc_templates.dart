@@ -127,6 +127,28 @@ const builtinTemplates = <DocTemplate>[
     tags: ['Facture', 'Devis'],
   ),
   DocTemplate(
+    id: 'ardoise',
+    name: 'Ardoise',
+    description: 'Cartouche gris ardoise et bleu ciel, lignes claires : moderne et lisible.',
+    style: {'primary': '#334155', 'accent': '#0EA5E9', 'font': 'inter', 'header': 'box', 'table': 'light', 'totals': 'line', 'radius': 8},
+    tags: ['Facture', 'Devis', 'Gratuit'],
+  ),
+  DocTemplate(
+    id: 'sobre',
+    name: 'Sobre',
+    description: 'Titres à empattements, filets fins, noir et bordeaux : élégant sans couleur vive.',
+    style: {'primary': '#1F2937', 'accent': '#7A1F2B', 'font': 'inter', 'title_font': 'lora', 'header': 'plain', 'table': 'lines', 'totals': 'line', 'radius': 0},
+    tags: ['Facture', 'Honoraires', 'Gratuit'],
+  ),
+  DocTemplate(
+    id: 'fraicheur',
+    family: 'Moderne',
+    name: 'Fraîcheur',
+    description: 'Grand titre, montant dû en avant, vert d\'eau : clair et actuel.',
+    style: {'primary': '#0F766E', 'accent': '#2DD4BF', 'font': 'poppins', 'header': 'stacked', 'table': 'light', 'totals': 'solid', 'radius': 10},
+    tags: ['Facture', 'Proforma', 'Gratuit'],
+  ),
+  DocTemplate(
     id: 'prestige',
     family: 'Luxe',
     name: 'Prestige',
@@ -301,6 +323,36 @@ const builtinTemplates = <DocTemplate>[
     price: 10000,
     tags: ['Facture', 'Santé', 'Métiers'],
   ),
+  DocTemplate(
+    id: 'emeraude',
+    family: 'Luxe',
+    name: 'Émeraude',
+    description: 'Bandeau vert émeraude et or, titres à empattements, filigrane du logo : agro-industrie, banques, hôtels.',
+    style: {'primary': '#0E6B4F', 'accent': '#D4AF37', 'font': 'inter', 'title_font': 'playfair', 'header': 'overlay', 'decor': 'band', 'table': 'lines', 'totals': 'solid', 'radius': 2, 'watermark': true},
+    module: 'modele_emeraude',
+    price: 15000,
+    tags: ['Facture', 'Proforma', 'Luxe'],
+  ),
+  DocTemplate(
+    id: 'corail',
+    family: 'Créatif',
+    name: 'Corail',
+    description: 'Vague corail et soleil, police géométrique : mode, beauté, événementiel.',
+    style: {'primary': '#E4572E', 'accent': '#FFB703', 'font': 'poppins', 'header': 'overlay', 'decor': 'wave', 'table': 'striped', 'totals': 'solid', 'radius': 10},
+    module: 'modele_corail',
+    price: 10000,
+    tags: ['Facture', 'Devis', 'Créatif'],
+  ),
+  DocTemplate(
+    id: 'minuit',
+    family: 'Corporate',
+    name: 'Minuit',
+    description: 'Bandeau oblique noir et jaune, grand contraste : sécurité, transport, énergie.',
+    style: {'primary': '#111827', 'accent': '#FFC531', 'font': 'inter', 'title_font': 'poppins', 'header': 'overlay', 'decor': 'diagonal', 'table': 'dark', 'totals': 'line', 'radius': 2},
+    module: 'modele_minuit',
+    price: 15000,
+    tags: ['Facture', 'Marchés', 'Corporate'],
+  ),
 ];
 
 /// Collection premium : un seul achat débloque tous les modèles premium, présents et à venir.
@@ -317,9 +369,13 @@ List<Map<String, dynamic>> customTemplates(Session s) =>
 DocTemplate? builtinById(String? id) => builtinTemplates.where((t) => t.id == id).firstOrNull;
 
 /// Modèle utilisable ? (gratuit, premium acheté ou modèle de la société)
+/// Studio de modèles disponible : module acheté, ou super administrateur.
+bool templateStudioUnlocked(Session s) => s.isSuperAdmin || s.hasModule(templateStudioModule);
+
 bool templateUnlocked(Session s, String id) {
   final b = builtinById(id);
-  if (b != null) return b.module == null || s.hasModule(b.module!) || s.hasModule(templateCollectionModule);
+  // Le super administrateur (éditeur) a toute la galerie, pour présenter et tester chaque modèle
+  if (b != null) return b.module == null || s.isSuperAdmin || s.hasModule(b.module!) || s.hasModule(templateCollectionModule);
   return customTemplates(s).any((t) => t['id'] == id);
 }
 

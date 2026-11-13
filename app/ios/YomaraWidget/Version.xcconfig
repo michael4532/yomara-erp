@@ -1,0 +1,3 @@
+// Numéro de version de l'application (FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER) repris par le widget,
+// sans les bibliothèques de l'application (un widget ne peut pas charger Flutter).
+#include? "../Flutter/Generated.xcconfig"

@@ -36,8 +36,18 @@ class SequenceController extends Controller
             'channels' => Sequences::CHANNELS, 'vars' => Sequences::VARS];
     }
 
+    /** Bibliothèque de relances prêtes à l'emploi (à copier puis adapter). */
+    public function library()
+    {
+        return ['data' => array_map(fn ($p) => $p + ['steps' => Sequences::validateSteps($p['steps'])], SequenceLibrary::all())];
+    }
+
     protected function data(Request $r, bool $creating): array
     {
+        // Création depuis la bibliothèque : nom, description et étapes du modèle, que le client modifie ensuite
+        if ($creating && $r->filled('preset') && ($p = SequenceLibrary::find((string) $r->input('preset')))) {
+            $r->merge(['name' => $r->input('name') ?: $p['name'], 'description' => $r->input('description') ?? $p['description'], 'steps' => $r->input('steps') ?: $p['steps']]);
+        }
         $d = $r->validate(['name' => ($creating ? 'required' : 'sometimes').'|string|max:150', 'description' => 'nullable|string|max:1000', 'active' => 'sometimes|boolean', 'steps' => ($creating ? 'required' : 'sometimes').'|array']);
         if (array_key_exists('steps', $d)) {
             $d['steps'] = json_encode(Sequences::validateSteps($d['steps']), JSON_UNESCAPED_UNICODE);

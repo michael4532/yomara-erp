@@ -134,6 +134,141 @@ class PdfService
         return ['pages' => $n, 'size' => filesize($path), 'first_pages' => $sizes];
     }
 
+    /**
+     * Textes de chaque page avec leur position, pour « Modifier le texte » (comme Acrobat) : lignes reconstituées
+     * à partir des morceaux de texte du PDF, en fractions de page (origine en haut à gauche), taille, police, gras, italique.
+     * Les PDF numérisés (images) n'ont pas de texte : la liste est vide.
+     */
+    public function texts(string $path, int $maxPages = 40): array
+    {
+        // PDF déjà modifié dans l'éditeur : la carte de ses textes y a été rangée (métadonnées), avec les modifications
+        $saved = self::savedBlocks((string) @file_get_contents($path));
+        if ($saved !== null) {
+            return ['pages' => $saved, 'has_text' => true, 'source' => 'saved'];
+        }
+        $config = new \Smalot\PdfParser\Config();
+        $config->setDataTmFontInfoHasToBeIncluded(true);
+        try {
+            $doc = (new \Smalot\PdfParser\Parser([], $config))->parseFile($path);
+        } catch (\Throwable $e) {
+            $this->fail('Lecture du texte impossible : PDF protégé ou endommagé.');
+        }
+        $out = [];
+        $total = 0;
+        foreach (array_slice($doc->getPages(), 0, $maxPages) as $i => $page) {
+            $box = $page->getDetails()['MediaBox'] ?? null;
+            $box = is_array($box) && count($box) === 4 ? array_map('floatval', array_values($box)) : [0, 0, 595.28, 841.89];
+            $pw = max(1, $box[2] - $box[0]);
+            $ph = max(1, $box[3] - $box[1]);
+            $fonts = [];
+            try {
+                $data = $page->getDataTm();
+            } catch (\Throwable) {
+                $data = [];
+            }
+            $runs = [];
+            foreach ($data as $d) {
+                [$tm, $text] = [$d[0] ?? null, (string) ($d[1] ?? '')];
+                if (! is_array($tm) || count($tm) < 6 || trim($text) === '') {
+                    continue;
+                }
+                $tm = array_map('floatval', $tm);
+                if (abs($tm[1]) > .01 || abs($tm[2]) > .01) {
+                    continue; // texte tourné : laissé tel quel
+                }
+                $fs = abs((float) ($d[3] ?? 1)) * abs($tm[3] ?: 1);
+                if ($fs < 2 || $fs > 300) {
+                    continue;
+                }
+                $fid = (string) ($d[2] ?? '');
+                if (! array_key_exists($fid, $fonts)) {
+                    try {
+                        $fonts[$fid] = (string) ($page->getFont($fid)?->getName() ?? '');
+                    } catch (\Throwable) {
+                        $fonts[$fid] = '';
+                    }
+                }
+                $name = $fonts[$fid];
+                $bold = (bool) preg_match('/bold|black|heavy|semibold|demi/i', $name);
+                $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', $text) ?? '';
+                $runs[] = ['x' => $tm[4] - $box[0], 'y' => $tm[5] - $box[1], 'fs' => $fs, 'text' => $text, 'bold' => $bold,
+                    'italic' => (bool) preg_match('/italic|oblique/i', $name),
+                    'font' => preg_match('/times|serif|georgia|garamond|cambria|book/i', $name) && ! preg_match('/sans/i', $name) ? 'times' : (preg_match('/courier|mono/i', $name) ? 'courier' : 'helvetica'),
+                    'w' => mb_strlen($text) * $fs * ($bold ? .56 : .52)];
+            }
+            // Texte enfermé dans un bloc graphique (PDF déjà réassemblé) : positions illisibles, on n'invente rien
+            if (count($runs) > 1 && count(array_unique(array_map(fn ($r) => round($r['x'], 1).':'.round($r['y'], 1), $runs))) === 1) {
+                $runs = [];
+            }
+            // Lignes : même ligne de base, morceaux proches les uns des autres
+            usort($runs, fn ($a, $b) => [round(-$a['y'], 1), $a['x']] <=> [round(-$b['y'], 1), $b['x']]);
+            $lines = [];
+            foreach ($runs as $r) {
+                $last = $lines ? count($lines) - 1 : -1;
+                $l = $last >= 0 ? $lines[$last] : null;
+                if ($l && abs($l['y'] - $r['y']) < $l['fs'] * .35 && abs($l['fs'] - $r['fs']) < $l['fs'] * .3
+                    && $r['x'] >= $l['x'] - 1 && $r['x'] <= $l['x'] + $l['w'] + $l['fs'] * 1.6) {
+                    $gap = $r['x'] - ($l['x'] + $l['w']);
+                    $lines[$last]['text'] .= ($gap > $l['fs'] * .18 && ! str_ends_with($l['text'], ' ') && ! str_starts_with($r['text'], ' ') ? ' ' : '').$r['text'];
+                    $lines[$last]['w'] = max($l['w'], $r['x'] + $r['w'] - $l['x']);
+                    $lines[$last]['bold'] = $l['bold'] && $r['bold'];
+                } else {
+                    $lines[] = $r;
+                }
+            }
+            $blocks = [];
+            foreach ($lines as $l) {
+                $t = trim(preg_replace('/\s+/u', ' ', $l['text']) ?? '');
+                if ($t === '' || ! mb_check_encoding($t, 'UTF-8')) {
+                    continue;
+                }
+                $top = $ph - $l['y'] - $l['fs'] * .9;
+                $blocks[] = [
+                    'x' => round(max(0, $l['x'] - $l['fs'] * .08) / $pw, 5), 'y' => round(max(0, $top) / $ph, 5),
+                    'w' => round(min(1, ($l['w'] + $l['fs'] * .3) / $pw), 5), 'h' => round(min(1, $l['fs'] * 1.22 / $ph), 5),
+                    'text' => $t, 'size' => round($l['fs'] / $ph, 5), 'font' => $l['font'], 'bold' => $l['bold'], 'italic' => $l['italic'],
+                ];
+                if (++$total >= 6000) {
+                    break 2;
+                }
+            }
+            $out[] = ['page' => $i + 1, 'blocks' => $blocks];
+        }
+
+        return ['pages' => $out, 'has_text' => $total > 0];
+    }
+
+    /** Carte des textes rangée par l'éditeur dans un PDF qu'il a produit (null si absente ou illisible). */
+    public static function savedBlocks(string $raw): ?array
+    {
+        if (! preg_match('#<yomara:blocks>([A-Za-z0-9+/=]{10,})</yomara:blocks>#', $raw, $m)) {
+            return null;
+        }
+        $pages = json_decode((string) base64_decode($m[1], true), true);
+        if (! is_array($pages)) {
+            return null;
+        }
+        $out = [];
+        foreach (array_slice($pages, 0, 300) as $pg) {
+            if (! is_array($pg) || ! isset($pg['page'])) {
+                continue;
+            }
+            $blocks = [];
+            foreach (array_slice((array) ($pg['blocks'] ?? []), 0, 3000) as $b) {
+                if (! is_array($b) || ! isset($b['text'])) {
+                    continue;
+                }
+                $n = fn ($k) => round(max(0, min(1, (float) ($b[$k] ?? 0))), 5);
+                $blocks[] = ['x' => $n('x'), 'y' => $n('y'), 'w' => $n('w'), 'h' => $n('h'), 'size' => $n('size'), 'text' => mb_substr((string) $b['text'], 0, 2000),
+                    'font' => in_array($b['font'] ?? '', ['helvetica', 'times', 'courier', 'dejavusans'], true) ? $b['font'] : 'helvetica',
+                    'bold' => (bool) ($b['bold'] ?? false), 'italic' => (bool) ($b['italic'] ?? false)];
+            }
+            $out[] = ['page' => (int) $pg['page'], 'blocks' => $blocks];
+        }
+
+        return $out;
+    }
+
     /** Fusion de plusieurs PDF (et pages choisies de chacun). */
     public function merge(array $files, array $ranges = []): string
     {
@@ -315,10 +450,18 @@ class PdfService
      * Types : text (avec fond facultatif pour remplacer un texte existant), whiteout, rect, ellipse, highlight, line, arrow, ink (dessin, signature), image.
      * $pages : ['delete' => [3, 5], 'rotate' => ['2' => 90]] appliqués en même temps.
      */
-    public function edit(string $path, array $items, array $pages = []): string
+    public function edit(string $path, array $items, array $pages = [], ?array $blocks = null): string
     {
         $pdf = $this->blank();
         $n = $this->open($pdf, $path);
+        // Carte des textes à jour (pages ni supprimées ni tournées) : le PDF reste modifiable texte par texte à la réouverture
+        if ($blocks && empty($pages['delete']) && empty(array_filter((array) ($pages['rotate'] ?? [])))) {
+            $map = self::savedBlocks('<yomara:blocks>'.base64_encode((string) json_encode($blocks)).'</yomara:blocks>');
+            $json = $map ? base64_encode((string) json_encode($map, JSON_UNESCAPED_UNICODE)) : '';
+            if ($json !== '' && strlen($json) < 3_000_000) {
+                $pdf->setExtraXMPRDF('<rdf:Description rdf:about="" xmlns:yomara="https://yomara.ci/ns/pdf/1.0/"><yomara:blocks>'.$json.'</yomara:blocks></rdf:Description>');
+            }
+        }
         $delete = array_map('intval', (array) ($pages['delete'] ?? []));
         count(array_diff(range(1, $n), $delete)) > 0 || $this->fail('Vous ne pouvez pas supprimer toutes les pages.');
         $rot = (array) ($pages['rotate'] ?? []);

@@ -1,0 +1,28 @@
+# Yomara ERP — contrôle de la compilation iPhone (sans signature), avec le widget d'écran d'accueil, lancé à la demande.
+# Ne publie rien et n'utilise aucun secret. Ajoute la cible du widget au projet Xcode si besoin
+# (outil xcodeproj de CocoaPods) et garde le projet obtenu en artefact.
+#
+# Copyright © 2026 Yomara Technologies — licence AGPL-3.0 (voir LICENSE et NOTICE.md).
+name: Contrôle iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '3.47.9', channel: stable, cache: true }
+      - run: flutter pub get
+      - name: Cible du widget dans le projet Xcode
+        run: ruby scripts/ajouter-widget-ios.rb
+      - name: Projet Xcode obtenu
+        uses: actions/upload-artifact@v4
+        with: { name: xcodeproj, path: app/ios/Runner.xcodeproj/project.pbxproj }
+      - name: Application iPhone (sans signature)
+        run: flutter build ios --release --no-codesign --no-tree-shake-icons

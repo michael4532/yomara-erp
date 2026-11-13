@@ -9,8 +9,20 @@ class ModuleOrder extends Model
 {
     protected $fillable = [
         'company_id', 'user_id', 'number', 'module_key', 'billing', 'amount', 'currency', 'status', 'gateway_id',
-        'payer_reference', 'notes', 'paid_at', 'validated_by', 'period_start', 'period_end', 'items', 'promo_code_id', 'discount', 'base_amount', 'kind', 'credit_used',
+        'payer_reference', 'notes', 'paid_at', 'validated_by', 'period_start', 'period_end', 'items', 'promo_code_id', 'discount', 'base_amount', 'kind', 'credit_used', 'payment_method',
     ];
+
+    /** Modes de paiement d'une activation manuelle par l'éditeur. */
+    public const PAYMENT_METHODS = [
+        'cash' => 'Espèces', 'orange_money' => 'Orange Money', 'mtn_momo' => 'MTN Mobile Money', 'moov_money' => 'Moov Money', 'wave' => 'Wave',
+        'bank_transfer' => 'Virement bancaire', 'cheque' => 'Chèque', 'card' => 'Carte bancaire', 'free' => 'Offert',
+    ];
+
+    /** Mode de paiement en clair : choisi à l'activation manuelle, sinon le moyen de paiement de la boutique. */
+    public function paymentLabel(): string
+    {
+        return self::PAYMENT_METHODS[$this->payment_method] ?? $this->gateway?->label ?? ($this->amount > 0 ? 'Paiement direct' : 'Offert');
+    }
 
     public const BILLINGS = ['one_time' => 'Achat définitif', 'monthly' => 'Abonnement mensuel', 'yearly' => 'Abonnement annuel'];
 

@@ -68,6 +68,30 @@ class _CrmSequencesViewState extends State<CrmSequencesView> {
     }
   }
 
+  /// Bibliothèque de relances prêtes à l'emploi : le modèle choisi est copié puis ouvert pour être adapté.
+  Future<void> _library() async {
+    final api = context.read<Session>().api;
+    List<Map<String, dynamic>> lib;
+    try {
+      lib = [for (final x in (asMap(await api.get('crm/sequences/library'))['data'] as List? ?? const [])) asMap(x)];
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+      return;
+    }
+    if (!mounted) return;
+    final picked = await showDialog<Map<String, dynamic>>(context: context, builder: (_) => _SequenceLibraryDialog(items: lib));
+    if (picked == null || !mounted) return;
+    try {
+      final r = asMap(await api.post('crm/sequences', {'preset': picked['key']}));
+      await _load();
+      if (!mounted) return;
+      toast(context, tr('« ${picked['name']} » ajoutée à vos relances : adaptez les messages à votre entreprise.'));
+      await _edit(asMap(r['data']));
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
   Future<void> _edit([Map<String, dynamic>? seq]) async {
     final ok = await showFormDialog<bool>(context, title: seq == null ? 'Nouvelle relance automatique' : 'Relance automatique', maxWidth: 688, builder: (_) => _SequenceEditor(seq: seq));
     if (ok == true) _load();
@@ -84,11 +108,20 @@ class _CrmSequencesViewState extends State<CrmSequencesView> {
           child: Text(tr('Une suite de messages et de tâches envoyés tout seuls à un prospect (J0, J+2, J+5…). Elle s\'arrête quand l\'affaire est gagnée ou perdue.'),
               style: const TextStyle(color: YColors.muted)),
         ),
-        if (widget.manage) FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(tr('Nouvelle relance'))),
+        if (widget.manage) ...[
+          FilledButton.icon(onPressed: _library, icon: const Icon(Icons.auto_awesome_motion_outlined), label: Text(tr('Modèles prêts à l\'emploi'))),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(tr('Relance vierge'))),
+        ],
       ]),
       const SizedBox(height: 12),
       if (rows.isEmpty)
-        EmptyState(icon: Icons.schedule_send_outlined, title: tr('Aucune relance automatique'), message: tr('Exemple : J0 WhatsApp de bienvenue, J+1 appel, J+3 e-mail avec la brochure, J+7 dernier message.')),
+        EmptyState(
+          icon: Icons.schedule_send_outlined,
+          title: tr('Aucune relance automatique'),
+          message: tr('Partez d\'un modèle prêt à l\'emploi (après un devis, prospect qui ne répond plus, après un salon, immobilier, formation…) et adaptez-le.'),
+          action: widget.manage ? FilledButton.icon(onPressed: _library, icon: const Icon(Icons.auto_awesome_motion_outlined), label: Text(tr('Voir les modèles'))) : null,
+        ),
       for (final r in rows)
         Card(
           child: ListTile(
@@ -111,6 +144,98 @@ class _CrmSequencesViewState extends State<CrmSequencesView> {
           ),
         ),
     ]);
+  }
+}
+
+/// Choix d'une relance dans la bibliothèque : par situation ou par métier, avec ses étapes.
+class _SequenceLibraryDialog extends StatefulWidget {
+  const _SequenceLibraryDialog({required this.items});
+
+  final List<Map<String, dynamic>> items;
+
+  @override
+  State<_SequenceLibraryDialog> createState() => _SequenceLibraryDialogState();
+}
+
+class _SequenceLibraryDialogState extends State<_SequenceLibraryDialog> {
+  String _cat = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final cats = {for (final i in widget.items) '${i['category']}'}.toList();
+    final rows = widget.items.where((i) => _cat.isEmpty || i['category'] == _cat).toList();
+    const labels = {'email': 'E-mail', 'sms': 'SMS', 'whatsapp': 'WhatsApp', 'task': 'Tâche', 'call': 'Appel'};
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 980, maxHeight: 760),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 12, 4),
+            child: Row(children: [
+              Expanded(child: Text(tr('Modèles de relance prospect'), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(spacing: 8, children: [
+                ChoiceChip(label: Text(tr('Tous (${widget.items.length})')), selected: _cat.isEmpty, onSelected: (_) => setState(() => _cat = '')),
+                for (final c in cats) ChoiceChip(label: Text(tr(c)), selected: _cat == c, onSelected: (_) => setState(() => _cat = c)),
+              ]),
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(builder: (context, box) {
+              final cols = box.maxWidth >= 860 ? 3 : (box.maxWidth >= 560 ? 2 : 1);
+              final w = (box.maxWidth - 48 - 14 * (cols - 1)) / cols;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Wrap(spacing: 14, runSpacing: 14, children: [
+                  for (final i in rows)
+                    SizedBox(
+                      width: w,
+                      child: Card(
+                        margin: EdgeInsets.zero,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => Navigator.pop(context, i),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(tr('${i['category']}'), style: const TextStyle(color: YColors.blue, fontSize: 12, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 4),
+                              Text(tr('${i['name']}'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
+                              const SizedBox(height: 6),
+                              Text(tr('${i['description']}'), style: const TextStyle(color: YColors.muted, fontSize: 13, height: 1.35)),
+                              const SizedBox(height: 10),
+                              for (final st in (i['steps'] as List? ?? const []).map(asMap))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(children: [
+                                    Icon(seqIcons[st['channel']] ?? Icons.circle, size: 15, color: YColors.muted),
+                                    const SizedBox(width: 6),
+                                    Text(tr(st['delay_days'] == 0 ? 'Jour J' : 'J+${st['delay_days']}'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                                    const SizedBox(width: 6),
+                                    Expanded(child: Text(tr(labels[st['channel']] ?? ''), style: const TextStyle(fontSize: 12.5, color: YColors.muted))),
+                                  ]),
+                                ),
+                              const SizedBox(height: 6),
+                              Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () => Navigator.pop(context, i), child: Text(tr('Utiliser ce modèle')))),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+                ]),
+              );
+            }),
+          ),
+        ]),
+      ),
+    );
   }
 }
 

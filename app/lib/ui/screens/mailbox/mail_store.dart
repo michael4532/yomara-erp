@@ -328,7 +328,8 @@ class MailStore extends ChangeNotifier {
   Future<Map<String, dynamic>> open(int id, {bool markRead = true}) async {
     final m = _messages[id];
     if (m != null && markRead && m['seen'] != true) {
-      unawaited(setFlags(id, seen: true));
+      // Marqué lu en arrière-plan : un refus du serveur (compte en erreur) n'empêche pas la lecture
+      unawaited(setFlags(id, seen: true).catchError((_) {}));
     }
     final needServer = m == null || m['html'] == null && m['text'] == null || m['body_loaded'] == false || (m['has_attachments'] == true && (m['attachments'] as List? ?? const []).isEmpty) || !m.containsKey('actions');
     if (!needServer) return m;

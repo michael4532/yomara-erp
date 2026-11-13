@@ -297,6 +297,7 @@ Route::middleware('installed')->group(function () {
                 Route::post('store/promo', [StoreController::class, 'checkPromo'])->middleware('throttle:store');
                 Route::post('store/orders/{id}/declare', [StoreController::class, 'declare'])->whereNumber('id');
                 Route::post('store/orders/{id}/cancel', [StoreController::class, 'cancel'])->whereNumber('id');
+                Route::get('store/orders/{id}/receipt', [StoreController::class, 'receipt'])->whereNumber('id');
                 Route::post('store/trial/{key}', [StoreController::class, 'trial']);
 
                 // Moyens de paiement de la société (pour ses propres clients)
@@ -471,6 +472,7 @@ Route::middleware('installed')->group(function () {
             Route::get('companies/{id}/modules', [CompanyAdminController::class, 'modules']);
             Route::put('companies/{id}/modules/{key}', [CompanyAdminController::class, 'setModule']);
             Route::post('companies/{id}/grant', [CompanyAdminController::class, 'grant'])->whereNumber('id');
+            Route::get('store/orders/{order}/receipt', [CompanyAdminController::class, 'receipt'])->whereNumber('order');
 
             Route::post('modules/{key}/screenshots', [StoreAdminController::class, 'uploadScreenshot']);
             Route::delete('modules/{key}/screenshots', [StoreAdminController::class, 'deleteScreenshot']);

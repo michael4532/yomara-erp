@@ -197,18 +197,22 @@ class ClientComms
     }
 
     /** Envoi par le serveur d'e-mails de la plateforme (super admin › Serveur e-mail), sinon par celui du fichier .env. */
-    public static function mail(string $to, ?string $name, string $subject, string $html, string $text, array $headers = []): void
+    /** @param array<int, array{name: string, data: string, mime?: string}> $attachments */
+    public static function mail(string $to, ?string $name, string $subject, string $html, string $text, array $headers = [], array $attachments = []): void
     {
         if (MessagingService::platformMailReady()) {
-            $r = (new Smtp)->send(new Message(to: $to, toName: $name, subject: $subject, html: $html, text: $text, headers: $headers), MessagingService::platformMail());
+            $r = (new Smtp)->send(new Message(to: $to, toName: $name, subject: $subject, html: $html, text: $text, headers: $headers, attachments: $attachments), MessagingService::platformMail());
             if (! $r->ok) {
                 throw new \RuntimeException((string) ($r->error ?: 'Envoi refusé par le serveur d\'e-mails.'));
             }
 
             return;
         }
-        Mail::html($html, function ($msg) use ($to, $name, $subject, $headers) {
+        Mail::html($html, function ($msg) use ($to, $name, $subject, $headers, $attachments) {
             $msg->to($to, $name)->subject($subject);
+            foreach ($attachments as $a) {
+                $msg->attachData($a['data'], $a['name'], ['mime' => $a['mime'] ?? 'application/octet-stream']);
+            }
             foreach ($headers as $k => $v) {
                 $msg->getHeaders()->addTextHeader($k, $v);
             }

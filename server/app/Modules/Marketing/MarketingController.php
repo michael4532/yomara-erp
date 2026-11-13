@@ -275,6 +275,9 @@ class MarketingController extends Controller
         $d = $this->content($r, ['name' => 'required|string|max:190', 'layout' => 'nullable|string|max:40'] + $this->contentRules());
         if (! empty($d['layout']) && ($l = EmailLayouts::find($d['layout']))) {
             $d += ['subject' => $l['subject'], 'preheader' => $l['preheader'], 'blocks' => $l['blocks'], 'style' => $l['style']];
+        } elseif (! empty($d['layout']) && ($t = EmailLayouts::findText($d['layout']))) {
+            // Message SMS / WhatsApp prêt à l'emploi
+            $d += ['text' => $t['text']];
         }
         unset($d['layout']);
 
