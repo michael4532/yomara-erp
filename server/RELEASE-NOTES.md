@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.56 — YoMail, lecture des e-mails en plein écran, WhatsApp intégré sur Windows
+
+- **Lecture d'un e-mail** : tout défile d'un seul tenant, barre d'outils comprise ; plus rien de figé en haut ni en bas. Les boutons Répondre / Répondre à tous / Transférer sont à la fin du message, le bloc « Conversation » est supprimé : le message occupe tout l'écran.
+- **WhatsApp intégré sur Windows** (plus de fenêtre ni d'onglet à part) : une seule vue WhatsApp pour tout le logiciel, gardée en vie quand on change d'écran, jamais dupliquée ni détruite (ce qui faisait planter WebView2). Le bouton WhatsApp d'une fiche client charge la conversation dans cette même vue et affiche l'écran WhatsApp. Même fonctionnement sur Mac.
+- **« Boîte mail » devient « YoMail »** dans le menu, la boutique de modules et les messages (renommé automatiquement sur les installations existantes).
+- Application : version 1.0.10 (build 14) pour les stores.
+
 ## 0.99.55 — pièces jointes ouvertes dans l'application
 
 - **Boîte mail** : les images et les PDF reçus s'ouvrent directement dans l'application, sans passer par le navigateur. Images en plein écran avec zoom, glisser pour passer à l'image suivante, bouton Enregistrer. PDF dans le lecteur de l'application (zoom, impression, enregistrement, outils PDF). Les autres fichiers (Word, Excel…) s'ouvrent comme avant dans l'application adaptée de l'appareil.

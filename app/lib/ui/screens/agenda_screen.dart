@@ -2034,7 +2034,7 @@ class _EventFormState extends State<_EventForm> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  tr('La réunion ${_video == 'teams' ? 'Teams' : 'Google Meet'} est créée dans votre calendrier ${_video == 'teams' ? 'Outlook' : 'Google'} connecté à la Boîte mail.'),
+                  tr('La réunion ${_video == 'teams' ? 'Teams' : 'Google Meet'} est créée dans votre calendrier ${_video == 'teams' ? 'Outlook' : 'Google'} connecté à YoMail.'),
                   style: TextStyle(color: hint, fontSize: 12.5),
                 ),
               ),

@@ -5,6 +5,8 @@ import 'package:web/web.dart' as web;
 /// accolée à droite de l'ERP, toujours la même (réutilisée à chaque conversation).
 bool get whatsappEmbedded => false;
 
+void whatsappShowInErp(String url) {}
+
 Future<void> openWhatsAppWindow(String url) async {
   final sw = web.window.screen.availWidth;
   final sh = web.window.screen.availHeight;

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../navigation.dart' show ShellNav;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
@@ -28,6 +30,13 @@ Future<void> openWhatsAppChat(BuildContext context, String phone, {String? text}
   }
   final url = 'https://web.whatsapp.com/send?phone=$d$q';
   if (whatsappEmbedded) {
+    // Une seule vue WhatsApp dans l'ERP : la conversation s'y charge et l'écran WhatsApp s'affiche
+    final nav = ShellNav.of(context);
+    if (nav != null && nav.available.contains('whatsapp_web')) {
+      whatsappShowInErp(url);
+      nav.go('whatsapp_web');
+      return;
+    }
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => WhatsAppWebScreen(initialUrl: url, standalone: true)));
   } else {
     await openWhatsAppWindow(url);

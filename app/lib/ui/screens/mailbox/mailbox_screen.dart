@@ -26,7 +26,7 @@ import '../../../core/json.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 
-/// Boîte mail intégrée (façon Outlook) : dossiers, liste, lecture, rédaction — copie locale pour le hors ligne.
+/// YoMail intégrée (façon Outlook) : dossiers, liste, lecture, rédaction — copie locale pour le hors ligne.
 class MailboxScreen extends StatefulWidget {
   const MailboxScreen({super.key});
 
@@ -93,7 +93,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
               height: 480,
               child: Column(
                 children: [
-                  Text(tr('Collaborateurs, direction, stagiaires et boîtes partagées : chaque nouvelle boîte connectée y apparaît automatiquement.'), style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12.5)),
+                  Text(
+                    tr('Collaborateurs, direction, stagiaires et boîtes partagées : chaque nouvelle boîte connectée y apparaît automatiquement.'),
+                    style: TextStyle(color: Theme.of(c).hintColor, fontSize: 12.5),
+                  ),
                   const SizedBox(height: 10),
                   TextField(
                     autofocus: true,
@@ -233,7 +236,14 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final last = list.isEmpty ? null : list.last;
     try {
       final everywhere = _q.isNotEmpty && !_searchHere;
-      final rows = await _s.older({if (!everywhere && _view.folderId != null) 'folder_id': _view.folderId!, if (!everywhere && _view.role != null) 'role': _view.role!, if (_view.unread || _filter == 'unread') 'unread': 1, if (_view.flagged || _filter == 'flagged') 'flagged': 1, if (_filter == 'attachments') 'attachments': 1, if (_q.isNotEmpty) 'q': _q}, _olderCursor ?? (last == null ? null : '${last['date']}|${last['id']}'));
+      final rows = await _s.older({
+        if (!everywhere && _view.folderId != null) 'folder_id': _view.folderId!,
+        if (!everywhere && _view.role != null) 'role': _view.role!,
+        if (_view.unread || _filter == 'unread') 'unread': 1,
+        if (_view.flagged || _filter == 'flagged') 'flagged': 1,
+        if (_filter == 'attachments') 'attachments': 1,
+        if (_q.isNotEmpty) 'q': _q,
+      }, _olderCursor ?? (last == null ? null : '${last['date']}|${last['id']}'));
       if (!mounted) return;
       setState(() {
         _older.addAll(rows);
@@ -556,7 +566,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
-  Widget _composeFab() => FloatingActionButton.extended(backgroundColor: _theme.accent, foregroundColor: Colors.white, onPressed: () => openComposer(context, _s), icon: const Icon(Icons.edit_outlined), label: Text(tr('Nouveau')));
+  Widget _composeFab() => FloatingActionButton.extended(
+    backgroundColor: _theme.accent,
+    foregroundColor: Colors.white,
+    onPressed: () => openComposer(context, _s),
+    icon: const Icon(Icons.edit_outlined),
+    label: Text(tr('Nouveau')),
+  );
 
   Widget _welcome() => Center(
     child: ConstrainedBox(
@@ -977,7 +993,15 @@ class _MailboxScreenState extends State<MailboxScreen> {
         if (name == null || name.isEmpty) return;
         await _do(() => _s.renameFolder(f['id'] as int, name), 'Dossier renommé.');
       case 'delete':
-        if (!await confirm(context, tr('Supprimer « ${f['name']} » ?'), tr('Le dossier et les messages qu\'il contient seront supprimés de la boîte mail (aussi sur le serveur).'), ok: 'Supprimer', danger: true)) return;
+        if (!await confirm(
+          context,
+          tr('Supprimer « ${f['name']} » ?'),
+          tr('Le dossier et les messages qu\'il contient seront supprimés de la boîte mail (aussi sur le serveur).'),
+          ok: 'Supprimer',
+          danger: true,
+        )) {
+          return;
+        }
         await _do(() async {
           await _s.deleteFolder(f['id'] as int);
           if (_view.folderId == f['id']) _select(_View(role: 'inbox', title: tr('Boîte de réception')));
@@ -1179,31 +1203,35 @@ class _MailboxScreenState extends State<MailboxScreen> {
         if (_q.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-            child: Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              Text(tr('Chercher dans :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
-              ChoiceChip(
-                label: Text(tr('Toutes les boîtes')),
-                selected: !_searchHere,
-                visualDensity: VisualDensity.compact,
-                onSelected: (_) => setState(() {
-                  _searchHere = false;
-                  _older.clear();
-                  _olderCursor = null;
-                  _olderDone = false;
-                }),
-              ),
-              ChoiceChip(
-                label: Text(tr(_view.title)),
-                selected: _searchHere,
-                visualDensity: VisualDensity.compact,
-                onSelected: (_) => setState(() {
-                  _searchHere = true;
-                  _older.clear();
-                  _olderCursor = null;
-                  _olderDone = false;
-                }),
-              ),
-            ]),
+            child: Wrap(
+              spacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(tr('Chercher dans :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                ChoiceChip(
+                  label: Text(tr('Toutes les boîtes')),
+                  selected: !_searchHere,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => setState(() {
+                    _searchHere = false;
+                    _older.clear();
+                    _olderCursor = null;
+                    _olderDone = false;
+                  }),
+                ),
+                ChoiceChip(
+                  label: Text(tr(_view.title)),
+                  selected: _searchHere,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => setState(() {
+                    _searchHere = true;
+                    _older.clear();
+                    _olderCursor = null;
+                    _olderDone = false;
+                  }),
+                ),
+              ],
+            ),
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 2, 4, 6),
@@ -1319,7 +1347,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
       decoration: BoxDecoration(color: _p.selected, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          Checkbox(value: _selected.length == list.length && list.isNotEmpty, tristate: false, onChanged: (v) => setState(() => v == true ? _selected.addAll(list.map((m) => m['id'] as int)) : _selected.clear())),
+          Checkbox(
+            value: _selected.length == list.length && list.isNotEmpty,
+            tristate: false,
+            onChanged: (v) => setState(() => v == true ? _selected.addAll(list.map((m) => m['id'] as int)) : _selected.clear()),
+          ),
           Text(tr('${_selected.length} sélectionné(s)'), style: const TextStyle(fontWeight: FontWeight.w600)),
           const Spacer(),
           IconButton(tooltip: tr('Marquer comme lu'), onPressed: _selected.isEmpty ? null : () => run('read'), icon: const Icon(Icons.mark_email_read_outlined, size: 20)),
@@ -1403,10 +1435,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
   static String _fold(String s) {
     const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
     const to = 'aaaaaaceeeeiiiinooooouuuuyy';
-    return String.fromCharCodes(s.toLowerCase().runes.map((c) {
-      final i = from.indexOf(String.fromCharCode(c));
-      return i >= 0 ? to.codeUnitAt(i) : c;
-    }));
+    return String.fromCharCodes(
+      s.toLowerCase().runes.map((c) {
+        final i = from.indexOf(String.fromCharCode(c));
+        return i >= 0 ? to.codeUnitAt(i) : c;
+      }),
+    );
   }
 
   /// Texte d'une ligne avec les mots recherchés surlignés en jaune.
@@ -1429,22 +1463,36 @@ class _MailboxScreenState extends State<MailboxScreen> {
     var start = 0;
     for (var i = 1; i <= t.length; i++) {
       if (i == t.length || marks[i] != marks[start]) {
-        spans.add(TextSpan(text: t.substring(start, i), style: marks[start] ? const TextStyle(backgroundColor: Color(0xFFFFE97A), color: Color(0xFF111111)) : null));
+        spans.add(
+          TextSpan(
+            text: t.substring(start, i),
+            style: marks[start] ? const TextStyle(backgroundColor: Color(0xFFFFE97A), color: Color(0xFF111111)) : null,
+          ),
+        );
         start = i;
       }
     }
-    return Text.rich(TextSpan(style: style, children: spans), maxLines: 1, overflow: TextOverflow.ellipsis);
+    return Text.rich(
+      TextSpan(style: style, children: spans),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
   Widget _badge(String label, Color color, {bool outline = false}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-        decoration: BoxDecoration(
-          color: outline ? Colors.transparent : color.withValues(alpha: .12),
-          border: Border.all(color: outline ? _p.line : color.withValues(alpha: .35)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: outline ? _p.muted : color)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+    decoration: BoxDecoration(
+      color: outline ? Colors.transparent : color.withValues(alpha: .12),
+      border: Border.all(color: outline ? _p.line : color.withValues(alpha: .35)),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: outline ? _p.muted : color),
+    ),
+  );
 
   Widget _row(Map<String, dynamic> m) {
     final p = _p;
@@ -1452,7 +1500,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final unread = m['seen'] != true;
     final flagged = m['flagged'] == true;
     final sent = _s.folder(m['folder_id'])?['role'] == 'sent';
-    final who = sent ? 'À : ${(m['to'] as List? ?? const []).map((t) => (t['name'] ?? '').toString().isNotEmpty ? t['name'] : t['email']).join(', ')}' : '${(m['from_name'] ?? '').toString().isNotEmpty ? m['from_name'] : m['from_email'] ?? ''}';
+    final who = sent
+        ? 'À : ${(m['to'] as List? ?? const []).map((t) => (t['name'] ?? '').toString().isNotEmpty ? t['name'] : t['email']).join(', ')}'
+        : '${(m['from_name'] ?? '').toString().isNotEmpty ? m['from_name'] : m['from_email'] ?? ''}';
     final acc = _s.account(m['account_id']);
     final checked = _selected.contains(m['id']);
     final tileW = Padding(
@@ -1503,10 +1553,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: _hl(
-                              who,
-                              TextStyle(fontSize: 14, fontWeight: unread ? FontWeight.w700 : FontWeight.w600, color: p.ink),
-                            ),
+                            child: _hl(who, TextStyle(fontSize: 14, fontWeight: unread ? FontWeight.w700 : FontWeight.w600, color: p.ink)),
                           ),
                           if (m['has_attachments'] == true) Icon(Icons.attach_file, size: 14, color: p.muted),
                           if (m['answered'] == true) Icon(Icons.reply, size: 14, color: p.muted),
@@ -1525,24 +1572,32 @@ class _MailboxScreenState extends State<MailboxScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(children: [
-                                  if (_s.folder(m['folder_id'])?['role'] == 'drafts') ...[_badge(tr('Brouillon'), const Color(0xFFC62828)), const SizedBox(width: 6)],
-                                  Expanded(
-                                    child: _hl(
-                                      '${m['subject'] ?? '(sans objet)'}',
-                                      TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: unread ? (p.dark ? const Color(0xFF8AB4FF) : const Color(0xFF1D4ED8)) : p.ink, fontSize: 13),
+                                Row(
+                                  children: [
+                                    if (_s.folder(m['folder_id'])?['role'] == 'drafts') ...[_badge(tr('Brouillon'), const Color(0xFFC62828)), const SizedBox(width: 6)],
+                                    Expanded(
+                                      child: _hl(
+                                        '${m['subject'] ?? '(sans objet)'}',
+                                        TextStyle(
+                                          fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+                                          color: unread ? (p.dark ? const Color(0xFF8AB4FF) : const Color(0xFF1D4ED8)) : p.ink,
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ]),
-                                const SizedBox(height: 2),
-                                Row(children: [
-                                  Expanded(child: _hl('${m['snippet'] ?? ''}', TextStyle(color: p.muted, fontSize: 12.5))),
-                                  // Recherche dans toutes les boîtes : dossier de chaque message, comme Outlook
-                                  if (_q.isNotEmpty && _s.folder(m['folder_id']) != null) ...[
-                                    const SizedBox(width: 6),
-                                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 140), child: _badge(tr('${_s.folder(m['folder_id'])!['name']}'), p.muted, outline: true)),
                                   ],
-                                ]),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Expanded(child: _hl('${m['snippet'] ?? ''}', TextStyle(color: p.muted, fontSize: 12.5))),
+                                    // Recherche dans toutes les boîtes : dossier de chaque message, comme Outlook
+                                    if (_q.isNotEmpty && _s.folder(m['folder_id']) != null) ...[
+                                      const SizedBox(width: 6),
+                                      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 140), child: _badge(tr('${_s.folder(m['folder_id'])!['name']}'), p.muted, outline: true)),
+                                    ],
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -1758,58 +1813,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
       builder: (_, box) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Barre d'outils : agit sur le message ouvert, ou sur la sélection multiple de la liste
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 10, 4),
-            child: Row(
-              children: [
-                // Sur téléphone, les actions défilent horizontalement au lieu de déborder
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                tb(Icons.arrow_back_rounded, 'Fermer', () => setState(() => (_openId = null, _open = null))),
-                const SizedBox(width: 4),
-                tb(Icons.archive_outlined, 'Archiver', () => _bulk('archive')),
-                tb(Icons.delete_outline_rounded, 'Supprimer', () => _bulk('delete')),
-                tb(Icons.mark_email_unread_outlined, multi ? 'Marquer comme non lu' : (m['seen'] == false ? 'Marquer comme lu' : 'Marquer comme non lu'), () => _bulk('unread')),
-                PopupMenuButton<int>(
-                  enabled: !multi && accountFolders.isNotEmpty,
-                  tooltip: tr('Déplacer'),
-                  icon: Icon(Icons.label_outline_rounded, size: 21, color: p.ink.withValues(alpha: multi ? .35 : .8)),
-                  onSelected: (fid) => _bulk('move', folderId: fid),
-                  itemBuilder: (_) => [for (final f in accountFolders) PopupMenuItem(value: f['id'] as int, child: Text(tr('${f['name']}')))],
-                ),
-                if (multi)
-                  tb(Icons.star_border_rounded, 'Suivre', () => _bulk('flag'))
-                else
-                  PopupMenuButton<String>(
-                    tooltip: tr('Plus d\'actions'),
-                    icon: Icon(Icons.more_horiz_rounded, color: p.ink.withValues(alpha: .8)),
-                    onSelected: (v) => _more(m, v),
-                    itemBuilder: (_) => _moreItems(m),
-                  ),
-                if (multi) Padding(padding: const EdgeInsets.only(left: 6), child: chip('${_selected.length} sélectionné(s)', p.accent)),
-                    ]),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: p.line),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(visualDensity: VisualDensity.compact, tooltip: tr('Message précédent'), onPressed: idx > 0 ? () => _openMessage(list[idx - 1]) : null, icon: const Icon(Icons.chevron_left_rounded)),
-                      IconButton(visualDensity: VisualDensity.compact, tooltip: tr('Message suivant'), onPressed: idx >= 0 && idx + 1 < list.length ? () => _openMessage(list[idx + 1]) : null, icon: const Icon(Icons.chevron_right_rounded)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
           if (_openLoading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
           // Lecture d'un seul tenant (comme Mail sur iPhone) : en-tête, pièces jointes, actions puis le message en pleine hauteur
           Expanded(
@@ -1822,134 +1825,225 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 6, 0, 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            SelectableText(
-                              tr('${m['subject'] ?? '(sans objet)'}'),
-                              style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: p.ink, height: 1.25),
-                            ),
-                            if (folder?['role'] == 'inbox' && _s.isFocused(m)) chip('Prioritaire', const Color(0xFFE11D48), icon: Icons.bolt_rounded),
-                            if (folder != null) chip('${folder['name']}', p.accent, icon: Icons.folder_outlined),
-                            if (m['has_attachments'] == true) chip('Pièces jointes', p.muted, icon: Icons.attach_file),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _Avatar(name: '${(m['from_name'] ?? '').toString().isNotEmpty ? m['from_name'] : m['from_email']}', color: _color(acc?['color']), size: 44),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Expéditeur : surligné au survol, fiche contact au clic (comme Outlook)
-                                  Transform.translate(
-                                    offset: const Offset(-6, 0),
-                                    child: ContactPill(
-                                      email: '${m['from_email'] ?? ''}',
-                                      name: m['from_name'] as String?,
-                                      store: _s,
-                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.ink),
-                                    ),
+                    // Barre d'outils dans le défilement : elle remonte avec le message (rien de figé)
+                    Transform.translate(
+                      offset: Offset(box.maxWidth < 560 ? -10 : -18, 0),
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        child: // Barre d'outils : agit sur le message ouvert, ou sur la sélection multiple de la liste
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 10, 4),
+                          child: Row(
+                            children: [
+                              // Sur téléphone, les actions défilent horizontalement au lieu de déborder
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      tb(Icons.arrow_back_rounded, 'Fermer', () => setState(() => (_openId = null, _open = null))),
+                                      const SizedBox(width: 4),
+                                      tb(Icons.archive_outlined, 'Archiver', () => _bulk('archive')),
+                                      tb(Icons.delete_outline_rounded, 'Supprimer', () => _bulk('delete')),
+                                      tb(Icons.mark_email_unread_outlined, multi ? 'Marquer comme non lu' : (m['seen'] == false ? 'Marquer comme lu' : 'Marquer comme non lu'), () => _bulk('unread')),
+                                      PopupMenuButton<int>(
+                                        enabled: !multi && accountFolders.isNotEmpty,
+                                        tooltip: tr('Déplacer'),
+                                        icon: Icon(Icons.label_outline_rounded, size: 21, color: p.ink.withValues(alpha: multi ? .35 : .8)),
+                                        onSelected: (fid) => _bulk('move', folderId: fid),
+                                        itemBuilder: (_) => [for (final f in accountFolders) PopupMenuItem(value: f['id'] as int, child: Text(tr('${f['name']}')))],
+                                      ),
+                                      if (multi)
+                                        tb(Icons.star_border_rounded, 'Suivre', () => _bulk('flag'))
+                                      else
+                                        PopupMenuButton<String>(
+                                          tooltip: tr('Plus d\'actions'),
+                                          icon: Icon(Icons.more_horiz_rounded, color: p.ink.withValues(alpha: .8)),
+                                          onSelected: (v) => _more(m, v),
+                                          itemBuilder: (_) => _moreItems(m),
+                                        ),
+                                      if (multi) Padding(padding: const EdgeInsets.only(left: 6), child: chip('${_selected.length} sélectionné(s)', p.accent)),
+                                    ],
                                   ),
-                                  if (_showRcpt)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 2, runSpacing: 2, children: [
-                                        Text(tr('À :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
-                                        for (final t in to) ContactPill(email: '${t['email'] ?? ''}', name: t['name'] as String?, store: _s, showEmail: false, style: TextStyle(color: p.ink, fontSize: 12.5)),
-                                        if ((m['cc'] as List? ?? const []).isNotEmpty) ...[
-                                          Text(tr('  Cc :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
-                                          for (final t in (m['cc'] as List)) ContactPill(email: '${t['email'] ?? ''}', name: t['name'] as String?, store: _s, showEmail: false, style: TextStyle(color: p.ink, fontSize: 12.5)),
-                                        ],
-                                      ]),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: p.line),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      tooltip: tr('Message précédent'),
+                                      onPressed: idx > 0 ? () => _openMessage(list[idx - 1]) : null,
+                                      icon: const Icon(Icons.chevron_left_rounded),
                                     ),
-                                  InkWell(
-                                    borderRadius: BorderRadius.circular(6),
-                                    onTap: () => setState(() => _showRcpt = !_showRcpt),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 2),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              tr(_showRcpt ? 'Masquer les destinataires' : (toMe ? 'à moi' : 'à ${names(to)}')),
-                                              maxLines: _showRcpt ? 4 : 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(color: p.muted, fontSize: 12.5),
-                                            ),
-                                          ),
-                                          Icon(_showRcpt ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: p.muted),
-                                        ],
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      tooltip: tr('Message suivant'),
+                                      onPressed: idx >= 0 && idx + 1 < list.length ? () => _openMessage(list[idx + 1]) : null,
+                                      icon: const Icon(Icons.chevron_right_rounded),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 6, 0, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              SelectableText(
+                                tr('${m['subject'] ?? '(sans objet)'}'),
+                                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: p.ink, height: 1.25),
+                              ),
+                              if (folder?['role'] == 'inbox' && _s.isFocused(m)) chip('Prioritaire', const Color(0xFFE11D48), icon: Icons.bolt_rounded),
+                              if (folder != null) chip('${folder['name']}', p.accent, icon: Icons.folder_outlined),
+                              if (m['has_attachments'] == true) chip('Pièces jointes', p.muted, icon: Icons.attach_file),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Avatar(name: '${(m['from_name'] ?? '').toString().isNotEmpty ? m['from_name'] : m['from_email']}', color: _color(acc?['color']), size: 44),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Expéditeur : surligné au survol, fiche contact au clic (comme Outlook)
+                                    Transform.translate(
+                                      offset: const Offset(-6, 0),
+                                      child: ContactPill(
+                                        email: '${m['from_email'] ?? ''}',
+                                        name: m['from_name'] as String?,
+                                        store: _s,
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: p.ink),
                                       ),
                                     ),
-                                  ),
-                                  if (box.maxWidth < 560) Text(tr(dateTimeFr(m['date'])), style: TextStyle(color: p.muted, fontSize: 12)),
-                                ],
+                                    if (_showRcpt)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 2,
+                                          runSpacing: 2,
+                                          children: [
+                                            Text(tr('À :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                            for (final t in to)
+                                              ContactPill(
+                                                email: '${t['email'] ?? ''}',
+                                                name: t['name'] as String?,
+                                                store: _s,
+                                                showEmail: false,
+                                                style: TextStyle(color: p.ink, fontSize: 12.5),
+                                              ),
+                                            if ((m['cc'] as List? ?? const []).isNotEmpty) ...[
+                                              Text(tr('  Cc :'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                              for (final t in (m['cc'] as List))
+                                                ContactPill(
+                                                  email: '${t['email'] ?? ''}',
+                                                  name: t['name'] as String?,
+                                                  store: _s,
+                                                  showEmail: false,
+                                                  style: TextStyle(color: p.ink, fontSize: 12.5),
+                                                ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(6),
+                                      onTap: () => setState(() => _showRcpt = !_showRcpt),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                tr(_showRcpt ? 'Masquer les destinataires' : (toMe ? 'à moi' : 'à ${names(to)}')),
+                                                maxLines: _showRcpt ? 4 : 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(color: p.muted, fontSize: 12.5),
+                                              ),
+                                            ),
+                                            Icon(_showRcpt ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: p.muted),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    if (box.maxWidth < 560) Text(tr(dateTimeFr(m['date'])), style: TextStyle(color: p.muted, fontSize: 12)),
+                                  ],
+                                ),
                               ),
-                            ),
-                            if (box.maxWidth >= 560) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(tr(dateTimeFr(m['date'])), style: TextStyle(color: p.muted, fontSize: 12.5)),
-                              ),
-                              const SizedBox(width: 4),
-                            ],
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              tooltip: trn(flagged ? 'Retirer le suivi' : 'Suivre'),
-                              onPressed: () => _toggleStar(m),
-                              icon: Icon(flagged ? Icons.star_rounded : Icons.star_border_rounded, color: flagged ? const Color(0xFFF5B301) : p.muted),
-                            ),
-                            if (box.maxWidth >= 560)
+                              if (box.maxWidth >= 560) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(tr(dateTimeFr(m['date'])), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
                               IconButton(
                                 visualDensity: VisualDensity.compact,
-                                tooltip: tr('Répondre'),
-                                onPressed: () => openComposer(context, _s, mode: 'reply', original: m),
-                                icon: Icon(Icons.reply_rounded, color: p.muted),
+                                tooltip: trn(flagged ? 'Retirer le suivi' : 'Suivre'),
+                                onPressed: () => _toggleStar(m),
+                                icon: Icon(flagged ? Icons.star_rounded : Icons.star_border_rounded, color: flagged ? const Color(0xFFF5B301) : p.muted),
                               ),
-                            PopupMenuButton<String>(
-                              tooltip: tr('Plus d\'actions'),
-                              icon: Icon(Icons.more_vert_rounded, color: p.muted),
-                              onSelected: (v) => _more(m, v),
-                              itemBuilder: (_) => _moreItems(m),
-                            ),
-                          ],
-                        ),
-                        if (partner != null || m['warning'] != null) const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (partner != null)
-                              Chip(
-                                avatar: Icon(Icons.business, size: 16, color: p.accent),
-                                label: Text(tr('Fiche : ${partner['name']}')),
-                                visualDensity: VisualDensity.compact,
-                                shape: const StadiumBorder(),
+                              if (box.maxWidth >= 560)
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: tr('Répondre'),
+                                  onPressed: () => openComposer(context, _s, mode: 'reply', original: m),
+                                  icon: Icon(Icons.reply_rounded, color: p.muted),
+                                ),
+                              PopupMenuButton<String>(
+                                tooltip: tr('Plus d\'actions'),
+                                icon: Icon(Icons.more_vert_rounded, color: p.muted),
+                                onSelected: (v) => _more(m, v),
+                                itemBuilder: (_) => _moreItems(m),
                               ),
-                          ],
-                        ),
-                        if (m['warning'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(tr('${m['warning']}'), style: const TextStyle(color: YColors.warning)),
+                            ],
                           ),
-                      ],
+                          if (partner != null || m['warning'] != null) const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (partner != null)
+                                Chip(
+                                  avatar: Icon(Icons.business, size: 16, color: p.accent),
+                                  label: Text(tr('Fiche : ${partner['name']}')),
+                                  visualDensity: VisualDensity.compact,
+                                  shape: const StadiumBorder(),
+                                ),
+                            ],
+                          ),
+                          if (m['warning'] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(tr('${m['warning']}'), style: const TextStyle(color: YColors.warning)),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
                     if (atts.isNotEmpty) _attachmentsBlock(atts, box.maxWidth - (box.maxWidth < 560 ? 28 : 48)),
-                  MailActionsBar(
+                    MailActionsBar(
                       message: m,
                       onAction: (a, [start]) => _mailAction(m, a, start),
                       onAcceptInvite: () => _do(() async {
@@ -1964,50 +2058,55 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     ),
                     Divider(height: 26, color: p.line),
                     MailHtml(key: ValueKey('mail-${m['id']}-${(m['html'] ?? '').hashCode}'), html: html, dark: dark, scroll: _readerScroll),
+                    // Répondre / transférer : à la fin du message, pas en barre fixe
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (box.maxWidth < 560) ...[
+                            // Téléphone : boutons ronds (libellé en info-bulle) pour garder la place au message
+                            for (final (icon, label, mode) in const [
+                              (Icons.reply_rounded, 'Répondre', 'reply'),
+                              (Icons.reply_all_rounded, 'Répondre à tous', 'reply_all'),
+                              (Icons.forward_rounded, 'Transférer', 'forward'),
+                            ])
+                              IconButton.outlined(
+                                tooltip: tr(label),
+                                style: IconButton.styleFrom(
+                                  side: BorderSide(color: p.line, width: 1.2),
+                                  fixedSize: const Size(44, 44),
+                                ),
+                                onPressed: () => openComposer(context, _s, mode: mode, original: m),
+                                icon: Icon(icon, color: p.ink),
+                              ),
+                          ] else ...[
+                            pillBtn(Icons.reply_rounded, 'Répondre', () => openComposer(context, _s, mode: 'reply', original: m)),
+                            pillBtn(Icons.reply_all_rounded, 'Répondre à tous', () => openComposer(context, _s, mode: 'reply_all', original: m)),
+                            pillBtn(Icons.forward_rounded, 'Transférer', () => openComposer(context, _s, mode: 'forward', original: m)),
+                          ],
+                          PopupMenuButton<String>(
+                            tooltip: tr('Plus d\'actions'),
+                            onSelected: (v) => _more(m, v),
+                            itemBuilder: (_) => _moreItems(m),
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: p.line, width: 1.2),
+                              ),
+                              child: Icon(Icons.more_horiz_rounded, color: p.ink),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (box.maxWidth < 560) ...[
-                  // Téléphone : boutons ronds (libellé en info-bulle) pour garder la place au message
-                  for (final (icon, label, mode) in const [(Icons.reply_rounded, 'Répondre', 'reply'), (Icons.reply_all_rounded, 'Répondre à tous', 'reply_all'), (Icons.forward_rounded, 'Transférer', 'forward')])
-                    IconButton.outlined(
-                      tooltip: tr(label),
-                      style: IconButton.styleFrom(
-                        side: BorderSide(color: p.line, width: 1.2),
-                        fixedSize: const Size(44, 44),
-                      ),
-                      onPressed: () => openComposer(context, _s, mode: mode, original: m),
-                      icon: Icon(icon, color: p.ink),
-                    ),
-                ] else ...[
-                  pillBtn(Icons.reply_rounded, 'Répondre', () => openComposer(context, _s, mode: 'reply', original: m)),
-                  pillBtn(Icons.reply_all_rounded, 'Répondre à tous', () => openComposer(context, _s, mode: 'reply_all', original: m)),
-                  pillBtn(Icons.forward_rounded, 'Transférer', () => openComposer(context, _s, mode: 'forward', original: m)),
-                ],
-                PopupMenuButton<String>(
-                  tooltip: tr('Plus d\'actions'),
-                  onSelected: (v) => _more(m, v),
-                  itemBuilder: (_) => _moreItems(m),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: p.line, width: 1.2),
-                    ),
-                    child: Icon(Icons.more_horiz_rounded, color: p.ink),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -2068,64 +2167,86 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final total = atts.fold<num>(0, (t, a) => t + (a['size'] is num ? a['size'] as num : 0));
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Wrap(spacing: 10, runSpacing: 10, children: [
-          for (final a in atts)
-            SizedBox(
-              width: w,
-              child: Material(
-                color: p.dark ? const Color(0xFF1A2130) : Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: p.line)),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: a['url'] == null ? null : () => open(a),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 2, 10),
-                    child: Row(children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(color: p.accent.withValues(alpha: .1), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(_attIcon('${a['mime']}'), color: p.accent, size: 21),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final a in atts)
+                SizedBox(
+                  width: w,
+                  child: Material(
+                    color: p.dark ? const Color(0xFF1A2130) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: p.line),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: a['url'] == null ? null : () => open(a),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 2, 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(color: p.accent.withValues(alpha: .1), borderRadius: BorderRadius.circular(8)),
+                              child: Icon(_attIcon('${a['mime']}'), color: p.accent, size: 21),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tr('${a['name'] ?? 'pièce jointe'}'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontWeight: FontWeight.w600, color: p.ink, fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(tr('${kind(a)} - ${fileSize(a['size'])}'), style: TextStyle(color: p.muted, fontSize: 12.5)),
+                                ],
+                              ),
+                            ),
+                            PopupMenuButton<String>(
+                              tooltip: tr('Options'),
+                              icon: Icon(Icons.more_vert_rounded, color: p.muted, size: 20),
+                              enabled: a['url'] != null,
+                              onSelected: (v) => v == 'save' ? saveMailAttachments(context, [a]) : open(a),
+                              itemBuilder: (_) => [PopupMenuItem(value: 'open', child: Text(tr('Ouvrir'))), PopupMenuItem(value: 'save', child: Text(tr('Enregistrer')))],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(tr('${a['name'] ?? 'pièce jointe'}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w600, color: p.ink, fontSize: 14)),
-                          const SizedBox(height: 2),
-                          Text(tr('${kind(a)} - ${fileSize(a['size'])}'), style: TextStyle(color: p.muted, fontSize: 12.5)),
-                        ]),
-                      ),
-                      PopupMenuButton<String>(
-                        tooltip: tr('Options'),
-                        icon: Icon(Icons.more_vert_rounded, color: p.muted, size: 20),
-                        enabled: a['url'] != null,
-                        onSelected: (v) => v == 'save' ? saveMailAttachments(context, [a]) : open(a),
-                        itemBuilder: (_) => [
-                          PopupMenuItem(value: 'open', child: Text(tr('Ouvrir'))),
-                          PopupMenuItem(value: 'save', child: Text(tr('Enregistrer'))),
-                        ],
-                      ),
-                    ]),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 10),
-        Row(children: [
-          Icon(Icons.attach_file_rounded, size: 18, color: p.muted),
-          const SizedBox(width: 6),
-          Text(tr('${atts.length} pièce${atts.length > 1 ? 's' : ''} jointe${atts.length > 1 ? 's' : ''}${total > 0 ? ' (${fileSize(total)})' : ''}'), style: TextStyle(color: p.muted, fontSize: 13.5)),
-        ]),
-        if (atts.any((a) => a['url'] != null))
-          TextButton.icon(
-            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), foregroundColor: p.accent),
-            onPressed: () => saveMailAttachments(context, atts),
-            icon: const Icon(Icons.download_rounded, size: 19),
-            label: Text(tr(atts.length > 1 ? 'Enregistrer les pièces jointes' : 'Enregistrer la pièce jointe'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            ],
           ),
-      ]),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.attach_file_rounded, size: 18, color: p.muted),
+              const SizedBox(width: 6),
+              Text(
+                tr('${atts.length} pièce${atts.length > 1 ? 's' : ''} jointe${atts.length > 1 ? 's' : ''}${total > 0 ? ' (${fileSize(total)})' : ''}'),
+                style: TextStyle(color: p.muted, fontSize: 13.5),
+              ),
+            ],
+          ),
+          if (atts.any((a) => a['url'] != null))
+            TextButton.icon(
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), foregroundColor: p.accent),
+              onPressed: () => saveMailAttachments(context, atts),
+              icon: const Icon(Icons.download_rounded, size: 19),
+              label: Text(tr(atts.length > 1 ? 'Enregistrer les pièces jointes' : 'Enregistrer la pièce jointe'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+        ],
+      ),
     );
   }
 

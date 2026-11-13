@@ -13,7 +13,7 @@ return [
 
     'name' => env('ERP_NAME', 'Yomara ERP'),
 
-    'version' => '0.99.55',
+    'version' => '0.99.56',
 
     // Fiches officielles des applications (proposées dans Administration › Boutique › Liens de téléchargement)
     'store_links' => [
@@ -119,7 +119,7 @@ return [
 
     // Synchronisation bancaire : GoCardless Bank Account Data (banques européennes, gratuit) et domaine de réception
     // des relevés par e-mail (adresse releves+jeton@domaine transférée vers /api/bank-inbound/{jeton}).
-    // Boîte mail : application Microsoft 365 (Azure) et Google Cloud de la plateforme, utilisées si la société n'a pas la sienne.
+    // YoMail : application Microsoft 365 (Azure) et Google Cloud de la plateforme, utilisées si la société n'a pas la sienne.
     // Adresses de retour à déclarer : APP_URL/oauth/microsoft/retour et APP_URL/oauth/google/retour
     // Avis Google : clé API Google Maps (API Places) de la plateforme, pour le mode lecture seule des avis
     'google' => ['places_api_key' => env('GOOGLE_PLACES_API_KEY')],

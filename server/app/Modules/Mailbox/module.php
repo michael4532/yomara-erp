@@ -2,7 +2,7 @@
 
 return [
     'key' => 'mailbox',
-    'name' => 'Boîte mail',
+    'name' => 'YoMail',
     'description' => 'Messagerie intégrée façon Outlook : comptes IMAP / POP3 de votre hébergement, Microsoft 365 (Outlook, Exchange Online) et Gmail réunis dans une boîte unifiée, boîtes partagées, dossiers, conversations, recherche, signatures avec logo, modèles, envoi programmé, pièces jointes depuis les documents, copie locale sur chaque ordinateur pour travailler hors ligne, mails reliés aux fiches clients et transformés en tâches, tickets ou opportunités. Calendriers Outlook et Google synchronisés dans les deux sens avec l\'Agenda, réunions Teams et Google Meet créées automatiquement.',
     'category' => 'Collaboration',
     'icon' => 'mail',

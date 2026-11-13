@@ -496,7 +496,7 @@ class MailboxController extends Controller
         $e->refresh();
         $msg = 'Réunion ajoutée à l\'agenda le '.Carbon::parse($e->starts_at)->tz($tz)->format('d/m/Y à H:i');
         $msg .= $cal ? ($provider === 'teams' ? ' : réunion Teams créée dans Outlook, invitations envoyées par Outlook.' : ' : Google Meet créé, invitations envoyées par Google.')
-            : ($provider !== 'onsite' ? ' (branchez votre compte '.($provider === 'teams' ? 'Microsoft 365' : 'Google').' dans la Boîte mail pour créer le lien '.($provider === 'teams' ? 'Teams' : 'Meet').')' : '').($sent ? ', '.$sent.' invitation(s) envoyée(s).' : '.');
+            : ($provider !== 'onsite' ? ' (branchez votre compte '.($provider === 'teams' ? 'Microsoft 365' : 'Google').' dans YoMail pour créer le lien '.($provider === 'teams' ? 'Teams' : 'Meet').')' : '').($sent ? ', '.$sent.' invitation(s) envoyée(s).' : '.');
 
         return [$e->id, $msg, ['online_link' => $e->online_link && str_starts_with((string) $e->online_link, 'http') ? $e->online_link : null]];
     }

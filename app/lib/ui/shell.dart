@@ -405,7 +405,7 @@ class _AppShellState extends State<AppShell> {
     if (s.hasModule('agenda') && (s.can('agenda.use') || s.can('agenda.manage')))
       NavItem('agenda', tr('Agenda'), Icons.calendar_month_outlined, (_) => const AgendaScreen(), section: 'Collaboration'),
     if (s.hasModule('mailbox') && (s.can('mailbox.use') || s.can('mailbox.manage')))
-      NavItem('mailbox', tr('Boîte mail'), Icons.mail_outline, (_) => const MailboxScreen(), section: 'Collaboration'),
+      NavItem('mailbox', tr('YoMail'), Icons.mail_outline, (_) => const MailboxScreen(), section: 'Collaboration'),
     if (s.hasModule('whatsapp') && (s.can('whatsapp.use') || s.can('whatsapp.manage')))
       NavItem('whatsapp', tr('WhatsApp'), Icons.chat_outlined, (_) => const WhatsappScreen(), section: 'Collaboration'),
     NavItem('whatsapp_web', tr('WhatsApp Web'), Icons.forum_outlined, (_) => const WhatsAppWebScreen(), section: 'Collaboration'),

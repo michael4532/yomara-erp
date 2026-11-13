@@ -17,7 +17,7 @@ class ImapClient
 
     public function connect(string $user, string $password): void
     {
-        // En SaaS : pas de connexion vers le réseau interne de la plateforme (même garde que la Boîte mail)
+        // En SaaS : pas de connexion vers le réseau interne de la plateforme (même garde que YoMail)
         // (connexion à l'IP vérifiée ; le nom d'hôte reste le peer_name TLS / SNI)
         try {
             $target = \App\Modules\Mailbox\Protocol\ImapClient::guardHost($this->host);

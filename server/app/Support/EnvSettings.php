@@ -44,8 +44,8 @@ class EnvSettings
             'Notifications push et connexions externes' => [
                 ['FCM_SERVICE_ACCOUNT', 'Firebase : clé du compte de service (JSON)', 'secret', null, 'Console Firebase › Paramètres du projet › Comptes de service › Générer une nouvelle clé privée : collez tout le contenu du fichier .json. Active les notifications sur les téléphones.'],
                 ['GOOGLE_SIGNIN_ENABLED', 'Autoriser « Se connecter avec Google »', 'bool', null, 'Facultatif : la connexion par e-mail et mot de passe reste disponible. Seuls les comptes déjà créés avec la même adresse peuvent se connecter.'],
-                ['MAILBOX_GOOGLE_ENABLED', 'Autoriser la connexion des boîtes Gmail / Google Workspace', 'bool', null, 'Désactivé : le bouton « Gmail » disparaît de la Boîte mail ; les comptes déjà reliés ne sont plus relevés. La connexion IMAP classique reste possible.'],
-                ['MAILBOX_MICROSOFT_ENABLED', 'Autoriser la connexion des boîtes Outlook / Microsoft 365', 'bool', null, 'Désactivé : le bouton « Outlook » disparaît de la Boîte mail ; les comptes déjà reliés ne sont plus relevés.'],
+                ['MAILBOX_GOOGLE_ENABLED', 'Autoriser la connexion des boîtes Gmail / Google Workspace', 'bool', null, 'Désactivé : le bouton « Gmail » disparaît de YoMail ; les comptes déjà reliés ne sont plus relevés. La connexion IMAP classique reste possible.'],
+                ['MAILBOX_MICROSOFT_ENABLED', 'Autoriser la connexion des boîtes Outlook / Microsoft 365', 'bool', null, 'Désactivé : le bouton « Outlook » disparaît de YoMail ; les comptes déjà reliés ne sont plus relevés.'],
                 ['GOOGLE_SIGNIN_CLIENT_IDS', 'ID clients Google acceptés', 'text', null, 'Séparés par des virgules ; par défaut ceux de l\'application Yomara ERP'],
             ],
             'Publicité en ligne' => [

@@ -1081,7 +1081,7 @@ class DemoSeeder extends Seeder
         }
     }
 
-    /** Boîte mail : compte de démonstration (en pause, sans serveur) avec messages clients, envoyés, signature et modèles. */
+    /** YoMail : compte de démonstration (en pause, sans serveur) avec messages clients, envoyés, signature et modèles. */
     protected function boiteMail(Company $company): void
     {
         $company = $company->fresh();

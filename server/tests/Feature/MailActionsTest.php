@@ -8,7 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/** Boîte mail interactive : dates détectées, invitations, création d'un devis, d'un appel de fonds, d'une réunion depuis un e-mail. */
+/** YoMail interactive : dates détectées, invitations, création d'un devis, d'un appel de fonds, d'une réunion depuis un e-mail. */
 class MailActionsTest extends TestCase
 {
     public function test_insights_dates_intents_invite(): void

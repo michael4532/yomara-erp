@@ -52,7 +52,7 @@ class MessagingController extends Controller
                 'settings' => $admin ? self::mask((array) $c->settings, MessagingService::PROVIDERS[$c->channel][$c->provider]['secret'] ?? []) : [],
             ]),
             'available' => $this->messaging->available($company),
-            // Boîtes mail de l'utilisateur (module Boîte mail) : envoi depuis sa propre adresse
+            // Boîtes mail de l'utilisateur (module YoMail) : envoi depuis sa propre adresse
             'mailboxes' => $company->hasModule('mailbox') && \Illuminate\Support\Facades\Schema::hasTable('mb_accounts')
                 ? \App\Modules\Mailbox\Models\Account::where('user_id', request()->user()->id)->get(['id', 'email', 'display_name', 'status'])->values() : [],
             'platform_mail' => MessagingService::platformMailReady() ? MessagingService::platformUsage($company) : null,

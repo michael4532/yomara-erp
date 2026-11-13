@@ -34,7 +34,7 @@ class Smtp implements Provider
 
     /**
      * Serveur SMTP saisi par une société : nom d'hôte simple (pas d'injection dans le DSN) et, en SaaS,
-     * connexion à l'IP publique vérifiée (pas le serveur lui-même ni le réseau interne), comme la Boîte mail.
+     * connexion à l'IP publique vérifiée (pas le serveur lui-même ni le réseau interne), comme la YoMail.
      */
     protected static function tenantTransport(array $c, string $enc, int $port): TransportInterface
     {

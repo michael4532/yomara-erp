@@ -172,7 +172,7 @@ class _AvisGoogleScreenState extends State<AvisGoogleScreen> {
                   child: ListTile(
                     leading: const CircleAvatar(backgroundColor: Color(0xFFE8F0FE), child: Icon(Icons.storefront, color: _gBlue)),
                     title: Text(tr('Connecter ma fiche Google Business (recommandé)'), style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(tr(d['google_app'] == true ? 'Tous les avis, réponses, publications, statistiques.' : 'Bouton grisé : l\'application Google (Client ID et secret) n\'est pas encore renseignée. Éditeur de la plateforme : Configuration du serveur › Boîtes mail Microsoft et Google. Ou votre société : Boîte mail › Paramètres. Adresse de retour à déclarer chez Google : ${d['redirect_uri']}')),
+                    subtitle: Text(tr(d['google_app'] == true ? 'Tous les avis, réponses, publications, statistiques.' : 'Bouton grisé : l\'application Google (Client ID et secret) n\'est pas encore renseignée. Éditeur de la plateforme : Configuration du serveur › Boîtes mail Microsoft et Google. Ou votre société : YoMail › Paramètres. Adresse de retour à déclarer chez Google : ${d['redirect_uri']}')),
                     trailing: FilledButton(style: FilledButton.styleFrom(backgroundColor: _gBlue), onPressed: d['google_app'] == true ? () => _connect() : null, child: Text(tr('Connecter'))),
                   ),
                 ),
@@ -1083,7 +1083,7 @@ class _AvisSettingsState extends State<_AvisSettings> {
                     ]),
                     const SizedBox(height: 14),
                     Text(
-                      tr('La connexion utilise l\'application Google de Boîte mail › Paramètres. Ajoutez-y l\'adresse de retour ${widget.info['redirect_uri']} et activez les API « My Business Account Management », « My Business Business Information », '
+                      tr('La connexion utilise l\'application Google de YoMail › Paramètres. Ajoutez-y l\'adresse de retour ${widget.info['redirect_uri']} et activez les API « My Business Account Management », « My Business Business Information », '
                       '« Business Profile Performance » et « Google My Business » (l\'accès à ces API se demande à Google, réponse en quelques jours). En attendant, le mode lecture seule fonctionne avec une simple clé API Places.'),
                       style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12.5, height: 1.5),
                     ),

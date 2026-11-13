@@ -13,11 +13,26 @@ import 'package:yomara_erp/core/safe_launch.dart';
 
 import '../../i18n/i18n.dart';
 
-/// Applications installées (Android, iPhone, Mac) : WhatsApp Web s'affiche dans l'ERP ;
+/// Applications installées (Android, iPhone, Mac, Windows) : WhatsApp Web s'affiche dans l'ERP ;
 /// la session (QR code scanné une fois) est conservée dans le profil de la vue web.
-/// Windows : le navigateur intégré (WebView2) peut s'arrêter brutalement et emporter tout le logiciel avec lui ;
-/// WhatsApp s'ouvre donc à part (application WhatsApp, sinon fenêtre d'application Edge), l'ERP reste stable.
-bool get whatsappEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+/// Ordinateur : une seule vue WhatsApp pour tout le logiciel, gardée en vie quand on change d'écran
+/// (jamais détruite ni dupliquée : c'est ce qui faisait planter WebView2 sous Windows) ;
+/// une conversation ouverte depuis une fiche se charge dans cette même vue.
+bool get whatsappEmbedded => Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows;
+
+bool get _desktop => Platform.isWindows || Platform.isMacOS;
+final InAppWebViewKeepAlive _waKeepAlive = InAppWebViewKeepAlive();
+InAppWebViewController? _waShared;
+String? _waPending;
+
+/// Ordinateur : charge la conversation dans la vue WhatsApp de l'ERP (déjà ouverte, ou à sa prochaine ouverture).
+void whatsappShowInErp(String url) {
+  if (_waShared != null) {
+    _waShared!.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+  } else {
+    _waPending = url;
+  }
+}
 
 Future<void> openWhatsAppWindow(String url) async {
   if (Platform.isWindows && await _windowsApp(url)) return;
@@ -80,6 +95,11 @@ class _WhatsAppWebViewState extends State<WhatsAppWebView> {
   @override
   void initState() {
     super.initState();
+    if (_desktop && _waShared != null) {
+      // Vue déjà créée (gardée en vie) : on la réutilise
+      _c = _waShared;
+      if (widget.url != 'https://web.whatsapp.com/') _waShared!.loadUrl(urlRequest: URLRequest(url: WebUri(widget.url)));
+    }
     if (Platform.isAndroid || Platform.isIOS) {
       rootBundle
           .loadString('assets/js/whatsapp_mobile.js')
@@ -124,13 +144,13 @@ class _WhatsAppWebViewState extends State<WhatsAppWebView> {
                 },
               ),
             _BarButton(tooltip: tr('Recharger'), icon: Icons.refresh, onPressed: () => _c?.reload()),
-            if (!phone) _BarButton(tooltip: tr('Ouvrir dans le navigateur'), icon: Icons.open_in_new, onPressed: () => openWhatsAppWindow('https://web.whatsapp.com/')),
           ],
         ),
         Expanded(
           child: InAppWebView(
             webViewEnvironment: _env,
-            initialUrlRequest: URLRequest(url: WebUri(widget.url)),
+            keepAlive: _desktop ? _waKeepAlive : null,
+            initialUrlRequest: URLRequest(url: WebUri(_desktop ? (_waPending ?? widget.url) : widget.url)),
             initialSettings: InAppWebViewSettings(
               userAgent: _desktopUa,
               preferredContentMode: UserPreferredContentMode.DESKTOP,
@@ -152,6 +172,10 @@ class _WhatsAppWebViewState extends State<WhatsAppWebView> {
             },
             onWebViewCreated: (c) {
               _c = c;
+              if (_desktop) {
+                _waShared = c;
+                _waPending = null;
+              }
               c.addJavaScriptHandler(
                 handlerName: 'ymChat',
                 callback: (args) {

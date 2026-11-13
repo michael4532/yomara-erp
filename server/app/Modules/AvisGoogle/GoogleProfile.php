@@ -76,7 +76,7 @@ class GoogleProfile
     {
         $app = OAuth::app($c, 'google');
         if (empty($app['client_id'])) {
-            throw new \DomainException('L\'application Google n\'est pas paramétrée : renseignez son Client ID et son secret dans Configuration du serveur › Boîtes mail Microsoft et Google (éditeur de la plateforme) ou dans Boîte mail › Paramètres (société), et déclarez chez Google l\'adresse de retour '.self::redirectUri().'.');
+            throw new \DomainException('L\'application Google n\'est pas paramétrée : renseignez son Client ID et son secret dans Configuration du serveur › Boîtes mail Microsoft et Google (éditeur de la plateforme) ou dans YoMail › Paramètres (société), et déclarez chez Google l\'adresse de retour '.self::redirectUri().'.');
         }
         $state = Str::random(48);
         DB::table('mb_oauth_states')->insert(['state' => $state, 'company_id' => $c->id, 'user_id' => $userId, 'provider' => 'gbp', 'meta' => '{}', 'created_at' => now()]);

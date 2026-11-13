@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Boîte mail : IMAP / POP3 / SMTP réels (serveur GreenMail local si MAILBOX_TEST_SERVER=1), Microsoft 365 (Graph simulé),
+ * YoMail : IMAP / POP3 / SMTP réels (serveur GreenMail local si MAILBOX_TEST_SERVER=1), Microsoft 365 (Graph simulé),
  * Google (Agenda simulé), droits, copie locale des postes, signatures, conversion en tâche / opportunité.
  */
 class MailboxTest extends TestCase

@@ -454,7 +454,7 @@ class _BrandPanelState extends State<_BrandPanel> with TickerProviderStateMixin 
     (Icons.badge_outlined, Color(0xFFC084FC), 'La paie en quelques clics', 'Bulletins conformes, CNPS et ITS, congés et pointage de vos équipes.', 'Bulletins prêts', '24 salariés · novembre'),
     (Icons.share_outlined, Color(0xFFFF7A9C), 'Tous vos réseaux sociaux', 'Planifiez une fois, publiez partout : Facebook, Instagram, LinkedIn, TikTok, Sensya…', 'Publication planifiée', 'Demain à 10:00 · 4 réseaux'),
   ];
-  static const _modules = ['Ventes & factures', 'Caisse', 'Stock', 'CRM', 'Comptabilité SYSCOHADA', 'Paie', 'RH', 'Achats', 'Projets', 'Boîte mail', 'WhatsApp', 'Réseaux sociaux', 'Facture normalisée', 'Fidélité', 'Rendez-vous', 'Restaurant', 'Logistique', 'Assistant IA'];
+  static const _modules = ['Ventes & factures', 'Caisse', 'Stock', 'CRM', 'Comptabilité SYSCOHADA', 'Paie', 'RH', 'Achats', 'Projets', 'YoMail', 'WhatsApp', 'Réseaux sociaux', 'Facture normalisée', 'Fidélité', 'Rendez-vous', 'Restaurant', 'Logistique', 'Assistant IA'];
 
   @override
   void initState() {

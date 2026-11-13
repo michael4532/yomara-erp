@@ -61,8 +61,8 @@ class OAuth
         $app = self::app($c, $provider);
         if (! $app['client_id']) {
             throw new \DomainException($provider === 'microsoft'
-                ? 'Microsoft 365 n\'est pas encore paramétré : renseignez l\'application Azure dans Boîte mail › Paramètres (guide fourni).'
-                : 'Google n\'est pas encore paramétré : renseignez l\'application Google Cloud dans Boîte mail › Paramètres (guide fourni).');
+                ? 'Microsoft 365 n\'est pas encore paramétré : renseignez l\'application Azure dans YoMail › Paramètres (guide fourni).'
+                : 'Google n\'est pas encore paramétré : renseignez l\'application Google Cloud dans YoMail › Paramètres (guide fourni).');
         }
         DB::table('mb_oauth_states')->where('created_at', '<', now()->subHour())->delete();
         $state = Str::random(48);

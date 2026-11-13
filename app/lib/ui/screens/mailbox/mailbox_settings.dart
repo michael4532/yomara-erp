@@ -252,7 +252,7 @@ class _AddAccountState extends State<_AddAccount> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: YColors.warning.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
                 child: Text(tr(s.canManage
-                    ? 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : renseignez l\'application dans Boîte mail › Paramètres (guide pas à pas fourni).'
+                    ? 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : renseignez l\'application dans YoMail › Paramètres (guide pas à pas fourni).'
                     : 'La connexion ${_provider == 'microsoft' ? 'Microsoft 365' : 'Google'} n\'est pas encore paramétrée : demandez à votre administrateur.')),
               ),
           ],
