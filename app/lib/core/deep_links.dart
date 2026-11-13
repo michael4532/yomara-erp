@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb;
 import 'package:provider/provider.dart';
 
 import '../i18n/i18n.dart';
@@ -16,6 +16,17 @@ import '../ui/widgets/common.dart' show confirm;
 class DeepLinks {
   static StreamSubscription<Uri>? _sub;
   static final _code = RegExp(r'^[a-z]{3}-[a-z]{4}-[a-z]{3}$');
+
+  /// Écran demandé par un lien (yomara://mail → YoMail, yomara://ecran/stock) : l'interface s'y rend dès qu'elle est prête.
+  static final screen = ValueNotifier<String?>(null);
+
+  static String? screenOf(Uri uri) {
+    if (uri.scheme != 'yomara') return null;
+    if (uri.host == 'mail') return 'mailbox';
+    final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (uri.host == 'ecran' && segs.length == 1 && RegExp(r'^[a-z_]{2,40}$').hasMatch(segs[0])) return segs[0];
+    return null;
+  }
 
   static void init() {
     if (kIsWeb || _sub != null) return;
@@ -44,6 +55,11 @@ class DeepLinks {
   }
 
   static Future<void> handle(Uri uri) async {
+    final scr = screenOf(uri);
+    if (scr != null) {
+      screen.value = scr;
+      return;
+    }
     final room = roomUrl(uri);
     final context = appNavigatorKey.currentContext;
     if (room == null || context == null || !context.mounted) return;

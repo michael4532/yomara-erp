@@ -135,6 +135,8 @@ class MailboxController extends Controller
             'oauth_disabled' => ['microsoft' => ! OAuth::enabled('microsoft'), 'google' => ! OAuth::enabled('google')],
             'hosted' => HostedMail::summary($c),
             'mobile_url' => url('/application-mobile'),
+            'yomail_url' => url('/yomail'),
+            'track_clicks' => LinkTracking::settings((int) $c->id)['track_clicks'],
             'can_manage' => $this->canManage($r),
             'users' => $this->canManage($r) ? DB::table('users')->where('company_id', $c->id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']) : [],
         ]];
@@ -531,7 +533,7 @@ class MailboxController extends Controller
         $d = $r->validate([
             'id' => 'required|uuid', 'account_id' => 'required|integer', 'to' => 'nullable|array|max:100', 'cc' => 'nullable|array|max:100', 'bcc' => 'nullable|array|max:200',
             'subject' => 'nullable|string|max:300', 'html' => 'nullable|string|max:3000000', 'mode' => 'nullable|in:new,reply,reply_all,forward', 'message_id' => 'nullable|integer',
-            'attachments' => 'nullable|array|max:30', 'send_at' => 'nullable|date', 'read_receipt' => 'nullable|boolean', 'importance' => 'nullable|in:low,normal,high',
+            'attachments' => 'nullable|array|max:30', 'send_at' => 'nullable|date', 'read_receipt' => 'nullable|boolean', 'track_clicks' => 'nullable|boolean', 'importance' => 'nullable|in:low,normal,high',
         ]);
         $a = $this->account($r, (int) $d['account_id']);
         if (! empty($d['message_id'])) {
@@ -1188,6 +1190,30 @@ class MailboxController extends Controller
         return response()->noContent();
     }
 
+    /** Lien intelligent public /yomail. */
+    public function yomailLink(Request $r)
+    {
+        return \App\Support\AppSmartLink::openScreen($r, 'mailbox', 'YoMail', 'mail');
+    }
+
+    /** Clic suivi d'un lien envoyé (public, signé). */
+    public function trackClick(Request $r, string $token)
+    {
+        $url = (string) base64_decode(strtr((string) $r->query('u'), '-_', '+/'));
+        abort_unless(preg_match('#^https?://#i', $url) && LinkTracking::valid($token, $url, (string) $r->query('s')), 404);
+        LinkTracking::click($token, $url);
+
+        return redirect()->away($url);
+    }
+
+    /** Clics des liens d'un message envoyé avec le suivi activé. */
+    public function clicks(Request $r, int $id)
+    {
+        $m = $this->message($r, $id);
+
+        return ['data' => LinkTracking::stats((int) app('tenant')->id, $m->message_id)];
+    }
+
     // ------------------------------------------------------------------ paramètres (gestionnaire)
 
     public function settings()
@@ -1201,6 +1227,7 @@ class MailboxController extends Controller
             'microsoft_client_id' => $row->microsoft_client_id ?? null, 'microsoft_tenant' => $row->microsoft_tenant ?? null, 'microsoft_secret_set' => ! empty($row?->microsoft_client_secret),
             'google_client_id' => $row->google_client_id ?? null, 'google_secret_set' => ! empty($row?->google_client_secret),
             'retention_days' => (int) ($row->retention_days ?? 90),
+            'app_link_footer' => (bool) ($row->app_link_footer ?? false), 'track_clicks' => (bool) ($row->track_clicks ?? false), 'app_link' => url('/yomail'),
             'microsoft_ready' => ! empty($ms['client_id']) && ! empty($ms['client_secret']), 'microsoft_platform' => ! $ms['own'] && ! empty($ms['client_id']),
             'google_ready' => ! empty($g['client_id']) && ! empty($g['client_secret']), 'google_platform' => ! $g['own'] && ! empty($g['client_id']),
             'redirect_microsoft' => OAuth::redirectUri('microsoft'), 'redirect_google' => OAuth::redirectUri('google'),
@@ -1211,7 +1238,8 @@ class MailboxController extends Controller
     public function saveSettings(Request $r)
     {
         $d = $r->validate(['microsoft_client_id' => 'nullable|string|max:80', 'microsoft_client_secret' => 'nullable|string|max:300', 'microsoft_tenant' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9.-]+$/'],
-            'google_client_id' => 'nullable|string|max:190', 'google_client_secret' => 'nullable|string|max:300', 'retention_days' => 'nullable|integer|min:7|max:3650']);
+            'google_client_id' => 'nullable|string|max:190', 'google_client_secret' => 'nullable|string|max:300', 'retention_days' => 'nullable|integer|min:7|max:3650',
+            'app_link_footer' => 'nullable|boolean', 'track_clicks' => 'nullable|boolean']);
         $c = app('tenant');
         $vals = ['updated_at' => now()];
         foreach (['microsoft_client_id', 'microsoft_tenant', 'google_client_id'] as $k) {
@@ -1226,6 +1254,11 @@ class MailboxController extends Controller
         }
         if (isset($d['retention_days'])) {
             $vals['retention_days'] = $d['retention_days'];
+        }
+        foreach (['app_link_footer', 'track_clicks'] as $k) {
+            if (array_key_exists($k, $d) && $d[$k] !== null) {
+                $vals[$k] = (bool) $d[$k];
+            }
         }
         DB::table('mb_settings')->updateOrInsert(['company_id' => $c->id], $vals + ['created_at' => now()]);
 

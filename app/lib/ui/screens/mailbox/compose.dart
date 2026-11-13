@@ -73,6 +73,7 @@ class _ComposeViewState extends State<ComposeView> {
   final List<Map<String, String>> _to = [], _cc = [], _bcc = [];
   final List<Map<String, dynamic>> _atts = [];
   bool _showCc = false, _receipt = false, _high = false, _busy = false, _showQuote = false;
+  late bool _track = s.trackClicksDefault;
   int? _accountId;
   int? _signatureId;
   String _mode = 'rich'; // rich : mise en forme ; html : code HTML
@@ -371,7 +372,7 @@ class _ComposeViewState extends State<ComposeView> {
         if (o != null) 'message_id': o!['id'],
         'attachments': [for (final a in _atts) Map<String, dynamic>.from(a)..remove('size')],
         if (_sendAt != null) 'send_at': _sendAt!.toIso8601String(),
-        'read_receipt': _receipt, 'importance': _high ? 'high' : 'normal',
+        'read_receipt': _receipt, 'track_clicks': _track, 'importance': _high ? 'high' : 'normal',
       });
       if (!mounted) return;
       Navigator.pop(context);
@@ -504,9 +505,10 @@ class _ComposeViewState extends State<ComposeView> {
             _cmd(Icons.schedule_send_outlined, 'Programmer', _busy ? null : _schedule),
             PopupMenuButton<String>(
               tooltip: tr('Plus d\'options'),
-              onSelected: (v) => setState(() => v == 'receipt' ? _receipt = !_receipt : _high = !_high),
+              onSelected: (v) => setState(() => v == 'receipt' ? _receipt = !_receipt : v == 'track' ? _track = !_track : _high = !_high),
               itemBuilder: (_) => [
                 CheckedPopupMenuItem(value: 'receipt', checked: _receipt, child: Text(tr('Demander un accusé de lecture'))),
+                CheckedPopupMenuItem(value: 'track', checked: _track, child: Text(tr('Suivre les clics sur les liens'))),
                 CheckedPopupMenuItem(value: 'high', checked: _high, child: Text(tr('Importance haute'))),
               ],
               icon: Icon(Icons.more_horiz_rounded, color: hint),
@@ -696,12 +698,13 @@ class _ComposeViewState extends State<ComposeView> {
                     ),
                 ]),
               ],
-              if (_sendAt != null || _receipt)
+              if (_sendAt != null || _receipt || _track)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: Wrap(spacing: 8, children: [
                     if (_sendAt != null) InputChip(avatar: const Icon(Icons.schedule, size: 16), label: Text(tr('Envoi le ${DateFormat('d MMM à HH:mm', 'fr_FR').format(_sendAt!)}')), onDeleted: () => setState(() => _sendAt = null)),
                     if (_receipt) InputChip(avatar: const Icon(Icons.mark_email_read_outlined, size: 16), label: Text(tr('Accusé de lecture')), onDeleted: () => setState(() => _receipt = false)),
+                    if (_track) InputChip(avatar: const Icon(Icons.ads_click, size: 16), label: Text(tr('Clics suivis')), onDeleted: () => setState(() => _track = false)),
                   ]),
                 ),
             ]),

@@ -1124,6 +1124,7 @@ class _SettingsState extends State<_Settings> {
   final _msId = TextEditingController(), _msSecret = TextEditingController(), _msTenant = TextEditingController();
   final _gId = TextEditingController(), _gSecret = TextEditingController();
   int _retention = 90;
+  bool _footer = false, _track = false;
 
   @override
   void initState() {
@@ -1139,6 +1140,8 @@ class _SettingsState extends State<_Settings> {
         _msSecret.text = d['microsoft_secret_set'] == true ? '••••••••' : '';
         _gSecret.text = d['google_secret_set'] == true ? '••••••••' : '';
         _retention = (d['retention_days'] as num?)?.toInt() ?? 90;
+        _footer = d['app_link_footer'] == true;
+        _track = d['track_clicks'] == true;
       });
     });
   }
@@ -1208,6 +1211,22 @@ class _SettingsState extends State<_Settings> {
             ),
             const SizedBox(height: 4),
             Text(tr('Les messages restent toujours chez votre fournisseur ; les messages suivis (drapeau) sont gardés.'), style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+            const Divider(height: 32),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _track,
+              onChanged: (v) => setState(() => _track = v),
+              title: Text(tr('Suivre les clics des liens par défaut')),
+              subtitle: Text(tr('Chaque lien des e-mails envoyés est compté (lien signé, sans redirection détournable). Décochable à chaque envoi.')),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _footer,
+              onChanged: (v) => setState(() => _footer = v),
+              title: Text(tr('Ajouter le lien de l\'application sous les e-mails')),
+              subtitle: Text(tr('« Envoyé avec YoMail · Télécharger l\'application » : le lien ouvre YoMail dans l\'application installée, sinon le bon store ou la version web.')),
+            ),
+            if ('${d['app_link'] ?? ''}'.isNotEmpty) _copyRow('Lien intelligent YoMail', '${d['app_link']}'),
           ]),
         ),
         const SizedBox(height: 20),
@@ -1221,7 +1240,7 @@ class _SettingsState extends State<_Settings> {
                   : () async {
                       try {
                         await context.read<Session>().api.put('mailbox/settings', {
-                          'microsoft_client_id': _msId.text.trim(), 'microsoft_tenant': _msTenant.text.trim(), 'google_client_id': _gId.text.trim(), 'retention_days': _retention,
+                          'microsoft_client_id': _msId.text.trim(), 'microsoft_tenant': _msTenant.text.trim(), 'google_client_id': _gId.text.trim(), 'retention_days': _retention, 'app_link_footer': _footer, 'track_clicks': _track,
                           if (!_msSecret.text.startsWith('••')) 'microsoft_client_secret': _msSecret.text.trim(),
                           if (!_gSecret.text.startsWith('••')) 'google_client_secret': _gSecret.text.trim(),
                         });

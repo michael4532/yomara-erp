@@ -4,6 +4,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../core/deep_links.dart' show DeepLinks;
 import 'package:provider/provider.dart';
 
 import '../core/sync_engine.dart';
@@ -174,6 +176,7 @@ class _AppShellState extends State<AppShell> {
     _unlisten = listenScreenLinks((id) {
       if (mounted) _go(id);
     });
+    DeepLinks.screen.addListener(_onDeepScreen);
     // Téléphone : notification push reçue (appli ouverte) ou touchée (ouvre l'écran concerné)
     FirebaseSetup.listen(
       onForeground: (m) {
@@ -193,6 +196,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _unlisten();
+    DeepLinks.screen.removeListener(_onDeepScreen);
     _session.modulesChanged.removeListener(_onModulesChanged);
     super.dispose();
   }
@@ -215,6 +219,12 @@ class _AppShellState extends State<AppShell> {
     // Version Web : lien direct vers un écran (…/app/?ecran=maintenance)
     final asked = kIsWeb ? Uri.base.queryParameters['ecran'] : null;
     if (asked != null && RegExp(r'^[a-z_]{2,40}$').hasMatch(asked)) return asked;
+    // Application lancée par un lien (yomara://mail) : on arrive sur l'écran demandé
+    final deep = DeepLinks.screen.value;
+    if (deep != null) {
+      DeepLinks.screen.value = null;
+      return deep;
+    }
     // Éditeur de la plateforme : arrive sur sa console (supervision des clients), pas sur le tableau de bord d'une société
     if (s.isSuperAdmin && s.mode == 'saas') return 'admin_console';
     if (s.can('ventes.view')) return 'dashboard';
@@ -489,6 +499,13 @@ class _AppShellState extends State<AppShell> {
   late List<String> _recent = UiPrefs.list('nav_recent');
   late final Set<String> _open = {...UiPrefs.list('nav_open'), if (_current != 'dashboard') groupOf(_current).key};
   late bool _rail = UiPrefs.flag('nav_rail');
+
+  void _onDeepScreen() {
+    final id = DeepLinks.screen.value;
+    if (id == null || !mounted) return;
+    DeepLinks.screen.value = null;
+    _go(id);
+  }
 
   void _go(String id) {
     rememberScreen(id);

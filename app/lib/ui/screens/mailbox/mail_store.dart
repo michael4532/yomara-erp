@@ -37,6 +37,9 @@ class MailStore extends ChangeNotifier {
   Map<String, dynamic> oauthDisabled = {};
   Map<String, dynamic> hosted = {};
   String mobileUrl = '';
+  String yomailUrl = '';
+  /// Suivi des clics coché par défaut à la rédaction (réglage de la société).
+  bool trackClicksDefault = false;
   bool canManage = false;
   bool loading = true;
   bool syncing = false;
@@ -118,6 +121,8 @@ class MailStore extends ChangeNotifier {
     oauthDisabled = asMap(d['oauth_disabled']);
     hosted = asMap(d['hosted']);
     mobileUrl = '${d['mobile_url'] ?? ''}';
+    yomailUrl = '${d['yomail_url'] ?? ''}';
+    trackClicksDefault = d['track_clicks'] == true;
     canManage = d['can_manage'] == true;
   }
 

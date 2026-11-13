@@ -279,6 +279,10 @@ Route::middleware('throttle:portal')->get('oauth/social/{provider}/retour', \App
 Route::middleware('throttle:portal')->get('oauth/{provider}/retour', \App\Modules\Mailbox\OAuthCallbackController::class)->whereIn('provider', ['microsoft', 'google']);
 Route::middleware('throttle:300,1')->get('mailbox/media/{name}', [\App\Modules\Mailbox\MailboxController::class, 'media'])->where('name', '[A-Za-z0-9]{32}\.(png|jpg|gif|webp)');
 Route::middleware('throttle:portal')->get('application-mobile', [\App\Modules\Mailbox\MailboxController::class, 'mobilePage']);
+// Lien intelligent YoMail : ouvre YoMail dans l'application installée, sinon le bon store ou la version web
+Route::middleware('throttle:portal')->get('yomail', [\App\Modules\Mailbox\MailboxController::class, 'yomailLink']);
+// Clic suivi d'un lien envoyé depuis YoMail (signé : aucune redirection vers une adresse choisie par un tiers)
+Route::middleware('throttle:120,1')->get('y/c/{token}', [\App\Modules\Mailbox\MailboxController::class, 'trackClick'])->where('token', '[a-f0-9]{40}');
 Route::middleware(['signed', 'throttle:120,1'])->get('mailbox/fichier/{id}/{att}', [\App\Modules\Mailbox\MailboxController::class, 'signedAttachment'])->whereNumber('id')->name('mailbox.attachment');
 
 // WhatsApp : fichiers envoyés (récupérés par le fournisseur) et pièces des conversations (lien signé)

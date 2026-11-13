@@ -2043,6 +2043,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       ),
                     ),
                     if (atts.isNotEmpty) _attachmentsBlock(atts, box.maxWidth - (box.maxWidth < 560 ? 28 : 48)),
+                    // Message envoyé avec le suivi des clics : nombre de clics par lien
+                    if (_s.folder(m['folder_id'])?['role'] == 'sent' && m['id'] is int) _ClickStats(key: ValueKey('clk${m['id']}'), messageId: m['id'] as int),
                     MailActionsBar(
                       message: m,
                       onAction: (a, [start]) => _mailAction(m, a, start),
@@ -2412,6 +2414,68 @@ class _LiveBadgeState extends State<_LiveBadge> {
         decoration: BoxDecoration(shape: BoxShape.circle, color: off ? Colors.grey : const Color(0xFF22C55E)),
       ),
       label: off ? 'Hors ligne' : 'En direct',
+    );
+  }
+}
+
+
+/// Clics des liens d'un e-mail envoyé avec « Suivre les clics » (rien d'affiché sinon).
+class _ClickStats extends StatefulWidget {
+  const _ClickStats({super.key, required this.messageId});
+
+  final int messageId;
+
+  @override
+  State<_ClickStats> createState() => _ClickStatsState();
+}
+
+class _ClickStatsState extends State<_ClickStats> {
+  Map<String, dynamic>? _d;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<Session>().api.get('mailbox/messages/${widget.messageId}/clicks').then((r) {
+      if (mounted && r['data'] is Map) setState(() => _d = asMap(r['data']));
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = _d;
+    if (d == null) return const SizedBox.shrink();
+    final n = (d['clicks'] as num?)?.toInt() ?? 0;
+    final links = (d['links'] as List? ?? const []).map(asMap).toList();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ActionChip(
+          avatar: const Icon(Icons.ads_click, size: 16),
+          label: Text(n == 0 ? tr('Liens suivis · aucun clic pour l\'instant') : tr('$n clic${n > 1 ? 's' : ''} sur ${links.length} lien${links.length > 1 ? 's' : ''}')),
+          onPressed: links.isEmpty
+              ? null
+              : () => showDialog<void>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: Text(tr('Clics sur les liens')),
+                      content: SizedBox(
+                        width: 460,
+                        child: ListView(shrinkWrap: true, children: [
+                          for (final l in links)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('${l['url']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                              subtitle: l['last_at'] != null ? Text(tr('Dernier clic : ${'${l['last_at']}'.replaceFirst('T', ' ').substring(0, 16)}')) : null,
+                              trailing: Text('${l['clicks']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                            ),
+                        ]),
+                      ),
+                      actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Fermer')))],
+                    ),
+                  ),
+        ),
+      ),
     );
   }
 }

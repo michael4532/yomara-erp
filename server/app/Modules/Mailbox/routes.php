@@ -15,6 +15,7 @@ Route::middleware('perm:mailbox.use,mailbox.manage')->group(function () {
     Route::post('messages/{id}/convert', [C::class, 'convert'])->whereNumber('id');
     Route::post('messages/{id}/accept-invite', [C::class, 'acceptInvite'])->whereNumber('id');
     Route::get('messages/{id}/attachments/{att}', [C::class, 'download'])->whereNumber('id');
+    Route::get('messages/{id}/clicks', [C::class, 'clicks'])->whereNumber('id');
     Route::post('send', [C::class, 'send']);
     Route::get('outbox', [C::class, 'outbox']);
     Route::delete('outbox/{id}', [C::class, 'cancelOutbox'])->whereUuid('id');

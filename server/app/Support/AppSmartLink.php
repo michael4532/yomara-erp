@@ -73,6 +73,57 @@ class AppSmartLink
         return response(self::page($os, $links))->header('Content-Type', 'text/html; charset=utf-8');
     }
 
+    /**
+     * Lien intelligent vers un écran de l'ERP (ex. /yomail) :
+     * Android : ouvre l'application installée (sinon Google Play, sans message d'erreur) ;
+     * iPhone, iPad, Mac : page « Ouvrir dans l'application » / store / version web ;
+     * Windows, Linux : l'écran s'ouvre directement dans la version web.
+     */
+    public static function openScreen(Request $r, string $screen, string $label, string $deep)
+    {
+        $os = self::platform($r);
+        $links = self::links();
+        $web = url('/app/').'?ecran='.$screen;
+        try {
+            \App\Services\SiteTraffic::record($r, 'download', 'smartlink_'.$screen.'_'.$os);
+        } catch (\Throwable) {
+        }
+        if (in_array($os, ['windows', 'linux', 'other'], true)) {
+            return redirect()->away($web);
+        }
+        $store = $links[$os === 'mac' ? 'mac' : ($os === 'android' ? 'android' : 'ios')] ?? null;
+        if ($os === 'android') {
+            // Intent Android : l'application s'ouvre si elle est installée, sinon le navigateur suit l'adresse de secours
+            $pkg = 'com.yomaratechnologies.yomara_erp';
+            $intent = 'intent://'.$deep.'#Intent;scheme=yomara;package='.$pkg.';S.browser_fallback_url='.rawurlencode($store ?: $web).';end';
+
+            return response(self::screenPage($label, 'yomara://'.$deep, $store, $web, 'Google Play', $intent))->header('Content-Type', 'text/html; charset=utf-8');
+        }
+
+        return response(self::screenPage($label, 'yomara://'.$deep, $store, $web, $os === 'mac' ? 'Mac App Store' : 'App Store'))->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    protected static function screenPage(string $label, string $deep, ?string $store, string $web, string $storeName, ?string $auto = null): string
+    {
+        $l = e($label);
+        $btn = fn ($href, $txt, $main = false) => '<a class="b'.($main ? ' m' : '').'" href="'.e($href).'" rel="noopener">'.e($txt).'</a>';
+
+        return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
+            .'<title>Ouvrir '.$l.'</title><style>'
+            .'*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,"Segoe UI",sans-serif;background:linear-gradient(160deg,#0B1B3A,#2E6BE6);display:flex;align-items:center;justify-content:center;padding:16px}'
+            .'.c{background:#fff;border-radius:22px;padding:28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}'
+            .'.i{width:64px;height:64px;border-radius:18px;background:#2E6BE6;color:#fff;font-size:32px;line-height:64px;margin:0 auto 14px}'
+            .'h1{margin:0 0 6px;color:#0B1B3A;font-size:22px}p{color:#5B6B85;margin:0 0 20px;line-height:1.45}'
+            .'.b{display:block;text-decoration:none;border:1.5px solid #DCE3EF;border-radius:14px;padding:14px;margin:10px 0;color:#0B1B3A;font-weight:600}'
+            .'.b.m{background:#2E6BE6;border-color:#2E6BE6;color:#fff}'
+            .'</style></head><body><main class="c"><div class="i" aria-hidden="true">✉</div><h1>'.$l.'</h1>'
+            .'<p>Ouvrez '.$l.' dans l\'application Yomara ERP, ou continuez dans le navigateur.</p>'
+            .$btn($auto ?? $deep, 'Ouvrir dans l\'application', true)
+            .($store ? $btn($store, 'Installer depuis '.$storeName) : '')
+            .$btn($web, 'Continuer dans le navigateur')
+            .'</main>'.($auto ? '<script>setTimeout(function(){location.href='.json_encode($auto).'},300)</script>' : '').'</body></html>';
+    }
+
     protected static function page(string $os, array $links): string
     {
         $name = e((string) config('erp.name', 'Yomara ERP'));

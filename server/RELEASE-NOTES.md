@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.57 — liens intelligents YoMail
+
+- **Lien intelligent YoMail** (`/yomail`) : sur Android, ouvre YoMail dans l'application installée, sinon Google Play (sans message d'erreur) ; sur iPhone, iPad et Mac, page « Ouvrir dans l'application » / App Store / continuer dans le navigateur ; sur Windows et Linux, YoMail s'ouvre directement dans la version web. L'application reconnaît aussi `yomara://mail` et `yomara://ecran/<écran>`.
+- **Lien de l'application sous les e-mails** (option de la société, YoMail › Paramètres) : « Envoyé avec YoMail · Télécharger l'application », vers le lien intelligent.
+- **Suivi des clics** : option « Suivre les clics sur les liens » à la rédaction (cochée par défaut si la société le souhaite). Les liens passent par une redirection signée (aucune adresse choisie par un tiers ne peut être utilisée) ; dans « Éléments envoyés », le message affiche le nombre de clics par lien. Les liens de désinscription et `mailto:` ne sont pas modifiés.
+- Application : version 1.0.10 (build 15).
+
 ## 0.99.56 — YoMail, lecture des e-mails en plein écran, WhatsApp intégré sur Windows
 
 - **Lecture d'un e-mail** : tout défile d'un seul tenant, barre d'outils comprise ; plus rien de figé en haut ni en bas. Les boutons Répondre / Répondre à tous / Transférer sont à la fin du message, le bloc « Conversation » est supprimé : le message occupe tout l'écran.

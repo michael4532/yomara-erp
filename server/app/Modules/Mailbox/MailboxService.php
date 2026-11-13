@@ -253,7 +253,7 @@ class MailboxService
             if (! $a) {
                 throw new \DomainException('Compte de messagerie supprimé.');
             }
-            $mail = Composer::build($a, $payload, $user);
+            $mail = LinkTracking::apply($a, Composer::build($a, $payload, $user), $payload, $id);
             if ($until = $a->stateValue('send_blocked_until')) {
                 if ($until > time()) {
                     throw new \DomainException('Envois suspendus jusqu\'à '.date('H:i', $until).' après plusieurs refus du serveur.');
