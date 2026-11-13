@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.55 — pièces jointes ouvertes dans l'application
+
+- **Boîte mail** : les images et les PDF reçus s'ouvrent directement dans l'application, sans passer par le navigateur. Images en plein écran avec zoom, glisser pour passer à l'image suivante, bouton Enregistrer. PDF dans le lecteur de l'application (zoom, impression, enregistrement, outils PDF). Les autres fichiers (Word, Excel…) s'ouvrent comme avant dans l'application adaptée de l'appareil.
+- « Enregistrer » et « Enregistrer les pièces jointes » téléchargent les fichiers au lieu de les ouvrir l'un après l'autre.
+
 ## 0.99.54 — WhatsApp stable sur Windows et adapté au téléphone, lien intelligent des applications, audit avant mise en ligne
 
 - **WhatsApp sur Windows ne peut plus fermer le logiciel** : WhatsApp Web ne tourne plus à l'intérieur de l'ERP sous Windows (le navigateur intégré WebView2 pouvait s'arrêter brutalement et emporter toute l'application). La conversation s'ouvre dans l'application WhatsApp de l'ordinateur si elle est installée, sinon dans une fenêtre WhatsApp dédiée (Edge ou Chrome en mode application, sans barre d'adresse, QR code scanné une seule fois). Android, iPhone/iPad et Mac gardent WhatsApp dans l'ERP.

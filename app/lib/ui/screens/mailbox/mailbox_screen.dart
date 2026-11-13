@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/local_db.dart';
 import '../../../core/sync_engine.dart';
@@ -19,6 +18,7 @@ import 'contact_card.dart';
 import 'mail_theme.dart';
 import 'mailbox_settings.dart';
 import 'mail_actions.dart';
+import 'attachment_viewer.dart';
 import '../document_editor.dart';
 import '../documents_screen.dart';
 import '../../../i18n/i18n.dart';
@@ -2062,9 +2062,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
       return mime.contains('/') ? mime.split('/').last.toUpperCase() : 'FICHIER';
     }
 
-    void open(Map<String, dynamic> a) {
-      if (a['url'] != null) safeLaunchUrl(Uri.parse('${a['url']}'), mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank');
-    }
+    // Images et PDF : lus dans l'application ; autres fichiers : application de l'appareil
+    void open(Map<String, dynamic> a) => openMailAttachment(context, a, atts);
 
     final total = atts.fold<num>(0, (t, a) => t + (a['size'] is num ? a['size'] as num : 0));
     return Padding(
@@ -2101,7 +2100,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                         tooltip: tr('Options'),
                         icon: Icon(Icons.more_vert_rounded, color: p.muted, size: 20),
                         enabled: a['url'] != null,
-                        onSelected: (_) => open(a),
+                        onSelected: (v) => v == 'save' ? saveMailAttachments(context, [a]) : open(a),
                         itemBuilder: (_) => [
                           PopupMenuItem(value: 'open', child: Text(tr('Ouvrir'))),
                           PopupMenuItem(value: 'save', child: Text(tr('Enregistrer'))),
@@ -2122,12 +2121,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
         if (atts.any((a) => a['url'] != null))
           TextButton.icon(
             style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), foregroundColor: p.accent),
-            onPressed: () async {
-              for (final a in atts) {
-                open(a);
-                await Future<void>.delayed(const Duration(milliseconds: 400));
-              }
-            },
+            onPressed: () => saveMailAttachments(context, atts),
             icon: const Icon(Icons.download_rounded, size: 19),
             label: Text(tr(atts.length > 1 ? 'Enregistrer les pièces jointes' : 'Enregistrer la pièce jointe'), style: const TextStyle(fontWeight: FontWeight.w600)),
           ),

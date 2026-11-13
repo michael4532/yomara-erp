@@ -381,7 +381,7 @@ class MailboxTest extends TestCase
         $this->assertSame($av, collect($api()->getJson('/api/mailbox')->json('data.accounts'))->firstWhere('id', $acc->id)['avatar_url']);
         $api()->deleteJson("/api/mailbox/accounts/{$acc->id}/avatar")->assertOk()->assertJsonPath('data.avatar_url', null);
         $this->flushHeaders();
-        $this->get('/application-mobile')->assertOk()->assertSee('Yomara sur votre téléphone');
+        $this->get('/application-mobile')->assertOk()->assertSee('Microsoft Store'); // lien intelligent : page de choix pour un ordinateur (voir AppSmartLinkTest)
     }
 
     public function test_mime_threading_and_imap_parser(): void
