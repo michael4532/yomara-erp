@@ -796,22 +796,10 @@ class MailboxController extends Controller
     }
 
     /** Page d'installation de l'application mobile (cible du QR code). */
-    public function mobilePage()
+    /** QR code « Application mobile » : lien intelligent selon l'appareil (voir AppSmartLink). */
+    public function mobilePage(\Illuminate\Http\Request $r)
     {
-        $c = config('erp.mobile', []);
-        $btn = fn ($href, $label, $bg) => '<a href="'.e($href).'" style="display:block;margin:10px 0;padding:14px 18px;border-radius:12px;background:'.$bg.';color:#fff;text-decoration:none;font-weight:700">'.$label.'</a>';
-        $links = (! empty($c['android_url']) ? $btn($c['android_url'], 'Télécharger pour Android', '#12A150') : '')
-            .(! empty($c['ios_url']) ? $btn($c['ios_url'], 'Télécharger pour iPhone', '#0B1B3A') : '')
-            .$btn(url('/app/'), 'Ouvrir Yomara dans le navigateur', '#2E6BE6');
-        $soon = empty($c['android_url']) && empty($c['ios_url'])
-            ? '<p style="color:#5B6B85;font-size:14px">Les applications Android et iPhone arrivent très bientôt. En attendant, ouvrez Yomara dans le navigateur du téléphone puis « Ajouter à l\'écran d\'accueil » : vous retrouverez votre boîte mail comme une application.</p>' : '';
-
-        return response('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yomara sur votre téléphone</title></head>'
-            .'<body style="font-family:system-ui,Segoe UI,sans-serif;background:linear-gradient(160deg,#0B1B3A,#2E6BE6);min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center">'
-            .'<div style="background:#fff;border-radius:22px;padding:28px;max-width:400px;width:88%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)">'
-            .'<div style="width:64px;height:64px;border-radius:18px;background:#FFC93C;color:#0B1B3A;font-size:34px;font-weight:900;line-height:64px;margin:0 auto 14px">Y</div>'
-            .'<h2 style="margin:0 0 6px;color:#0B1B3A">Yomara sur votre téléphone</h2><p style="color:#5B6B85;margin:0 0 16px">Vos e-mails, votre agenda et votre entreprise, partout.</p>'
-            .$links.$soon.'</div></body></html>')->header('Content-Type', 'text/html; charset=utf-8');
+        return \App\Support\AppSmartLink::handle($r);
     }
 
     /** Adresse fournie par Yomara (boîte créée sur le cPanel de la plateforme). */

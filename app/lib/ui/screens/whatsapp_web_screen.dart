@@ -50,46 +50,91 @@ class WhatsAppWebScreen extends StatelessWidget {
 
   Widget _launcher(BuildContext context) {
     final hint = Theme.of(context).hintColor;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(color: const Color(0xFF25D366).withValues(alpha: .12), shape: BoxShape.circle),
-              child: const Icon(Icons.chat, size: 42, color: Color(0xFF25D366)),
-            ),
-            const SizedBox(height: 16),
-            Text(tr('WhatsApp Web'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              tr(kIsWeb
-                  ? 'WhatsApp n\'autorise pas son affichage à l\'intérieur d\'une page web : il s\'ouvre dans une fenêtre accolée à droite de l\'ERP. '
-                      'Scannez le QR code une fois avec votre téléphone, la session reste ouverte. Les boutons « WhatsApp » des fiches clients et des factures y ouvrent directement la conversation.'
-                  : 'Sur ordinateur, WhatsApp s\'ouvre dans sa propre fenêtre : l\'application WhatsApp si elle est installée, sinon une fenêtre WhatsApp Web dédiée (sans barre d\'adresse). '
-                      'Scannez le QR code une seule fois, la session reste ouverte. Ainsi WhatsApp ne peut jamais bloquer ni fermer l\'ERP.'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: hint),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16)),
-              onPressed: () => openWhatsAppWindow(initialUrl),
-              icon: const Icon(Icons.open_in_new),
-              label: Text(tr('Ouvrir WhatsApp Web')),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.lock_outline, color: YColors.blue),
-                title: Text(tr('Vos messages restent privés')),
-                subtitle: Text(tr('La session WhatsApp est celle de votre téléphone ; l\'ERP n\'enregistre pas vos conversations. Pour un numéro d\'entreprise partagé avec relances automatiques, utilisez le module WhatsApp Business.')),
+    final steps = [
+      (Icons.open_in_new_rounded, tr('Ouvrez WhatsApp'), tr(kIsWeb ? 'Il s\'ouvre dans une fenêtre accolée à droite de l\'ERP.' : 'Dans l\'application WhatsApp de l\'ordinateur, sinon dans une fenêtre WhatsApp dédiée, sans barre d\'adresse.')),
+      (Icons.qr_code_scanner_rounded, tr('Liez votre téléphone une seule fois'), tr('Scannez le QR code avec WhatsApp sur votre téléphone : la session reste ouverte.')),
+      (Icons.receipt_long_rounded, tr('Écrivez à vos clients depuis l\'ERP'), tr('Les boutons « WhatsApp » des fiches clients, devis et factures ouvrent directement la bonne conversation.')),
+    ];
+    final hero = Container(
+      padding: const EdgeInsets.all(28),
+      decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF0B3D36), Color(0xFF128C7E)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(color: const Color(0xFF25D366), borderRadius: BorderRadius.circular(15)),
+          child: const Icon(Icons.chat_rounded, color: Colors.white, size: 28),
+        ),
+        const SizedBox(height: 18),
+        Text(tr('WhatsApp, à côté de votre ERP'), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, height: 1.2)),
+        const SizedBox(height: 10),
+        Text(
+          tr(kIsWeb ? 'WhatsApp n\'autorise pas son affichage dans une page web : il s\'ouvre dans sa propre fenêtre.' : 'WhatsApp s\'ouvre dans sa propre fenêtre : il ne peut jamais bloquer ni fermer l\'ERP.'),
+          style: const TextStyle(color: Color(0xDDFFFFFF), height: 1.45),
+        ),
+      ]),
+    );
+    final details = Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        for (final (icon, title, text) in steps)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: const Color(0xFF25D366).withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 19, color: const Color(0xFF128C7E)),
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 3),
+                  Text(text, style: TextStyle(color: hint, fontSize: 13, height: 1.4)),
+                ]),
+              ),
+            ]),
+          ),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF128C7E), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () => openWhatsAppWindow(initialUrl),
+            icon: const Icon(Icons.open_in_new),
+            label: Text(tr('Ouvrir WhatsApp')),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.lock_outline, size: 15, color: YColors.blue),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              tr('Vos messages restent privés : l\'ERP n\'enregistre pas vos conversations. Pour un numéro d\'entreprise partagé avec relances automatiques, utilisez le module WhatsApp Business.'),
+              style: TextStyle(color: hint, fontSize: 12, height: 1.4),
             ),
-          ]),
+          ),
+        ]),
+      ]),
+    );
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            elevation: 3,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: LayoutBuilder(
+              builder: (c, k) => k.maxWidth >= 680
+                  ? IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [SizedBox(width: 320, child: hero), Expanded(child: details)]))
+                  : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [hero, details]),
+            ),
+          ),
         ),
       ),
     );

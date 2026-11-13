@@ -121,6 +121,7 @@ flutter:
   # Page de l'écran client (servie en local par la caisse).
   assets:
     - assets/customer_display.html
+    - assets/js/whatsapp_mobile.js
     - assets/i18n/
     - assets/brand/
     # Polices des modèles de documents PDF (licence SIL OFL, voir OFL.txt)

@@ -10,6 +10,8 @@ class PrefsSync {
   static Future<void> Function(Map<String, Object?> prefs)? sender;
 
   static final Map<String, Object?> _pending = {};
+  /// En cours d'envoi : une copie serveur plus ancienne ne doit pas les écraser entre-temps.
+  static final Set<String> _sending = {};
   static Timer? _timer;
 
   /// Une préférence a changé localement : envoi groupé au serveur un instant plus tard.
@@ -23,6 +25,7 @@ class PrefsSync {
   static void reset() {
     _timer?.cancel();
     _pending.clear();
+    _sending.clear();
     sender = null;
   }
 
@@ -31,6 +34,7 @@ class PrefsSync {
     if (s == null || _pending.isEmpty) return;
     final batch = Map<String, Object?>.from(_pending);
     _pending.clear();
+    _sending.addAll(batch.keys);
     try {
       await s(batch);
     } catch (_) {
@@ -38,6 +42,8 @@ class PrefsSync {
       for (final e in batch.entries) {
         _pending.putIfAbsent(e.key, () => e.value);
       }
+    } finally {
+      _sending.removeAll(batch.keys);
     }
   }
 
@@ -51,7 +57,7 @@ class PrefsSync {
       if (!server.containsKey(k) && local != null) queue(k, local is String && local.startsWith('[') ? jsonDecode(local) : local);
     }
     for (final e in server.entries) {
-      if (_pending.containsKey(e.key)) continue;
+      if (_pending.containsKey(e.key) || _sending.contains(e.key)) continue;
       final v = e.value;
       await box.put('ui_${e.key}', v is List ? jsonEncode(v) : v);
     }

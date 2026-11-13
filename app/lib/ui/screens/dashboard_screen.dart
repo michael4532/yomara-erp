@@ -266,10 +266,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
           else if (_insights != null) ...[
             const SizedBox(height: 18),
-            InsightsView(data: _insights!, currency: session.currency, onGo: _go, padding: pad),
             if (_pinned.isNotEmpty && essentials.isNotEmpty) ...[
               Padding(
-                padding: EdgeInsets.fromLTRB(pad, 22, pad, 10),
+                padding: EdgeInsets.fromLTRB(pad, 4, pad, 10),
                 child: Text(tr('Mes indicateurs'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
               ),
               Padding(
@@ -302,7 +301,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
               ),
+              const SizedBox(height: 18),
             ],
+            InsightsView(data: _insights!, currency: session.currency, onGo: _go, padding: pad),
             Padding(
               padding: EdgeInsets.fromLTRB(pad, 16, pad, 0),
               child: _TodoCard(items: todo, currency: session.currency, expanded: _showAllTodo, onExpand: () => setState(() => _showAllTodo = !_showAllTodo), onTap: (k) => _go(k.navId)),
@@ -808,6 +809,68 @@ class _CustomizeDialogState extends State<_CustomizeDialog> {
   String _q = '';
   NavGroup? _group;
 
+  void _move(String id, int to) => setState(() {
+    final from = _sel.indexOf(id);
+    if (from < 0) return;
+    _sel.removeAt(from);
+    _sel.insert(to.clamp(0, _sel.length), id);
+  });
+
+  /// Indicateur choisi : numéro d'ordre, flèches gauche/droite, glisser-déposer sur un autre indicateur.
+  Widget _orderChip(int i, String id, _Kpi k, Color primary, bool dark) {
+    Widget chip({bool ghost = false, bool target = false, Widget? handle}) => Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
+        decoration: BoxDecoration(
+          color: target ? primary.withValues(alpha: .18) : (dark ? Colors.white10 : Colors.white),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: target ? primary : (dark ? Colors.white24 : YColors.line), width: target ? 1.5 : 1),
+          boxShadow: ghost ? [const BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))] : null,
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          handle ?? Icon(Icons.drag_indicator, size: 16, color: Theme.of(context).hintColor),
+          const SizedBox(width: 2),
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: primary,
+            child: Text(tr('${i + 1}'), style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(width: 8),
+          Text(tr(k.label), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          if (!ghost) ...[
+            const SizedBox(width: 2),
+            _miniBtn(Icons.chevron_left, tr('Avancer'), i == 0 ? null : () => _move(id, i - 1)),
+            _miniBtn(Icons.chevron_right, tr('Reculer'), i == _sel.length - 1 ? null : () => _move(id, i + 1)),
+            _miniBtn(Icons.close, tr('Retirer'), () => setState(() => _sel.remove(id))),
+          ],
+        ]),
+      ),
+    );
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => d.data != id,
+      onAcceptWithDetails: (d) => _move(d.data, _sel.indexOf(id)),
+      // Seule la poignée se glisse : les flèches et la croix restent cliquables
+      builder: (c, cand, _) => chip(
+        target: cand.isNotEmpty,
+        handle: Draggable<String>(
+          data: id,
+          feedback: chip(ghost: true),
+          child: MouseRegion(cursor: SystemMouseCursors.grab, child: Icon(Icons.drag_indicator, size: 18, color: Theme.of(context).hintColor)),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniBtn(IconData icon, String tip, VoidCallback? onTap) => IconButton(
+    tooltip: tip,
+    onPressed: onTap,
+    icon: Icon(icon, size: 16),
+    visualDensity: VisualDensity.compact,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(width: 26, height: 26),
+  );
+
   void _toggle(_Kpi k) => setState(() {
     if (_sel.contains(k.id)) {
       _sel.remove(k.id);
@@ -857,7 +920,7 @@ class _CustomizeDialogState extends State<_CustomizeDialog> {
                       children: [
                         Text(tr('Personnaliser le tableau de bord'), style: t.dialogTheme.titleTextStyle),
                         const SizedBox(height: 2),
-                        Text(tr('Choisissez jusqu\'à $_max indicateurs à mettre en avant. Les tâches restent dans « À traiter ».'), style: TextStyle(color: hint, fontSize: 13)),
+                        Text(tr('Choisissez jusqu\'à $_max indicateurs, dans l\'ordre voulu : ils s\'affichent en haut du tableau de bord. Les tâches restent dans « À traiter ».'), style: TextStyle(color: hint, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -901,25 +964,25 @@ class _CustomizeDialogState extends State<_CustomizeDialog> {
                     if (_sel.isEmpty)
                       Text(tr('Aucun choix : les indicateurs essentiels sont affichés automatiquement.'), style: TextStyle(color: hint, fontSize: 12.5))
                     else
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final (i, id) in _sel.indexed)
-                            if (byId[id] != null)
-                              InputChip(
-                                avatar: CircleAvatar(
-                                  backgroundColor: primary,
-                                  child: Text(
-                                    tr('${i + 1}'),
-                                    style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800),
-                                  ),
-                                ),
-                                label: Text(tr(byId[id]!.label), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                                onDeleted: () => setState(() => _sel.remove(id)),
-                                deleteIcon: const Icon(Icons.close, size: 16),
-                                backgroundColor: dark ? Colors.white10 : Colors.white,
-                              ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final (i, id) in _sel.indexed)
+                                if (byId[id] != null) _orderChip(i, id, byId[id]!, primary, dark),
+                            ],
+                          ),
+                          if (_sel.length > 1) ...[
+                            const SizedBox(height: 6),
+                            Row(children: [
+                              Icon(Icons.drag_indicator, size: 14, color: hint),
+                              const SizedBox(width: 4),
+                              Expanded(child: Text(tr('Glissez un indicateur sur un autre, ou utilisez les flèches, pour changer l\'ordre d\'affichage.'), style: TextStyle(color: hint, fontSize: 12))),
+                            ]),
+                          ],
                         ],
                       ),
                   ],
