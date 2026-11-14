@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.63 — bouton Retour
+
+- **Bouton « Retour »** dans toutes les applications (ordinateur, web, téléphone) : la flèche en haut à gauche ramène à l'écran précédent, puis au tableau de bord. Sur Android, le bouton retour du téléphone fait de même au lieu de fermer l'application. Raccourcis clavier : Alt + ← (Windows, Linux) et Cmd + [ (Mac).
+
 ## 0.99.62 — Meta : connexion des applications récentes, prix des modules
 
 - **Facebook et Instagram** : nouveau champ « ID de configuration (Facebook Login for Business) » dans Réseaux sociaux › Applications › Meta. Les applications Meta récentes accordent leurs autorisations par une configuration : l'ERP l'utilise dès que l'ID est renseigné.

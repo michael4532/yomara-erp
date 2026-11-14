@@ -512,9 +512,26 @@ class _AppShellState extends State<AppShell> {
     _go(id);
   }
 
-  void _go(String id) {
+  /// Écrans visités (le plus récent à la fin) : le bouton « Retour » et le retour système y reviennent.
+  final List<String> _history = [];
+  String _home = 'dashboard';
+
+  bool get _canBack => _history.isNotEmpty || _current != _home;
+
+  void _back() {
+    if (!_canBack) return;
+    final prev = _history.isNotEmpty ? _history.removeLast() : _home;
+    _go(prev, record: false);
+  }
+
+  void _go(String id, {bool record = true}) {
     rememberScreen(id);
     setState(() {
+      if (record && id != _current) {
+        _history.remove(id);
+        _history.add(_current);
+        if (_history.length > 30) _history.removeAt(0);
+      }
       _current = id;
       if (id != 'dashboard') _open.add(groupOf(id).key);
       _recent = [id, ..._recent.where((r) => r != id)].take(8).toList();
@@ -701,6 +718,7 @@ class _AppShellState extends State<AppShell> {
     final session = context.watch<Session>();
     final items = _items(session);
     final item = items.firstWhere((i) => i.id == _current, orElse: () => items.first);
+    if (items.isNotEmpty) _home = items.any((i) => i.id == 'dashboard') ? 'dashboard' : items.first.id;
     // Le guide de démarrage s'adresse aux sociétés clientes, pas à l'éditeur de la plateforme
     if (!_guideQueued && !session.preparing && session.user['onboarded'] == false && !(session.isSuperAdmin && session.mode == 'saas')) {
       _guideQueued = true;
@@ -861,6 +879,7 @@ class _AppShellState extends State<AppShell> {
                           item: item,
                           rail: _rail,
                           onToggleRail: _toggleRail,
+                          onBack: _canBack ? _back : null,
                           onSearch: _palette,
                           onGo: _go,
                           canSettings: items.any((i) => i.id == 'settings'),
@@ -881,6 +900,13 @@ class _AppShellState extends State<AppShell> {
               key: _scaffold,
               appBar: AppBar(
                 titleSpacing: 0,
+                leadingWidth: _canBack ? 96 : null,
+                leading: _canBack
+                    ? Row(mainAxisSize: MainAxisSize.min, children: [
+                        IconButton(tooltip: tr('Retour'), onPressed: _back, icon: const Icon(Icons.arrow_back_rounded)),
+                        IconButton(tooltip: tr('Menu'), onPressed: () => _scaffold.currentState?.openDrawer(), icon: const Icon(Icons.menu_rounded)),
+                      ])
+                    : null,
                 // Téléphone : titre lisible en entier ; la boutique reste dans le menu
                 // Écran étroit : libellé court (le titre complet est repris dans l'en-tête de la page)
                 title: Text(tr(item.id == 'dashboard' ? '${session.company['name'] ?? item.label}' : (MediaQuery.sizeOf(context).width < 430 ? shortLabel(item) : item.label)),
@@ -938,8 +964,23 @@ class _AppShellState extends State<AppShell> {
             ),
     );
     return CallbackShortcuts(
-      bindings: {const SingleActivator(LogicalKeyboardKey.keyK, control: true): _palette, const SingleActivator(LogicalKeyboardKey.keyK, meta: true): _palette},
-      child: ChangeNotifierProvider(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): _palette,
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): _palette,
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): _back,
+        const SingleActivator(LogicalKeyboardKey.bracketLeft, meta: true): _back,
+      },
+      child: PopScope(
+        canPop: !_canBack,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (_scaffold.currentState?.isDrawerOpen ?? false) {
+            _scaffold.currentState!.closeDrawer();
+            return;
+          }
+          _back();
+        },
+        child: ChangeNotifierProvider(
         create: (_) => MyDay(session),
         child: Focus(
           autofocus: true,
@@ -950,6 +991,7 @@ class _AppShellState extends State<AppShell> {
             if (!session.isSuperAdmin) Positioned(right: wide ? 24 : 16, bottom: wide ? 96 : 160, child: const SupportButton()),
           ]),
         ),
+      ),
       ),
     );
   }
@@ -1588,6 +1630,7 @@ class _TopBar extends StatelessWidget {
     required this.item,
     required this.rail,
     required this.onToggleRail,
+    required this.onBack,
     required this.onSearch,
     required this.onGo,
     required this.canSettings,
@@ -1598,6 +1641,7 @@ class _TopBar extends StatelessWidget {
   final NavItem item;
   final bool rail, canSettings, canMe;
   final VoidCallback onToggleRail, onSearch, onToggleSidebarTheme;
+  final VoidCallback? onBack;
   final ValueChanged<String> onGo;
 
   @override
@@ -1621,6 +1665,12 @@ class _TopBar extends StatelessWidget {
             onPressed: onToggleRail,
             icon: Icon(rail ? Icons.menu : Icons.menu_open, color: hint),
           ),
+          if (onBack != null)
+            IconButton(
+              tooltip: tr('Retour'),
+              onPressed: onBack,
+              icon: Icon(Icons.arrow_back_rounded, color: hint),
+            ),
           const SizedBox(width: 6),
           // Fil d'Ariane et titre : dans l'en-tête de chaque page
           const Spacer(flex: 2),
