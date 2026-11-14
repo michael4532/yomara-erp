@@ -1,6 +1,6 @@
 # Yomara ERP — réglages communs des mises à jour à distance (Shorebird). Fichier inclus par les autres scripts.
 # Les mises à jour à distance sont actives quand :
-#   - shorebird.yaml existe à la racine du projet (créé par ACTIVER-MISES-A-JOUR-A-DISTANCE.command),
+#   - shorebird.yaml existe à la racine du projet (créé par 0-ACTIVER-MISES-A-JOUR-A-DISTANCE.command),
 #   - la commande shorebird est installée,
 #   - et SHOREBIRD n'est pas mis à 0 (SHOREBIRD=0 ./scripts/… pour une construction Flutter classique).
 # Version de Flutter utilisée par Shorebird : la même pour toutes les versions et tous les correctifs.

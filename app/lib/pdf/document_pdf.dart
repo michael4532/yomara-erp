@@ -205,6 +205,63 @@ void _paintDecor(PdfGraphics c, PdfPoint size, String decor, PdfColor primary, P
       ]) {
         rect(p[0], p[1], 8, 8, accent);
       }
+    case 'arc':
+      // En-tête foncé au bord inférieur arrondi, liseré d'accent, quart de cercle en pied
+      if (!first) return rect(0, h - 10, w, 10, primary);
+      void arc(double base, PdfColor col) {
+        c
+          ..setFillColor(col)
+          ..moveTo(0, h)
+          ..lineTo(w, h)
+          ..lineTo(w, h - base + 30)
+          ..curveTo(w * .66, h - base - 34, w * .3, h - base - 34, 0, h - base + 30)
+          ..closePath()
+          ..fillPath();
+      }
+      arc(_bandHeight + 4, accent);
+      arc(_bandHeight - 3, primary);
+      circle(w + 6, -6, 70, _tint(accent, .55));
+      circle(w + 6, -6, 46, primary);
+    case 'corners':
+      // Triangles superposés dans les coins (haut droit, bas gauche) : en-tête clair
+      if (first) {
+        poly([
+          [w, h],
+          [w - 165, h],
+          [w, h - 118],
+        ], _tint(primary, .88));
+        poly([
+          [w, h],
+          [w - 92, h],
+          [w, h - 66],
+        ], accent);
+        poly([
+          [w, h],
+          [w - 48, h],
+          [w, h - 35],
+        ], primary);
+      } else {
+        poly([
+          [w, h],
+          [w - 70, h],
+          [w, h - 50],
+        ], primary);
+      }
+      poly([
+        [0, 0],
+        [190, 0],
+        [0, 120],
+      ], _tint(primary, .9));
+      poly([
+        [0, 0],
+        [104, 0],
+        [0, 66],
+      ], accent);
+      poly([
+        [0, 0],
+        [52, 0],
+        [0, 34],
+      ], primary);
     case 'stripes':
       rect(0, h - 10, w, 10, primary);
       rect(0, h - 14, w, 2.5, accent);
@@ -215,7 +272,7 @@ void _paintDecor(PdfGraphics c, PdfPoint size, String decor, PdfColor primary, P
 }
 
 /// Décors qui posent un fond foncé sous l'en-tête (texte de l'en-tête en clair).
-const _darkTopDecors = {'band', 'wave', 'diagonal'};
+const _darkTopDecors = {'band', 'wave', 'diagonal', 'arc'};
 
 /// PDF du document (impression, envoi par e-mail ou WhatsApp).
 /// [template] : spécification imposée (aperçu du studio) ; sinon modèle du document ou par défaut.
@@ -634,7 +691,8 @@ Future<Uint8List> buildDocumentPdf({
   List<pw.Widget> payment() {
     final note = settings['payment_instructions'];
     final showBanks = sale && ['invoice', 'quote', 'proforma', 'deposit', 'order'].contains(doc['type']);
-    if (payModes.isEmpty && (!showBanks || (banks.isEmpty && note == null && doc['pay_url'] == null))) return const [];
+    final qrElsewhere = blocks.any((b) => b['type'] == 'qr');
+    if (payModes.isEmpty && (!showBanks || (banks.isEmpty && note == null && (doc['pay_url'] == null || qrElsewhere)))) return const [];
     return [
       pw.SizedBox(height: 14),
       boxed(
@@ -655,7 +713,8 @@ Future<Uint8List> buildDocumentPdf({
                 style: const pw.TextStyle(fontSize: 9),
               ),
           if (showBanks && note != null) pw.Padding(padding: const pw.EdgeInsets.only(top: 4), child: pw.Text(tr('$note'), style: pw.TextStyle(fontSize: 9, color: grey))),
-          if (showBanks && doc['pay_url'] != null)
+          // le bloc « Code QR » du modèle affiche déjà le paiement en grand
+          if (showBanks && doc['pay_url'] != null && !blocks.any((b) => b['type'] == 'qr'))
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 6),
               child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
@@ -723,12 +782,86 @@ Future<Uint8List> buildDocumentPdf({
 
   final companyName = '${company['name'] ?? 'la société'}';
 
+  /// Bloc « Code QR » : paiement en ligne s'il existe, sinon vérification FNE, sinon lien choisi dans le studio,
+  /// sinon carte de visite de la société (le client enregistre vos coordonnées en scannant).
+  List<pw.Widget> qrBlock(Map<String, dynamic> b) {
+    final fneUrl = (doc['fne'] is Map) ? (doc['fne'] as Map)['verify_url'] : null;
+    final custom = '${b['url'] ?? ''}'.trim();
+    String data, title, sub;
+    if (doc['verify_url'] != null) {
+      data = '${doc['verify_url']}';
+      title = 'Scannez pour vérifier l\'authenticité';
+      sub = doc['pay_url'] != null || sale && ['invoice', 'deposit'].contains(doc['type'])
+          ? 'Vous ouvrez ce document en ligne, tenu par l\'émetteur : montants, état du règlement et paiement en ligne.'
+          : 'Vous ouvrez ce document en ligne, tenu par l\'émetteur : comparez numéro et montants.';
+    } else if (doc['pay_url'] != null) {
+      data = '${doc['pay_url']}';
+      title = 'Scannez pour payer';
+      sub = 'Mobile Money ou carte, en quelques secondes.';
+    } else if (custom.isNotEmpty) {
+      data = custom;
+      title = '${b['text'] ?? ''}'.trim().isEmpty ? 'Scannez pour nous retrouver' : '${b['text']}';
+      sub = custom;
+    } else if (fneUrl != null) {
+      data = '$fneUrl';
+      title = 'Scannez pour vérifier';
+      sub = 'Authenticité de la facture sur le site de la DGI.';
+    } else {
+      String esc(Object? v) => '${v ?? ''}'.replaceAllMapped(RegExp(r'[\\;,:]'), (m) => '\\${m[0]}');
+      data = 'MECARD:N:${esc(company['name'])};${company['phone'] != null ? 'TEL:${esc(company['phone'])};' : ''}'
+          '${company['email'] != null ? 'EMAIL:${esc(company['email'])};' : ''}${company['address'] != null ? 'ADR:${esc([company['address'], company['city']].where((e) => e != null).join(', '))};' : ''};';
+      title = 'Scannez pour enregistrer nos coordonnées';
+      sub = [company['phone'], company['email']].where((e) => e != null && '$e'.isNotEmpty).join(' · ');
+    }
+    return [
+      pw.SizedBox(height: 16),
+      pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(color: _tint(accent, .88), borderRadius: pw.BorderRadius.circular(toDouble(style['radius'] ?? 6) + 4)),
+        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.all(5),
+            decoration: pw.BoxDecoration(color: PdfColors.white, borderRadius: pw.BorderRadius.circular(6)),
+            child: pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: data, width: 78, height: 78, drawText: false, color: primary),
+          ),
+          pw.SizedBox(width: 14),
+          pw.Expanded(
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text(tr(title), style: titleStyle(size: 13, color: primary)),
+              pw.SizedBox(height: 3),
+              if (sub.isNotEmpty) pw.Text(tr(sub), style: pw.TextStyle(fontSize: 9, color: grey)),
+              pw.SizedBox(height: 6),
+              pw.Container(height: 2.5, width: 46, color: accent),
+            ]),
+          ),
+        ]),
+      ),
+    ];
+  }
+
+  /// Petit code QR d'authenticité sous les totaux (tous les modèles sans bloc « Code QR ») : mène au document en ligne.
+  List<pw.Widget> verifyStrip() {
+    if (doc['verify_url'] == null || settings['doc_verify_qr'] == false || blocks.any((b) => b['type'] == 'qr') || doc['status'] == 'draft') return const [];
+    return [
+      pw.SizedBox(height: 10),
+      pw.Row(mainAxisAlignment: pw.MainAxisAlignment.end, children: [
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+          pw.Text(tr('Document authentique'), style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: primary)),
+          pw.Text(tr('Scannez pour le vérifier en ligne'), style: pw.TextStyle(fontSize: 7.5, color: grey)),
+        ]),
+        pw.SizedBox(width: 8),
+        pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: '${doc['verify_url']}', width: 44, height: 44, drawText: false, color: primary),
+      ]),
+    ];
+  }
+
   List<pw.Widget> render(Map<String, dynamic> b) => switch ('${b['type']}') {
+        'qr' => qrBlock(b),
         'header' => header(),
         'parties' => parties(b),
         'info' => info(),
         'lines' => lineTable(),
-        'totals' => totals(),
+        'totals' => [...totals(), ...verifyStrip()],
         'words' => wordsBlock(),
         'notes' => notes(),
         'payment' => payment(),
@@ -794,7 +927,7 @@ Future<Uint8List> buildDocumentPdf({
           if (style['watermark'] == true && logo != null)
             pw.Center(child: pw.Opacity(opacity: .06, child: pw.Image(logo, width: 300, fit: pw.BoxFit.contain))),
           // Bandeau de pied de page
-          if (style['footer_band'] == true && !{'band', 'wave', 'diagonal', 'kente', 'stripes'}.contains(decor)) ...[
+          if (style['footer_band'] == true && !{'band', 'wave', 'diagonal', 'arc', 'corners', 'kente', 'stripes'}.contains(decor)) ...[
             pw.Positioned(left: 0, right: 0, bottom: 0, child: pw.Container(height: 8, color: primary)),
             pw.Positioned(left: 0, right: 0, bottom: 8, child: pw.Container(height: 2.5, color: accent)),
           ],

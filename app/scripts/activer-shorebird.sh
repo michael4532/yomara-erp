@@ -44,4 +44,4 @@ if [ "$R" != passer ]; then
 fi
 echo
 echo "Terminé. Dites à Claude que Shorebird est activé : il publiera shorebird.yaml avec les sources."
-echo "Ensuite : CONSTRUIRE_TOUS_LES_STORES (une fois, version de base), puis PUBLIER-CORRECTIF à chaque mise à jour."
+echo "Ensuite : 1-GENERER-TOUTES-LES-APPS (version de base), 2-ENVOYER-SUR-LES-STORES, puis 3-PUBLIER-VERSION à chaque mise à jour."

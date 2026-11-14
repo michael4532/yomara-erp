@@ -576,6 +576,8 @@ abstract class TradeDocument extends Model
     {
         $this->loadMissing('lines');
 
-        return $this->toArray() + ['balance' => $this->balance()];
+        return $this->toArray() + ['balance' => $this->balance()]
+            // Lien d'authenticité imprimé en code QR (documents de vente)
+            + (static::DIRECTION === 'sale' && $this->id && $this->company_id ? ['verify_url' => \App\Support\DocVerify::url($this->company_id, (string) $this->id)] : []);
     }
 }

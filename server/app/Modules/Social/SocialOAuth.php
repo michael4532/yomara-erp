@@ -56,7 +56,7 @@ class SocialOAuth
         return $a;
     }
 
-    public function authorizeUrl(Company $c, User $u, string $provider): string
+    public function authorizeUrl(Company $c, User $u, string $provider, bool $linkedinOrgs = true): string
     {
         abort_unless(isset(Networks::PROVIDERS[$provider]), 404);
         $app = $this->app($provider);
@@ -67,7 +67,7 @@ class SocialOAuth
         $redirect = Networks::redirectUri($provider);
         $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
         $scope = self::SCOPES[$provider];
-        if ($provider === 'linkedin' && ! empty((array) \App\Models\PlatformSetting::get('social.apps', [])['linkedin']['organizations'])) {
+        if ($provider === 'linkedin' && $linkedinOrgs && ! empty((array) \App\Models\PlatformSetting::get('social.apps', [])['linkedin']['organizations'])) {
             $scope .= ' '.self::LINKEDIN_ORG_SCOPES;
         }
         if ($provider === 'meta' && self::metaExtended()) {
@@ -87,6 +87,31 @@ class SocialOAuth
         };
     }
 
+    /**
+     * LinkedIn a refusé les droits « pages entreprise » (produit Community Management API pas encore accordé à l'application) :
+     * relance la même connexion sans ces droits, pour connecter au moins le profil. Renvoie la nouvelle adresse, ou null.
+     */
+    public function retryLinkedinWithoutOrgs(string $state): ?string
+    {
+        $st = DB::table('so_oauth_states')->where('state', $state)->where('provider', 'linkedin')->where('created_at', '>=', now()->subHour())->first();
+        if (! $st) {
+            return null;
+        }
+        DB::table('so_oauth_states')->where('state', $state)->delete();
+        $c = Company::find($st->company_id);
+        $u = $c ? User::where('company_id', $c->id)->find($st->user_id) : null;
+        if (! $u) {
+            return null;
+        }
+        $url = $this->authorizeUrl($c, $u, 'linkedin', false);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+        \Illuminate\Support\Facades\Cache::put('so_note:'.($q['state'] ?? ''), 'Profil LinkedIn connecté. Les pages entreprise ne sont pas encore disponibles : '
+            .'votre application LinkedIn doit obtenir le produit « Community Management API » (developer.linkedin.com › votre application › Products). '
+            .'En attendant, décochez « Pages entreprise » dans Super admin › Réseaux sociaux › LinkedIn.', now()->addHour());
+
+        return $url;
+    }
+
     /** Retour du réseau : renvoie la liste des comptes connectés (nom et réseau). */
     public function complete(string $provider, string $state, string $code): array
     {
@@ -95,6 +120,9 @@ class SocialOAuth
             $this->fail('Lien de connexion expiré : relancez la connexion depuis Yomara.');
         }
         DB::table('so_oauth_states')->where('state', $state)->delete(); // usage unique
+        if ($note = \Illuminate\Support\Facades\Cache::pull('so_note:'.$state)) {
+            $this->notes[] = $note;
+        }
         $c = Company::findOrFail($st->company_id);
         $u = User::where('company_id', $c->id)->findOrFail($st->user_id);
         $app = $this->app($provider);

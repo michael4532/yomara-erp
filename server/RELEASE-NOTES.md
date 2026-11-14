@@ -1,5 +1,14 @@
 # Notes de version
 
+## 0.99.60 — code QR d'authenticité, sept modèles de factures premium, LinkedIn sans page entreprise
+
+- **Code QR d'authenticité sur les factures, devis et avoirs** : en le scannant, le client ouvre le document en ligne, tenu par Yomara ERP (émetteur, numéro, client, lignes, totaux, état du règlement, bouton « Payer en ligne » s'il reste à payer). Le lien est signé : impossible à deviner ou à fabriquer, un faux document affiche « Vérification impossible ». Petit code sous les totaux de tous les modèles, grand bloc dans le modèle Scan ; désactivable dans Paramètres › Facturation.
+- **Sept nouveaux modèles premium** de factures, devis et proformas : Saphir (bleu nuit et or, en arc), Ambre (chocolat et ambre), Graphite (anthracite et orange, coins géométriques), Prisme (violet et rose), Cobalt (bleu cobalt et cyan), Signature (double cadre noir et or) et **Scan**, avec un grand code QR d'authenticité (ou, à défaut, de paiement ou de vos coordonnées). Ils sont compris dans la Collection de modèles premium.
+- Nouveau bloc « Code QR » dans le studio de modèles.
+- Deux nouveaux décors dans le studio de modèles : « Arc » et « Coins géométriques ».
+- **LinkedIn** : si l'application LinkedIn n'a pas encore le droit de publier sur les pages entreprise (produit « Community Management API »), la connexion repart aussitôt pour le profil seul, au lieu d'échouer, avec une explication.
+- Commandes du Mac numérotées dans l'ordre : 0-ACTIVER-MISES-A-JOUR-A-DISTANCE, 1-GENERER-TOUTES-LES-APPS, 2-ENVOYER-SUR-LES-STORES (nouvelle), 3-PUBLIER-VERSION, 4-PUBLIER-CORRECTIF.
+
 ## 0.99.59 — modèles d'e-mails, socle modifiable, guides par écran, récupération Word / Excel
 
 - **E-mails aux clients mis en page** : factures, devis, commandes, bons de livraison, avoirs et reçus partent dans un e-mail à votre logo, avec la fiche du document (numéro, date, montant, échéance), un bouton « Payer en ligne » quand un lien existe, et vos coordonnées en pied de page (© Yomara Technologies).

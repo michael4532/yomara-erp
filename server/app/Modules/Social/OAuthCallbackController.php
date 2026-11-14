@@ -13,6 +13,11 @@ class OAuthCallbackController extends Controller
         abort_unless(isset(Networks::PROVIDERS[$provider]), 404);
         $ok = false;
         $list = [];
+        // LinkedIn : droits « pages entreprise » non accordés à l'application → on reconnecte le profil seul
+        if ($provider === 'linkedin' && $r->query('error') === 'unauthorized_scope_error' && str_contains((string) $r->query('error_description'), 'organization')
+            && ($retry = $o->retryLinkedinWithoutOrgs((string) $r->query('state')))) {
+            return redirect()->away($retry);
+        }
         if ($r->filled('error') || $r->filled('error_code')) {
             $msg = in_array($r->query('error'), ['access_denied', 'user_denied'], true) ? 'Connexion annulée.'
                 : 'Le réseau a refusé la connexion : '.e(mb_substr((string) ($r->query('error_description') ?: $r->query('error_message') ?: $r->query('error')), 0, 300));

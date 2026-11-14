@@ -8,13 +8,13 @@
 #
 # Un correctif ne peut changer que le code Dart (écrans, règles, textes). Si une extension native, une
 # permission, une image de l'application ou la version de Flutter change, Shorebird refuse : il faut alors
-# une nouvelle version complète (CONSTRUIRE_TOUS_LES_STORES).
+# une nouvelle version complète (1-GENERER-TOUTES-LES-APPS).
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/shorebird-commun.sh"
 SANS=" ${SANS:-} "; veut() { [[ "$SANS" != *" $1 "* ]]; }
-sb_actif || { echo "Mises à jour à distance pas encore activées : lancez d'abord ACTIVER-MISES-A-JOUR-A-DISTANCE.command." >&2; exit 1; }
+sb_actif || { echo "Mises à jour à distance pas encore activées : lancez d'abord 0-ACTIVER-MISES-A-JOUR-A-DISTANCE.command." >&2; exit 1; }
 
 V="$(grep -E '^version:' pubspec.yaml | awk '{print $2}')"
 APPV="$(grep -E "appVersion = '" lib/core/config.dart | sed -E "s/.*'(.*)'.*/\1/")"

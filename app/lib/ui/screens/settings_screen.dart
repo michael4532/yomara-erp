@@ -241,6 +241,7 @@ class SettingsScreen extends StatelessWidget {
     var country = '${c['country'] ?? 'CI'}'.toUpperCase();
     var vatOn = vatSubject(session);
     var receiptBox = session.companySettings['invoice_receipt_box'] == true;
+    var verifyQr = session.companySettings['doc_verify_qr'] != false;
     var amountWords = session.companySettings['invoice_amount_words'] != false;
     final regime = TextEditingController(text: '${session.companySettings['tax_regime'] ?? ''}');
     String? legalForm = session.companySettings['legal_form'] as String?;
@@ -364,6 +365,13 @@ class SettingsScreen extends StatelessWidget {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
+              title: Text(tr('Code QR d\'authenticité')),
+              subtitle: Text(tr('En le scannant, votre client ouvre la facture en ligne : il vérifie qu\'elle vient bien de vous, voit ce qui reste à payer et peut payer.')),
+              value: verifyQr,
+              onChanged: (v) => setD(() => verifyQr = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: Text(tr('Montant en lettres')),
               subtitle: Text(tr('« Arrêtée la présente facture à la somme de … »')),
               value: amountWords,
@@ -409,6 +417,7 @@ class SettingsScreen extends StatelessWidget {
                         'vat_subject': vatOn,
                         'tax_regime': regime.text.trim().isEmpty ? null : regime.text.trim(),
                         'invoice_receipt_box': receiptBox,
+                        'doc_verify_qr': verifyQr,
                         'invoice_amount_words': amountWords,
                         'legal_form': legalForm,
                         'capital': capital.text.trim().isEmpty ? null : toDouble(capital.text),

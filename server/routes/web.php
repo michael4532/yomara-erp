@@ -322,3 +322,6 @@ Route::get('woocommerce/connecte', function (\Illuminate\Http\Request $r) {
         .($ok ? 'Revenez dans '.e(config('erp.name', 'Yomara ERP')).' : la connexion se termine toute seule. Vous pouvez fermer cet onglet.' : 'L\'accès n\'a pas été accordé. Recommencez depuis le logiciel si besoin.')
         .'</p></div>')->header('Content-Type', 'text/html; charset=utf-8');
 });
+
+// Authenticité d'un document de vente : page publique ouverte par le code QR imprimé
+Route::middleware('throttle:portal')->get('v/{doc}/{t}', [\App\Support\DocVerify::class, 'show'])->where(['doc' => '[0-9a-fA-F-]{36}', 't' => '[0-9a-f]{20}']);

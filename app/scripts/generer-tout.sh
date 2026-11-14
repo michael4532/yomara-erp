@@ -148,6 +148,8 @@ L
   echo "  .ipa, .pkg  → Transporter (App Store Connect) : iPhone et Mac App Store"
   echo "  .msix       → partner.microsoft.com › Yomara ERP › Packages"
   echo "  .exe, .dmg, .tar.gz, .deb, .AppImage → Super admin › Versions (page « Télécharger »)"
+  echo
+  echo "Étape suivante : double-cliquez sur 2-ENVOYER-SUR-LES-STORES (ouvre ce dossier et les sites des stores)."
 } | tee "$LISTE"
 
 # Causes connues, expliquées simplement
