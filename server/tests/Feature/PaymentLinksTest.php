@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Messaging\Providers\Smtp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -12,6 +13,15 @@ class PaymentLinksTest extends TestCase
     public function test_free_payment_link_creates_paid_invoice_on_treasury_account(): void
     {
         [$company, $user, $token] = $this->makeCompany('Liens SARL');
+        $box = new \ArrayObject;
+        Smtp::$transportFactory = fn () => new class($box) extends \Symfony\Component\Mailer\Transport\AbstractTransport {
+            public function __construct(public \ArrayObject $box) { parent::__construct(); }
+            protected function doSend(\Symfony\Component\Mailer\SentMessage $m): void { $this->box[] = $m->getOriginalMessage(); }
+            public function __toString(): string { return 'test://'; }
+        };
+        $this->api($token)->putJson('/api/messaging/channels/email', ['provider' => 'smtp', 'settings' => [
+            'host' => 'mail.liens.ci', 'port' => '465', 'encryption' => 'ssl', 'username' => 'f@liens.ci', 'password' => 'x', 'from_email' => 'factures@liens.ci', 'from_name' => 'Liens SARL',
+        ]])->assertOk();
         $api = fn () => $this->api($token);
         $acc = $api()->postJson('/api/tresorerie/accounts', ['name' => 'Compte CinetPay', 'kind' => 'mobile_money'])->assertCreated()->json('data.id');
         $gw = $api()->postJson('/api/payments/gateways', ['driver' => 'cinetpay', 'label' => 'Mobile Money', 'mode' => 'live', 'credentials' => ['apikey' => 'k', 'site_id' => '1'], 'enabled' => true])->assertCreated()->json('id');
@@ -46,6 +56,16 @@ class PaymentLinksTest extends TestCase
         $this->assertSame('Koffi Yao', DB::table('partners')->where('id', $inv->partner_id)->value('name'));
         $pay = DB::table('payments')->where('document_id', $inv->id)->first();
         $this->assertSame($acc, $pay->treasury_account_id);
+        // Le client reçoit son reçu : e-mail aux couleurs de la société, reçu PDF joint, lien d'authenticité
+        $mail = collect($box->getArrayCopy())->first(fn ($m) => str_contains($m->getSubject(), 'Paiement reçu'));
+        $this->assertNotNull($mail, 'reçu non envoyé : '.json_encode(DB::table('messaging_log')->get()->all()));
+        $this->assertSame('koffi@gmail.com', $mail->getTo()[0]->getAddress());
+        $this->assertStringContainsString('25 000 F CFA', $mail->getHtmlBody());
+        $this->assertStringContainsString('/v/'.$inv->id.'/', $mail->getHtmlBody());
+        $att = collect($mail->getAttachments())->first();
+        $this->assertNotNull($att);
+        $this->assertStringStartsWith('%PDF', $att->getBody());
+        Smtp::$transportFactory = null;
 
         // Lien à montant fixe, à usage unique : payé puis inactif ; annulation d'un autre lien
         $fixed = $api()->postJson('/api/payments/links', ['label' => 'Commande Instagram robe wax', 'amount' => 15000, 'customer_name' => 'Awa'])->assertCreated()->json('data');

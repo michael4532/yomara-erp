@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.61 — reçu automatique après un paiement en ligne
+
+- **Le client reçoit son reçu** : dès qu'il paie en ligne (lien de paiement d'une facture ou lien de paiement libre), il reçoit un e-mail « Paiement reçu » aux couleurs de la société, avec le reçu PDF joint (montant en chiffres et en lettres, mode et référence de paiement, reste à payer, mention PAYÉ, code QR d'authenticité) et un bouton « Voir la facture en ligne ».
+- Texte réglable dans Modèles d'e-mails (« Reçu de paiement en ligne ») ; envoi désactivable dans Paramètres › Facturation.
+
 ## 0.99.60 — code QR d'authenticité, sept modèles de factures premium, LinkedIn sans page entreprise
 
 - **Code QR d'authenticité sur les factures, devis et avoirs** : en le scannant, le client ouvre le document en ligne, tenu par Yomara ERP (émetteur, numéro, client, lignes, totaux, état du règlement, bouton « Payer en ligne » s'il reste à payer). Le lien est signé : impossible à deviner ou à fabriquer, un faux document affiche « Vérification impossible ». Petit code sous les totaux de tous les modèles, grand bloc dans le modèle Scan ; désactivable dans Paramètres › Facturation.

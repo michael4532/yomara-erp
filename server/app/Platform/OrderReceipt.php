@@ -164,7 +164,7 @@ class OrderReceipt
     }
 
     /** Logo de l'éditeur : URL (téléchargée) ou image intégrée (data:image) ; PNG, JPEG ou GIF seulement (TCPDF s'arrête sur une image illisible). */
-    protected static function logo(Company $c): ?string
+    public static function logo(Company $c): ?string
     {
         $raw = self::rawLogo($c);
         $info = $raw ? @getimagesizefromstring($raw) : false;

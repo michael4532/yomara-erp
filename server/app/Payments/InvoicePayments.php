@@ -105,5 +105,6 @@ class InvoicePayments
         $p->save();
         $doc->refreshPaymentStatus();
         ActivityLog::record('invoice.paid_online', $doc, ['amount' => $tx->amount, 'gateway' => $tx->gateway->driver]);
+        PaymentReceipt::send($company, $doc, $tx);
     }
 }

@@ -43,6 +43,9 @@ class MailTemplates
             'doc_other' => ['Autre document', 'Documents',
                 '{document} {numero} — {entreprise}',
                 "Bonjour {client},\n\nVeuillez trouver ci-joint le document {numero}.\n\nCordialement,\n{entreprise}", array_merge($doc, ['document'])],
+            'payment_received' => ['Reçu de paiement en ligne', 'Documents',
+                'Paiement reçu — facture {numero} — {entreprise}',
+                "Bonjour {client},\n\nNous avons bien reçu votre paiement de {montant} pour la facture n° {numero}. Merci !\n\n{reste}\nVotre reçu est joint à cet e-mail.\n\nCordialement,\n{entreprise}", ['client', 'numero', 'montant', 'date', 'reste', 'mode', 'reference', 'entreprise', 'lien']],
             'employee_welcome' => ['Bienvenue à un nouvel employé', 'Équipe',
                 'Votre compte {entreprise} est prêt',
                 "Bonjour {prenom},\n\n{createur} vient de vous créer un compte {entreprise} sur Yomara ERP.\n\nVotre identifiant : {email}\nChoisissez votre mot de passe avec le bouton ci-dessous, puis connectez-vous sur ordinateur, sur le web ou avec l'application mobile.\n\nBienvenue dans l'équipe !", ['prenom', 'nom', 'email', 'entreprise', 'createur', 'role', 'lien']],
@@ -56,7 +59,7 @@ class MailTemplates
             'client' => 'Sandrine Kouassi', 'numero' => 'FAC-2026-00042', 'montant' => '179 400 F CFA', 'date' => now()->format('d/m/Y'),
             'echeance' => now()->addDays(30)->format('d/m/Y'), 'entreprise' => $c?->name ?? 'Votre entreprise', 'document' => 'Document',
             'prenom' => 'Koffi', 'nom' => 'Koffi Kouamé', 'email' => 'koffi@exemple.ci', 'createur' => 'Awa Diabaté', 'role' => 'Commercial',
-            'lien' => url('/app/'),
+            'lien' => url('/app/'), 'reste' => 'Votre facture est entièrement réglée.', 'mode' => 'Orange Money', 'reference' => 'TX-58213',
         ];
     }
 
@@ -147,10 +150,13 @@ class MailTemplates
         $vars = self::sample($c);
         $subject = self::fill($subject ?? $s, $vars);
         $text = self::fill($body ?? $b, $vars);
-        $opts = str_starts_with($key, 'doc_')
+        $opts = $key === 'payment_received'
+            ? ['card' => ['Facture' => $vars['numero'], 'Montant payé' => $vars['montant'], 'Mode' => $vars['mode'], 'Référence' => $vars['reference'], 'Reste à payer' => '0 F CFA'],
+                'button' => ['Voir la facture en ligne', '#']]
+            : (str_starts_with($key, 'doc_')
             ? ['card' => ['Document' => $vars['numero'], 'Date' => $vars['date'], 'Montant' => $vars['montant'], 'Échéance' => $key === 'doc_invoice' ? $vars['echeance'] : ''],
                 'button' => $key === 'doc_invoice' ? ['Payer en ligne', '#'] : null]
-            : ['button' => ['Choisir mon mot de passe', '#']];
+            : ['button' => ['Choisir mon mot de passe', '#']]);
 
         return ['subject' => $subject, 'html' => self::layout($c, $text, $opts)];
     }

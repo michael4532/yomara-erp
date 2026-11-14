@@ -133,6 +133,7 @@ class PaymentLinks
         }
         DB::table('pay_links')->where('id', $l->id)->update(['payments_count' => $l->payments_count + 1, 'collected' => (float) $l->collected + (float) $tx->amount,
             'last_document_id' => $docId, 'status' => $l->reusable ? 'open' : 'paid', 'paid_at' => now(), 'updated_at' => now()]);
+        PaymentReceipt::send($c, $doc->fresh(), $tx);
         if ($l->user_id) {
             \App\Models\AppNotification::send($c->id, [$l->user_id], 'payment', 'Paiement reçu : '.number_format((float) $tx->amount, 0, ',', ' ').' '.($l->currency === 'XOF' ? 'F' : $l->currency),
                 ($payer['name'] ?? $partner->name).' · '.$l->label, 'ventes', $docId);

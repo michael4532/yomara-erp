@@ -61,7 +61,7 @@ class _MailTemplatesScreenState extends State<MailTemplatesScreen> {
                   for (final r in rows.where((r) => r['group'] == g))
                     Card(
                       child: ListTile(
-                        leading: Icon(r['key'] == 'employee_welcome' ? Icons.waving_hand_outlined : Icons.description_outlined, color: YColors.blue),
+                        leading: Icon(r['key'] == 'employee_welcome' ? Icons.waving_hand_outlined : r['key'] == 'payment_received' ? Icons.verified_outlined : Icons.description_outlined, color: YColors.blue),
                         title: Text(tr('${r['label']}'), style: const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(verbatim('${r['subject']}'), maxLines: 1, overflow: TextOverflow.ellipsis),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [

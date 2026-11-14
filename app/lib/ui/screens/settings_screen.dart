@@ -242,6 +242,7 @@ class SettingsScreen extends StatelessWidget {
     var vatOn = vatSubject(session);
     var receiptBox = session.companySettings['invoice_receipt_box'] == true;
     var verifyQr = session.companySettings['doc_verify_qr'] != false;
+    var receiptMail = session.companySettings['payment_receipt_email'] != false;
     var amountWords = session.companySettings['invoice_amount_words'] != false;
     final regime = TextEditingController(text: '${session.companySettings['tax_regime'] ?? ''}');
     String? legalForm = session.companySettings['legal_form'] as String?;
@@ -372,6 +373,13 @@ class SettingsScreen extends StatelessWidget {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
+              title: Text(tr('Reçu automatique après un paiement en ligne')),
+              subtitle: Text(tr('Le client reçoit aussitôt un e-mail « Paiement reçu » avec le reçu PDF. Texte réglable dans Modèles d\'e-mails.')),
+              value: receiptMail,
+              onChanged: (v) => setD(() => receiptMail = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: Text(tr('Montant en lettres')),
               subtitle: Text(tr('« Arrêtée la présente facture à la somme de … »')),
               value: amountWords,
@@ -418,6 +426,7 @@ class SettingsScreen extends StatelessWidget {
                         'tax_regime': regime.text.trim().isEmpty ? null : regime.text.trim(),
                         'invoice_receipt_box': receiptBox,
                         'doc_verify_qr': verifyQr,
+                        'payment_receipt_email': receiptMail,
                         'invoice_amount_words': amountWords,
                         'legal_form': legalForm,
                         'capital': capital.text.trim().isEmpty ? null : toDouble(capital.text),

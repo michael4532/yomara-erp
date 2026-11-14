@@ -62,6 +62,7 @@ class CompanyController extends Controller
             'settings.tax_regime' => 'nullable|string|max:80',
             'settings.invoice_receipt_box' => 'sometimes|boolean',
             'settings.doc_verify_qr' => 'sometimes|boolean',
+            'settings.payment_receipt_email' => 'sometimes|boolean',
             'settings.invoice_amount_words' => 'sometimes|boolean',
             'settings.legal_form' => 'nullable|string|max:60',
             'settings.capital' => 'nullable|numeric|min:0',
@@ -88,7 +89,7 @@ class CompanyController extends Controller
             $allowed = ['tax_rate', 'payment_terms_days', 'purchase_approval_limit', 'purchase_receipt_tolerance', 'intervention_hourly_rate', 'intervention_travel_fee',
                 'rdv_enabled', 'rdv_slot_step', 'rdv_min_notice_hours', 'rdv_max_days', 'rdv_cancel_notice_hours', 'rdv_reminder_hours', 'rdv_auto_confirm', 'rdv_agenda_sync',
                 'rdv_agenda_busy', 'rdv_intro', 'mrp_labour_rate', 'fid_enabled', 'fid_per_amount', 'fid_point_value', 'fid_min_redeem', 'fid_expiry_months', 'fid_welcome_points',
-                'fid_auto_enroll', 'fid_tiers', 'gift_card_months', 'invoice_footer', 'vat_subject', 'tax_regime', 'invoice_receipt_box', 'doc_verify_qr', 'invoice_amount_words', 'legal_form', 'capital', 'default_payment_method', 'doc_templates', 'doc_template_defaults', 'require_2fa'];
+                'fid_auto_enroll', 'fid_tiers', 'gift_card_months', 'invoice_footer', 'vat_subject', 'tax_regime', 'invoice_receipt_box', 'doc_verify_qr', 'payment_receipt_email', 'invoice_amount_words', 'legal_form', 'capital', 'default_payment_method', 'doc_templates', 'doc_template_defaults', 'require_2fa'];
             $data['settings'] = array_merge($company->settings ?? [], \Illuminate\Support\Arr::only($data['settings'], $allowed));
         }
         $company->update($data);
