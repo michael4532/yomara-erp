@@ -152,8 +152,11 @@ class S3Lite
         if ($why = self::blockedReason($this->endpoint, $this->allowPrivate)) {
             throw new \RuntimeException($why);
         }
+        // Le type du contenu est posé par withBody : le remettre ici l'enverrait en double (« text/plain, text/plain ») et la signature ne correspondrait plus
+        $type = $h['content-type'] ?? 'application/octet-stream';
+        unset($h['content-type']);
         $req = Http::timeout(120)->withoutRedirecting()->withHeaders($h);
 
-        return $method === 'PUT' ? $req->withBody($body, $headers['Content-Type'] ?? 'application/octet-stream')->put($url) : $req->send($method, $url);
+        return $method === 'PUT' ? $req->withBody($body, $type)->put($url) : $req->send($method, $url);
     }
 }

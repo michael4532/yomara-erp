@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.65 — stockages en ligne (R2, B2…)
+
+- **Stockage des documents** : les stockages compatibles S3 (Cloudflare R2, Backblaze B2, Wasabi, Amazon S3…) refusaient chaque dépôt avec « signature does not match » : le type du fichier était envoyé deux fois. Corrigé ; « Tester » fonctionne avec les bonnes clés.
+
 ## 0.99.64 — crédits de publication X
 
 - **Crédits X (plateforme en ligne)** : X facture chaque publication à l'éditeur. Chaque société dispose désormais de crédits X par mois : 1 crédit par publication, davantage pour une publication contenant un lien (X la facture bien plus cher). Le solde s'affiche dans Réseaux sociaux › Comptes et dans l'éditeur dès qu'un compte X est choisi, avec un bouton « Ajouter des crédits ».
