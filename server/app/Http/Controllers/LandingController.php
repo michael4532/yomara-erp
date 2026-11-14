@@ -228,7 +228,7 @@ class LandingController extends Controller
         $prevName = null;
         $planInfo = [];
         foreach ($plans as $p) {
-            $keys = array_values(array_filter((array) ($p->modules ?? []), fn ($k) => isset($byKey[$k])));
+            $keys = array_values(array_filter($p->effectiveModules(), fn ($k) => isset($byKey[$k]))); // socle gratuit compris
             $added = array_values(array_diff($keys, $prev));
             $value = collect($keys)->sum(fn ($k) => (float) $byKey[$k]->price_monthly);
             $planInfo[$p->code] = [
@@ -285,7 +285,7 @@ class LandingController extends Controller
         $plans = $this->plans();
         $all = $this->modules();
         $list = $all->where('is_core', false)->values()->map(function ($m) use ($plans) {
-            $in = $plans->filter(fn ($p) => in_array($m->key, (array) ($p->modules ?? []), true))->pluck('name')->values()->all();
+            $in = $plans->filter(fn ($p) => in_array($m->key, $p->effectiveModules(), true))->pluck('name')->values()->all();
 
             return [
                 'key' => $m->key, 'name' => $m->name, 'category' => $m->category ?: 'Autres', 'description' => (string) $m->description,

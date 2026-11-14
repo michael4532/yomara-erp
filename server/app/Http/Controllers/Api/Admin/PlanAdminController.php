@@ -14,7 +14,8 @@ class PlanAdminController extends Controller
     {
         $counts = Company::selectRaw('plan_id, COUNT(*) as total')->groupBy('plan_id')->pluck('total', 'plan_id');
 
-        return ['data' => Plan::orderBy('sort')->get()->map(fn ($p) => $p->toArray() + ['companies' => (int) ($counts[$p->id] ?? 0), 'offer' => $p->offer(0)])];
+        // socle : modules des formules gratuites, compris d'office dans toutes les autres
+        return ['data' => Plan::orderBy('sort')->get()->map(fn ($p) => $p->toArray() + ['companies' => (int) ($counts[$p->id] ?? 0), 'offer' => $p->offer(0)]), 'socle' => Plan::socle()];
     }
 
     protected function rules(?Plan $plan = null): array

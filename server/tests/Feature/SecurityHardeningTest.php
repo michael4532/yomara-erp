@@ -79,6 +79,7 @@ class SecurityHardeningTest extends TestCase
 
     public function test_promo_code_once_per_company_even_for_a_colleague(): void
     {
+        \App\Models\Plan::where('code', 'gratuit')->get()->each->update(['modules' => ['ventes']]); // CRM hors du socle gratuit
         config(['erp.mode' => 'saas']);
         [, , $sa] = $this->makeCompany('Yomara', 'entreprise', superAdmin: true);
         [$c, $owner, $t1] = $this->makeCompany('Boutique', 'starter');

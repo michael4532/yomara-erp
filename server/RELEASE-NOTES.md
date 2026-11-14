@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.58 — la formule gratuite devient le socle de toutes les formules
+
+- **Socle gratuit** : les modules cochés dans la formule gratuite sont compris d'office dans toutes les formules payantes. Il n'est plus nécessaire de les recocher dans Starter, Business ou Professional ; quand vous modifiez la formule gratuite, toutes les formules suivent.
+- **Page Tarifs** : chaque formule payante affiche « Tout Gratuit, plus : » suivi uniquement des modules qu'elle ajoute, avec sa valeur réelle (socle compris).
+- **Super admin › Formules** : dans une formule payante, les modules du socle apparaissent cadenassés (« compris dans le socle gratuit ») ; la carte indique « Socle gratuit + N modules ».
+- Boutique de modules : un module du socle ne peut plus être acheté en plus (il est déjà compris). Les rappels de fin d'essai ne listent plus les modules du socle, qui restent actifs.
+- Application : version 1.0.10 (build 16).
+
 ## 0.99.57 — liens intelligents YoMail
 
 - **Lien intelligent YoMail** (`/yomail`) : sur Android, ouvre YoMail dans l'application installée, sinon Google Play (sans message d'erreur) ; sur iPhone, iPad et Mac, page « Ouvrir dans l'application » / App Store / continuer dans le navigateur ; sur Windows et Linux, YoMail s'ouvre directement dans la version web. L'application reconnaît aussi `yomara://mail` et `yomara://ecran/<écran>`.

@@ -23,6 +23,8 @@ class OffersPromoChatTest extends TestCase
     {
         parent::setUp();
         config(['erp.mode' => 'saas']);
+        // Ces tests achètent le CRM : on le sort du socle gratuit (sinon il est compris d'office dans toutes les formules)
+        \App\Models\Plan::where('code', 'gratuit')->get()->each->update(['modules' => ['ventes']]);
         [, , $this->admin] = $this->makeCompany('Yomara', 'entreprise', superAdmin: true);
         [$c, , $this->client] = $this->makeCompany('Boutique Awa', 'starter');
         $this->companyId = $c->id;

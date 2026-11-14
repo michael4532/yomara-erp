@@ -56,9 +56,10 @@ class SubscriptionLifecycle
     // ------------------------------------------------------------------ modules
 
     /** Modules (hors base) compris dans une formule : leurs noms. */
-    public static function planModules(?Plan $plan): array
+    public static function planModules(?Plan $plan, bool $lost = false): array
     {
-        $keys = (array) ($plan?->modules ?? []);
+        // $lost : ce qui disparaît à la fin de l'essai ou de l'abonnement (le socle gratuit, lui, reste)
+        $keys = ! $plan ? [] : ($lost ? array_values(array_diff((array) ($plan->modules ?? []), Plan::socle())) : $plan->effectiveModules());
 
         return $keys ? Module::whereIn('key', $keys)->where('is_core', false)->where('is_active', true)->orderBy('sort')->pluck('name')->all() : [];
     }
@@ -138,7 +139,7 @@ class SubscriptionLifecycle
             if (($settings['sub_notice'] ?? null) === $key) {
                 continue;
             }
-            $mods = self::planModules($c->plan);
+            $mods = self::planModules($c->plan, true);
             $title = match (true) {
                 $days <= 0 => [$trial ? 'Votre essai gratuit se termine aujourd\'hui' : 'Votre abonnement expire aujourd\'hui'],
                 $days === 1 => [$trial ? 'Votre essai gratuit se termine demain' : 'Votre abonnement expire demain'],

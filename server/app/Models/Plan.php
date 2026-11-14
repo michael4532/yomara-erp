@@ -26,6 +26,45 @@ class Plan extends Model
         ];
     }
 
+    /** Socle : modules des formules gratuites actives, compris d'office dans toutes les formules (mémorisé le temps d'une requête). */
+    protected static function booted(): void
+    {
+        $flush = fn () => static::flushSocle();
+        static::saved($flush);
+        static::deleted($flush);
+    }
+
+    public static function socle(): array
+    {
+        $app = app();
+        if ($app->bound('plan.socle')) {
+            return $app->make('plan.socle');
+        }
+        $v = static::query()->where('is_active', true)
+            ->where(fn ($q) => $q->where('is_free', true)->orWhere('price_monthly', '<=', 0))
+            ->get(['modules'])->flatMap(fn (Plan $p) => (array) ($p->modules ?? []))->unique()->values()->all();
+        $app->instance('plan.socle', $v);
+
+        return $v;
+    }
+
+    public static function flushSocle(): void
+    {
+        app()->forgetInstance('plan.socle');
+    }
+
+    /** Modules réellement compris : ceux cochés dans la formule + le socle gratuit. */
+    public function effectiveModules(): array
+    {
+        return array_values(array_unique(array_merge((array) ($this->modules ?? []), static::socle())));
+    }
+
+    /** Modules compris pour une société par sa formule (sans formule, ex. licence d'installation : aucun). */
+    public static function modulesFor(?self $plan): array
+    {
+        return $plan ? $plan->effectiveModules() : [];
+    }
+
     /** Prix annuel : 12 mois moins la remise annuelle (arrondi à la centaine). */
     public function yearlyPrice(): float
     {
@@ -54,7 +93,7 @@ class Plan extends Model
             'intro_discount' => $this->intro_discount, 'intro_months' => $this->intro_months, 'intro_left' => $introLeft,
             'yearly' => $this->yearlyPrice(), 'yearly_discount' => $this->yearly_discount,
             'yearly_saving' => max(0, $this->price_monthly * 12 - $this->yearlyPrice()),
-            'modules' => $this->modules ?? [],
+            'modules' => $this->effectiveModules(),
         ];
     }
 }

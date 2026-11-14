@@ -22,6 +22,8 @@ class StoreFixesTest extends TestCase
     {
         parent::setUp();
         config(['erp.mode' => 'saas']);
+        // Ces tests achètent le CRM : on le sort du socle gratuit (sinon il est compris d'office dans toutes les formules)
+        \App\Models\Plan::where('code', 'gratuit')->get()->each->update(['modules' => ['ventes']]);
         [, $u, $this->sa] = $this->makeCompany('Yomara', 'entreprise', superAdmin: true);
         $this->saUser = $u->id;
         Module::where('key', 'crm')->update(['billing_mode' => 'both', 'price_monthly' => 10000]);

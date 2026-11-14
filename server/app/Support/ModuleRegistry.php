@@ -137,7 +137,7 @@ class ModuleRegistry
 
         $modules = Module::query()->where('is_available', true)->get()->keyBy('key');
         $overrides = $company->moduleOverrides()->get()->keyBy('module_key');
-        $planModules = $company->plan?->modules ?? [];
+        $planModules = \App\Models\Plan::modulesFor($company->plan); // formule + socle gratuit
         $saas = config('erp.mode') === 'saas';
         // Installation chez le client : seuls les modules de sa licence (null = licence non exigée)
         $licensed = $saas ? null : \App\Licensing\LicenseClient::allowedModules();

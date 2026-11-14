@@ -65,12 +65,14 @@ class AdminPlansScreen extends StatelessWidget {
       path: 'admin/plans',
       builder: (context, d, reload) {
         final plans = List<Map<String, dynamic>>.from((d['data'] as List).map((e) => Map<String, dynamic>.from(e)));
+        // Socle : modules des formules gratuites, compris d'office dans toutes les formules
+        final socle = Set<String>.from((d['socle'] as List? ?? const []).map((e) => '$e'));
         final pad = MediaQuery.of(context).size.width < 700 ? 16.0 : 24.0;
         return ListView(padding: const EdgeInsets.only(bottom: 32), children: [
           PageHeader(
             title: tr('Formules'),
             subtitle: session.mode == 'saas' ? 'Proposées à l\'inscription et attribuées aux sociétés.' : 'Utilisées en mode SaaS.',
-            actions: [FilledButton.icon(onPressed: () => _edit(context, null, reload), icon: const Icon(Icons.add), label: Text(tr('Nouvelle formule')))],
+            actions: [FilledButton.icon(onPressed: () => _edit(context, null, reload, socle), icon: const Icon(Icons.add), label: Text(tr('Nouvelle formule')))],
           ),
           if (session.mode == 'saas') Padding(padding: EdgeInsets.fromLTRB(pad, 0, pad, 16), child: const _TrialOfferCard()),
           Padding(
@@ -83,7 +85,7 @@ class AdminPlansScreen extends StatelessWidget {
                 for (var i = 0; i < plans.length; i++)
                   SizedBox(
                     width: w,
-                    child: AnimatedFadeIn(index: i, child: HoverLift(child: _PlanCard(plan: plans[i], onTap: () => _edit(context, plans[i], reload)))),
+                    child: AnimatedFadeIn(index: i, child: HoverLift(child: _PlanCard(plan: plans[i], socle: socle, onTap: () => _edit(context, plans[i], reload, socle)))),
                   ),
               ]);
             }),
@@ -93,7 +95,7 @@ class AdminPlansScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _edit(BuildContext context, Map<String, dynamic>? plan, VoidCallback reload) async {
+  Future<void> _edit(BuildContext context, Map<String, dynamic>? plan, VoidCallback reload, Set<String> socle) async {
     final session = context.read<Session>();
     List<Map<String, dynamic>> modules;
     try {
@@ -130,7 +132,9 @@ class AdminPlansScreen extends StatelessWidget {
     await showFormDialog(context, maxWidth: 680, title: plan == null ? 'Nouvelle formule' : 'Formule ${plan['name']}', builder: (dc) {
       return StatefulBuilder(builder: (dc, setS) {
         void refresh(String _) => setS(() {});
-        final sumModules = modules.where((m) => selected.contains(m['key'])).fold<double>(0, (s, m) => s + toDouble(m['price_monthly']));
+        // Formule payante : le socle gratuit est compris d'office (affiché, non décochable ici)
+        final inSocle = free ? <String>{} : socle;
+        final sumModules = modules.where((m) => selected.contains(m['key']) || inSocle.contains(m['key'])).fold<double>(0, (s, m) => s + toDouble(m['price_monthly']));
         final offer = planOffer(
           monthly: toDouble(monthly.text),
           yearlyInput: toDouble(yearly.text),
@@ -245,13 +249,27 @@ class AdminPlansScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(tr('Modules inclus · valeur à la carte : ${money(sumModules, session.currency)} / mois'), style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
+          if (inSocle.isNotEmpty) ...[
+            Text(tr('Les ${inSocle.length} modules de la formule gratuite (socle) sont compris d\'office : modifiez-les dans la formule gratuite.'), style: TextStyle(color: Theme.of(dc).hintColor, fontSize: 12.5)),
+            const SizedBox(height: 8),
+          ],
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (final m in modules)
-              FilterChip(
-                label: Text(tr('${m['name']}')),
-                selected: selected.contains(m['key']),
-                onSelected: (v) => setS(() => v ? selected.add(m['key']) : selected.remove(m['key'])),
-              ),
+              if (inSocle.contains(m['key']))
+                FilterChip(
+                  avatar: const Icon(Icons.lock_outline, size: 14),
+                  label: Text(tr('${m['name']}')),
+                  selected: true,
+                  showCheckmark: false,
+                  tooltip: tr('Compris dans le socle gratuit'),
+                  onSelected: null,
+                )
+              else
+                FilterChip(
+                  label: Text(tr('${m['name']}')),
+                  selected: selected.contains(m['key']),
+                  onSelected: (v) => setS(() => v ? selected.add(m['key']) : selected.remove(m['key'])),
+                ),
           ]),
           SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Proposée à l\'inscription')), value: active, onChanged: (v) => setS(() => active = v)),
           Row(children: [
@@ -305,10 +323,11 @@ class AdminPlansScreen extends StatelessWidget {
 
 /// Carte d'une formule dans la liste : prix, badge et résumé de l'offre.
 class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.plan, required this.onTap});
+  const _PlanCard({required this.plan, required this.onTap, this.socle = const {}});
 
   final Map<String, dynamic> plan;
   final VoidCallback onTap;
+  final Set<String> socle;
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +384,14 @@ class _PlanCard extends StatelessWidget {
             ],
             const SizedBox(height: 10),
             Text(tr(p['max_users'] == null ? 'Utilisateurs illimités' : 'Jusqu\'à ${p['max_users']} utilisateurs')),
-            Text(tr('${(p['modules'] as List? ?? []).length} module(s) · ${p['companies']} société(s)')),
+            Builder(builder: (_) {
+              final own = Set<String>.from((p['modules'] as List? ?? const []).map((e) => '$e'));
+              final isFree = p['is_free'] == true || toDouble(p['price_monthly']) <= 0;
+              final extra = own.difference(socle).length;
+              return Text(tr(isFree || socle.isEmpty
+                  ? '${own.length} module(s) · ${p['companies']} société(s)'
+                  : 'Socle gratuit + $extra module(s) · ${p['companies']} société(s)'));
+            }),
           ]),
         ),
       ),

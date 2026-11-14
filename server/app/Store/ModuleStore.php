@@ -36,7 +36,7 @@ class ModuleStore
     {
         $enabled = $this->registry->enabledFor($company);
         $overrides = $company->moduleOverrides()->get()->keyBy('module_key');
-        $plan = $company->plan?->modules ?? [];
+        $plan = Plan::modulesFor($company->plan);
         $modules = Module::where('is_active', true)->where('is_core', false)->where('in_store', true)->orderBy('sort')->get();
         $names = Module::pluck('name', 'key');
 
@@ -163,7 +163,7 @@ class ModuleStore
                 ? 'Ce module est déjà actif jusqu\'au '.$cm->expires_at->format('d/m/Y').'. Vous pourrez le renouveler dans les 7 jours qui précèdent cette date.'
                 : 'Ce module est déjà actif pour votre entreprise.');
         }
-        if (! $cm && $company->status !== 'trial' && in_array($key, (array) ($company->plan?->modules ?? []), true)) {
+        if (! $cm && $company->status !== 'trial' && in_array($key, Plan::modulesFor($company->plan), true)) {
             throw new \DomainException('Ce module est déjà compris dans votre formule.');
         }
     }
@@ -433,7 +433,7 @@ class ModuleStore
                 Referrals::onPaid($order->fresh());
                 $this->registry->flush();
                 if ($company && $plan) {
-                    $this->registry->ensureSetup($company->fresh(), $plan->modules ?? []);
+                    $this->registry->ensureSetup($company->fresh(), $plan->effectiveModules());
                 }
                 ActivityLog::record('store.order.paid', $order, ['plan' => $plan?->code, 'until' => $end->toDateString()]);
 

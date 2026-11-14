@@ -15,7 +15,7 @@ class Billing
     public function companyMonthly(Company $company, ?\Illuminate\Support\Collection $modules = null): array
     {
         $modules ??= Module::all()->keyBy('key');
-        $planModules = $company->plan?->modules ?? [];
+        $planModules = \App\Models\Plan::modulesFor($company->plan);
         $overrides = $company->moduleOverrides->keyBy('module_key');
         $lines = [];
         $total = 0.0;

@@ -126,7 +126,7 @@ class CompanyAdminController extends Controller
         $company = Company::withoutGlobalScope('real')->with(['plan', 'moduleOverrides'])->findOrFail($id);
         $enabled = $company->enabledModules();
         $overrides = $company->moduleOverrides->keyBy('module_key');
-        $planModules = $company->plan?->modules ?? [];
+        $planModules = \App\Models\Plan::modulesFor($company->plan);
 
         return ['data' => Module::orderBy('sort')->get()->map(fn (Module $m) => [
             'key' => $m->key,
@@ -229,7 +229,7 @@ class CompanyAdminController extends Controller
             $key = 'plan:'.$plan->code;
             $label = 'Formule '.$plan->name;
             $registry->flush();
-            $registry->ensureSetup($company->fresh(), $plan->modules ?? []);
+            $registry->ensureSetup($company->fresh(), $plan->effectiveModules());
         } else {
             $module = Module::where('key', $d['key'])->firstOrFail();
             abort_if($module->is_core, 422, 'Le module de base est toujours actif.');
