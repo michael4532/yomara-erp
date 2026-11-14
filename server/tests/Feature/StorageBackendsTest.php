@@ -44,7 +44,9 @@ class StorageBackendsTest extends TestCase
             'bucket' => 'yomara', 'access_key' => 'AK', 'secret_key' => 'SK', 'capacity_mb' => 10240])->assertOk()->json();
         $this->assertTrue($r['test']['ok']);
         $this->assertStringNotContainsString('SK', json_encode($r));
-        $r2 = collect($r['data'])->firstWhere('provider', 'r2')['id'] ?? StorageBackend::where('provider', 'r2')->value('id');
+        $this->assertIsList($r['data']); // l'écran attend la liste des stockages
+        $this->assertSame('r2', $r['created']['provider']);
+        $r2 = collect($r['data'])->firstWhere('provider', 'r2')['id'];
 
         // Serveur plein (capacité 1 Mo) : le fichier part sur R2
         $this->api($sa)->putJson("/api/admin/storage/{$local['id']}", ['capacity_mb' => 1])->assertOk();

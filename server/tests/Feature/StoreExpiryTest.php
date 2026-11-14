@@ -22,7 +22,7 @@ class StoreExpiryTest extends TestCase
         config(['erp.mode' => 'saas']);
         [$company, $admin, $token] = $this->makeCompany('Boutique Awa', 'starter');
         // Tarif unique par défaut et moyens de paiement de la plateforme (en ligne à configurer, hors ligne actifs)
-        $paid = Module::where('is_core', false)->where('price_monthly', '>', 0)->where('key', 'not like', 'stockage_%')->get();
+        $paid = Module::where('is_core', false)->where('price_monthly', '>', 0)->where('key', 'not like', 'stockage_%')->where('key', 'not like', 'credits_x_%')->get();
         $this->assertGreaterThan(40, $paid->count());
         // Trois paliers : Essentiel 5 000 F par défaut, Standard 10 000 F (envois, stockage, API payantes), Premium 25 000 F (IA, visio)
         $this->assertEqualsCanonicalizing([5000.0, 25000.0, 30000.0], $paid->pluck('price_monthly')->map(fn ($v) => (float) $v)->unique()->values()->all());

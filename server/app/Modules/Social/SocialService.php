@@ -195,6 +195,7 @@ class SocialService
 
         if ($action !== 'draft') {
             $accounts->isNotEmpty() || $this->fail('Choisissez au moins un compte sur lequel publier.');
+            $this->linkForCheck = $row['link_url'];
             $this->validateFor($accounts, $row['body'], $variants, $mediaIds, $c);
             if ($action === 'schedule') {
                 ($at && $at->isAfter(now()->subMinute())) || $this->fail('Choisissez une date de publication à venir.');
@@ -265,10 +266,21 @@ class SocialService
                 $errors[] = $d['label'].' : 4 médias au maximum.';
             }
         }
+        // Crédits X (plateforme en ligne) : chaque compte X ciblé consomme des crédits du mois
+        if (XCredits::enabled() && ($xAccs = $accounts->where('network', 'x'))->isNotEmpty()) {
+            $xText = (string) ($variants['x']['text'] ?? $body);
+            $cost = XCredits::cost($xText, isset($variants['x']['text']) ? null : ($this->linkForCheck ?? null)) * $xAccs->count();
+            if ($why = XCredits::shortage($c, $cost)) {
+                $errors[] = $why;
+            }
+        }
         if ($errors) {
             throw \Illuminate\Validation\ValidationException::withMessages(['body' => $errors]);
         }
     }
+
+    /** Lien de la publication en cours de vérification (compté dans le coût en crédits X). */
+    protected ?string $linkForCheck = null;
 
     protected function notifyApprovers(Company $c, User $u, int $postId): void
     {
@@ -370,6 +382,13 @@ class SocialService
                 try {
                     ($acc && $acc->status !== 'disabled') || $this->fail('Compte déconnecté.');
                     [$text, $opts] = $this->payloadFor($post, $acc, (bool) $media);
+                    if ($acc->network === 'x' && XCredits::enabled()) {
+                        $cost = XCredits::cost($text);
+                        if ($why = XCredits::shortage($c, $cost)) {
+                            $this->fail($why);
+                        }
+                        DB::table('so_targets')->where('id', $t->id)->update(['credits' => $cost]);
+                    }
                     $res = $this->publisher->publish($acc, $text, $media, $opts + ['target_id' => $t->id]);
                     DB::table('so_targets')->where('id', $t->id)->update(['status' => 'published', 'external_id' => mb_substr((string) $res['id'], 0, 190), 'url' => $res['url'] ?? null,
                         'error' => null, 'retry_at' => null, 'published_at' => now(), 'updated_at' => now()]);
@@ -444,7 +463,12 @@ class SocialService
     {
         $n = 0;
         $targets = DB::table('so_targets')->where('company_id', $c->id)->where('status', 'published')->where('published_at', '>=', now()->subDays(30))
-            ->where(fn ($q) => $q->whereNull('stats_at')->orWhere('stats_at', '<', now()->subHours(6)))->orderBy('stats_at')->limit($max)->get();
+            ->where(fn ($q) => $q->where('network', '!=', 'x')->where(fn ($q) => $q->whereNull('stats_at')->orWhere('stats_at', '<', now()->subHours(6))))
+            // X facture chaque lecture : deux relevés seulement, à 24 heures puis à 7 jours
+            ->orWhere(fn ($q) => $q->where('company_id', $c->id)->where('network', 'x')->where('status', 'published')->where('published_at', '>=', now()->subDays(30))
+                ->where(fn ($q) => $q->where(fn ($q) => $q->whereNull('stats_at')->where('published_at', '<=', now()->subDay()))
+                    ->orWhere(fn ($q) => $q->where('published_at', '<=', now()->subDays(7))->whereRaw('stats_at < '.$this->plusDays('published_at', 7)))))
+            ->orderBy('stats_at')->limit($max)->get();
         foreach ($targets as $t) {
             $acc = DB::table('so_accounts')->find($t->account_id);
             $s = $acc ? rescue(fn () => $this->publisher->stats($acc, $t), null, false) : null;
@@ -453,6 +477,12 @@ class SocialService
         }
 
         return $n;
+    }
+
+    /** « colonne + n jours » en SQL, pour MySQL comme SQLite. */
+    protected function plusDays(string $col, int $n): string
+    {
+        return DB::getDriverName() === 'sqlite' ? "datetime($col, '+$n days')" : "DATE_ADD($col, INTERVAL $n DAY)";
     }
 
     // ------------------------------------------------------------------ statistiques et meilleures heures

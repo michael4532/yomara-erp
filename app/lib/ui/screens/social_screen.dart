@@ -9,11 +9,13 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'social_inbox.dart';
+import 'store_screen.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 import '../../core/json.dart';
@@ -145,7 +147,7 @@ class _SocialScreenState extends State<SocialScreen> {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => SocialComposer(networks: _networks, accounts: _accounts, can: _can, ai: _ov?['ai'] == true, post: post, initialDate: at),
+        builder: (_) => SocialComposer(networks: _networks, accounts: _accounts, can: _can, ai: _ov?['ai'] == true, post: post, initialDate: at, xCredits: _ov?['x_credits'] == null ? null : asMap(_ov!['x_credits'])),
       ),
     );
     if (saved == true) _load();
@@ -181,7 +183,7 @@ class _SocialScreenState extends State<SocialScreen> {
       ('Publications', _PostList(key: const ValueKey('list'), rev: _rev, networks: _networks, onOpen: _open, pending: (counts['pending'] as num?)?.toInt() ?? 0)),
       if (_can['inbox'] == true) ('Boîte de réception', SocialInboxTab(canSetup: _can['accounts'] == true || _can['publish'] == true)),
       ('Studio visuel', SocialStudioTab(canWrite: canWrite, onCreated: canWrite && _accounts.isNotEmpty ? (m) => _compose({'media': [m], 'body': ''}) : null)),
-      ('Comptes', _AccountsTab(networks: _networks, accounts: _accounts, can: _can, onChanged: _load)),
+      ('Comptes', _AccountsTab(networks: _networks, accounts: _accounts, can: _can, onChanged: _load, xCredits: _ov?['x_credits'] == null ? null : asMap(_ov!['x_credits']))),
       ('Statistiques', _StatsTab(key: ValueKey('stats$_rev'), networks: _networks, canSync: _can['publish'] == true)),
     ];
     return DefaultTabController(
@@ -1551,7 +1553,8 @@ class _PostSheetState extends State<_PostSheet> {
 // ---------------------------------------------------------------------------
 
 class SocialComposer extends StatefulWidget {
-  const SocialComposer({super.key, required this.networks, required this.accounts, required this.can, required this.ai, this.post, this.initialDate});
+  const SocialComposer({super.key, required this.networks, required this.accounts, required this.can, required this.ai, this.post, this.initialDate, this.xCredits});
+  final Map<String, dynamic>? xCredits;
   final List<Map<String, dynamic>> networks;
   final List<Map<String, dynamic>> accounts;
   final Map<String, dynamic> can;
@@ -2013,6 +2016,7 @@ class _SocialComposerState extends State<SocialComposer> {
           ],
         ),
       ),
+      if (widget.xCredits != null && _selectedNetworks.contains('x')) XCreditsCard(credits: widget.xCredits!, compact: true),
 
       // Texte : zone sans bordure, médias et outils dans la même carte
       _panel(
@@ -2845,7 +2849,8 @@ class _Counters extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AccountsTab extends StatelessWidget {
-  const _AccountsTab({required this.networks, required this.accounts, required this.can, required this.onChanged});
+  const _AccountsTab({required this.networks, required this.accounts, required this.can, required this.onChanged, this.xCredits});
+  final Map<String, dynamic>? xCredits;
   final List<Map<String, dynamic>> networks;
   final List<Map<String, dynamic>> accounts;
   final Map<String, dynamic> can;
@@ -2903,6 +2908,7 @@ class _AccountsTab extends StatelessWidget {
               },
             ),
           ),
+        if (xCredits != null && accounts.any((a) => a['network'] == 'x')) XCreditsCard(credits: xCredits!),
         if (accounts.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(tr('Comptes connectés'), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
@@ -3209,6 +3215,8 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
     var orgs = p['organizations'] == true;
     var ext = p['extended'] == true;
     final config = TextEditingController(text: '${p['config_id'] ?? ''}');
+    final included = TextEditingController(text: '${p['included_credits'] ?? ''}');
+    final weight = TextEditingController(text: '${p['link_weight'] ?? ''}');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -3284,6 +3292,31 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
                       ]),
                   ],
                 ],
+                if (p['key'] == 'x' && p['x_credits'] == true) ...[
+                  const SizedBox(height: 14),
+                  Text(tr('Crédits X des sociétés'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(tr('X vous facture chaque publication : chaque société a des crédits par mois (inclus + packs « Crédits X » de la boutique). Au-delà, la publication est refusée et la société est invitée à acheter un pack.'),
+                      style: const TextStyle(fontSize: 12.5)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: included,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(labelText: tr('Crédits inclus par mois'), helperText: tr('Pour chaque société')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: weight,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(labelText: tr('Crédits pour une publication avec lien'), helperText: tr('X facture les liens bien plus cher'), helperMaxLines: 2),
+                      ),
+                    ),
+                  ]),
+                ],
                 if (p['key'] == 'linkedin')
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -3310,6 +3343,8 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
         if (p['key'] == 'linkedin') 'organizations': orgs,
         if (p['key'] == 'meta') 'extended': ext,
         if (p['key'] == 'meta') 'config_id': config.text.trim(),
+        if (p['key'] == 'x' && int.tryParse(included.text.trim()) != null) 'included_credits': int.parse(included.text.trim()),
+        if (p['key'] == 'x' && int.tryParse(weight.text.trim()) != null) 'link_weight': int.parse(weight.text.trim()),
       });
       if (mounted) setState(() => _apps = [for (final x in (r['providers'] as List)) Map<String, dynamic>.from(x as Map)]);
     } catch (e) {
@@ -3510,6 +3545,60 @@ class _StatsTabState extends State<_StatsTab> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Crédits de publication X du mois : solde, et achat d'un pack quand il n'en reste plus assez.
+class XCreditsCard extends StatelessWidget {
+  const XCreditsCard({super.key, required this.credits, this.compact = false});
+  final Map<String, dynamic> credits;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final quota = (credits['quota'] as num?)?.toInt() ?? 0;
+    final used = (credits['used'] as num?)?.toInt() ?? 0;
+    final left = (credits['left'] as num?)?.toInt() ?? 0;
+    final weight = (credits['link_weight'] as num?)?.toInt() ?? 1;
+    final low = left < (weight > 1 ? weight : 2);
+    final color = left == 0 ? YColors.danger : (low ? const Color(0xFFD97706) : YColors.blue);
+    final reset = DateTime.tryParse('${credits['resets_at']}');
+    return Card(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.bolt_rounded, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(tr('Crédits X : $left restant(s) sur $quota ce mois-ci'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              if (!AppConfig.purchasesHidden)
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(tr('Boutique de modules'))), body: const StoreScreen()))),
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                  label: Text(tr('Ajouter des crédits')),
+                ),
+            ]),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(value: quota == 0 ? 1 : (used / quota).clamp(0, 1).toDouble(), minHeight: 6, color: color, backgroundColor: color.withValues(alpha: .15)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              tr(compact
+                  ? 'Chaque publication sur X utilise 1 crédit${weight > 1 ? ', $weight si elle contient un lien' : ''}.'
+                  : 'Chaque publication sur X utilise 1 crédit${weight > 1 ? ', $weight si elle contient un lien' : ''}. Les crédits repartent le ${reset == null ? '1er du mois' : DateFormat('d MMMM', 'fr_FR').format(reset)} ; pour en avoir plus, ajoutez un pack « Crédits X » dans la boutique.'),
+              style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor),
+            ),
+          ],
+        ),
       ),
     );
   }

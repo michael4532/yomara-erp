@@ -61,7 +61,10 @@ class StorageAdminController extends Controller
         $b = StorageBackend::create($v);
         ActivityLog::record('admin.storage.created', null, ['id' => $b->id, 'provider' => $b->provider]);
 
-        return ['data' => $b, 'test' => app(StoragePool::class)->test($b)] + $this->index();
+        // « data » reste la liste des stockages (l'écran l'attend ainsi) ; le nouveau stockage est dans « created »
+        $test = app(StoragePool::class)->test($b);
+
+        return ['created' => $b->fresh(), 'test' => $test] + $this->index();
     }
 
     public function update(Request $r, int $id)

@@ -1,5 +1,15 @@
 # Notes de version
 
+## 0.99.64 — crédits de publication X
+
+- **Crédits X (plateforme en ligne)** : X facture chaque publication à l'éditeur. Chaque société dispose désormais de crédits X par mois : 1 crédit par publication, davantage pour une publication contenant un lien (X la facture bien plus cher). Le solde s'affiche dans Réseaux sociaux › Comptes et dans l'éditeur dès qu'un compte X est choisi, avec un bouton « Ajouter des crédits ».
+- Quand il ne reste plus assez de crédits, la publication sur X est refusée avec une invitation à acheter un pack ; une publication planifiée est marquée en échec, sans relance, et son auteur est prévenu.
+- Trois packs mensuels dans la boutique : « Crédits X +50 », « +200 » et « +1000 » (prix réglables dans Modules & tarifs).
+- Super admin › Applications des réseaux › X : crédits inclus par mois pour chaque société (10 par défaut) et nombre de crédits d'une publication avec lien (10 par défaut).
+- Les statistiques d'une publication X ne sont plus relevées que deux fois (à 24 heures puis à 7 jours), car X facture aussi chaque lecture.
+- Les installations privées (sur votre propre serveur) ne sont pas concernées : elles utilisent leur propre application X.
+- **Stockage des documents** : l'écran ne devient plus gris après « Ajouter et tester » un nouveau stockage.
+
 ## 0.99.63 — bouton Retour
 
 - **Bouton « Retour »** dans toutes les applications (ordinateur, web, téléphone) : la flèche en haut à gauche ramène à l'écran précédent, puis au tableau de bord. Sur Android, le bouton retour du téléphone fait de même au lieu de fermer l'application. Raccourcis clavier : Alt + ← (Windows, Linux) et Cmd + [ (Mac).
