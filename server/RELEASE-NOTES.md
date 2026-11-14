@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.62 — Meta : connexion des applications récentes, prix des modules
+
+- **Facebook et Instagram** : nouveau champ « ID de configuration (Facebook Login for Business) » dans Réseaux sociaux › Applications › Meta. Les applications Meta récentes accordent leurs autorisations par une configuration : l'ERP l'utilise dès que l'ID est renseigné.
+- **Ma configuration** : les modèles de documents premium, vendus en achat définitif, ne sont plus comptés comme « modules sans prix ». Le socle et « Aligner les tarifs » ne prennent plus qu'une formule marquée gratuite.
+
 ## 0.99.61 — reçu automatique après un paiement en ligne
 
 - **Le client reçoit son reçu** : dès qu'il paie en ligne (lien de paiement d'une facture ou lien de paiement libre), il reçoit un e-mail « Paiement reçu » aux couleurs de la société, avec le reçu PDF joint (montant en chiffres et en lettres, mode et référence de paiement, reste à payer, mention PAYÉ, code QR d'authenticité) et un bouton « Voir la facture en ligne ».

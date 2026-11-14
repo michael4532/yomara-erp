@@ -250,13 +250,13 @@ class SocialController extends Controller
 
         return ['providers' => collect(Networks::PROVIDERS)->map(fn ($p, $k) => $p + ['key' => $k, 'redirect_uri' => Networks::redirectUri($k),
             'client_id' => $all[$k]['client_id'] ?? null, 'has_secret' => ! empty($all[$k]['client_secret']), 'organizations' => (bool) ($all[$k]['organizations'] ?? false),
-            'extended' => (bool) ($all[$k]['extended'] ?? false)] + ($k === 'meta' ? ['webhook_url' => url('/api/meta-webhook'), 'verify_token' => MetaWebhookController::verifyToken()] : []))->values()];
+            'extended' => (bool) ($all[$k]['extended'] ?? false), 'config_id' => $all[$k]['config_id'] ?? null] + ($k === 'meta' ? ['webhook_url' => url('/api/meta-webhook'), 'verify_token' => MetaWebhookController::verifyToken()] : []))->values()];
     }
 
     public function saveApp(Request $r, string $provider)
     {
         abort_unless(isset(Networks::PROVIDERS[$provider]), 404);
-        $d = $r->validate(['client_id' => 'nullable|string|max:300', 'client_secret' => 'nullable|string|max:500', 'organizations' => 'nullable|boolean', 'extended' => 'nullable|boolean']);
+        $d = $r->validate(['client_id' => 'nullable|string|max:300', 'client_secret' => 'nullable|string|max:500', 'organizations' => 'nullable|boolean', 'extended' => 'nullable|boolean', 'config_id' => 'nullable|string|max:40|regex:/^\d*$/']);
         $all = (array) PlatformSetting::get('social.apps', []);
         $cur = $all[$provider] ?? [];
         $cur['client_id'] = trim((string) ($d['client_id'] ?? '')) ?: null;
@@ -271,6 +271,9 @@ class SocialController extends Controller
             }
             if (array_key_exists('extended', $d)) {
                 $cur['extended'] = (bool) $d['extended'];
+            }
+            if (array_key_exists('config_id', $d)) {
+                $cur['config_id'] = trim((string) $d['config_id']) ?: null; // Facebook Login for Business
             }
         }
         $all[$provider] = $cur;

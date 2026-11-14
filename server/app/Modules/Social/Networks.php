@@ -100,7 +100,7 @@ class Networks
         $a = $all[$provider] ?? [];
         $secret = ! empty($a['client_secret']) ? rescue(fn () => decrypt($a['client_secret']), null, false) : null;
 
-        return ['client_id' => $a['client_id'] ?? null, 'client_secret' => $secret];
+        return ['client_id' => $a['client_id'] ?? null, 'client_secret' => $secret, 'config_id' => $a['config_id'] ?? null];
     }
 
     public static function configuredProviders(): array

@@ -80,7 +80,7 @@ class ModuleAdminController extends Controller
      */
     public function alignPrices(Request $request, ModuleRegistry $registry)
     {
-        $free = \App\Models\Plan::where('is_active', true)->where(fn ($q) => $q->where('is_free', true)->orWhere('price_monthly', '<=', 0))->get()
+        $free = \App\Models\Plan::where('is_active', true)->where('is_free', true)->get()
             ->flatMap(fn ($p) => (array) $p->modules)->unique()->values()->all();
         $defaults = config('erp_store.defaults', []);
         $toFree = $toPrice = [];

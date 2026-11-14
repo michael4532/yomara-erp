@@ -75,7 +75,9 @@ class SocialOAuth
         }
 
         return match ($provider) {
-            'meta' => 'https://www.facebook.com/v21.0/dialog/oauth?'.http_build_query(['client_id' => $app['client_id'], 'redirect_uri' => $redirect, 'state' => $state, 'scope' => $scope, 'response_type' => 'code']),
+            // Applications récentes (Facebook Login for Business) : les autorisations viennent de la configuration (config_id)
+            'meta' => 'https://www.facebook.com/v21.0/dialog/oauth?'.http_build_query(['client_id' => $app['client_id'], 'redirect_uri' => $redirect, 'state' => $state, 'response_type' => 'code']
+                + (! empty($app['config_id']) ? ['config_id' => $app['config_id'], 'override_default_response_type' => 'true'] : ['scope' => $scope])),
             'threads' => 'https://threads.net/oauth/authorize?'.http_build_query(['client_id' => $app['client_id'], 'redirect_uri' => $redirect, 'state' => $state, 'scope' => $scope, 'response_type' => 'code']),
             'linkedin' => 'https://www.linkedin.com/oauth/v2/authorization?'.http_build_query(['response_type' => 'code', 'client_id' => $app['client_id'], 'redirect_uri' => $redirect, 'state' => $state, 'scope' => $scope]),
             'x' => 'https://x.com/i/oauth2/authorize?'.http_build_query(['response_type' => 'code', 'client_id' => $app['client_id'], 'redirect_uri' => $redirect, 'scope' => $scope, 'state' => $state,

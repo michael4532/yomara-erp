@@ -3208,6 +3208,7 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
     final secret = TextEditingController();
     var orgs = p['organizations'] == true;
     var ext = p['extended'] == true;
+    final config = TextEditingController(text: '${p['config_id'] ?? ''}');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -3253,6 +3254,16 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
                   decoration: InputDecoration(labelText: tr('Client secret'), helperText: p['has_secret'] == true ? tr('Laisser vide pour garder le secret enregistré') : null),
                 ),
                 if (p['key'] == 'meta') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: config,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: tr('ID de configuration (Facebook Login for Business)'),
+                      helperText: tr('Applications Meta récentes : Facebook Login for Business › Configurations. Vide : autorisations demandées une à une.'),
+                      helperMaxLines: 3,
+                    ),
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: ext,
@@ -3298,6 +3309,7 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
         if (secret.text.trim().isNotEmpty) 'client_secret': secret.text.trim(),
         if (p['key'] == 'linkedin') 'organizations': orgs,
         if (p['key'] == 'meta') 'extended': ext,
+        if (p['key'] == 'meta') 'config_id': config.text.trim(),
       });
       if (mounted) setState(() => _apps = [for (final x in (r['providers'] as List)) Map<String, dynamic>.from(x as Map)]);
     } catch (e) {
