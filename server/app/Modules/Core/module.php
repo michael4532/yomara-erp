@@ -4,7 +4,7 @@ return [
     'key' => 'core',
     'name' => 'Base',
     'description' => 'Société, utilisateurs, rôles, contacts, produits, paramètres.',
-    'category' => 'Socle',
+    'category' => 'Base système',
     'icon' => 'apps',
     'is_core' => true,
     'depends' => [],

@@ -36,6 +36,31 @@ function notifyParent(event, data) {
   try { window.flutter_inappwebview && window.flutter_inappwebview.callHandler('office', event, data); } catch (e) {}
 }
 
+// ---------------------------------------------------------------- Copie de secours locale
+// Chaque modification est aussi gardée sur l'appareil (IndexedDB) jusqu'à son enregistrement sur le serveur :
+// après une fermeture imprévue, une coupure réseau ou un plantage, l'éditeur propose de la restaurer.
+const RKEY = `${C.id || C.name}:${C.uid || ''}`;
+function idb() {
+  return new Promise((ok, ko) => {
+    const r = indexedDB.open('yomara-office', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('recovery');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => ko(r.error);
+  });
+}
+async function rec(op, value) {
+  try {
+    const db = await idb();
+    return await new Promise((ok, ko) => {
+      const tx = db.transaction('recovery', op === 'get' ? 'readonly' : 'readwrite');
+      const st = tx.objectStore('recovery');
+      const q = op === 'get' ? st.get(RKEY) : op === 'put' ? st.put(value, RKEY) : st.delete(RKEY);
+      q.onsuccess = () => ok(q.result);
+      q.onerror = () => ko(q.error);
+    });
+  } catch (e) { return null; }
+}
+
 const time = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
 // ---------------------------------------------------------------- Tableur
@@ -154,10 +179,29 @@ function App() {
   const saving = useRef(false);
   const timer = useRef(null);
   const firstDirty = useRef(null);
+  const snapTimer = useRef(null);
+  const editSeq = useRef(0);
+  const [recovery, setRecovery] = useState(null);
+  const [gen, setGen] = useState(0);
   const readOnly = mode !== 'edit';
   const onError = useCallback((e) => setError((C.kind === 'sheet' ? 'Ce classeur' : 'Ce document') + ' n\'a pas pu être ouvert : ' + e.message), []);
 
-  useEffect(() => { loadFile().then(setFile).catch((e) => setError(e.message)); }, []);
+  useEffect(() => {
+    loadFile().then(setFile).catch((e) => setError(e.message));
+    if (C.mode === 'edit') rec('get').then((r) => { if (r && r.blob) setRecovery(r); });
+  }, []);
+
+  // Copie de secours : 2 s après la dernière modification (au plus tard 10 s)
+  const snapshot = useCallback(async () => {
+    clearTimeout(snapTimer.current);
+    snapTimer.current = null;
+    if (readOnly || !api.current || !dirty.current) return;
+    try {
+      const seq = editSeq.current;
+      const blob = await api.current.export();
+      if (seq === editSeq.current || dirty.current) await rec('put', { blob, base: C.version, at: Date.now(), name: C.name, seq });
+    } catch (e) {}
+  }, [readOnly]);
   useEffect(() => { document.title = `${C.name} · Yomara Office`; }, []);
 
   const save = useCallback(async () => {
@@ -165,6 +209,7 @@ function App() {
     saving.current = true;
     dirty.current = false;
     firstDirty.current = null;
+    const seq = editSeq.current;
     setStatus((s) => ({ ...s, state: 'saving' }));
     try {
       const blob = await api.current.export();
@@ -174,6 +219,8 @@ function App() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.message || 'Enregistrement impossible.');
       setStatus({ state: 'saved', at: new Date(), version: j.data.version });
+      C.version = j.data.version;
+      if (seq === editSeq.current && !dirty.current) { clearTimeout(snapTimer.current); snapTimer.current = null; rec('del'); }
       notifyParent('saved', { version: j.data.version });
     } catch (e) {
       dirty.current = true;
@@ -186,12 +233,15 @@ function App() {
 
   const onDirty = useCallback(() => {
     dirty.current = true;
+    editSeq.current++;
+    if (!snapTimer.current) snapTimer.current = setTimeout(snapshot, 10000);
+    else { clearTimeout(snapTimer.current); snapTimer.current = setTimeout(snapshot, 2000); }
     setStatus((s) => (s.state === 'saving' || s.state === 'dirty' ? s : { ...s, state: 'dirty' }));
     // Enregistrement 3 s après la dernière modification, et au plus tard 15 s après la première
     clearTimeout(timer.current);
     firstDirty.current ??= Date.now();
     timer.current = setTimeout(save, Date.now() - firstDirty.current > 15000 ? 0 : 3000);
-  }, [save]);
+  }, [save, snapshot]);
 
   // Présence et verrou de modification
   useEffect(() => {
@@ -216,10 +266,29 @@ function App() {
   useEffect(() => {
     const k = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); clearTimeout(timer.current); save(); } };
     const b = (e) => { if (dirty.current || saving.current) { e.preventDefault(); e.returnValue = ''; } };
+    // Application mise en arrière-plan ou fenêtre fermée : copie de secours puis enregistrement immédiat
+    const h = () => { if (document.visibilityState === 'hidden' && dirty.current) { snapshot(); clearTimeout(timer.current); save(); } };
     window.addEventListener('keydown', k, true);
     window.addEventListener('beforeunload', b);
-    return () => { window.removeEventListener('keydown', k, true); window.removeEventListener('beforeunload', b); };
-  }, [save]);
+    document.addEventListener('visibilitychange', h);
+    window.addEventListener('pagehide', h);
+    return () => {
+      window.removeEventListener('keydown', k, true); window.removeEventListener('beforeunload', b);
+      document.removeEventListener('visibilitychange', h); window.removeEventListener('pagehide', h);
+    };
+  }, [save, snapshot]);
+
+  const restore = () => {
+    const r = recovery;
+    setRecovery(null);
+    const ext = ['xls', 'ods'].includes(C.ext) ? 'xlsx' : C.ext;
+    setFile(new File([r.blob], `${C.name.replace(/\.[^.]+$/, '')}.${ext}`, { type: r.blob.type || 'application/octet-stream' }));
+    setGen((g) => g + 1);
+    // la copie restaurée part au serveur comme une nouvelle version, dès que l'éditeur l'a ouverte
+    setTimeout(() => { dirty.current = true; editSeq.current++; clearTimeout(timer.current); save(); }, 2500);
+  };
+  const dismiss = () => { setRecovery(null); rec('del'); };
+  const when = (t) => new Date(t).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   const download = async () => {
     const blob = api.current ? await api.current.export() : file;
@@ -265,15 +334,25 @@ function App() {
         <button className="btn" onClick={download} disabled={!file}>Télécharger</button>
         <button className="btn icon" onClick={close} title="Fermer" aria-label="Fermer">✕</button>
       </header>
+      {recovery && !readOnly && (
+        <div className="recover" role="alert">
+          <span>
+            <strong>Modifications non enregistrées retrouvées</strong> ({when(recovery.at)}).
+            {recovery.base !== C.version ? ' Le fichier a été modifié depuis : la restauration créera une nouvelle version, l\'actuelle reste dans l\'historique.' : ' Restaurez-les pour reprendre là où vous en étiez.'}
+          </span>
+          <button className="btn primary" onClick={restore}>Restaurer</button>
+          <button className="btn" onClick={dismiss}>Ignorer</button>
+        </div>
+      )}
       <main className="body">
         {error ? (
           <div className="message"><strong>{error}</strong></div>
         ) : !file ? (
           <Loading text={`Ouverture du ${kind.label.toLowerCase()}…`} />
         ) : C.kind === 'sheet' ? (
-          <SheetEditor file={file} readOnly={readOnly} onDirty={onDirty} api={api} onError={onError} />
+          <SheetEditor key={gen} file={file} readOnly={readOnly} onDirty={onDirty} api={api} onError={onError} />
         ) : C.kind === 'doc' ? (
-          <DocEditor file={file} readOnly={readOnly} onDirty={onDirty} api={api} onError={onError} />
+          <DocEditor key={gen} file={file} readOnly={readOnly} onDirty={onDirty} api={api} onError={onError} />
         ) : (
           <div className="message">
             <strong>L'aperçu des présentations arrive bientôt.</strong>

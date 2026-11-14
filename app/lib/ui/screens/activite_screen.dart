@@ -9,6 +9,7 @@ import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/add_to_report.dart';
 import '../widgets/common.dart';
+import '../widgets/how_it_works.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
@@ -28,7 +29,7 @@ class ActiviteScreen extends StatelessWidget {
   Widget build(BuildContext context) => DefaultTabController(
         length: 3,
         child: Column(children: [
-          PageHeader(title: tr('Rapports d\'activité'), subtitle: tr('Votre rapport s\'écrit avec ce que vous faites dans le logiciel : relisez, complétez, envoyez')),
+          PageHeader(title: tr('Rapports d\'activité'), subtitle: tr('Votre rapport s\'écrit tout seul avec ce que vous faites dans le logiciel : relisez, complétez, envoyez en un clic.')),
           TabBar(isScrollable: true, padding: const EdgeInsets.symmetric(horizontal: 8), tabAlignment: TabAlignment.start, tabs: [Tab(text: tr('Mon rapport')), Tab(text: tr('Mes rapports')), Tab(text: tr('Rapports reçus'))]),
           const Expanded(child: TabBarView(physics: NeverScrollableScrollPhysics(), children: [ReportView(), _ReportList(box: 'mine'), _ReportList(box: 'team')])),
         ]),
@@ -297,7 +298,20 @@ class _ReportViewState extends State<ReportView> {
     for (final i in items) {
       grouped.putIfAbsent('${i['section']}', () => []).add(i);
     }
+    final st = '${r['status']}';
     return ListView(padding: EdgeInsets.fromLTRB(narrow ? 16 : 24, 14, narrow ? 16 : 24, 32), children: [
+      if (mine && !HowItWorksCard.seen('activite_how_seen'))
+        HowItWorksCard(
+          title: 'Votre rapport, sans le rédiger',
+          icon: Icons.auto_awesome,
+          prefKey: 'activite_how_seen',
+          onDismiss: () => setState(() {}),
+          steps: const [
+            (Icons.bolt, 'Il s\'écrit tout seul', 'Ventes, visites, tâches, tickets, réunions, interventions… tout ce que vous faites dans le logiciel s\'ajoute ici.'),
+            (Icons.rate_review_outlined, 'Vous relisez et complétez', 'Décochez ce qui ne doit pas y figurer, ajoutez une activité faite hors logiciel et la synthèse.'),
+            (Icons.send_outlined, 'Envoyé en un clic', 'Votre supérieur le reçoit dans l\'application et par e-mail, puis le valide ou demande un complément.'),
+          ],
+        ),
       Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
         if (mine) ...[
           IconButton(tooltip: tr('Semaine précédente'), onPressed: () => _shiftWeek(-1), icon: const Icon(Icons.chevron_left)),
@@ -312,7 +326,17 @@ class _ReportViewState extends State<ReportView> {
         StatusChip('${r['status_label']}', color: _statusColor(r['status'] as String?)),
         if (r['supervisor'] != null && r['status'] != 'draft') Text(tr('→ ${r['supervisor']}'), style: TextStyle(color: hint)),
       ]),
-      const SizedBox(height: 8),
+      const SizedBox(height: 10),
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: FlowSteps(
+          labels: const ['Préparé', 'Envoyé', 'Validé'],
+          step: switch (st) { 'approved' => 3, 'sent' || 'returned' => 2, _ => 1 },
+          color: st == 'returned' ? YColors.danger : (st == 'approved' ? YColors.success : YColors.blue),
+          stoppedLabel: st == 'returned' ? 'À compléter' : null,
+        ),
+      ),
+      const SizedBox(height: 12),
       Wrap(spacing: 8, runSpacing: 8, children: [
         if (_editable) ...[
           OutlinedButton.icon(onPressed: () => _save(), icon: const Icon(Icons.save_outlined, size: 18), label: Text(tr('Enregistrer'))),

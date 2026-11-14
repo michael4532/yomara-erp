@@ -3,7 +3,7 @@
 return [
     'key' => 'pdf',
     'name' => 'Outils PDF',
-    'description' => 'Tous les outils PDF du quotidien, comme Acrobat : fusionner, découper, réorganiser et pivoter les pages, ajouter un filigrane, du texte, une image ou une signature, numéroter les pages, protéger par mot de passe (chiffrement AES-256) ou retirer la protection, convertir des images en PDF. Les fichiers sont traités puis aussitôt effacés.',
+    'description' => 'Tous les outils PDF du quotidien, comme Acrobat : fusionner, découper, réorganiser et pivoter les pages, ajouter un filigrane, du texte, une image ou une signature, numéroter les pages, protéger par mot de passe (chiffrement AES-256) ou retirer la protection, convertir des images en PDF. Les fichiers envoyés sont aussitôt effacés ; ceux que vous produisez restent 30 jours dans votre historique personnel.',
     'category' => 'Collaboration',
     'icon' => 'picture_as_pdf',
     'depends' => ['core'],

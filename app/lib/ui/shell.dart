@@ -35,6 +35,7 @@ import 'screens/license_local_screen.dart';
 import 'screens/referral_screen.dart';
 import 'screens/support_chat.dart';
 import 'screens/onboarding_guide.dart';
+import 'screens/screen_guide.dart';
 import 'screens/admin/admin_plans_screen.dart';
 import 'screens/admin/admin_store_screen.dart';
 import 'screens/admin/admin_updates_screen.dart';
@@ -43,6 +44,7 @@ import 'screens/fonds_screen.dart';
 import 'screens/tresorerie_screen.dart';
 import 'screens/tickets_screen.dart';
 import 'widgets/notification_bell.dart';
+import 'screens/mail_templates_screen.dart';
 import 'widgets/app_update.dart';
 import 'widgets/my_day.dart';
 import 'widgets/branch_selector.dart';
@@ -184,7 +186,9 @@ class _AppShellState extends State<AppShell> {
         if (mounted && t != null) toast(context, m.notification?.body != null ? '$t — ${m.notification!.body}' : t);
       },
       onOpen: (data) {
-        final id = '${data['module'] ?? ''}';
+        // Notification touchée : écran du module concerné (même correspondance que la cloche)
+        final m = '${data['module'] ?? ''}';
+        final id = notificationScreen(m, '${data['type'] ?? ''}') ?? m;
         if (!mounted || id.isEmpty) return;
         if (_items(_session).any((i) => i.id == id)) _go(id);
       },
@@ -475,6 +479,7 @@ class _AppShellState extends State<AppShell> {
       if (s.mode == 'saas') NavItem('admin_site', tr('Site & prospects'), Icons.travel_explore_rounded, (c) => AdminSiteScreen(onGo: ShellNav.of(c)?.go), section: 'Super admin'),
       if (s.mode == 'saas') NavItem('admin_livechat', tr('Live chat du site'), Icons.forum_rounded, (_) => const AdminLiveChatScreen(), section: 'Super admin'),
       if (s.mode == 'saas') NavItem('admin_comms', tr('Marketing : e-mails clients'), Icons.campaign_outlined, (_) => const AdminCommsScreen(), section: 'Super admin'),
+      NavItem('admin_mail_templates', tr('Modèles d\'e-mails'), Icons.mark_email_read_outlined, (_) => const MailTemplatesScreen(admin: true), section: 'Super admin'),
       if (s.mode == 'saas') NavItem('admin_promo', tr('Marketing : promotions'), Icons.local_offer_outlined, (_) => const AdminPromoScreen(), section: 'Super admin'),
       if (s.mode == 'saas') NavItem('admin_licenses', tr('Installations'), Icons.vpn_key_rounded, (_) => const AdminLicensesScreen(), section: 'Super admin'),
       NavItem('admin_support', tr('Support clients'), Icons.support_agent_rounded, (_) => const AdminSupportScreen(), section: 'Super admin'),
@@ -568,7 +573,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   static const _shortLabels = {
-    'dashboard': 'Accueil', 'mailbox': 'Mail', 'mon_espace': 'Mon espace', 'pos': 'Caisse', 'agenda': 'Agenda', 'tickets': 'Demandes', 'ventes': 'Ventes',
+    'dashboard': 'Accueil', 'mailbox': 'YoMail', 'mon_espace': 'Mon espace', 'pos': 'Caisse', 'agenda': 'Agenda', 'tickets': 'Demandes', 'ventes': 'Ventes',
     'crm': 'CRM', 'interventions': 'Interventions', 'helpdesk': 'Service client', 'whatsapp': 'WhatsApp', 'stock': 'Stock', 'contacts': 'Clients',
     'admin_console': 'Console', 'admin_livechat': 'Live chat', 'admin_support': 'Support', 'admin_companies': 'Sociétés', 'admin_comms': 'Marketing',
     'admin_store': 'Ventes', 'admin_modules': 'Modules', 'admin_plans': 'Formules', 'admin_setup': 'Réglages', 'admin_site': 'Site', 'admin_promo': 'Promotions',
@@ -798,7 +803,8 @@ class _AppShellState extends State<AppShell> {
             actions: [TextButton(onPressed: () => session.refreshBootstrap(), child: Text(tr('Vérifier')))],
           ),
         Expanded(
-          child: AnimatedSwitcher(
+          child: Stack(children: [
+            Positioned.fill(child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
             switchInCurve: Curves.easeOutCubic,
             transitionBuilder: pageSwitchTransition,
@@ -812,11 +818,17 @@ class _AppShellState extends State<AppShell> {
                 child: Builder(builder: item.builder),
               ),
             ),
-          ),
+          )),
+            // Première visite d'un écran : invitation à voir son guide
+            if (item.id != 'dashboard') ScreenGuideNudge(id: item.id, label: item.label, icon: item.icon),
+          ]),
         ),
       ],
     );
 
+    screenLabels
+      ..clear()
+      ..addAll({for (final i in items) i.id: i.label});
     final sidebar = _Sidebar(
       items: items,
       current: item.id,
@@ -875,6 +887,7 @@ class _AppShellState extends State<AppShell> {
                     maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -.2)),
                 actions: [
                   IconButton(tooltip: tr('Rechercher'), onPressed: _palette, icon: const Icon(Icons.search_rounded)),
+                  ScreenGuideButton(id: item.id, label: item.label, icon: item.icon),
                   const RefreshSpaceButton(),
                   const UpdateButton(compact: true),
                   if (context.watch<Session>().hasBranches) const Padding(padding: EdgeInsets.only(right: 4), child: BranchSelector(dark: false)),
@@ -1176,6 +1189,11 @@ class _Sidebar extends StatelessWidget {
               if (onCustomizeBar != null)
                 _NavTile(item: NavItem('bottom_bar', tr('Barre du bas'), Icons.tune_rounded, (_) => const SizedBox()), selected: false, onTap: onCustomizeBar!),
               const _UserCard(),
+              // Mention de l'éditeur, toujours visible en pied de menu
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 2, 18, 8),
+                child: Text('© ${DateTime.now().year} Yomara Technologies', style: TextStyle(fontSize: 11, color: SbColors.muted), overflow: TextOverflow.ellipsis),
+              ),
             ] else
               const Padding(padding: EdgeInsets.all(6), child: SyncBadge(compact: true)),
             if (onToggleRail != null && rail)
@@ -1687,6 +1705,7 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ),
+          ScreenGuideButton(id: item.id, label: item.label, icon: item.icon),
           const MyDayButtons(),
           const RefreshSpaceButton(),
           const NotificationBell(light: false),

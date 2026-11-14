@@ -1,5 +1,21 @@
 # Notes de version
 
+## 0.99.59 — modèles d'e-mails, socle modifiable, guides par écran, récupération Word / Excel
+
+- **E-mails aux clients mis en page** : factures, devis, commandes, bons de livraison, avoirs et reçus partent dans un e-mail à votre logo, avec la fiche du document (numéro, date, montant, échéance), un bouton « Payer en ligne » quand un lien existe, et vos coordonnées en pied de page (© Yomara Technologies).
+- **Modèles d'e-mails** : nouvel onglet Super admin › Modèles d'e-mails (texte par défaut de toutes les sociétés) et Paramètres › Modèles d'e-mails (texte propre à la société), avec variables ({client}, {numero}, {montant}…) et aperçu en direct.
+- **Bienvenue des employés** : chaque employé ajouté reçoit une notification et un e-mail « Votre compte est prêt » avec un bouton pour choisir son mot de passe (lien valable 7 jours, utilisable une fois).
+- **Socle et formules depuis Modules & tarifs** : en tête de l'écran, une carte par formule (le socle gratuit d'abord) pour cocher ses modules et modifier son texte de présentation. Une formule « sur devis » à 0 F n'est plus prise pour le socle.
+- **Notifications** : toucher une notification ouvre l'écran concerné (plus de 60 modules reconnus), sur l'application comme sur le web.
+- **YoMail sur téléphone** : barre d'actions fixe en bas de la lecture (Répondre ▾, non lu, supprimer, archiver), comme Outlook ; « Mail » devient « YoMail » dans la barre du bas. Les e-mails au code HTML complexe s'affichent fidèlement (boutons blancs sur fond de couleur compris).
+- **Outils PDF : historique personnel** : chaque fichier produit (fusion, découpe, modification…) reste 30 jours dans « Mes fichiers récents », visible par son auteur seul, à rouvrir ou retélécharger.
+- **Word et Excel en ligne : rien de perdu** : chaque modification est aussi gardée sur l'appareil jusqu'à son enregistrement. Après une fermeture imprévue, une coupure réseau ou un plantage, l'éditeur propose « Restaurer » à la réouverture ; l'application mise en arrière-plan enregistre aussitôt.
+- **Guide de chaque écran** : bouton « ? » en haut de chaque écran (à quoi il sert, par où commencer, bon à savoir, écrans liés) et invitation discrète à la première visite.
+- **Demandes internes** : « Confier une tâche » avec explication en trois étapes (vous décrivez, la personne est prévenue, vous suivez), et avancement visible sur chaque demande (envoyée › prise en charge › terminée).
+- **Rapports d'activité** : explication « votre rapport, sans le rédiger » et avancement préparé › envoyé › validé.
+- CRM : l'onglet Relances s'affiche correctement sur téléphone. Copyright Yomara Technologies sur l'écran de connexion et sous le menu.
+- Application : version 1.0.10 (build 17).
+
 ## 0.99.58 — la formule gratuite devient le socle de toutes les formules
 
 - **Socle gratuit** : les modules cochés dans la formule gratuite sont compris d'office dans toutes les formules payantes. Il n'est plus nécessaire de les recocher dans Starter, Business ou Professional ; quand vous modifiez la formule gratuite, toutes les formules suivent.

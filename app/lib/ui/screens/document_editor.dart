@@ -217,27 +217,39 @@ class _DocumentEditorState extends State<DocumentEditor> {
     final number = '${_doc['number'] ?? ''}';
     final company = '${session.company['name'] ?? ''}';
     final total = money(toDouble(_doc['total']), _cur);
-    final pay = _doc['pay_url'] != null ? '\nPour régler en ligne : ${_doc['pay_url']}' : '';
+    // Objet et message : modèle d'e-mail de la société (Paramètres › Modèles d'e-mails), sinon modèle par défaut
+    final key = switch ('${_doc['type']}') {
+      'invoice' || 'deposit' => 'doc_invoice', 'quote' => 'doc_quote', 'order' => 'doc_order', 'delivery' => 'doc_delivery', 'credit_note' => 'doc_credit', _ => 'doc_other',
+    };
+    Map<String, dynamic> tpl = const {};
+    try {
+      tpl = asMap(asMap((await session.api.get('mail-templates/effective'))['data'])[key]);
+    } catch (_) {}
+    final client = '${_doc['partner_name'] ?? partner['name'] ?? ''}'.trim();
+    final due = _doc['type'] == 'quote' ? _doc['valid_until'] : _doc['due_date'];
+    final vars = {
+      'client': client, 'numero': number, 'montant': '$total TTC', 'date': _doc['date'] != null ? dateFr(_doc['date']) : '',
+      'echeance': due != null ? dateFr(due) : '', 'entreprise': company, 'document': label, 'lien': '${_doc['pay_url'] ?? ''}',
+    };
+    String fill(String t) => t.replaceAllMapped(RegExp(r'\{([a-z_]+)\}'), (m) => vars[m[1]] ?? m[0]!);
+    final subject = tpl['subject'] != null ? fill('${tpl['subject']}') : '$label $number — $company';
+    final message = tpl['body'] != null
+        ? fill('${tpl['body']}').replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        : 'Bonjour $client,\n\nVeuillez trouver ci-joint notre ${label.toLowerCase()} n° $number, d\'un montant de $total TTC.\n\nCordialement,\n$company';
+    if (!mounted) return;
     await sendMessageDialog(
       context,
       email: partner['email'] as String?,
       phone: partner['phone'] as String?,
       name: (_doc['partner_name'] ?? partner['name']) as String?,
-      subject: '$label $number — $company',
-      message: [
-        'Bonjour${(partner['name'] ?? _doc['partner_name']) != null ? ' ${_doc['partner_name'] ?? partner['name']}' : ''},',
-        '',
-        'Veuillez trouver ci-joint notre ${label.toLowerCase()} n° $number${_doc['date'] != null ? ' du ${dateFr(_doc['date'])}' : ''}, d\'un montant de $total TTC.',
-        if (_doc['type'] == 'quote' && _doc['valid_until'] != null) 'Cette offre est valable jusqu\'au ${dateFr(_doc['valid_until'])}.',
-        if (_doc['type'] == 'invoice' && _doc['due_date'] != null) 'Échéance de paiement : ${dateFr(_doc['due_date'])}.',
-        if (pay.isNotEmpty) pay.trim(),
-        '',
-        _doc['type'] == 'quote' ? 'Pour donner votre accord, il vous suffit de répondre à ce message ou de nous retourner le devis signé.' : 'Nous restons à votre disposition pour toute question.',
-        '',
-        'Cordialement,',
-        '${session.user['name'] ?? ''}',
-        company,
-      ].join('\n'),
+      subject: subject,
+      message: message,
+      docFields: {
+        'doc_label': label, 'doc_number': number, 'doc_total': '$total TTC',
+        if (_doc['date'] != null) 'doc_date': dateFr(_doc['date']),
+        if (due != null) 'doc_due': dateFr(due),
+        if (_doc['pay_url'] != null) 'pay_url': '${_doc['pay_url']}',
+      },
       attachmentName: '${label.replaceAll(' ', '_')}_${number.replaceAll('/', '-')}.pdf',
       attachment: () => buildDocumentPdf(session: session, config: cfg, doc: {..._doc, ..._payload(), 'status': _doc['status'], 'number': _doc['number']}, payments: payments),
       contextRef: 'doc:${_doc['id']}',

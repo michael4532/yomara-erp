@@ -102,7 +102,7 @@ class OfficeController extends Controller
 
         return response()->view('office.editor', [
             'config' => [
-                'name' => $f->name, 'ext' => strtolower((string) $f->extension), 'kind' => self::kindOf($f->extension), 'version' => $f->current_version,
+                'id' => $f->id, 'uid' => $u->id, 'name' => $f->name, 'ext' => strtolower((string) $f->extension), 'kind' => self::kindOf($f->extension), 'version' => $f->current_version,
                 'mode' => $s['edit'] && $lock['mine'] ? 'edit' : 'view', 'lockedBy' => $lock['mine'] ? null : $lock['name'],
                 'canEdit' => $s['edit'], 'user' => ['name' => $u->name, 'email' => $u->email],
                 'content' => url('/api/office/'.$token.'/content'), 'save' => url('/api/office/'.$token.'/save'), 'ping' => url('/api/office/'.$token.'/ping'),

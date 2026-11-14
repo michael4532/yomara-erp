@@ -82,6 +82,10 @@ class PdfController extends Controller
         if ($op === 'info' || $op === 'texts') {
             return $out;
         }
+        $first = ($r->file('files') ?? [])[0] ?? null;
+        $source = $first?->getClientOriginalName() ?: (($r->file('images') ?? [])[0] ?? null)?->getClientOriginalName();
+        $nFiles = count($r->file('files') ?? []) + count($r->file('images') ?? []);
+        $history = fn (string $bytes, string $mime, string $name) => $r->user() ? PdfHistory::record($this->companyId($r), $r->user()->id, $op, $name, $bytes, $mime, $source, $nFiles) : null;
         if (is_array($out)) {
             // Découpe : plusieurs PDF dans un zip
             $zip = tempnam(sys_get_temp_dir(), 'yzip');
@@ -93,13 +97,44 @@ class PdfController extends Controller
             $z->close();
             $data = (string) file_get_contents($zip);
             @unlink($zip);
+            $history($data, 'application/zip', $this->name($r, 'pages.zip'));
 
             return response($data)->header('Content-Type', 'application/zip')->header('Content-Disposition', 'attachment; filename="'.$this->name($r, 'pages.zip').'"');
         }
         $suffix = ['merge' => 'fusion', 'organize' => 'reorganise', 'rotate' => 'pivote', 'watermark' => 'filigrane', 'annotate' => 'annote', 'edit' => 'modifie', 'numbers' => 'numerote',
             'protect' => 'protege', 'unlock' => 'deverrouille', 'images' => 'images'][$op];
+        // Un PDF protégé par l'utilisateur n'est pas gardé en clair : seule la version protégée l'est, comme le fichier envoyé
+        $history($out, 'application/pdf', $this->name($r, $suffix.'.pdf'));
 
         return response($out)->header('Content-Type', 'application/pdf')->header('Content-Disposition', 'attachment; filename="'.$this->name($r, $suffix.'.pdf').'"');
+    }
+
+    protected function companyId(Request $r): int
+    {
+        return app()->bound('tenant') ? (int) app('tenant')->id : (int) $r->user()->company_id;
+    }
+
+    /** Historique personnel : fichiers produits ces 30 derniers jours (30 au plus). */
+    public function history(Request $r)
+    {
+        return ['data' => PdfHistory::list($this->companyId($r), $r->user()->id), 'keep' => PdfHistory::KEEP, 'days' => PdfHistory::DAYS];
+    }
+
+    public function historyFile(Request $r, int $id)
+    {
+        $h = PdfHistory::find($this->companyId($r), $r->user()->id, $id);
+
+        return response(\Illuminate\Support\Facades\Storage::disk('local')->get($h->path))->header('Content-Type', $h->mime)
+            ->header('Content-Disposition', 'attachment; filename="'.addslashes($h->name).'"')->header('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function historyDelete(Request $r, int $id)
+    {
+        $h = PdfHistory::find($this->companyId($r), $r->user()->id, $id);
+        \Illuminate\Support\Facades\Storage::disk('local')->delete($h->path);
+        \Illuminate\Support\Facades\DB::table('pdf_history')->where('id', $h->id)->delete();
+
+        return ['ok' => true];
     }
 
     /** Éléments à ajouter : les images envoyées sont référencées par leur position (image_index). */

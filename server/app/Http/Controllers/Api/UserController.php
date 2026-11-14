@@ -55,6 +55,10 @@ class UserController extends Controller
             $this->applyModules($request, $user, $modules);
         }
         ActivityLog::record('user.created', $user);
+        // Bienvenue : e-mail (lien pour choisir son mot de passe, applications) et notification
+        if ($request->boolean('send_welcome', true)) {
+            \App\Support\EmployeeWelcome::send($user, $request->user());
+        }
 
         return response()->json(['data' => $this->row($user->refresh())], 201);
     }

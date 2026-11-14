@@ -68,8 +68,9 @@ class Composer
             'from' => ['name' => $a->display_name, 'email' => $a->email],
             'to' => $to, 'cc' => $cc, 'bcc' => $bcc,
             'subject' => mb_substr(trim((string) ($p['subject'] ?? '')), 0, 300) ?: '(sans objet)',
-            'html' => '<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1b1f24">'.$html.'</body></html>',
-            'text' => trim(html_entity_decode(strip_tags(preg_replace(['#<br\s*/?>#i', '#</(p|div|li|tr|h\d)>#i', '#<(style|script)[^>]*>.*?</\1>#is'], ["\n", "\n", ''], $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
+            // Message déjà mis en page (document complet, ex. envoi d'une facture) : gardé tel quel
+            'html' => preg_match('/^\s*(<!doctype|<html)/i', $html) ? $html : '<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1b1f24">'.$html.'</body></html>',
+            'text' => trim(html_entity_decode(strip_tags(preg_replace(['#<br\s*/?>#i', '#</(p|div|li|tr|h\d)>#i', '#<(style|script|title)[^>]*>.*?</\1>#is'], ["\n", "\n", ''], $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
             'attachments' => $atts,
             'mode' => in_array($p['mode'] ?? 'new', ['new', 'reply', 'reply_all', 'forward'], true) ? ($p['mode'] ?? 'new') : 'new',
             'original' => $orig,

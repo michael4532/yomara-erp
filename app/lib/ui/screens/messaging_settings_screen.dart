@@ -194,6 +194,7 @@ Future<void> sendMessageDialog(
   Future<List<int>> Function()? attachment,
   String? attachmentName,
   String? contextRef,
+  Map<String, String>? docFields, // fiche du document dans l'e-mail (numéro, montant, échéance, lien de paiement)
 }) async {
   final api = context.read<Session>().api;
   Map<String, dynamic> setup;
@@ -276,6 +277,7 @@ Future<void> sendMessageDialog(
                             'context': contextRef,
                             if (channel == 'email' && fromAccount != null) 'from_account_id': '$fromAccount',
                             if (channel == 'email' && fromAccount != null && cc.text.trim().isNotEmpty) 'cc': cc.text.trim(),
+                            if (channel == 'email') ...?docFields,
                           };
                           if (attach && attachment != null) {
                             await api.uploadForm('messaging/send', fields, 'attachment', await attachment(), attachmentName ?? 'document.pdf');

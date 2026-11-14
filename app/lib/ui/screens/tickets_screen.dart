@@ -12,6 +12,8 @@ import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/filter_bar.dart';
+import '../navigation.dart' show UiPrefs;
+import '../widgets/how_it_works.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
@@ -127,7 +129,7 @@ class _TicketsScreenState extends State<TicketsScreen> with TickerProviderStateM
     return Column(children: [
       PageHeader(
         title: tr('Demandes internes'),
-        subtitle: tr('Ouvrez un ticket vers un service, suivez son traitement et ses délais'),
+        subtitle: tr('Confiez une tâche à un collègue ou à un service sans vous déplacer : il est prévenu aussitôt et vous suivez l\'avancement.'),
         actions: [
           FilledButton.icon(
             onPressed: () async {
@@ -137,8 +139,8 @@ class _TicketsScreenState extends State<TicketsScreen> with TickerProviderStateM
                 _open(id);
               }
             },
-            icon: const Icon(Icons.add),
-            label: Text(tr('Nouvelle demande')),
+            icon: const Icon(Icons.add_task),
+            label: Text(tr('Confier une tâche')),
           ),
         ],
       ),
@@ -292,12 +294,13 @@ class _TicketListState extends State<_TicketList> {
             _load();
           }),
         ),
+        if (widget.box == 'mine' && (all.isEmpty || !UiPrefs.flag('tickets_how_seen'))) TicketsHowItWorks(dismissible: all.isNotEmpty, onDismiss: () => setState(() {})),
         if (all.isNotEmpty && rows.isEmpty) EmptyState(icon: Icons.filter_alt_off_outlined, title: tr('Aucun résultat'), message: tr('Aucune demande ne correspond à ces filtres.')),
         if (all.isEmpty)
           EmptyState(
             icon: Icons.confirmation_number_outlined,
             title: widget.box == 'mine' ? 'Aucune demande' : 'Rien à traiter',
-            message: widget.box == 'mine' ? 'Une panne, un besoin ? Ouvrez une demande vers le service concerné.' : 'Les tickets de votre service apparaîtront ici.',
+            message: widget.box == 'mine' ? 'Une tâche à confier, une panne, un besoin ? Touchez « Confier une tâche » : la personne est prévenue tout de suite.' : 'Les tâches qu\'on vous confie apparaîtront ici, avec une notification à chaque nouvelle demande.',
           ),
         for (final t in rows) _TicketTile(ticket: t, onTap: () => widget.onOpen(t['id'] as int)),
       ]),
@@ -347,6 +350,8 @@ class _TicketTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 8),
+                TicketProgress(status: '${t['status']}', assigned: t['assignee'] != null),
               ]),
             ),
             const SizedBox(width: 10),
@@ -365,12 +370,54 @@ class _TicketTile extends StatelessWidget {
   }
 }
 
+/// Avancement d'une demande en trois étapes : envoyée, prise en charge, terminée.
+class TicketProgress extends StatelessWidget {
+  const TicketProgress({super.key, required this.status, required this.assigned});
+
+  final String status;
+  final bool assigned;
+
+  @override
+  Widget build(BuildContext context) {
+    final stopped = ['cancelled', 'rejected'].contains(status);
+    final step = ['done', 'closed'].contains(status) ? 3 : (assigned || ['accepted', 'in_progress', 'on_hold'].contains(status) ? 2 : 1);
+    return FlowSteps(
+      labels: const ['Envoyée', 'Prise en charge', 'Terminée'],
+      step: step,
+      color: stopped ? YColors.danger : (step == 3 ? YColors.success : YColors.blue),
+      stoppedLabel: stopped ? 'Annulée' : null,
+    );
+  }
+}
+
+/// « Comment ça marche » : confier une tâche sans se déplacer.
+class TicketsHowItWorks extends StatelessWidget {
+  const TicketsHowItWorks({super.key, this.dismissible = true, this.onDismiss});
+
+  final bool dismissible;
+  final VoidCallback? onDismiss;
+
+  @override
+  Widget build(BuildContext context) => HowItWorksCard(
+        title: 'Confier une tâche sans vous déplacer',
+        icon: Icons.directions_walk,
+        prefKey: 'tickets_how_seen',
+        dismissible: dismissible,
+        onDismiss: onDismiss,
+        steps: const [
+          (Icons.edit_note, 'Vous décrivez la tâche', 'Objet, urgence, pièce jointe, et la personne ou le service qui doit s\'en charger.'),
+          (Icons.notifications_active_outlined, 'Elle est prévenue aussitôt', 'Notification sur son téléphone et son ordinateur : plus besoin d\'aller la voir ni de l\'appeler.'),
+          (Icons.timeline, 'Vous suivez l\'avancement', 'Prise en charge, échanges, délai, clôture : tout est tracé, les retards remontent au responsable.'),
+        ],
+      );
+}
+
 // ---------------------------------------------------------------------------
 // Nouvelle demande
 // ---------------------------------------------------------------------------
 
 Future<int?> newTicket(BuildContext context, Map<String, dynamic> setup) {
-  return showFormDialog<int>(context, title: tr('Nouvelle demande'), builder: (c) => _NewTicket(setup: setup));
+  return showFormDialog<int>(context, title: tr('Confier une tâche'), subtitle: tr('La personne ou le service est prévenu aussitôt'), icon: Icons.add_task, builder: (c) => _NewTicket(setup: setup));
 }
 
 class _NewTicket extends StatefulWidget {
@@ -462,7 +509,7 @@ class _NewTicketState extends State<_NewTicket> {
       Field(label: tr('Message'), child: TextField(controller: _desc, maxLines: 5, decoration: InputDecoration(hintText: tr('Décrivez le besoin : où, depuis quand, ce que vous attendez…')))),
       if (members.isNotEmpty)
         Field(
-          label: tr('Adresser à (facultatif)'),
+          label: tr('Confier à (facultatif)'),
           child: DropdownButtonFormField<int?>(
             isExpanded: true,
             initialValue: _assignee,
@@ -485,7 +532,7 @@ class _NewTicketState extends State<_NewTicket> {
         for (final f in _files) InputChip(label: Text(tr(f.name)), onDeleted: () => setState(() => _files.remove(f))),
       ]),
       const SizedBox(height: 20),
-      FilledButton.icon(onPressed: _busy ? null : _send, icon: const Icon(Icons.send), label: Text(tr(_busy ? 'Envoi…' : 'Envoyer la demande'))),
+      FilledButton.icon(onPressed: _busy ? null : _send, icon: const Icon(Icons.send), label: Text(tr(_busy ? 'Envoi…' : 'Envoyer et prévenir'))),
     ]);
   }
 }

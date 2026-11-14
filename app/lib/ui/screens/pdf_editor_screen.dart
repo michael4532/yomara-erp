@@ -15,6 +15,7 @@ import '../../files/save_file.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
+import 'pdf_tools_screen.dart' show pdfHistoryChanged;
 import '../widgets/pdf_viewer.dart';
 import '../widgets/common.dart';
 
@@ -501,6 +502,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         for (final (i, id) in imgOrder.indexed) ('images[$i]', _imgs[id]!, 'image$i.png'),
       ];
       final (bytes, name) = await context.read<Session>().api.uploadForFile('pdf/edit', {'options': jsonEncode(options)}, files);
+      pdfHistoryChanged();
       if (!mounted) return;
       await _result(Uint8List.fromList(bytes), name ?? 'document-modifie.pdf');
     } catch (e) {

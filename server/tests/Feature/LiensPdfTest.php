@@ -167,6 +167,25 @@ class LiensPdfTest extends TestCase
         $this->assertFalse($this->api($this->t)->post('/api/pdf/texts', ['files' => [UploadedFile::fake()->createWithContent('scan.pdf', $scan->Output('', 'S'))]])->assertOk()->json('has_text'));
     }
 
+    /** Historique personnel : chaque fichier produit est gardé pour son auteur seulement. */
+    public function test_pdf_history_is_personal(): void
+    {
+        $out = $this->api($this->t)->post('/api/pdf/merge', ['files' => [$this->pdf(1), $this->pdf(2)]])->assertOk()->getContent();
+        $this->api($this->t)->post('/api/pdf/texts', ['files' => [$this->pdf(1)]])->assertOk(); // lecture seule : pas d'historique
+        $h = $this->api($this->t)->getJson('/api/pdf/history')->assertOk()->json('data');
+        $this->assertCount(1, $h);
+        $this->assertSame('Fusion', $h[0]['label']);
+        $this->assertStringEndsWith('fusion.pdf', $h[0]['name']);
+        $this->assertSame($out, $this->api($this->t)->get('/api/pdf/history/'.$h[0]['id'])->assertOk()->getContent());
+
+        [, , $other] = $this->makeCompany('Autre SARL');
+        $this->api($other)->getJson('/api/pdf/history')->assertOk()->assertJsonCount(0, 'data');
+        $this->api($other)->get('/api/pdf/history/'.$h[0]['id'])->assertNotFound();
+
+        $this->api($this->t)->deleteJson('/api/pdf/history/'.$h[0]['id'])->assertOk();
+        $this->api($this->t)->getJson('/api/pdf/history')->assertOk()->assertJsonCount(0, 'data');
+    }
+
     public function test_pdf_tools(): void
     {
         $r = $this->api($this->t)->post('/api/pdf/merge', ['files' => [$this->pdf(2), $this->pdf(3)]])->assertOk();

@@ -194,7 +194,12 @@ class _LoginScreenState extends State<LoginScreen> {
       body: wide
           ? Row(children: [
               Expanded(child: _BrandPanel(register: _register)),
-              Expanded(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(32), child: form))),
+              Expanded(
+                child: Stack(children: [
+                  Center(child: SingleChildScrollView(padding: const EdgeInsets.all(32), child: form)),
+                  Positioned(right: 20, bottom: 14, child: Text('© ${DateTime.now().year} Yomara Technologies', style: const TextStyle(fontSize: 11.5, color: YColors.muted))),
+                ]),
+              ),
             ])
           : Container(
               color: YColors.night,
@@ -208,6 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       const _Logo(light: true),
                       const SizedBox(height: 24),
                       Card(child: Padding(padding: const EdgeInsets.all(20), child: form)),
+                      const SizedBox(height: 16),
+                      Text('© ${DateTime.now().year} Yomara Technologies', style: const TextStyle(fontSize: 11.5, color: Colors.white54)),
                     ]),
                   ),
                 ),

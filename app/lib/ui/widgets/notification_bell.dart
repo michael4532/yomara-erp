@@ -108,31 +108,52 @@ class _NotificationBellState extends State<NotificationBell> {
       await showAnnouncement(context, picked);
       return;
     }
-    // Notifications qui ouvrent un écran : console éditeur (commandes, live chat) ou boutique côté client
-    const screens = {'admin_livechat': 'admin_livechat', 'admin_store': 'admin_store', 'admin_companies': 'admin_companies', 'store': 'store', 'social': 'social'};
-    if (screens.containsKey(picked['module'])) {
-      ShellNav.of(context)?.go(screens[picked['module']]!);
+    final nav = ShellNav.of(context);
+    final module = '${picked['module'] ?? ''}';
+    final ref = '${picked['ref'] ?? ''}';
+    final uuid = ref.length == 36 ? ref : null;
+    // 1. Fiche précise quand la notification en désigne une
+    final id = int.tryParse(ref);
+    if ((module == 'tickets' || module == 'ticket' || module == 'task') && id != null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: id)));
       return;
     }
-    final ref = int.tryParse('${picked['ref'] ?? ''}');
-    if (picked['module'] == 'tickets' && ref != null) {
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TicketDetailScreen(ticketId: ref)));
-    }
-    final uuid = '${picked['ref'] ?? ''}';
-    if (!mounted || uuid.length != 36) return;
-    if (picked['module'] == 'portail') openPortalPartner(context, uuid);
-    if (picked['module'] == 'ventes') openSalesDocument(context, uuid);
-    if (picked['module'] == 'interventions') openIntervention(context, uuid);
-    if (picked['module'] == 'rendez_vous') openAppointment(context, uuid);
-    if (picked['module'] == 'restaurant') openRestaurantOrder(context, uuid);
-    if (picked['module'] == 'production') openProductionOrder(context, uuid);
-    if (picked['module'] == 'achats') {
-      if (LocalDb.get('purchase_requests', uuid) != null) {
-        openPurchaseRequest(context, uuid);
-      } else {
-        openPurchaseDocument(context, uuid);
+    if (uuid != null) {
+      switch (module) {
+        case 'portail' || 'portal':
+          openPortalPartner(context, uuid);
+          return;
+        case 'ventes' || 'payment' || 'order':
+          if (LocalDb.get('sales_documents', uuid) != null) {
+            openSalesDocument(context, uuid);
+            return;
+          }
+        case 'interventions' || 'intervention':
+          openIntervention(context, uuid);
+          return;
+        case 'rendez_vous' || 'appointment':
+          openAppointment(context, uuid);
+          return;
+        case 'restaurant':
+          openRestaurantOrder(context, uuid);
+          return;
+        case 'production':
+          openProductionOrder(context, uuid);
+          return;
+        case 'achats' || 'purchase':
+          if (LocalDb.get('purchase_requests', uuid) != null) {
+            openPurchaseRequest(context, uuid);
+            return;
+          }
+          if (LocalDb.get('purchase_documents', uuid) != null) {
+            openPurchaseDocument(context, uuid);
+            return;
+          }
       }
     }
+    // 2. Sinon, l'écran du module concerné (tous les types de notifications)
+    final screen = notificationScreen(module, '${picked['type'] ?? ''}');
+    if (screen != null && nav != null && (nav.available.isEmpty || nav.available.contains(screen))) nav.go(screen);
   }
 
   @override
@@ -429,4 +450,26 @@ class _MailSection extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// Écran ouvert par une notification, d'après son module (ou son type).
+String? notificationScreen(String module, [String type = '']) {
+  const map = {
+    'admin_livechat': 'admin_livechat', 'livechat': 'admin_livechat', 'admin_store': 'admin_store', 'admin_companies': 'admin_companies',
+    'store': 'store', 'subscription': 'store', 'pack': 'store', 'social': 'social', 'activite': 'activite', 'agenda': 'agenda',
+    'appointment': 'rdv', 'rendez_vous': 'rdv', 'appro': 'appro', 'approval': 'approbations', 'automation': 'integrations',
+    'avis': 'avis_google', 'budget': 'pilotage', 'compta': 'compta', 'contenus': 'contenus', 'crm': 'crm', 'deliverable': 'projets',
+    'dev': 'dev', 'event_booking': 'evenements', 'feuilles': 'feuilles_temps', 'flotte': 'flotte', 'fne': 'fne', 'fonds': 'fonds',
+    'fournisseurs': 'portail_fournisseurs', 'helpdesk': 'helpdesk', 'hosting': 'hebergement', 'intervention': 'interventions',
+    'interventions': 'interventions', 'juridique': 'juridique', 'location': 'location', 'maintenance': 'maintenance',
+    'marches': 'marches_publics', 'materiel': 'materiel', 'notes_frais': 'notes_frais', 'order': 'ventes', 'payment': 'ventes',
+    'ventes': 'ventes', 'portal': 'portail_fournisseurs', 'production': 'production', 'projets': 'projets', 'purchase': 'achats',
+    'achats': 'achats', 'qualite': 'qualite', 'questionnaires': 'questionnaires', 'recrutement': 'recrutement', 'relances': 'relances',
+    'restaurant': 'restaurant', 'signature': 'signature', 'site_domain': 'sites', 'site_message': 'sites', 'site_order': 'sites',
+    'site_request': 'sites', 'site_review': 'sites', 'stock': 'stock', 'task': 'tickets', 'ticket': 'tickets', 'tickets': 'tickets',
+    'ticket_report': 'tickets', 'tresorerie': 'tresorerie', 'veille': 'veille', 'whatsapp': 'whatsapp', 'woocommerce': 'woocommerce',
+    'visio': 'visio', 'mailbox': 'mailbox', 'rh': 'rh', 'paie': 'paie', 'pointage': 'pointage', 'documents': 'ged', 'ged': 'ged',
+  };
+  return map[module] ?? map[type];
 }

@@ -40,8 +40,8 @@ class Plan extends Model
         if ($app->bound('plan.socle')) {
             return $app->make('plan.socle');
         }
-        $v = static::query()->where('is_active', true)
-            ->where(fn ($q) => $q->where('is_free', true)->orWhere('price_monthly', '<=', 0))
+        // formules marquées gratuites seulement : une formule « sur devis » à 0 F n'est pas le socle
+        $v = static::query()->where('is_active', true)->where('is_free', true)
             ->get(['modules'])->flatMap(fn (Plan $p) => (array) ($p->modules ?? []))->unique()->values()->all();
         $app->instance('plan.socle', $v);
 

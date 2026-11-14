@@ -103,17 +103,16 @@ class _CrmSequencesViewState extends State<CrmSequencesView> {
     final rows = _rows;
     if (rows == null) return const Center(child: CircularProgressIndicator());
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 40), children: [
-      Row(children: [
-        Expanded(
-          child: Text(tr('Une suite de messages et de tâches envoyés tout seuls à un prospect (J0, J+2, J+5…). Elle s\'arrête quand l\'affaire est gagnée ou perdue.'),
-              style: const TextStyle(color: YColors.muted)),
-        ),
-        if (widget.manage) ...[
+      // Texte puis boutons qui passent à la ligne : sur téléphone, le texte gardait une colonne d'une lettre de large
+      Text(tr('Une suite de messages et de tâches envoyés tout seuls à un prospect (J0, J+2, J+5…). Elle s\'arrête quand l\'affaire est gagnée ou perdue.'),
+          style: const TextStyle(color: YColors.muted)),
+      if (widget.manage) ...[
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
           FilledButton.icon(onPressed: _library, icon: const Icon(Icons.auto_awesome_motion_outlined), label: Text(tr('Modèles prêts à l\'emploi'))),
-          const SizedBox(width: 8),
           OutlinedButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add), label: Text(tr('Relance vierge'))),
-        ],
-      ]),
+        ]),
+      ],
       const SizedBox(height: 12),
       if (rows.isEmpty)
         EmptyState(

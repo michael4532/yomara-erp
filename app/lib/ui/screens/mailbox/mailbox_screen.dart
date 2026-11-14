@@ -1816,12 +1816,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
           if (_openLoading) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
           // Lecture d'un seul tenant (comme Mail sur iPhone) : en-tête, pièces jointes, actions puis le message en pleine hauteur
           Expanded(
-            child: Scrollbar(
+            child: Stack(children: [
+            Positioned.fill(child: Scrollbar(
               controller: _readerScroll,
               child: SingleChildScrollView(
                 key: ValueKey('reader-${m['id']}'),
                 controller: _readerScroll,
-                padding: EdgeInsets.fromLTRB(box.maxWidth < 560 ? 14 : 24, 6, box.maxWidth < 560 ? 14 : 24, 24),
+                padding: EdgeInsets.fromLTRB(box.maxWidth < 560 ? 14 : 24, 6, box.maxWidth < 560 ? 14 : 24, box.maxWidth < 560 ? 100 : 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2068,23 +2069,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (box.maxWidth < 560) ...[
-                            // Téléphone : boutons ronds (libellé en info-bulle) pour garder la place au message
-                            for (final (icon, label, mode) in const [
-                              (Icons.reply_rounded, 'Répondre', 'reply'),
-                              (Icons.reply_all_rounded, 'Répondre à tous', 'reply_all'),
-                              (Icons.forward_rounded, 'Transférer', 'forward'),
-                            ])
-                              IconButton.outlined(
-                                tooltip: tr(label),
-                                style: IconButton.styleFrom(
-                                  side: BorderSide(color: p.line, width: 1.2),
-                                  fixedSize: const Size(44, 44),
-                                ),
-                                onPressed: () => openComposer(context, _s, mode: mode, original: m),
-                                icon: Icon(icon, color: p.ink),
-                              ),
-                          ] else ...[
+                          // Téléphone : répondre / transférer sont dans la barre fixe en bas
+                          if (box.maxWidth >= 560) ...[
                             pillBtn(Icons.reply_rounded, 'Répondre', () => openComposer(context, _s, mode: 'reply', original: m)),
                             pillBtn(Icons.reply_all_rounded, 'Répondre à tous', () => openComposer(context, _s, mode: 'reply_all', original: m)),
                             pillBtn(Icons.forward_rounded, 'Transférer', () => openComposer(context, _s, mode: 'forward', original: m)),
@@ -2109,7 +2095,20 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   ],
                 ),
               ),
-            ),
+            )),
+            // Téléphone : barre d'actions fixe en bas, comme Outlook (le message défile derrière)
+            if (box.maxWidth < 560)
+              Positioned(left: 12, right: 12, bottom: 12, child: _ReaderBar(
+                p: p,
+                unread: m['seen'] == false,
+                onReply: () => openComposer(context, _s, mode: 'reply', original: m),
+                onReplyAll: () => openComposer(context, _s, mode: 'reply_all', original: m),
+                onForward: () => openComposer(context, _s, mode: 'forward', original: m),
+                onUnread: () => _bulk('unread'),
+                onDelete: () => _bulk('delete'),
+                onArchive: () => _bulk('archive'),
+              )),
+            ]),
           ),
         ],
       ),
@@ -2475,6 +2474,57 @@ class _ClickStatsState extends State<_ClickStats> {
                     ),
                   ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// Barre d'actions fixe du lecteur sur téléphone (façon Outlook).
+class _ReaderBar extends StatelessWidget {
+  const _ReaderBar({required this.p, required this.unread, required this.onReply, required this.onReplyAll, required this.onForward, required this.onUnread, required this.onDelete, required this.onArchive});
+
+  final dynamic p;
+  final bool unread;
+  final VoidCallback onReply, onReplyAll, onForward, onUnread, onDelete, onArchive;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? Colors.white : const Color(0xFF0B1B3A);
+    Widget ic(IconData i, String tip, VoidCallback f) => IconButton(tooltip: tr(tip), onPressed: f, icon: Icon(i, color: fg));
+    return Material(
+      color: dark ? const Color(0xFF1C2333) : Colors.white,
+      elevation: 8,
+      shadowColor: Colors.black38,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28), side: BorderSide(color: dark ? Colors.white12 : const Color(0xFFDCE3EF))),
+      child: SizedBox(
+        height: 58,
+        child: Row(children: [
+          const SizedBox(width: 6),
+          InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: onReply,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(children: [Icon(Icons.reply_rounded, color: fg), const SizedBox(width: 8), Text(tr('Répondre'), style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 15))]),
+            ),
+          ),
+          PopupMenuButton<String>(
+            tooltip: tr('Autres réponses'),
+            icon: Icon(Icons.expand_more_rounded, color: fg),
+            onSelected: (v) => v == 'all' ? onReplyAll() : onForward(),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'all', child: ListTile(dense: true, leading: const Icon(Icons.reply_all_rounded), title: Text(tr('Répondre à tous')))),
+              PopupMenuItem(value: 'fwd', child: ListTile(dense: true, leading: const Icon(Icons.forward_rounded), title: Text(tr('Transférer')))),
+            ],
+          ),
+          const Spacer(),
+          ic(unread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined, unread ? 'Marquer comme lu' : 'Marquer comme non lu', onUnread),
+          ic(Icons.delete_outline_rounded, 'Supprimer', onDelete),
+          ic(Icons.archive_outlined, 'Archiver', onArchive),
+          const SizedBox(width: 4),
+        ]),
       ),
     );
   }

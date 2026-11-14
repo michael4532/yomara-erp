@@ -42,5 +42,18 @@ class PlanSocleTest extends TestCase
         // Le socle suit la formule gratuite : un module retiré du gratuit n'est plus compris dans Pro
         Plan::where('code', 'gratuit-t')->first()->update(['modules' => [$a]]);
         $this->assertEqualsCanonicalizing([$a, $c], $pro->fresh()->effectiveModules());
+
+        // Une formule « sur devis » à 0 F (non marquée gratuite) n'entre pas dans le socle
+        Plan::create(['code' => 'devis-t', 'name' => 'Sur mesure', 'price_monthly' => 0, 'is_free' => false, 'is_active' => true, 'sort' => 9, 'modules' => [$b, $c], 'currency' => 'XOF']);
+        app()->forgetInstance('plan.socle');
+        $this->assertEqualsCanonicalizing([$a], Plan::socle());
+
+        // Le super admin règle modules et présentation depuis l'écran Modules
+        [, , $token] = $this->makeCompany('Yomara', null, superAdmin: true);
+        $gid = Plan::where('code', 'gratuit-t')->value('id');
+        $this->api($token)->putJson("/api/admin/plans/$gid", ['description' => 'Le socle pour démarrer.', 'modules' => [$a, $b]])->assertOk();
+        app()->forgetInstance('plan.socle');
+        $this->assertSame('Le socle pour démarrer.', Plan::find($gid)->description);
+        $this->assertEqualsCanonicalizing([$a, $b], $this->api($token)->getJson('/api/admin/plans')->assertOk()->json('socle'));
     }
 }

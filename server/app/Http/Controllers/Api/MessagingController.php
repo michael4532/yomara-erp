@@ -122,6 +122,9 @@ class MessagingController extends Controller
             'attachment' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
             'from_account_id' => 'nullable|integer',
             'cc' => 'nullable|string|max:500',
+            // Fiche du document dans l'e-mail (facultatif)
+            'doc_label' => 'nullable|string|max:60', 'doc_number' => 'nullable|string|max:60', 'doc_total' => 'nullable|string|max:60',
+            'doc_date' => 'nullable|string|max:30', 'doc_due' => 'nullable|string|max:30', 'pay_url' => 'nullable|url|max:500',
         ]);
         $company = app('tenant');
         // Envoi depuis la boîte mail de l'utilisateur (son SMTP, sa signature, copie dans « Envoyés »)
@@ -152,7 +155,7 @@ class MessagingController extends Controller
         try {
             $res = $this->messaging->send($company, $data['channel'], new Message(
                 to: $data['to'], toName: $data['to_name'] ?? null, subject: $data['subject'] ?? $company->name,
-                html: $data['channel'] === 'email' ? nl2br(e($text)) : null, text: $text,
+                html: $data['channel'] === 'email' ? \App\Support\MailTemplates::layout($company, $text, self::docOptions($data)) : null, text: $text,
                 attachments: $attachments, mediaUrl: $data['channel'] === 'whatsapp' ? $mediaUrl : null,
                 replyTo: $company->email,
             ), $data['context'] ?? null, $r->user()->id);
@@ -163,13 +166,24 @@ class MessagingController extends Controller
         return $res->ok ? ['ok' => true, 'id' => $res->id] : response()->json(['message' => 'Échec de l\'envoi : '.$res->error], 422);
     }
 
+    /** Fiche du document et bouton « Payer en ligne » de la mise en page des e-mails. */
+    protected static function docOptions(array $d): array
+    {
+        $card = array_filter([
+            $d['doc_label'] ?? 'Document' => $d['doc_number'] ?? null, 'Date' => $d['doc_date'] ?? null,
+            'Montant' => $d['doc_total'] ?? null, 'Échéance' => $d['doc_due'] ?? null,
+        ], fn ($v) => (string) $v !== '');
+
+        return ['card' => isset($d['doc_number']) && $d['doc_number'] !== '' ? $card : [], 'button' => ! empty($d['pay_url']) ? ['Payer en ligne', $d['pay_url']] : null];
+    }
+
     protected function sendFromMailbox(Request $r, array $data)
     {
         $a = \App\Modules\Mailbox\Models\Account::find((int) $data['from_account_id']);
         abort_unless($a && $a->readableBy($r->user()->id), 404, 'Boîte mail introuvable.');
         $sig = DB::table('mb_signatures')->where('company_id', $a->company_id)->where(fn ($q) => $q->where('account_id', $a->id)->orWhere(fn ($w) => $w->where('user_id', $r->user()->id)->whereNull('account_id')))
             ->orderByDesc('is_default')->orderByDesc('account_id')->value('html');
-        $html = '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px">'.nl2br(e($data['message'])).'</div>'.($sig ? '<br><div class="signature">'.$sig.'</div>' : '');
+        $html = \App\Support\MailTemplates::layout(app('tenant'), $data['message'], self::docOptions($data) + ['signature' => $sig]);
         $atts = [];
         if ($f = $r->file('attachment')) {
             $atts[] = ['type' => 'upload', 'name' => $f->getClientOriginalName(), 'mime' => $f->getMimeType(), 'data' => base64_encode(file_get_contents($f->getRealPath()))];

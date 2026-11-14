@@ -139,7 +139,7 @@ class UiPrefs {
   }
 
   /// Gardées sur le serveur (le reste, comme les écrans récents, reste propre à l'appareil)
-  static const synced = {'nav_favorites', 'nav_bottom', 'nav_open', 'nav_rail', 'dash_pinned', 'sidebar_dark', 'mb_theme', 'rp_board'};
+  static const synced = {'guides_seen', 'nav_favorites', 'nav_bottom', 'nav_open', 'nav_rail', 'dash_pinned', 'sidebar_dark', 'mb_theme', 'rp_board'};
 
   static bool flag(String key, {bool fallback = false}) => LocalDb.isOpen ? (LocalDb.state().get('ui_$key') as bool? ?? fallback) : fallback;
 

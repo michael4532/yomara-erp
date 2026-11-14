@@ -48,6 +48,7 @@ class TicketsTest extends TestCase
         $this->api($this->admin)->putJson('/api/tickets/departments/'.$this->dep['FIN'].'/members', ['members' => [['user_id' => $this->uid['Paul'], 'role' => 'member']]])->assertOk();
         // Un service ne peut pas dépendre de son propre sous-service
         $this->api($this->admin)->putJson('/api/tickets/departments/'.$dga, ['parent_id' => $this->dep['IT']])->assertStatus(422);
+        \App\Models\AppNotification::where('type', 'welcome')->update(['read_at' => now()]); // bienvenue des comptes créés : déjà lue
     }
 
     protected function as(string $name)

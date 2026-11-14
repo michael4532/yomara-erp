@@ -279,6 +279,11 @@ Route::middleware('throttle:portal')->get('oauth/social/{provider}/retour', \App
 Route::middleware('throttle:portal')->get('oauth/{provider}/retour', \App\Modules\Mailbox\OAuthCallbackController::class)->whereIn('provider', ['microsoft', 'google']);
 Route::middleware('throttle:300,1')->get('mailbox/media/{name}', [\App\Modules\Mailbox\MailboxController::class, 'media'])->where('name', '[A-Za-z0-9]{32}\.(png|jpg|gif|webp)');
 Route::middleware('throttle:portal')->get('application-mobile', [\App\Modules\Mailbox\MailboxController::class, 'mobilePage']);
+// Nouvel employé : choisir son mot de passe (lien signé de l'e-mail de bienvenue, valable 7 jours)
+Route::middleware(['signed', 'throttle:20,10'])->group(function () {
+    Route::get('bienvenue/{user}', [\App\Http\Controllers\PasswordResetController::class, 'inviteForm'])->whereNumber('user')->name('invite.password');
+    Route::post('bienvenue/{user}', [\App\Http\Controllers\PasswordResetController::class, 'inviteSave'])->whereNumber('user');
+});
 // Lien intelligent YoMail : ouvre YoMail dans l'application installée, sinon le bon store ou la version web
 Route::middleware('throttle:portal')->get('yomail', [\App\Modules\Mailbox\MailboxController::class, 'yomailLink']);
 // Clic suivi d'un lien envoyé depuis YoMail (signé : aucune redirection vers une adresse choisie par un tiers)

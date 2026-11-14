@@ -7,12 +7,14 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../files/save_file.dart';
+import '../../core/json.dart';
 import '../../i18n/i18n.dart';
 import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/pdf_viewer.dart';
 import '../widgets/common.dart';
 import 'pdf_editor_screen.dart';
+import 'mailbox/compose.dart' show fileSize;
 
 /// Un outil PDF : opération côté serveur, couleur, description.
 class _Tool {
@@ -47,7 +49,7 @@ class PdfToolsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(padding: const EdgeInsets.only(bottom: 40), children: [
-      PageHeader(title: tr('Outils PDF'), subtitle: tr('Vos fichiers sont traités puis effacés aussitôt : rien n\'est conservé'), icon: Icons.picture_as_pdf_outlined),
+      PageHeader(title: tr('Outils PDF'), subtitle: tr('Les fichiers envoyés sont effacés aussitôt. Ceux que vous produisez restent 30 jours dans votre historique, visible par vous seul.'), icon: Icons.picture_as_pdf_outlined),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: LayoutBuilder(builder: (context, c) {
@@ -92,9 +94,145 @@ class PdfToolsScreen extends StatelessWidget {
           ]);
         }),
       ),
+      const _PdfHistory(),
     ]);
   }
 }
+
+/// Historique personnel : les fichiers produits par les outils PDF (30 derniers, 30 jours), à rouvrir ou retélécharger.
+class _PdfHistory extends StatefulWidget {
+  const _PdfHistory();
+
+  @override
+  State<_PdfHistory> createState() => _PdfHistoryState();
+}
+
+class _PdfHistoryState extends State<_PdfHistory> {
+  List<Map<String, dynamic>>? _rows;
+  static final _changed = ValueNotifier(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _changed.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    _changed.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = asMap(await context.read<Session>().api.get('pdf/history'));
+      if (mounted) setState(() => _rows = [for (final e in (r['data'] as List? ?? const [])) asMap(e)]);
+    } catch (_) {
+      if (mounted) setState(() => _rows = const []);
+    }
+  }
+
+  Future<List<int>?> _bytes(Map<String, dynamic> h) async {
+    try {
+      return await context.read<Session>().api.download('pdf/history/${h['id']}');
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+      return null;
+    }
+  }
+
+  Future<void> _open(Map<String, dynamic> h) async {
+    final b = await _bytes(h);
+    if (b == null || !mounted) return;
+    if (h['zip'] == true) {
+      await saveFile('${h['name']}', b, mime: 'application/zip');
+      if (mounted) toast(context, tr('Archive enregistrée.'));
+      return;
+    }
+    await showPdf(context, b, '${h['name']}');
+  }
+
+  Future<void> _save(Map<String, dynamic> h) async {
+    final b = await _bytes(h);
+    if (b == null) return;
+    await saveFile('${h['name']}', b, mime: h['zip'] == true ? 'application/zip' : 'application/pdf');
+    if (mounted) toast(context, tr('Fichier enregistré.'));
+  }
+
+  Future<void> _delete(Map<String, dynamic> h) async {
+    try {
+      await context.read<Session>().api.delete('pdf/history/${h['id']}');
+      _load();
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _rows;
+    final hint = Theme.of(context).hintColor;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 26, 16, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.history, size: 20, color: YColors.blue),
+          const SizedBox(width: 8),
+          Expanded(child: Text(tr('Mes fichiers récents'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))),
+          IconButton(tooltip: tr('Actualiser'), onPressed: _load, icon: const Icon(Icons.refresh)),
+        ]),
+        Text(tr('Chaque fichier que vous produisez est gardé 30 jours (30 au plus) : rouvrez-le ou retéléchargez-le à tout moment.'), style: TextStyle(color: hint, fontSize: 13)),
+        const SizedBox(height: 10),
+        if (rows == null)
+          const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+        else if (rows.isEmpty)
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(children: [
+                Icon(Icons.inbox_outlined, color: hint),
+                const SizedBox(width: 12),
+                Expanded(child: Text(tr('Aucun fichier pour le moment. Utilisez un outil ci-dessus : le résultat apparaîtra ici.'), style: TextStyle(color: hint))),
+              ]),
+            ),
+          )
+        else
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(children: [
+              for (final (i, h) in rows.indexed) ...[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  onTap: () => _open(h),
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(color: (h['zip'] == true ? YColors.blue : const Color(0xFFE5484D)).withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
+                    child: Icon(h['zip'] == true ? Icons.folder_zip_outlined : Icons.picture_as_pdf_outlined, color: h['zip'] == true ? YColors.blue : const Color(0xFFE5484D), size: 22),
+                  ),
+                  title: Text(verbatim('${h['name']}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    [tr('${h['label']}'), dateTimeFr(h['created_at']), fileSize(h['size']), if ('${h['source'] ?? ''}'.isNotEmpty) tr('depuis ${h['source']}')].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(tooltip: tr('Télécharger'), onPressed: () => _save(h), icon: const Icon(Icons.download_outlined)),
+                    IconButton(tooltip: tr('Retirer de l\'historique'), onPressed: () => _delete(h), icon: const Icon(Icons.delete_outline)),
+                  ]),
+                ),
+              ],
+            ]),
+          ),
+      ]),
+    );
+  }
+}
+
+/// Signale qu'un nouveau fichier a été produit (l'historique se recharge).
+void pdfHistoryChanged() => _PdfHistoryState._changed.value++;
 
 class _Doc {
   _Doc(this.name, this.bytes);
@@ -214,6 +352,7 @@ class _ToolPageState extends State<_ToolPage> {
         if (t.op == 'watermark' && _wmImage != null) ('image', _wmImage!, 'filigrane.png'),
       ];
       final (bytes, name) = await context.read<Session>().api.uploadForFile('pdf/${t.op}', {'options': jsonEncode(_options())}, files);
+      pdfHistoryChanged();
       if (!mounted) return;
       await _result(Uint8List.fromList(bytes), name ?? 'document.pdf');
     } catch (e) {

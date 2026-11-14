@@ -240,6 +240,13 @@ Route::middleware('installed')->group(function () {
             Route::post('sync/push', [SyncController::class, 'push']);
 
             Route::get('company', [CompanyController::class, 'show']);
+            // Modèles d'e-mails de la société (texte des envois de documents, bienvenue des employés)
+            Route::get('mail-templates/effective', [\App\Http\Controllers\Api\MailTemplateController::class, 'effective']);
+            Route::middleware('perm:core.settings.manage')->group(function () {
+                Route::get('mail-templates', [\App\Http\Controllers\Api\MailTemplateController::class, 'index']);
+                Route::put('mail-templates', [\App\Http\Controllers\Api\MailTemplateController::class, 'update']);
+                Route::post('mail-templates/preview', [\App\Http\Controllers\Api\MailTemplateController::class, 'preview']);
+            });
             Route::put('company', [CompanyController::class, 'update'])->middleware('perm:core.settings.manage');
 
             // ---------- Canaux d'envoi (e-mail, SMS, WhatsApp) ----------
@@ -455,6 +462,9 @@ Route::middleware('installed')->group(function () {
             Route::post('modules/align-prices', [ModuleAdminController::class, 'alignPrices']);
             Route::put('modules/{key}', [ModuleAdminController::class, 'update']);
 
+            Route::get('mail-templates', [\App\Http\Controllers\Api\MailTemplateController::class, 'adminIndex']);
+            Route::put('mail-templates', [\App\Http\Controllers\Api\MailTemplateController::class, 'adminUpdate']);
+            Route::post('mail-templates/preview', [\App\Http\Controllers\Api\MailTemplateController::class, 'adminPreview']);
             Route::get('plans', [PlanAdminController::class, 'index']);
             Route::post('plans', [PlanAdminController::class, 'store']);
             Route::put('plans/{id}', [PlanAdminController::class, 'update']);

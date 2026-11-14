@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'mail_templates_screen.dart';
 import 'package:provider/provider.dart';
 
 import 'agences_screen.dart';
@@ -73,6 +75,13 @@ class SettingsScreen extends StatelessWidget {
           title: 'Canaux d\'envoi',
           text: 'E-mail (SMTP), SMS et WhatsApp pour envoyer factures, relances et campagnes.',
           onTap: () => open(const MessagingSettingsScreen()),
+        ),
+        _SettingTile(
+          icon: Icons.mark_email_read_outlined,
+          color: const Color(0xFF2E6BE6),
+          title: 'Modèles d\'e-mails',
+          text: 'Texte et aperçu des e-mails de factures, devis, commandes… et de la bienvenue des nouveaux employés.',
+          onTap: () => open(const MailTemplatesScreen()),
         ),
       ],
     ];

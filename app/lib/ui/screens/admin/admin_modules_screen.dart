@@ -8,6 +8,7 @@ import '../../../state/session.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import 'admin_common.dart';
+import 'admin_plan_modules.dart';
 import '../../../i18n/i18n.dart';
 
 String _priceSummary(Map<String, dynamic> m, String cur) {
@@ -151,6 +152,7 @@ class AdminModulesScreen extends StatelessWidget {
               ),
             ],
           ),
+          PlanModulesPanel(modules: modules, onChanged: reload),
           for (final cat in byCategory.entries) ...[
             Padding(
               padding: EdgeInsets.fromLTRB(pad, 12, pad, 8),
@@ -169,7 +171,7 @@ class AdminModulesScreen extends StatelessWidget {
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                             Text(tr('${m['name']}'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                            if (m['is_core'] == true) StatusChip(tr('Socle'), color: YColors.blue),
+                            if (m['is_core'] == true) StatusChip(tr('Toujours inclus'), color: YColors.blue),
                             if (m['is_available'] != true) StatusChip(tr('Bientôt'), color: YColors.muted),
                           ]),
                           const SizedBox(height: 2),

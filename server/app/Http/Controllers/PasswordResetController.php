@@ -42,6 +42,32 @@ class PasswordResetController extends Controller
         return ['message' => 'Si un compte existe avec cette adresse, un lien pour choisir un nouveau mot de passe vient d\'y être envoyé. Pensez à regarder dans les indésirables.'];
     }
 
+    /** Lien de bienvenue d'un nouvel employé : refusé si le mot de passe a déjà été changé depuis l'envoi. */
+    protected function invited(Request $r, int $id): User
+    {
+        $u = User::withoutGlobalScopes()->where('is_active', true)->findOrFail($id);
+        abort_unless(hash_equals(substr(sha1((string) $u->password), 0, 12), (string) $r->query('v')), 410, 'Ce lien a déjà servi. Utilisez « Mot de passe oublié » sur la page de connexion.');
+
+        return $u;
+    }
+
+    public function inviteForm(Request $r, int $user)
+    {
+        $u = $this->invited($r, $user);
+
+        return response()->view('auth.reset', ['token' => '', 'email' => $u->email, 'ok' => false, 'expired' => false]);
+    }
+
+    public function inviteSave(Request $r, int $user)
+    {
+        $u = $this->invited($r, $user);
+        $d = $r->validate(['password' => 'required|string|min:8|confirmed']);
+        $u->forceFill(['password' => Hash::make($d['password'])])->save();
+        ActivityLog::record('auth.password.invite_set', $u);
+
+        return response()->view('auth.reset', ['token' => '', 'email' => $u->email, 'ok' => true, 'expired' => false]);
+    }
+
     protected function valid(string $email, string $token): ?object
     {
         $row = DB::table('password_reset_tokens')->where('email', mb_strtolower($email))->first();
