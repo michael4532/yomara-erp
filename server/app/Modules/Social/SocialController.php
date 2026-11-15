@@ -25,7 +25,7 @@ class SocialController extends Controller
         $c = app('tenant');
 
         return [
-            'networks' => Networks::catalog(), 'accounts' => $this->s->accounts($c), 'statuses' => SocialService::STATUSES, 'x_credits' => XCredits::summary($c),
+            'networks' => Networks::catalog((bool) $r->user()?->is_super_admin), 'accounts' => $this->s->accounts($c), 'statuses' => SocialService::STATUSES, 'x_credits' => XCredits::summary($c),
             'ai' => (bool) rescue(fn () => ($a = app(\App\Modules\Ia\AiService::class)->settings($c)) && $a['enabled'] && $a['configured'], false, false),
             'can' => ['manage' => $r->user()->hasPermission('social.manage'), 'publish' => $r->user()->hasPermission('social.publish'), 'accounts' => $r->user()->hasPermission('social.accounts'),
                 'apps' => (bool) $r->user()->is_super_admin, 'inbox' => $r->user()->hasPermission('social.inbox') || $r->user()->hasPermission('social.manage') || $r->user()->hasPermission('social.publish')],
@@ -250,7 +250,7 @@ class SocialController extends Controller
 
         return ['providers' => collect(Networks::PROVIDERS)->map(fn ($p, $k) => $p + ['key' => $k, 'redirect_uri' => Networks::redirectUri($k),
             'client_id' => $all[$k]['client_id'] ?? null, 'has_secret' => ! empty($all[$k]['client_secret']), 'organizations' => (bool) ($all[$k]['organizations'] ?? false),
-            'extended' => (bool) ($all[$k]['extended'] ?? false), 'config_id' => $all[$k]['config_id'] ?? null]
+            'extended' => (bool) ($all[$k]['extended'] ?? false), 'config_id' => $all[$k]['config_id'] ?? null, 'hidden' => (bool) ($all[$k]['hidden'] ?? false)]
             + ($k === 'x' ? ['x_credits' => XCredits::enabled(), 'included_credits' => XCredits::settings()['included'], 'link_weight' => XCredits::settings()['link_weight']] : [])
             + ($k === 'meta' ? ['webhook_url' => url('/api/meta-webhook'), 'verify_token' => MetaWebhookController::verifyToken()] : []))->values()];
     }
@@ -259,7 +259,7 @@ class SocialController extends Controller
     {
         abort_unless(isset(Networks::PROVIDERS[$provider]), 404);
         $d = $r->validate(['client_id' => 'nullable|string|max:300', 'client_secret' => 'nullable|string|max:500', 'organizations' => 'nullable|boolean', 'extended' => 'nullable|boolean', 'config_id' => 'nullable|string|max:40|regex:/^\d*$/',
-            'included_credits' => 'nullable|integer|min:0|max:100000', 'link_weight' => 'nullable|integer|min:1|max:100']);
+            'included_credits' => 'nullable|integer|min:0|max:100000', 'link_weight' => 'nullable|integer|min:1|max:100', 'hidden' => 'nullable|boolean']);
         $all = (array) PlatformSetting::get('social.apps', []);
         $cur = $all[$provider] ?? [];
         $cur['client_id'] = trim((string) ($d['client_id'] ?? '')) ?: null;
@@ -271,6 +271,9 @@ class SocialController extends Controller
         } else {
             if (array_key_exists('organizations', $d)) {
                 $cur['organizations'] = (bool) $d['organizations'];
+            }
+            if (array_key_exists('hidden', $d) && $d['hidden'] !== null) {
+                $cur['hidden'] = (bool) $d['hidden']; // masqué aux clients tant que la configuration n'est pas terminée
             }
             if (array_key_exists('extended', $d)) {
                 $cur['extended'] = (bool) $d['extended'];

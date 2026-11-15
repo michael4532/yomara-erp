@@ -2963,7 +2963,10 @@ class _AccountsTab extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontWeight: FontWeight.w700),
                                       ),
-                                      Text(tr('${n['limit']} caractères'), style: TextStyle(color: theme.hintColor, fontSize: 11.5)),
+                                      Text(
+                                        n['hidden'] == true ? tr('Masqué aux clients') : tr('${n['limit']} caractères'),
+                                        style: TextStyle(color: n['hidden'] == true ? const Color(0xFFD97706) : theme.hintColor, fontSize: 11.5),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -3214,6 +3217,7 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
     final secret = TextEditingController();
     var orgs = p['organizations'] == true;
     var ext = p['extended'] == true;
+    var visible = p['hidden'] != true;
     final config = TextEditingController(text: '${p['config_id'] ?? ''}');
     final included = TextEditingController(text: '${p['included_credits'] ?? ''}');
     final weight = TextEditingController(text: '${p['link_weight'] ?? ''}');
@@ -3228,6 +3232,16 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: visible,
+                  onChanged: (v) => set(() => visible = v),
+                  title: Text(tr('Visible pour les clients')),
+                  subtitle: Text(tr(visible
+                      ? 'Les sociétés voient ce réseau dans « Ajouter un compte » et peuvent s\'y connecter.'
+                      : 'Masqué aux sociétés tant que la configuration n\'est pas terminée. Vous seul (super administrateur) pouvez vous y connecter pour tester.')),
+                ),
+                const Divider(),
                 Text(tr('Adresse de retour (redirect URI) à déclarer dans l\'application :'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Row(
@@ -3340,6 +3354,7 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
       final r = await context.read<Session>().api.put('admin/social-apps/${p['key']}', {
         'client_id': id.text.trim(),
         if (secret.text.trim().isNotEmpty) 'client_secret': secret.text.trim(),
+        'hidden': !visible,
         if (p['key'] == 'linkedin') 'organizations': orgs,
         if (p['key'] == 'meta') 'extended': ext,
         if (p['key'] == 'meta') 'config_id': config.text.trim(),
@@ -3378,7 +3393,11 @@ class _SocialAppsDialogState extends State<SocialAppsDialog> {
                         color: p['client_id'] != null && p['has_secret'] == true ? YColors.success : Theme.of(context).hintColor,
                       ),
                       title: Text('${p['label']}'),
-                      subtitle: Text(p['client_id'] != null ? tr('Configurée') : tr('À configurer')),
+                      subtitle: Text(p['client_id'] == null
+                          ? tr('À configurer')
+                          : p['hidden'] == true
+                              ? tr('Configurée · masquée aux clients')
+                              : tr('Configurée · visible pour les clients')),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _edit(p),
                     ),

@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.66 — réseaux masqués aux clients
+
+- **Super admin › Réseaux sociaux › Applications** : chaque réseau a un interrupteur « Visible pour les clients ». Un réseau dont les clés sont saisies mais dont la configuration n'est pas terminée (validation Meta, TikTok, crédits X…) peut être masqué : les sociétés ne le voient plus dans « Ajouter un compte » et ne peuvent pas s'y connecter. Le super administrateur le voit toujours, marqué « Masqué aux clients », et peut s'y connecter pour tester. Les clés restent enregistrées.
+
 ## 0.99.65 — stockages en ligne (R2, B2…)
 
 - **Stockage des documents** : les stockages compatibles S3 (Cloudflare R2, Backblaze B2, Wasabi, Amazon S3…) refusaient chaque dépôt avec « signature does not match » : le type du fichier était envoyé deux fois. Corrigé ; « Tester » fonctionne avec les bonnes clés.

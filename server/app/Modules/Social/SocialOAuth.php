@@ -60,6 +60,9 @@ class SocialOAuth
     {
         abort_unless(isset(Networks::PROVIDERS[$provider]), 404);
         $app = $this->app($provider);
+        if (Networks::hidden($provider) && ! $u->is_super_admin) {
+            $this->fail('La connexion '.Networks::PROVIDERS[$provider]['label'].' n\'est pas encore ouverte : elle sera disponible prochainement.');
+        }
         DB::table('so_oauth_states')->where('created_at', '<', now()->subHour())->delete();
         $state = Str::random(48);
         $verifier = Str::random(64);

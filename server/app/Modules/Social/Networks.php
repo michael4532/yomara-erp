@@ -81,15 +81,17 @@ class Networks
         return mb_strlen($text);
     }
 
-    public static function catalog(): array
+    /** $tester : le super administrateur voit aussi les réseaux masqués aux clients (pour tester avant de les ouvrir). */
+    public static function catalog(bool $tester = false): array
     {
-        $apps = self::configuredProviders();
+        $apps = self::configuredProviders($tester);
 
         return collect(self::ALL)->map(fn ($d, $k) => [
             'key' => $k, 'label' => $d['label'], 'limit' => $d['limit'], 'ideal' => $d['ideal'], 'title' => $d['title'] ?? null, 'media' => $d['media'],
             'media_limit' => $d['media_limit'] ?? null, 'hashtags' => $d['hashtags'] ?? null, 'color' => $d['color'], 'links' => $d['links'],
             'connect' => $d['provider'] ? 'oauth' : 'token', 'provider' => $d['provider'], 'available' => ! $d['provider'] || in_array($d['provider'], $apps, true),
-        ])->values()->all();
+            'hidden' => $d['provider'] !== null && self::hidden($d['provider']),
+        ])->filter(fn ($n) => $tester || ! $n['hidden'])->values()->all();
     }
 
     // ------------------------------------------------------------------ applications OAuth (réglées par le super administrateur)
@@ -103,9 +105,17 @@ class Networks
         return ['client_id' => $a['client_id'] ?? null, 'client_secret' => $secret, 'config_id' => $a['config_id'] ?? null];
     }
 
-    public static function configuredProviders(): array
+    /** Applications prêtes ; sans $withHidden, celles masquées aux clients (configuration pas terminée) sont exclues. */
+    public static function configuredProviders(bool $withHidden = false): array
     {
-        return array_keys(array_filter((array) PlatformSetting::get('social.apps', []), fn ($a) => ! empty($a['client_id']) && ! empty($a['client_secret'])));
+        return array_keys(array_filter((array) PlatformSetting::get('social.apps', []),
+            fn ($a) => ! empty($a['client_id']) && ! empty($a['client_secret']) && ($withHidden || empty($a['hidden']))));
+    }
+
+    /** Réseau masqué aux clients par le super administrateur (clés enregistrées mais configuration pas terminée). */
+    public static function hidden(string $provider): bool
+    {
+        return ! empty(((array) PlatformSetting::get('social.apps', []))[$provider]['hidden']);
     }
 
     public static function redirectUri(string $provider): string
