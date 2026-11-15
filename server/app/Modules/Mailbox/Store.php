@@ -125,6 +125,9 @@ class Store
         $m->partner_id = $m->partner_id ?: self::partnerFor($a, $f->role === 'sent' ? ($m->to[0]['email'] ?? null) : $m->from_email);
         $m->deleted_at = null;
         $m->save();
+        if ($isNew) {
+            MailNotify::collect($a, $f, $m); // notification sur le téléphone à la fin de la synchronisation
+        }
 
         return $m;
     }

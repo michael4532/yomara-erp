@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.67 — notifications YoMail sur le téléphone
+
+- **Nouvel e-mail reçu** : notification sur le téléphone avec l'expéditeur, l'objet et le début du message (« Réponse de … » quand c'est une réponse à un e-mail envoyé, 📎 s'il y a une pièce jointe). Plusieurs e-mails arrivés ensemble = un seul résumé. La toucher ouvre directement le message dans YoMail.
+- **Activité des e-mails** (cloche + téléphone) : e-mail programmé parti à l'heure prévue, e-mail définitivement non envoyé après les nouvelles tentatives, premier clic d'un destinataire sur un lien suivi, boîte mail déconnectée (une seule alerte, réarmée quand elle refonctionne).
+- Pas de rafale à la première connexion d'une boîte (l'historique ne notifie pas), ni pour ses propres copies ou le courrier indésirable.
+- **YoMail › Comptes › Modifier** : interrupteur « Notifications sur le téléphone » par boîte, propre à chaque utilisateur (une boîte partagée peut être coupée pour soi seulement).
+
 ## 0.99.66 — réseaux masqués aux clients
 
 - **Super admin › Réseaux sociaux › Applications** : chaque réseau a un interrupteur « Visible pour les clients ». Un réseau dont les clés sont saisies mais dont la configuration n'est pas terminée (validation Meta, TikTok, crédits X…) peut être masqué : les sociétés ne le voient plus dans « Ajouter un compte » et ne peuvent pas s'y connecter. Le super administrateur le voit toujours, marqué « Masqué aux clients », et peut s'y connecter pour tester. Les clés restent enregistrées.

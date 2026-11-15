@@ -383,6 +383,7 @@ class _EditAccountState extends State<_EditAccount> {
   final _password = TextEditingController();
   late int _days = (widget.account['sync_days'] as num?)?.toInt() ?? 30;
   late bool _calendar = widget.account['calendar_sync'] == true;
+  late bool _notify = !((widget.account['muted_by'] as List? ?? const []).map((x) => (x as num).toInt()).contains((context.read<Session>().user['id'] as num?)?.toInt()));
   late final Set<int> _sharedWith = {for (final x in (widget.account['shared_with'] as List? ?? const [])) (x as num).toInt()};
   late String _color = '${widget.account['color'] ?? '#2E6BE6'}';
   late String? _avatar = widget.account['avatar_url'] as String?;
@@ -503,6 +504,24 @@ class _EditAccountState extends State<_EditAccount> {
           ),
           if (oauth)
             SwitchListTile(contentPadding: EdgeInsets.zero, value: _calendar, onChanged: (v) => setState(() => _calendar = v), title: Text(tr('Calendrier synchronisé avec l\'Agenda'))),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _notify,
+            title: Text(tr('Notifications sur le téléphone')),
+            subtitle: Text(tr('Nouvel e-mail, réponse reçue, e-mail non envoyé, lien ouvert… Réglage personnel : il ne change rien pour les autres membres.')),
+            onChanged: (v) async {
+              setState(() => _notify = v);
+              final api = context.read<Session>().api;
+              try {
+                await api.post('mailbox/accounts/${widget.account['id']}/notifications', {'enabled': v});
+                unawaited(widget.store.reloadIndex());
+              } catch (e) {
+                if (!context.mounted) return;
+                setState(() => _notify = !v);
+                toast(context, errorText(e), error: true);
+              }
+            },
+          ),
           const SizedBox(height: 6),
           Wrap(spacing: 8, children: [
             for (final c in _colors)

@@ -83,6 +83,9 @@ class LinkTracking
         }
         DB::table('mb_link_tracks')->where('id', $t->id)->update(['clicks' => $t->clicks + 1, 'first_click_at' => $t->first_click_at ?? now(), 'last_click_at' => now(), 'updated_at' => now()]);
         DB::table('mb_link_clicks')->insert(['token' => $token, 'url' => mb_substr($url, 0, 2000), 'clicked_at' => now()]);
+        if (! $t->first_click_at) {
+            rescue(fn () => MailNotify::firstClick($t), null, false);
+        }
     }
 
     /** Clics d'un message envoyé (par son Message-ID). */

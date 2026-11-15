@@ -25,6 +25,7 @@ Route::middleware('perm:mailbox.use,mailbox.manage')->group(function () {
     Route::post('accounts/hosted', [C::class, 'storeHosted']);
     Route::post('media', [C::class, 'uploadMedia']);
     Route::post('accounts/{id}/avatar', [C::class, 'avatar'])->whereNumber('id');
+    Route::post('accounts/{id}/notifications', [C::class, 'notifications'])->whereNumber('id');
     Route::delete('accounts/{id}/avatar', [C::class, 'removeAvatar'])->whereNumber('id');
     Route::post('accounts/{id}/hosted-password', [C::class, 'hostedPassword'])->whereNumber('id');
     Route::get('accounts/{id}/deliverability', [C::class, 'deliverability'])->whereNumber('id');

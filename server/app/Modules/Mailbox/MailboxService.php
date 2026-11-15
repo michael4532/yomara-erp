@@ -61,6 +61,8 @@ class MailboxService
             app()->instance('tenant', Company::find($a->company_id));
             $r = $this->driver($a)->sync($a);
             $a->forceFill(['status' => 'active', 'error' => null, 'last_sync_at' => now(), 'next_sync_at' => now()->addMinutes($this->interval($a))])->save();
+            MailNotify::flush($a);
+            MailNotify::accountOk($a);
             if ($a->calendar_sync && in_array($a->provider, ['microsoft', 'google'], true) && $a->user_id
                 && ($force || ! $a->stateValue('cal_at') || $a->stateValue('cal_at') < time() - 600)) {
                 try {
@@ -74,6 +76,10 @@ class MailboxService
 
             return $r;
         } catch (MailProtocolException|\DomainException $e) {
+            // deux échecs de suite (pas une simple coupure réseau) : le propriétaire est prévenu une fois
+            if ($a->getOriginal('status') === 'error') {
+                rescue(fn () => MailNotify::accountError($a, $e->getMessage()), null, false);
+            }
             $a->forceFill(['status' => 'error', 'error' => mb_substr($e->getMessage(), 0, 500), 'next_sync_at' => now()->addMinutes(15)])->save();
             throw $e;
         } finally {
@@ -264,6 +270,7 @@ class MailboxService
             $this->keepSentCopy($a, $mail);
             DB::table('mb_outbox')->where('id', $id)->update(['status' => 'sent', 'sent_at' => now(), 'error' => null, 'attempts' => $row->attempts + 1, 'updated_at' => now(),
                 'payload' => json_encode(array_merge($payload, ['attachments' => array_map(fn ($x) => array_diff_key($x, ['data' => 1]), $payload['attachments'] ?? [])]))]);
+            rescue(fn () => MailNotify::scheduledSent($row), null, false);
             if ($mail['original'] && in_array($mail['mode'], ['reply', 'reply_all'], true)) {
                 try {
                     Store::flags($mail['original'], ['answered' => true]);
@@ -286,6 +293,9 @@ class MailboxService
             $final = $e instanceof \DomainException || $attempts >= 4;
             DB::table('mb_outbox')->where('id', $id)->update(['status' => $final ? 'failed' : 'queued', 'attempts' => $attempts, 'error' => mb_substr($e->getMessage(), 0, 500),
                 'send_at' => $final ? $row->send_at : now()->addMinutes([1, 5, 30][$attempts - 1] ?? 30), 'updated_at' => now()]);
+            if ($final) {
+                rescue(fn () => MailNotify::failed($row, $e->getMessage()), null, false);
+            }
 
             return false;
         } finally {

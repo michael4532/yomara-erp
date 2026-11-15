@@ -60,7 +60,8 @@ class MailboxController extends Controller
             'sync_days' => $a->sync_days, 'calendar_sync' => $a->calendar_sync, 'last_sync_at' => $a->last_sync_at?->toIso8601String(),
             'settings' => array_intersect_key($a->settings ?? [], array_flip(['imap_host', 'imap_port', 'imap_security', 'smtp_host', 'smtp_port', 'smtp_security', 'pop3_host', 'pop3_port', 'pop3_security', 'username', 'smtp_username', 'pop_keep', 'graph_user'])),
             'has_password' => ! $a->isOAuth() && ! empty($a->secret()['password']), 'hosted' => $a->setting('hosted') === true, 'limits' => Antispam::limits($a),
-            'send_blocked_until' => ($u = $a->stateValue('send_blocked_until')) && $u > time() ? date('c', $u) : null];
+            'send_blocked_until' => ($u = $a->stateValue('send_blocked_until')) && $u > time() ? date('c', $u) : null,
+            'muted_by' => array_map('intval', (array) $a->stateValue('mute', []))];
     }
 
     public static function folderRow(Folder $f): array
@@ -679,6 +680,19 @@ class MailboxController extends Controller
         }
 
         return response()->json(['data' => self::accountRow($a->fresh())], 201);
+    }
+
+    /** Notifications sur le téléphone pour cette boîte : réglage propre à chaque utilisateur. */
+    public function notifications(Request $r, int $id)
+    {
+        $a = $this->account($r, $id);
+        $on = (bool) $r->validate(['enabled' => 'required|boolean'])['enabled'];
+        $mute = array_map('intval', (array) $a->stateValue('mute', []));
+        $mute = $on ? array_values(array_diff($mute, [$r->user()->id])) : array_values(array_unique([...$mute, $r->user()->id]));
+        $a->putState(['mute' => $mute]);
+        $a->saveQuietly();
+
+        return ['data' => self::accountRow($a->fresh())];
     }
 
     public function updateAccount(Request $r, int $id)

@@ -157,6 +157,27 @@ class _MailboxScreenState extends State<MailboxScreen> {
       _olderDone = false;
     });
     MailAlerts.opener = _alertOpener;
+    MailAlerts.openId.addListener(_openPending);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
+  }
+
+  // Notification touchée sur le téléphone : ouvre le message reçu
+  Future<void> _openPending() async {
+    final id = MailAlerts.openId.value;
+    if (id == null || !mounted) return;
+    MailAlerts.openId.value = null;
+    setState(() {
+      _openId = id;
+      _openLoading = true;
+    });
+    try {
+      final full = await _s.open(id);
+      if (mounted && _openId == id) setState(() => _open = full);
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _openLoading = false);
+    }
   }
 
   // Ouverture depuis la cloche (comparaison par égalité de la méthode détachée, stable pour cette instance)
@@ -179,6 +200,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
   @override
   void dispose() {
     if (MailAlerts.opener == _alertOpener) MailAlerts.opener = null;
+    MailAlerts.openId.removeListener(_openPending);
     _life?.dispose();
     _s.arrivals.removeListener(_arrived);
     _s.removeListener(_changed);

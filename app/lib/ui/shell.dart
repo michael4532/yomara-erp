@@ -43,6 +43,7 @@ import 'screens/compta_screen.dart';
 import 'screens/fonds_screen.dart';
 import 'screens/tresorerie_screen.dart';
 import 'screens/tickets_screen.dart';
+import 'widgets/mail_alerts.dart';
 import 'widgets/notification_bell.dart';
 import 'screens/mail_templates_screen.dart';
 import 'widgets/app_update.dart';
@@ -188,6 +189,8 @@ class _AppShellState extends State<AppShell> {
       onOpen: (data) {
         // Notification touchée : écran du module concerné (même correspondance que la cloche)
         final m = '${data['module'] ?? ''}';
+        // Nouvel e-mail : YoMail s'ouvre directement sur le message
+        if (m == 'mailbox' && data['account'] != null) MailAlerts.openId.value = int.tryParse('${data['ref'] ?? ''}');
         final id = notificationScreen(m, '${data['type'] ?? ''}') ?? m;
         if (!mounted || id.isEmpty) return;
         if (_items(_session).any((i) => i.id == id)) _go(id);

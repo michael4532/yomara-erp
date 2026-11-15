@@ -10,6 +10,9 @@ class MailAlerts {
   /// Ouvre un message (fourni par la messagerie quand elle est ouverte).
   static void Function(Map<String, dynamic> m)? opener;
 
+  /// Message à ouvrir (notification touchée sur le téléphone) : la messagerie l'ouvre dès qu'elle est prête.
+  static final ValueNotifier<int?> openId = ValueNotifier(null);
+
   static String _key(Map<String, dynamic> m) => '${m['id'] ?? m['uid'] ?? '${m['from_email']}|${m['subject']}|${m['date']}'}';
 
   /// Ajoute des messages arrivés (les plus récents en premier), sans doublon, 30 au plus.
