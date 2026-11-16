@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.69 — YoMail : conversations
+
+- **Une ligne par conversation** dans la boîte de réception et les dossiers, comme Gmail : quand vous répondez, la conversation remonte en haut de la liste à l'heure de votre réponse, avec « moi » et le nombre de messages (ex. « Dieudonné, moi (2) ») et l'extrait de votre réponse (« Vous : … »).
+- **À l'ouverture**, un encadré « Conversation » liste tous les messages de l'échange, reçus et envoyés, dans l'ordre ; un clic ouvre chacun d'eux. Ouvrir la conversation marque tous ses messages comme lus.
+- Les recherches et les brouillons restent affichés message par message.
+
 ## 0.99.68 — revue de la plateforme
 
 - **Page Télécharger** : quand aucun lien n'est saisi dans l'administration, les boutons mènent aux fiches officielles (App Store pour iPhone, iPad et Mac, Google Play, Microsoft Store). L'iPhone n'affiche plus « Bientôt disponible ». Le numéro de version saisi à la main n'est plus affiché (il se périmait).

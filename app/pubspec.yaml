@@ -166,7 +166,7 @@ msix_config:
   publisher_display_name: Michael TANON
   identity_name: MichaelTANON.YomaraERP
   publisher: CN=F661BEF7-6CC6-4776-95FB-016A471D2D93
-  msix_version: 1.0.9.0
+  msix_version: 1.0.11.0
   # Lien « Ouvrir dans l'application » des réunions (yomara://…)
   protocol_activation: yomara
   logo_path: assets/brand/mark.png

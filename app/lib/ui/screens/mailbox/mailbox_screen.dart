@@ -221,7 +221,51 @@ class _MailboxScreenState extends State<MailboxScreen> {
       focused: everywhere ? null : (_filter == 'focused' ? true : (_filter == 'other' ? false : null)),
     );
     final ids = {for (final m in l) m['id']};
-    return [...l, ..._older.where((m) => !ids.contains(m['id']))];
+    final all = [...l, ..._older.where((m) => !ids.contains(m['id']))];
+    // Recherche et brouillons : chaque message à part ; ailleurs, une ligne par conversation (comme Gmail)
+    if (_q.isNotEmpty || _view.role == 'drafts' || _s.folder(_view.folderId)?['role'] == 'drafts') return all;
+    return _conversations(all);
+  }
+
+  /// Messages d'une conversation à afficher ensemble (même boîte, hors corbeille, indésirables et brouillons).
+  List<Map<String, dynamic>> _conv(Map<String, dynamic> m) => [
+    for (final x in _s.thread(m))
+      if (x['account_id'] == m['account_id'] && !const {'trash', 'junk', 'drafts'}.contains(_s.folder(x['folder_id'])?['role'])) x,
+  ];
+
+  /// Une ligne par conversation : le message le plus récent de la vue la représente ; elle remonte à la date
+  /// du dernier échange (une réponse envoyée la fait passer au-dessus), avec le nombre de messages et le dernier extrait.
+  List<Map<String, dynamic>> _conversations(List<Map<String, dynamic>> list) {
+    final byKey = <String, List<Map<String, dynamic>>>{};
+    final order = <String>[];
+    for (final m in list) {
+      final k = m['thread_key'] == null ? 'id:${m['id']}' : '${m['account_id']}|${m['thread_key']}';
+      if (!byKey.containsKey(k)) order.add(k);
+      byKey.putIfAbsent(k, () => []).add(m);
+    }
+    final out = <Map<String, dynamic>>[];
+    for (final k in order) {
+      final inView = byKey[k]!;
+      final head = inView.first; // liste triée du plus récent au plus ancien
+      final conv = head['thread_key'] == null ? [head] : _conv(head);
+      if (conv.length <= 1 && inView.length <= 1) {
+        out.add(head);
+        continue;
+      }
+      final last = conv.isEmpty ? head : conv.last;
+      final latest = '${last['date']}'.compareTo('${head['date']}') > 0 ? last : head;
+      out.add({
+        ...head,
+        'date': latest['date'],
+        'seen': inView.every((x) => x['seen'] == true),
+        'has_attachments': conv.any((x) => x['has_attachments'] == true),
+        '_n': conv.length,
+        '_last': latest,
+        '_ids': [for (final x in inView) x['id']],
+      });
+    }
+    out.sort((a, b) => '${b['date']}'.compareTo('${a['date']}'));
+    return out;
   }
 
   void _select(_View v) {
@@ -238,6 +282,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
 
   Future<void> _openMessage(Map<String, dynamic> m) async {
     if (MailAlerts.items.value.any((x) => x['id'] == m['id'])) MailAlerts.remove(m);
+    for (final id in (m['_ids'] as List? ?? const [])) {
+      if (id != m['id'] && _s.local(id as int)?['seen'] == false) unawaited(_s.setFlags(id, seen: true).catchError((_) {}));
+    }
     setState(() {
       _openId = m['id'] as int;
       _open = m;
@@ -1522,9 +1569,15 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final unread = m['seen'] != true;
     final flagged = m['flagged'] == true;
     final sent = _s.folder(m['folder_id'])?['role'] == 'sent';
-    final who = sent
+    final last = asMapOrNull(m['_last']);
+    final lastSent = last != null && _s.folder(last['folder_id'])?['role'] == 'sent';
+    final n = (m['_n'] as num?)?.toInt() ?? 1;
+    final base = sent
         ? 'À : ${(m['to'] as List? ?? const []).map((t) => (t['name'] ?? '').toString().isNotEmpty ? t['name'] : t['email']).join(', ')}'
         : '${(m['from_name'] ?? '').toString().isNotEmpty ? m['from_name'] : m['from_email'] ?? ''}';
+    // Conversation : « Hôtel Assinie, moi (3) » ; le dernier extrait est celui du dernier échange
+    final who = n > 1 && !sent ? '$base${lastSent ? ', ${tr('moi')}' : ''} ($n)' : (n > 1 ? '$base ($n)' : base);
+    final snippet = last != null && last['id'] != m['id'] ? '${lastSent && !sent ? '${tr('Vous')} : ' : ''}${last['snippet'] ?? ''}' : '${m['snippet'] ?? ''}';
     final acc = _s.account(m['account_id']);
     final checked = _selected.contains(m['id']);
     final tileW = Padding(
@@ -1612,7 +1665,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
-                                    Expanded(child: _hl('${m['snippet'] ?? ''}', TextStyle(color: p.muted, fontSize: 12.5))),
+                                    Expanded(child: _hl(snippet, TextStyle(color: p.muted, fontSize: 12.5))),
                                     // Recherche dans toutes les boîtes : dossier de chaque message, comme Outlook
                                     if (_q.isNotEmpty && _s.folder(m['folder_id']) != null) ...[
                                       const SizedBox(width: 6),
@@ -1772,6 +1825,51 @@ class _MailboxScreenState extends State<MailboxScreen> {
     } else if (v.startsWith('act:')) {
       _mailAction(m, v.substring(4));
     }
+  }
+
+  Widget _convStrip(Map<String, dynamic> m) {
+    final p = _p;
+    final conv = _conv(m);
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: p.line), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 12, 4),
+            child: Text(tr('Conversation · ${conv.length} messages'), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.muted)),
+          ),
+          for (final x in conv)
+            Builder(builder: (_) {
+              final mine = _s.folder(x['folder_id'])?['role'] == 'sent';
+              final current = x['id'] == m['id'];
+              final name = mine ? tr('Vous') : '${(x['from_name'] ?? '').toString().isNotEmpty ? x['from_name'] : x['from_email'] ?? ''}';
+              return InkWell(
+                onTap: current ? null : () => _openMessage({...x, '_ids': m['_ids']}),
+                child: Container(
+                  color: current ? p.selected : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Row(
+                    children: [
+                      Icon(mine ? Icons.reply_rounded : Icons.mail_outline_rounded, size: 16, color: mine ? p.accent : p.muted),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 160),
+                        child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: current ? FontWeight.w700 : FontWeight.w600, color: p.ink)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('${x['snippet'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.muted))),
+                      const SizedBox(width: 8),
+                      Text(tr(_shortDate('${x['date']}')), style: TextStyle(fontSize: 12, color: p.muted)),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
   }
 
   Widget _reader({bool back = false}) {
@@ -1939,6 +2037,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
                               if (m['has_attachments'] == true) chip('Pièces jointes', p.muted, icon: Icons.attach_file),
                             ],
                           ),
+                          // Conversation : les autres messages (reçus et réponses envoyées), dans l'ordre, un clic pour les lire
+                          if (_conv(m).length > 1) ...[const SizedBox(height: 12), _convStrip(m)],
                           const SizedBox(height: 14),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
