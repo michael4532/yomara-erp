@@ -99,6 +99,8 @@ class SetupChecklist
         // 6. Fonctions qui demandent une clé de service
         $add('Services connectés', 'ai', 'Assistant IA et Sensya (suggestions de textes)', filled(config('erp.ai.api_key')), 'recommended',
             'Clé Anthropic, OpenAI, Mistral… : rédaction assistée, publications, réponses aux clients. Chaque société peut aussi mettre la sienne.', 'admin_env', null, 'Clé de la plateforme enregistrée.');
+        $add('Services connectés', 'push', 'Notifications sur les téléphones (Firebase)', \App\Support\Push::account() !== null, 'recommended',
+            'Clé du compte de service Firebase (JSON) : sans elle, aucune notification n\'arrive sur les applications (nouvel e-mail, paiement, tâche…).', 'admin_env', null, 'Clé Firebase enregistrée.');
         $social = class_exists(\App\Modules\Social\Networks::class) ? count(\App\Modules\Social\Networks::configuredProviders()) : 0;
         $add('Services connectés', 'social', 'Applications des réseaux sociaux (Meta, LinkedIn, X, TikTok…)', $social > 0, 'optional',
             'Nécessaire pour que vos clients connectent leurs pages Facebook, Instagram, LinkedIn… au module Réseaux sociaux.', 'social', null, $social.' réseau(x) prêt(s).');

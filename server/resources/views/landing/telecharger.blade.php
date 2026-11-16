@@ -11,7 +11,7 @@
     <div class="hero-cta"><a class="btn btn-gold" href="/app/">Ouvrir la version web</a><a class="btn btn-ghost" href="#licence">Installer sur mon serveur</a></div>
   </div>
 </section>
-@include('landing._downloads')
+@include('landing._downloads', ['noHead' => true])
 <div style="padding-top:90px"></div>
 @include('landing._licence')
 @include('landing._end')

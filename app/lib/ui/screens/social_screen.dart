@@ -217,7 +217,8 @@ class _SocialScreenState extends State<SocialScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.link),
                     title: Text(tr('Connectez votre premier compte')),
-                    subtitle: Text(tr('Onglet « Comptes » : Facebook, Instagram, LinkedIn, X, TikTok, Sensya…')),
+                    // seuls les réseaux ouverts aux clients (ceux masqués par l'éditeur ne sont pas cités)
+                    subtitle: Text('${tr('Onglet « Comptes »')} : ${[for (final n in _networks) if (n['hidden'] != true) '${n['label']}'].take(6).join(', ')}…'),
                   ),
                 ),
               ),

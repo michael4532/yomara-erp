@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.68 — revue de la plateforme
+
+- **Page Télécharger** : quand aucun lien n'est saisi dans l'administration, les boutons mènent aux fiches officielles (App Store pour iPhone, iPad et Mac, Google Play, Microsoft Store). L'iPhone n'affiche plus « Bientôt disponible ». Le numéro de version saisi à la main n'est plus affiché (il se périmait).
+- **Pages Tarifs et Télécharger** : le titre n'est plus répété deux fois de suite.
+- **Réseaux sociaux** : le bandeau « Connectez votre premier compte » ne cite plus que les réseaux ouverts aux clients.
+- **Ma configuration** : nouveau contrôle « Notifications sur les téléphones (Firebase) », qui signale une clé manquante.
+
 ## 0.99.67 — notifications YoMail sur le téléphone
 
 - **Nouvel e-mail reçu** : notification sur le téléphone avec l'expéditeur, l'objet et le début du message (« Réponse de … » quand c'est une réponse à un e-mail envoyé, 📎 s'il y a une pièce jointe). Plusieurs e-mails arrivés ensemble = un seul résumé. La toucher ouvre directement le message dans YoMail.

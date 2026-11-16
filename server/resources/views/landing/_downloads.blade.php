@@ -2,9 +2,11 @@
   <div class="wrap dl-grid">
     <div>
       <div class="sec-head" style="margin-bottom:30px">
+        @unless($noHead ?? false)
         <h2>Le même compte sur tous vos écrans.</h2>
         <p>Connectez-vous avec votre e-mail et votre mot de passe : vos données vous suivent du bureau au téléphone.</p>
-        @if($appsVersion)<p class="dl-ver">Version {{ $appsVersion }}</p>@endif
+        @endunless
+        {{-- pas de numéro de version : les stores tiennent les applications à jour d'eux-mêmes et un numéro saisi à la main se périme --}}
       </div>
       <ul class="dl-list">
         @foreach($platforms as $k => $label)

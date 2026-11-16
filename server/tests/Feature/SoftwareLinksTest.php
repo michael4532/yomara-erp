@@ -28,7 +28,10 @@ class SoftwareLinksTest extends TestCase
         $this->assertSame('1.0.0', $s['apps_version']);
         $this->flushHeaders();
 
-        $this->get('/telecharger')->assertOk()->assertSee('Google Play')->assertSee('/telecharger/android/fichier', false)->assertSee('Version 1.0.0')->assertSee('/telecharger/github', false);
+        $this->get('/telecharger')->assertOk()->assertSee('Google Play')->assertSee('/telecharger/android/fichier', false)->assertDontSee('Version 1.0.0')->assertSee('/telecharger/github', false)
+            ->assertSee('App Store')->assertSee('Mac App Store')->assertSee('Microsoft Store'); // fiches officielles quand rien n'est saisi
+        $this->get('/telecharger/ios')->assertRedirect(config('erp.store_links.ios'));
+        $this->get('/telecharger/mac')->assertRedirect(config('erp.store_links.mac_store'));
         $this->get('/telecharger/android')->assertRedirect($play);
         $this->get('/telecharger/android/fichier')->assertRedirect($apk);
         $this->get('/telecharger/github')->assertRedirect($repo);

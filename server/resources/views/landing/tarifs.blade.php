@@ -13,7 +13,7 @@
 </section>
 
 <div style="padding-top:70px"></div>
-@include('landing._plans')
+@include('landing._plans', ['noHead' => true])
 @include('landing._licence')
 
 <section class="sec" style="padding-top:20px" id="faq">

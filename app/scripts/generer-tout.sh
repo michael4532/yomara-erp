@@ -11,7 +11,7 @@
 #
 #   ./scripts/generer-tout.sh              → version de pubspec.yaml, confirmée
 #   ./scripts/generer-tout.sh 1.0.10+12    → autre version
-#   SANS="ios github" ./scripts/generer-tout.sh   → saute des étapes (android ios mac-pkg dmg github)
+#   SANS="nettoyage ios github" ./scripts/generer-tout.sh   → saute des étapes (android ios mac-pkg dmg github)
 #
 # Résultat : ../sorties/stores-<version>/ (un dossier par plateforme) + LISTE-DES-FICHIERS.txt.
 # Rien n'est envoyé aux stores : chaque fichier s'envoie ensuite depuis sa console.
@@ -46,6 +46,19 @@ DEBUT=$(date +%s)
 echo "Yomara ERP $V — toutes les applications dans :"
 echo "  $SORTIE"
 echo
+
+# ---------------------------------------------------------------- 1 bis. Nettoyage complet (à chaque lancée ; SANS="nettoyage" pour le sauter)
+if veut nettoyage; then
+  echo "== Nettoyage : flutter clean, caches de compilation Xcode et Gradle, dépendances rechargées"
+  flutter clean >/dev/null 2>&1 || true
+  rm -rf build .dart_tool ios/Pods ios/.symlinks ios/Flutter/ephemeral macos/Pods macos/Flutter/ephemeral \
+         android/.gradle android/app/.cxx windows/flutter/ephemeral linux/flutter/ephemeral 2>/dev/null || true
+  rm -rf "$HOME"/Library/Developer/Xcode/DerivedData/Runner-* 2>/dev/null || true
+  flutter pub get >/dev/null && echo "   Dépendances rechargées." || { echo "ÉCHEC de flutter pub get : vérifiez la connexion Internet." >&2; exit 1; }
+  ( cd ios && pod install --repo-update >/dev/null 2>&1 ) && echo "   Pods iPhone réinstallés." || echo "   (pod install iPhone : sera refait pendant la compilation)"
+  ( cd macos && pod install >/dev/null 2>&1 ) && echo "   Pods Mac réinstallés." || echo "   (pod install Mac : sera refait pendant la compilation)"
+  echo
+fi
 
 # ---------------------------------------------------------------- 2. GitHub (Windows, Linux, DMG) en arrière-plan
 GH_PID=""

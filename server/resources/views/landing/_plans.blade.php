@@ -1,10 +1,12 @@
 @if($plans->count())
 <section class="sec" id="tarifs">
   <div class="wrap">
+    @unless($noHead ?? false){{-- page Tarifs : le titre est déjà en haut de la page --}}
     <div class="sec-head rv">
       <h2>Tous vos employés inclus. Vous payez les modules.</h2>
       <p>Le nombre d'utilisateurs n'est jamais limité. Commencez gratuitement avec les fonctions de base ; chaque formule ajoute un ensemble de modules, moins cher que de les prendre un par un. Passez à une formule complète quand vous voulez : {{ $trialDays > 0 ? $trialDays.' jours d\'essai, ' : '' }}paiement par Mobile Money, carte ou virement.</p>
     </div>
+    @endunless
     <div class="billing rv" role="radiogroup" aria-label="Période de facturation">
       <button type="button" role="radio" aria-checked="true" data-b="m">Au mois</button>
       <button type="button" role="radio" aria-checked="false" data-b="y">À l'année @if($maxYearly > 0)<span>−{{ rtrim(rtrim(number_format($maxYearly, 1, ',', ''), '0'), ',') }} %</span>@endif</button>

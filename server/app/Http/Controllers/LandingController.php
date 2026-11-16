@@ -72,8 +72,10 @@ class LandingController extends Controller
     public static function stores(): array
     {
         $saved = self::saved();
+        $official = self::officialStoreLinks();
 
-        return array_map(fn ($key) => ($saved[$key] ?? '') !== '' ? $saved[$key] : null, self::STORE_KEYS);
+        // champ vide dans l'administration : la fiche officielle (App Store, Google Play, Microsoft Store)
+        return array_map(fn ($key) => ($saved[$key] ?? '') !== '' ? $saved[$key] : ($official[$key] ?? null), self::STORE_KEYS);
     }
 
     /** Lien principal par plateforme : la boutique quand elle existe (installation et mises à jour automatiques), sinon le fichier. */
