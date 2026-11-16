@@ -9,6 +9,7 @@ import '../../state/session.dart';
 import '../theme.dart';
 import '../widgets/add_to_report.dart';
 import '../widgets/common.dart';
+import '../widgets/pdf_viewer.dart';
 import '../widgets/how_it_works.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
@@ -178,6 +179,19 @@ class _ReportViewState extends State<ReportView> {
     }
   }
 
+  /// Aperçu du rapport tel qu'il sera envoyé (PDF), dans l'application : lecture, zoom, impression, enregistrement.
+  Future<void> _preview() async {
+    var id = _r!['id'];
+    if (_editable) id = (await _save(quiet: true))?['id'];
+    if (id == null || !mounted) return;
+    try {
+      final bytes = await _s.api.download('activite/reports/$id/file/pdf');
+      if (mounted) await showPdf(context, bytes, 'rapport-activite-${_r!['period_start']}.pdf');
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
   Future<void> _download(String format) async {
     var id = _r!['id'];
     if (_editable) id = (await _save(quiet: true))?['id'];
@@ -187,6 +201,8 @@ class _ReportViewState extends State<ReportView> {
       final name = 'rapport-activite-${_r!['period_start']}.${format == 'pdf' ? 'pdf' : 'doc'}';
       final where = await saveFile(name, bytes, mime: format == 'pdf' ? 'application/pdf' : 'application/msword');
       if (mounted) toast(context, tr('${format == 'pdf' ? 'PDF' : 'Document Word'} enregistré : $where'));
+    } on SaveCancelled {
+      return;
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }
@@ -349,6 +365,7 @@ class _ReportViewState extends State<ReportView> {
             label: Text(tr('Ajouter une activité')),
           ),
         ],
+        OutlinedButton.icon(onPressed: _preview, icon: const Icon(Icons.visibility_outlined, size: 18), label: Text(tr('Aperçu'))),
         OutlinedButton.icon(onPressed: () => _download('pdf'), icon: const Icon(Icons.picture_as_pdf_outlined, size: 18), label: Text(tr('PDF'))),
         OutlinedButton.icon(onPressed: () => _download('word'), icon: const Icon(Icons.description_outlined, size: 18), label: Text(tr('Word'))),
         if (_editable) FilledButton.icon(onPressed: _busy ? null : _send, icon: const Icon(Icons.send, size: 18), label: Text(tr('Envoyer à mon supérieur'))),

@@ -3,6 +3,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../files/save_file.dart';
 import 'package:flutter/services.dart';
 
 import '../core/deep_links.dart' show DeepLinks;
@@ -1775,6 +1777,7 @@ class _TopBar extends StatelessWidget {
               if (v == 'guide') return showOnboardingGuide(context, markSeen: false);
               if (v == 'lang') return chooseLanguage(context);
               if (v == 'appearance') return chooseAppearance(context);
+              if (v == 'saving') return chooseSaveLocation(context);
               if (v == 'about') return showYomaraAbout(context);
               if (v == 'delete_account') return showDeleteAccountDialog(context);
               if (v == 'logout') return confirmLogout(context);
@@ -1793,6 +1796,7 @@ class _TopBar extends StatelessWidget {
               _accountItem('shortcuts', Icons.keyboard_command_key, 'Recherche rapide', 'Ctrl K pour aller partout', const Color(0xFF00897B)),
               _accountItem('guide', Icons.school_outlined, 'Guide de démarrage', 'Revoir la présentation des espaces', const Color(0xFFD97706)),
               _accountItem('lang', Icons.translate, 'Langue', I18n.languages[I18n.lang], const Color(0xFF0891B2)),
+              if (!kIsWeb) _accountItem('saving', Icons.folder_open_outlined, 'Enregistrement des fichiers', SavePrefs.label, const Color(0xFF0F766E)),
               _accountItem('appearance', dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined, 'Apparence',
                   switch (ThemePrefs.name) { 'dark' => 'Sombre', 'system' => 'Selon l\'appareil', _ => 'Clair' }, const Color(0xFF4F46E5)),
               if (!dark)
@@ -2168,6 +2172,16 @@ Future<void> _accountSheet(BuildContext context) => showAdaptiveSheet<void>(
           subtitle: Text('${s.user['email'] ?? ''}'),
         ),
         const Divider(height: 1),
+        if (!kIsWeb)
+          ListTile(
+            leading: const Icon(Icons.folder_open_outlined),
+            title: Text(tr('Enregistrement des fichiers')),
+            subtitle: Text(tr(SavePrefs.label)),
+            onTap: () {
+              Navigator.pop(c);
+              chooseSaveLocation(context);
+            },
+          ),
         ListTile(
           leading: const Icon(Icons.contrast_rounded),
           title: Text(tr('Apparence')),
@@ -2251,6 +2265,43 @@ Future<void> confirmLogout(BuildContext context) async {
     ),
   );
   if (ok == true) await session.logout(wipe: wipe);
+}
+
+/// Où enregistrer les fichiers téléchargés sur cet appareil : Téléchargements, un autre dossier, ou demander à chaque fois.
+Future<void> chooseSaveLocation(BuildContext context) async {
+  final v = await showDialog<String>(
+    context: context,
+    builder: (c) => SimpleDialog(
+      title: Text(tr('Enregistrement des fichiers')),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          child: Text(tr('PDF, Word, Excel et pièces jointes téléchargés depuis l\'application.'), style: TextStyle(fontSize: 13, color: Theme.of(c).hintColor)),
+        ),
+        for (final (k, label, hint, icon) in [
+          ('default', 'Dossier Téléchargements', 'Par défaut', Icons.download_outlined),
+          if (canPickSaveFolder) ('folder', 'Un autre dossier…', SavePrefs.mode == 'folder' ? (SavePrefs.folder ?? '') : 'Choisi une fois pour toutes', Icons.folder_outlined),
+          ('ask', 'Demander à chaque fois', 'Fenêtre « Enregistrer sous » : dossier et nom au choix', Icons.drive_file_move_outline),
+        ])
+          ListTile(
+            leading: Icon(icon),
+            title: Text(tr(label)),
+            subtitle: Text(tr(hint), maxLines: 2, overflow: TextOverflow.ellipsis),
+            trailing: SavePrefs.mode == k ? const Icon(Icons.check_rounded, color: YColors.blue) : null,
+            onTap: () => Navigator.pop(c, k),
+          ),
+      ],
+    ),
+  );
+  if (v == null) return;
+  if (v == 'folder') {
+    final dir = await pickSaveFolder();
+    if (dir == null) return;
+    await SavePrefs.set('folder', folder: dir);
+  } else {
+    await SavePrefs.set(v);
+  }
+  if (context.mounted) toast(context, tr('Fichiers enregistrés : ${SavePrefs.label}'));
 }
 
 /// Apparence de l'application sur cet appareil : clair, sombre ou selon le réglage du système.

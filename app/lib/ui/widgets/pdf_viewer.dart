@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:printing/printing.dart';
@@ -155,9 +156,15 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     ));
   }
 
-  Future<void> _download() async {
-    final where = await saveFile(_name, _bytes, mime: 'application/pdf');
-    if (mounted) toast(context, tr('Enregistré${where.isEmpty ? '' : ' : $where'}'));
+  Future<void> _download({bool ask = false}) async {
+    try {
+      final where = await saveFile(_name, _bytes, mime: 'application/pdf', ask: ask);
+      if (mounted) toast(context, tr('Enregistré${where.isEmpty ? '' : ' : $where'}'));
+    } on SaveCancelled {
+      return;
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
   }
 
   @override
@@ -173,6 +180,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       if (usePdf && !locked) (Icons.auto_fix_high_outlined, 'Autres outils', _busy ? null : _tools),
       (Icons.print_outlined, 'Imprimer', () => Printing.layoutPdf(name: _name, onLayout: (_) async => _bytes)),
       (Icons.download_outlined, 'Télécharger', _download),
+      if (!kIsWeb) (Icons.drive_file_move_outline, 'Enregistrer sous…', () => _download(ask: true)),
     ];
     return PopScope(
       canPop: !_changed || widget.onSave != null,

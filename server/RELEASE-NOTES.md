@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.72 — aperçu des rapports et emplacement des fichiers
+
+- **Rapports d'activité** : nouveau bouton « Aperçu » qui affiche le rapport tel qu'il sera envoyé (PDF), directement dans l'application, avec zoom, impression et enregistrement.
+- **Enregistrement des fichiers** (menu du compte, en haut à droite) : chacun choisit où vont les PDF, Word, Excel et pièces jointes téléchargés : dossier Téléchargements (par défaut), un autre dossier choisi une fois pour toutes (Windows, Linux) ou « Demander à chaque fois » (fenêtre « Enregistrer sous »).
+- **Lecteur PDF** : bouton « Enregistrer sous… » pour choisir l'emplacement et le nom d'un fichier ponctuellement.
+
 ## 0.99.71 — suivi des campagnes en direct
 
 - **Marketing › Campagne** : les compteurs (envoyés, échecs, ouvertures, clics, désinscriptions) se mettent à jour tout seuls, toutes les 5 secondes pendant l'envoi puis toutes les 30 secondes. Plus besoin de fermer et rouvrir la campagne.
