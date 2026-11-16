@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -268,10 +270,18 @@ class _CampaignScreenState extends State<CampaignScreen> {
 
   ApiClient get _api => context.read<Session>().api;
 
+  Timer? _poll;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -281,6 +291,17 @@ class _CampaignScreenState extends State<CampaignScreen> {
     } catch (e) {
       if (mounted) setState(() => _error = e);
     }
+    _schedulePoll();
+  }
+
+  /// Suivi en direct : toutes les 5 s pendant l'envoi, toutes les 30 s ensuite (ouvertures, clics, désinscriptions).
+  void _schedulePoll() {
+    _poll?.cancel();
+    final st = _c?['status'];
+    if (!mounted || (st != 'sending' && st != 'sent')) return;
+    _poll = Timer(Duration(seconds: st == 'sending' ? 5 : 30), () {
+      if (mounted) _load();
+    });
   }
 
   bool get _editable => _c != null && ['draft', 'scheduled'].contains(_c!['status']);

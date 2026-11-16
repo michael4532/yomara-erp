@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.71 — suivi des campagnes en direct
+
+- **Marketing › Campagne** : les compteurs (envoyés, échecs, ouvertures, clics, désinscriptions) se mettent à jour tout seuls, toutes les 5 secondes pendant l'envoi puis toutes les 30 secondes. Plus besoin de fermer et rouvrir la campagne.
+
 ## 0.99.70 — YoMail : conversations dépliables (comme Outlook)
 
 - **Flèche à gauche d'une conversation** : un clic la déplie et affiche chacun de ses messages, du plus récent au plus ancien, réponses envoyées comprises (marquées « Envoyés »). Un clic sur un message l'ouvre.
