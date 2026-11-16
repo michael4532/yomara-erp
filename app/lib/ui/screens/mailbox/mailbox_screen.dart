@@ -62,6 +62,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
   String? _olderCursor;
   bool _olderDone = false;
   final Set<int> _selected = {};
+  /// Conversations dépliées dans la liste (comme Outlook) : clé boîte|conversation
+  final Set<String> _expanded = {};
   MailTheme _theme = MailTheme.current;
   double _wFolders = (LocalDb.meta.get('mb_w_folders') as num?)?.toDouble() ?? 250;
   double _wList = (LocalDb.meta.get('mb_w_list') as num?)?.toDouble() ?? 400;
@@ -1372,7 +1374,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                             style: TextStyle(color: p.ink.withValues(alpha: .75), fontWeight: FontWeight.w600, fontSize: 13.5),
                           ),
                         ),
-                        for (final (i, m) in g.value.indexed) ...[if (i > 0) Divider(height: 1, indent: 64, endIndent: 10, color: p.line), compact ? _swipeRow(m) : _row(m)],
+                        for (final (i, m) in g.value.indexed) ...[if (i > 0) Divider(height: 1, indent: 64, endIndent: 10, color: p.line), compact ? _swipeRow(m) : _row(m), if (_expanded.contains(_convKey(m))) ..._convChildren(m)],
                       ],
                       if (!_olderDone)
                         Padding(
@@ -1600,6 +1602,19 @@ class _MailboxScreenState extends State<MailboxScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (n > 1 && !_selecting)
+                  SizedBox(
+                    width: 24,
+                    height: 38,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 20,
+                      tooltip: tr(_expanded.contains(_convKey(m)) ? 'Replier la conversation' : 'Afficher les messages de la conversation'),
+                      onPressed: () => setState(() => _expanded.contains(_convKey(m)) ? _expanded.remove(_convKey(m)) : _expanded.add(_convKey(m))),
+                      icon: Icon(_expanded.contains(_convKey(m)) ? Icons.expand_more_rounded : Icons.chevron_right_rounded, color: unread ? p.accent : p.muted),
+                    ),
+                  )
+                else
                 SizedBox(
                   width: 16,
                   height: 38,
@@ -1827,49 +1842,65 @@ class _MailboxScreenState extends State<MailboxScreen> {
     }
   }
 
-  Widget _convStrip(Map<String, dynamic> m) {
+  String _convKey(Map<String, dynamic> m) => '${m['account_id']}|${m['thread_key'] ?? 'id:${m['id']}'}';
+
+  /// Messages d'une conversation dépliée (du plus récent au plus ancien, comme Outlook), avec le dossier
+  /// quand il diffère de la vue (« Envoyés » pour vos réponses).
+  List<Widget> _convChildren(Map<String, dynamic> head) {
     final p = _p;
-    final conv = _conv(m);
-    return Container(
-      decoration: BoxDecoration(border: Border.all(color: p.line), borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 9, 12, 4),
-            child: Text(tr('Conversation · ${conv.length} messages'), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: p.muted)),
-          ),
-          for (final x in conv)
-            Builder(builder: (_) {
-              final mine = _s.folder(x['folder_id'])?['role'] == 'sent';
-              final current = x['id'] == m['id'];
-              final name = mine ? tr('Vous') : '${(x['from_name'] ?? '').toString().isNotEmpty ? x['from_name'] : x['from_email'] ?? ''}';
-              return InkWell(
-                onTap: current ? null : () => _openMessage({...x, '_ids': m['_ids']}),
-                child: Container(
-                  color: current ? p.selected : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  child: Row(
+    final viewRole = _view.role ?? _s.folder(_view.folderId)?['role'];
+    return [
+      for (final x in _conv(head).reversed)
+        Builder(builder: (_) {
+          final f = _s.folder(x['folder_id']);
+          final mine = f?['role'] == 'sent';
+          final unread = x['seen'] != true;
+          final name = '${(x['from_name'] ?? '').toString().isNotEmpty ? x['from_name'] : x['from_email'] ?? ''}';
+          final sel = _openId == x['id'];
+          return Padding(
+            padding: const EdgeInsets.only(left: 62, bottom: 2),
+            child: Material(
+              color: sel ? p.selected : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => _openMessage({...x, '_ids': head['_ids']}),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(mine ? Icons.reply_rounded : Icons.mail_outline_rounded, size: 16, color: mine ? p.accent : p.muted),
-                      const SizedBox(width: 8),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 160),
-                        child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: current ? FontWeight.w700 : FontWeight.w600, color: p.ink)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13.5, fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: p.ink)),
+                          ),
+                          if (x['has_attachments'] == true) Icon(Icons.attach_file, size: 14, color: p.muted),
+                          if (x['answered'] == true) Icon(Icons.reply, size: 14, color: p.muted),
+                          const SizedBox(width: 4),
+                          Text(tr(_shortDate('${x['date']}')), style: TextStyle(fontSize: 12, color: unread ? p.accent : p.muted)),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('${x['snippet'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.muted))),
-                      const SizedBox(width: 8),
-                      Text(tr(_shortDate('${x['date']}')), style: TextStyle(fontSize: 12, color: p.muted)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(child: Text('${x['snippet'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: p.muted))),
+                          if (f != null && (mine || f['role'] != viewRole)) ...[
+                            const SizedBox(width: 6),
+                            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 130), child: _badge(tr('${f['name']}'), p.muted, outline: true)),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              );
-            }),
-          const SizedBox(height: 4),
-        ],
-      ),
-    );
+              ),
+            ),
+          );
+        }),
+      Divider(height: 1, indent: 64, endIndent: 10, color: p.line),
+    ];
   }
 
   Widget _reader({bool back = false}) {
@@ -2037,8 +2068,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
                               if (m['has_attachments'] == true) chip('Pièces jointes', p.muted, icon: Icons.attach_file),
                             ],
                           ),
-                          // Conversation : les autres messages (reçus et réponses envoyées), dans l'ordre, un clic pour les lire
-                          if (_conv(m).length > 1) ...[const SizedBox(height: 12), _convStrip(m)],
                           const SizedBox(height: 14),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.70 — YoMail : conversations dépliables (comme Outlook)
+
+- **Flèche à gauche d'une conversation** : un clic la déplie et affiche chacun de ses messages, du plus récent au plus ancien, réponses envoyées comprises (marquées « Envoyés »). Un clic sur un message l'ouvre.
+- L'encadré « Conversation » au-dessus du message ouvert est retiré.
+
 ## 0.99.69 — YoMail : conversations
 
 - **Une ligne par conversation** dans la boîte de réception et les dossiers, comme Gmail : quand vous répondez, la conversation remonte en haut de la liste à l'heure de votre réponse, avec « moi » et le nombre de messages (ex. « Dieudonné, moi (2) ») et l'extrait de votre réponse (« Vous : … »).
