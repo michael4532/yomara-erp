@@ -25,13 +25,31 @@ SANS=" ${SANS:-} "
 veut() { [[ "$SANS" != *" $1 "* ]]; }
 
 # ---------------------------------------------------------------- 1. Version
+# Chaque lancée prend automatiquement le numéro suivant (1.0.12+19 → 1.0.13+20…), sans rien demander :
+# un numéro déjà envoyé à Shorebird ou aux stores ne peut pas être réutilisé.
+# Le dernier numéro lancé est gardé dans scripts/derniere-version.txt ; pubspec.yaml l'emporte s'il est plus grand.
 ACTUELLE="$(grep -E '^version:' pubspec.yaml | awk '{print $2}')"
+DERNIERE="$(cat scripts/derniere-version.txt 2>/dev/null || cat scripts/version-bureau.txt 2>/dev/null || echo "")"
+plus_grande() { # compare deux versions x.y.z+n : vrai si $1 > $2
+  [ -z "$2" ] && return 0
+  local a b; a="$(echo "$1" | tr '.+' '  ')"; b="$(echo "$2" | tr '.+' '  ')"
+  set -- $a $b
+  for i in 1 2 3 4; do
+    eval "x=\${$i}; y=\${$((i+4))}"
+    [ "${x:-0}" -gt "${y:-0}" ] && return 0
+    [ "${x:-0}" -lt "${y:-0}" ] && return 1
+  done
+  return 1
+}
+suivante() { local nom="${1%%+*}" build="${1##*+}"; echo "${nom%.*}.$(( ${nom##*.} + 1 ))+$(( build + 1 ))"; }
 V="${1:-}"
 if [ -z "$V" ]; then
-  read -r -p "Version à générer [$ACTUELLE] (Entrée pour accepter) : " V
-  V="${V:-$ACTUELLE}"
+  if plus_grande "$ACTUELLE" "$DERNIERE"; then V="$ACTUELLE"; else V="$(suivante "$DERNIERE")"; fi
+  echo "Version générée : $V (précédente lancée : ${DERNIERE:-aucune})"
 fi
 [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]] || { echo "Version invalide : $V (forme attendue 1.0.9+11)." >&2; exit 1; }
+# Numéro réservé dès maintenant : même si cette lancée échoue, la suivante prendra le numéro d'après
+echo "$V" > scripts/derniere-version.txt
 NOM="${V%%+*}"
 sed -i '' -E "s/^version: .*/version: $V/" pubspec.yaml
 sed -i '' -E "s/^([[:space:]]*msix_version:).*/\1 $NOM.0/" pubspec.yaml
@@ -75,7 +93,8 @@ if veut github; then
     [ "$EN_LIGNE" = "$V" ] || echo "Note : GitHub compile la version « ${EN_LIGNE:-inconnue} » publiée sur le dépôt (demandée : $V)."
     (
       # a) Avec les mises à jour à distance et la même version : construction Shorebird (correctifs possibles ensuite)
-      if sb_actif && [ "$EN_LIGNE" = "$V" ]; then
+      # (la version est transmise au workflow : le pubspec publié sur GitHub peut être plus ancien)
+      if sb_actif; then
         echo "Construction Shorebird (Windows, Mac, Linux)…"
         if TOUT=1 PLATEFORMES="windows,macos,linux" ./scripts/shorebird-github.sh version "$V" "$SORTIE"; then
           echo "$V" > "$ROOT/scripts/version-bureau.txt"; echo oui > "$ROOT/scripts/icones-bureau.txt"
