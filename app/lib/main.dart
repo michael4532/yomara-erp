@@ -22,6 +22,17 @@ import 'ui/widgets/popup_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Écran qui ne s'affiche pas : au lieu d'une zone grise muette, le message d'erreur (à envoyer au support)
+  ErrorWidget.builder = (details) => Material(
+        color: const Color(0xFFFFF4F2),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: SelectableText(
+            'Cet écran n\'a pas pu s\'afficher. Faites une capture et envoyez-la au support.\n\n${details.exceptionAsString()}\n\n${(details.stack?.toString() ?? '').split('\n').take(12).join('\n')}',
+            style: const TextStyle(color: Color(0xFFB3261E), fontSize: 13),
+          ),
+        ),
+      );
   await initializeDateFormatting('fr');
   await SecureStore.init(); // coffre du système : jeton et clé de chiffrement des données locales
   try {
