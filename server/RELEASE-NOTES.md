@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.81 — numéros des bornes toujours en chiffres
+
+- **Borne** : un numéro de ticket n'est jamais redonné par la même borne (même après une remise à zéro ou une suppression).
+- **Serveur** : si un numéro de borne est déjà pris, le billet reçoit le suivant libre de la même borne (01-0002…), toujours en chiffres, au lieu d'un code en lettres impossible à taper sur le pavé.
+
 ## 0.99.80 — numéros des bornes après les tests
 
 - **Supprimer les inscriptions de test** efface maintenant définitivement les essais : les bornes qui repartent à 01-0001 retrouvent leurs numéros courts (au lieu d'un code du type WWZG-6FY3).

@@ -61,6 +61,10 @@ class KioskWelcomeBackTest extends TestCase
         $again = $push('ev_ticket_orders', ['event_id' => $ev, 'buyer_name' => 'Visiteur', 'buyer_phone' => '0505050505', 'items' => [['type_id' => $type['id'], 'quantity' => 1]], 'status' => 'paid', 'payment_method' => 'free', 'kiosk' => 'Borne 1',
             'tickets' => [['id' => $this->uuid(), 'type_id' => $type['id'], 'code' => '010001', 'token' => str_repeat('d', 32)]]]);
         $this->assertSame('010001', \App\Modules\Billetterie\Models\Ticket::where('order_id', $again['id'])->value('code'));
+        // numéro déjà pris (borne remise à zéro) : le serveur donne le suivant de la même borne, en chiffres
+        $dup = $push('ev_ticket_orders', ['event_id' => $ev, 'buyer_name' => 'Autre', 'buyer_phone' => '0101010101', 'items' => [['type_id' => $type['id'], 'quantity' => 1]], 'status' => 'paid', 'payment_method' => 'free', 'kiosk' => 'Borne 1',
+            'tickets' => [['id' => $this->uuid(), 'type_id' => $type['id'], 'code' => '010001', 'token' => str_repeat('e', 32)]]]);
+        $this->assertSame('010002', \App\Modules\Billetterie\Models\Ticket::where('order_id', $dup['id'])->value('code'));
         // une fois l'événement commencé : refusé
         Carbon::setTestNow('2026-11-20 09:00:00');
         $api()->postJson("/api/billetterie/events/{$ev}/clear-tests")->assertStatus(422);

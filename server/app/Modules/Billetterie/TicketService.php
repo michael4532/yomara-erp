@@ -176,8 +176,12 @@ class TicketService
                     // Numéro déjà pris (deux bornes réglées sur le même numéro, hors ligne) : l'inscription n'est pas perdue,
                     // le billet reçoit un autre code ; le visiteur reste retrouvé par son téléphone ou son QR code.
                     if (! empty($pre['code']) && Ticket::withoutGlobalScopes()->where('company_id', $o->company_id)->where('code', strtoupper(trim($pre['code'])))->where('id', '!=', $id)->exists()) {
-                        $pre['code'] = null;
-                        $pre['token'] = null;
+                        // Numéro de borne (« 010001 ») : le suivant libre de la même borne, toujours en chiffres
+                        // (le pavé de la borne ne tape que des chiffres) ; autre code : un code généré
+                        $pre['code'] = preg_match('/^(\d{2})\d{4,}$/', trim($pre['code']), $mm) ? self::nextKioskCode($o->company_id, $mm[1]) : null;
+                        if (Ticket::withoutGlobalScopes()->where('token', $pre['token'] ?? '')->exists()) {
+                            $pre['token'] = null;
+                        }
                     }
                     $res = app(EntityWriter::class)->upsert(Ticket::class, $id, array_filter([
                         'event_id' => $o->event_id, 'type_id' => $it['type_id'], 'holder_name' => ($pre['holder_name'] ?? null) ?: $o->buyer_name,
@@ -247,6 +251,19 @@ class TicketService
     }
 
     /** QR code en PNG pour les e-mails (les messageries n'affichent pas les images SVG). Null si GD est absent. */
+    /** Prochain numéro libre d'une borne (préfixe « 01 ») : billets supprimés compris, pour ne jamais redonner un numéro. */
+    public static function nextKioskCode(string $companyId, string $prefix): string
+    {
+        $max = 0;
+        foreach (Ticket::withoutGlobalScopes()->where('company_id', $companyId)->where('code', 'like', $prefix.'%')->pluck('code') as $c) {
+            if (preg_match('/^'.$prefix.'(\d{4,})$/', $c, $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+
+        return $prefix.str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
+    }
+
     public static function qrPng(string $data, int $size = 8): ?string
     {
         $png = (new \TCPDF2DBarcode($data, 'QRCODE,M'))->getBarcodePngData($size, $size, [11, 27, 58]);

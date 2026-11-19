@@ -47,7 +47,12 @@ String kioskNextCode(int kk) {
       if (m != null) max = math.max(max, int.parse(m.group(1)!));
     }
   }
-  return '$prefix${(max + 1).toString().padLeft(4, '0')}';
+  // Dernier numéro émis par cette borne, gardé sur l'appareil : jamais réutilisé, même si le billet a été remplacé
+  // ou supprimé entre-temps (sinon la borne redonnerait 01-0001 et le serveur devrait changer le numéro)
+  max = math.max(max, (LocalDb.meta.get('kiosk_seq_$prefix') as int?) ?? 0);
+  final next = max + 1;
+  LocalDb.meta.put('kiosk_seq_$prefix', next);
+  return '$prefix${next.toString().padLeft(4, '0')}';
 }
 
 /// Autre borne ayant déjà émis des tickets avec ce numéro (réglage à corriger).
