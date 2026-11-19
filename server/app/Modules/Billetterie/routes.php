@@ -22,4 +22,5 @@ Route::middleware('perm:billetterie.manage,evenements.manage')->group(function (
 Route::middleware('perm:billetterie.manage')->group(function () {
     Route::post('bookings/{id}/badges', [BilletterieController::class, 'badges'])->whereUuid('id');
     Route::post('events/{id}/feedback-request', [BilletterieController::class, 'requestFeedback'])->whereUuid('id');
+    Route::post('events/{id}/clear-tests', [BilletterieController::class, 'clearTests'])->whereUuid('id');
 });

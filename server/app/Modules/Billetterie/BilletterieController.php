@@ -119,6 +119,31 @@ class BilletterieController extends Controller
         return response()->download($path, 'frequentation-'.Str::slug($e->name).'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend();
     }
 
+    /**
+     * Avant l'ouverture : supprime les inscriptions, billets visiteurs et entrées faits pour tester les bornes.
+     * Les badges exposants et organisation restent. Refusé une fois l'événement commencé.
+     */
+    public function clearTests(string $id)
+    {
+        $e = Event::findOrFail($id);
+        if ($e->start_date && $e->start_date->startOfDay()->lte(now())) {
+            return response()->json(['message' => 'L\'événement a commencé : les inscriptions ne peuvent plus être supprimées.'], 422);
+        }
+        $orders = TicketOrder::where('event_id', $e->id)->get();
+        $tickets = Ticket::where('event_id', $e->id)->whereIn('order_id', $orders->pluck('id'))->get();
+        $n = ['orders' => $orders->count(), 'tickets' => $tickets->count(), 'checkins' => 0];
+        \Illuminate\Support\Facades\DB::transaction(function () use ($e, $orders, $tickets, &$n) {
+            foreach (\App\Modules\Billetterie\Models\Checkin::where('event_id', $e->id)->whereIn('ticket_id', $tickets->pluck('id'))->get() as $c) {
+                $c->delete();
+                $n['checkins']++;
+            }
+            $tickets->each->delete();
+            $orders->each->delete();
+        });
+
+        return ['data' => $n];
+    }
+
     /** Envoyer maintenant la demande d'avis aux participants. */
     public function requestFeedback(string $id)
     {

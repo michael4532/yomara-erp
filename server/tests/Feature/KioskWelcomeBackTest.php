@@ -34,6 +34,34 @@ class KioskWelcomeBackTest extends TestCase
         return collect($this->mails->messages()->values())->map->getOriginalMessage()->filter(fn ($m) => $m->getTo()[0]->getAddress() === $email)->values()->all();
     }
 
+    public function test_clear_test_registrations_before_opening(): void
+    {
+        Carbon::setTestNow('2026-11-19 10:00:00');
+        [, , $token] = $this->makeCompany('Salon Test');
+        $api = fn () => $this->api($token);
+        $api()->getJson('/api/sync/pull?cursor=0')->assertOk();
+        $push = function (string $entity, array $data, ?string $id = null) use ($api) {
+            $r = $api()->postJson('/api/sync/push', ['mutations' => [['id' => $this->uuid(), 'entity' => $entity, 'op' => 'upsert', 'record_id' => $id ?? $this->uuid(), 'data' => $data]]])->assertOk()->json('results.0');
+            $this->assertSame('applied', $r['status'], json_encode($r));
+
+            return $r['record'];
+        };
+        $ev = $this->uuid();
+        $push('ev_events', ['name' => 'SELAB', 'start_date' => '2026-11-20', 'end_date' => '2026-11-22', 'status' => 'open'], $ev);
+        $type = $push('ev_ticket_types', ['event_id' => $ev, 'name' => 'Visiteur', 'price' => 0]);
+        $push('ev_ticket_orders', ['event_id' => $ev, 'buyer_name' => 'Test 1', 'buyer_phone' => '0707070707', 'items' => [['type_id' => $type['id'], 'quantity' => 1]], 'status' => 'paid', 'payment_method' => 'free', 'kiosk' => 'Borne 1',
+            'tickets' => [['id' => $this->uuid(), 'type_id' => $type['id'], 'code' => '010001', 'token' => str_repeat('c', 32)]]]);
+        $push('ev_checkins', ['event_id' => $ev, 'code' => '010001', 'scanned_at' => '2026-11-19T10:00:00+00:00', 'gate' => 'Borne 1']);
+        $r = $api()->postJson("/api/billetterie/events/{$ev}/clear-tests")->assertOk()->json('data');
+        $this->assertSame(1, $r['orders']);
+        $this->assertSame(1, $r['tickets']);
+        $this->assertSame(1, $r['checkins']);
+        $this->assertSame(0, $api()->getJson("/api/billetterie/events/{$ev}/attendance")->json('data.totals.registrations'));
+        // une fois l'événement commencé : refusé
+        Carbon::setTestNow('2026-11-20 09:00:00');
+        $api()->postJson("/api/billetterie/events/{$ev}/clear-tests")->assertStatus(422);
+    }
+
     public function test_ticket_by_email_then_welcome_email_each_new_day(): void
     {
         Carbon::setTestNow('2026-12-01 08:00:00');

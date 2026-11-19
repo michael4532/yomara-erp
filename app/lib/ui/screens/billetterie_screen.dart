@@ -131,6 +131,30 @@ class _TicketingTabState extends State<TicketingTab> {
               if (kioskAllowed(session)) FilledButton.tonalIcon(onPressed: () => startKiosk(context, e), icon: const Icon(Icons.tablet_android), label: Text(tr('Mode borne d\'accueil'))),
               if (tkCanManage(session)) OutlinedButton.icon(onPressed: () => issueBadges(context, e), icon: const Icon(Icons.badge_outlined), label: Text(tr('Badges / invitations'))),
               if (tkCanManage(session)) OutlinedButton.icon(onPressed: () => editTicketType(context, e), icon: const Icon(Icons.add), label: Text(tr('Tarif'))),
+              // Avant l'ouverture : effacer les inscriptions faites pour tester les bornes
+              if (tkCanManage(session) && tickets.isNotEmpty && '${e['start_date'] ?? ''}'.compareTo(DateTime.now().toIso8601String().substring(0, 10)) > 0)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(foregroundColor: YColors.danger),
+                  onPressed: () async {
+                    final n = tickets.where((t) => t['order_id'] != null).length;
+                    if (!await confirm(context, tr('Supprimer les inscriptions de test ?'),
+                        tr('$n billet(s) et leurs inscriptions, entrées et statistiques seront supprimés sur le serveur et sur toutes les bornes. Possible seulement avant le début de l\'événement. Les badges exposants ne sont pas touchés.'),
+                        ok: tr('Supprimer'), danger: true)) {
+                      return;
+                    }
+                    if (!context.mounted) return;
+                    final sync = context.read<SyncEngine>();
+                    try {
+                      final r = asMap((await session.api.post('billetterie/events/${e['id']}/clear-tests', {}))['data']);
+                      await sync.syncNow();
+                      if (context.mounted) toast(context, tr('${r['orders']} inscription(s) de test supprimée(s).'));
+                    } catch (err) {
+                      if (context.mounted) toast(context, errorText(err), error: true);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: Text(tr('Supprimer les inscriptions de test')),
+                ),
               if (e['ticketing_url'] != null && e['ticketing_enabled'] == true)
                 OutlinedButton.icon(
                   onPressed: () => showDialog(

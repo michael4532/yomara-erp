@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.79 — effacer les tests avant l'ouverture
+
+- **Billetterie › « Supprimer les inscriptions de test »** : avant le premier jour de l'événement, efface les inscriptions, billets visiteurs et entrées faits pour essayer les bornes, sur le serveur et sur toutes les bornes. Les badges exposants restent. Le bouton disparaît le jour de l'ouverture.
+
 ## 0.99.78 — borne plus simple pour les agents
 
 - **Visiteur qui revient (téléphone)** : petite fenêtre caméra en haut, à côté du titre ; il tape son numéro ou montre simplement son QR code.
