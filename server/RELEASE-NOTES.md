@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.80 — numéros des bornes après les tests
+
+- **Supprimer les inscriptions de test** efface maintenant définitivement les essais : les bornes qui repartent à 01-0001 retrouvent leurs numéros courts (au lieu d'un code du type WWZG-6FY3).
+
 ## 0.99.79 — effacer les tests avant l'ouverture
 
 - **Billetterie › « Supprimer les inscriptions de test »** : avant le premier jour de l'événement, efface les inscriptions, billets visiteurs et entrées faits pour essayer les bornes, sur le serveur et sur toutes les bornes. Les badges exposants restent. Le bouton disparaît le jour de l'ouverture.

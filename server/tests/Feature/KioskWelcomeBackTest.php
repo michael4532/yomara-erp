@@ -57,6 +57,10 @@ class KioskWelcomeBackTest extends TestCase
         $this->assertSame(1, $r['tickets']);
         $this->assertSame(1, $r['checkins']);
         $this->assertSame(0, $api()->getJson("/api/billetterie/events/{$ev}/attendance")->json('data.totals.registrations'));
+        // la borne repart à 01-0001 : le numéro est de nouveau libre
+        $again = $push('ev_ticket_orders', ['event_id' => $ev, 'buyer_name' => 'Visiteur', 'buyer_phone' => '0505050505', 'items' => [['type_id' => $type['id'], 'quantity' => 1]], 'status' => 'paid', 'payment_method' => 'free', 'kiosk' => 'Borne 1',
+            'tickets' => [['id' => $this->uuid(), 'type_id' => $type['id'], 'code' => '010001', 'token' => str_repeat('d', 32)]]]);
+        $this->assertSame('010001', \App\Modules\Billetterie\Models\Ticket::where('order_id', $again['id'])->value('code'));
         // une fois l'événement commencé : refusé
         Carbon::setTestNow('2026-11-20 09:00:00');
         $api()->postJson("/api/billetterie/events/{$ev}/clear-tests")->assertStatus(422);

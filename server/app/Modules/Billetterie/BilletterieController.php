@@ -129,16 +129,18 @@ class BilletterieController extends Controller
         if ($e->start_date && $e->start_date->startOfDay()->lte(now())) {
             return response()->json(['message' => 'L\'événement a commencé : les inscriptions ne peuvent plus être supprimées.'], 422);
         }
-        $orders = TicketOrder::where('event_id', $e->id)->get();
-        $tickets = Ticket::where('event_id', $e->id)->whereIn('order_id', $orders->pluck('id'))->get();
-        $n = ['orders' => $orders->count(), 'tickets' => $tickets->count(), 'checkins' => 0];
+        // Suppression définitive (y compris les essais déjà supprimés) : les bornes repartent à 01-0001 et ces numéros
+        // doivent redevenir libres (un billet supprimé « en douce » garderait son numéro réservé).
+        $orders = TicketOrder::withTrashed()->where('event_id', $e->id)->get();
+        $tickets = Ticket::withTrashed()->where('event_id', $e->id)->whereIn('order_id', $orders->pluck('id'))->get();
+        $n = ['orders' => $orders->whereNull('deleted_at')->count(), 'tickets' => $tickets->whereNull('deleted_at')->count(), 'checkins' => 0];
         \Illuminate\Support\Facades\DB::transaction(function () use ($e, $orders, $tickets, &$n) {
-            foreach (\App\Modules\Billetterie\Models\Checkin::where('event_id', $e->id)->whereIn('ticket_id', $tickets->pluck('id'))->get() as $c) {
-                $c->delete();
-                $n['checkins']++;
+            foreach (\App\Modules\Billetterie\Models\Checkin::withTrashed()->where('event_id', $e->id)->whereIn('ticket_id', $tickets->pluck('id'))->get() as $c) {
+                $n['checkins'] += $c->trashed() ? 0 : 1;
+                $c->forceDelete();
             }
-            $tickets->each->delete();
-            $orders->each->delete();
+            $tickets->each->forceDelete();
+            $orders->each->forceDelete();
         });
 
         return ['data' => $n];
