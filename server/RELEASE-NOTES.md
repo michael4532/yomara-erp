@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.76 — comptes limités à la billetterie
+
+- **Compte « borne » ou « contrôle »** limité au module Billetterie : l'écran Billetterie restait gris, faute des événements sur l'appareil. Les données des modules dont dépend la billetterie sont maintenant envoyées sans ouvrir ces modules.
+- Application : un écran qui ne peut pas s'afficher montre le message d'erreur au lieu d'une zone grise.
+
 ## 0.99.75 — un seul champ « Nom et prénom » sur les bornes
 
 - **Formulaire d'inscription › Nom du visiteur** : « Prénom + Nom » (deux champs) ou « Un champ « Nom et prénom » ». Le second est plus rapide à remplir sur un téléphone.

@@ -850,6 +850,9 @@ class _BilletterieHomeState extends State<BilletterieHome> {
                       OutlinedButton.icon(onPressed: () => boxOfficeSale(context, e), icon: const Icon(Icons.point_of_sale), label: Text(tr('Guichet'))),
                     if (tkCanScan(session))
                       FilledButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ScanScreen(eventId: '${e['id']}'))), icon: const Icon(Icons.qr_code_scanner), label: Text(tr('Contrôle'))),
+                    // Téléphone ou tablette d'accueil : directement en mode borne, sans passer par l'événement
+                    if (kioskAllowed(session) && tkTypes('${e['id']}').isNotEmpty)
+                      FilledButton.tonalIcon(onPressed: () => startKiosk(context, e), icon: const Icon(Icons.tablet_android), label: Text(tr('Borne'))),
                   ];
                   final info = Row(children: [
                     Container(

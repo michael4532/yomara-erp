@@ -69,7 +69,8 @@ class BootstrapController extends Controller
                 ->whereNotNull('expires_at')->where('expires_at', '<=', now()->addDays(14))->orderBy('expires_at')->get()
                 ->map(fn ($cm) => ['key' => $cm->module_key, 'name' => $modules->firstWhere('key', $cm->module_key)['name'] ?? $cm->module_key, 'expires_at' => $cm->expires_at->toIso8601String(),
                     'source' => $cm->source, 'billing' => $cm->billing, 'days_left' => max(0, (int) now()->startOfDay()->diffInDays($cm->expires_at->copy()->startOfDay(), false))])->values(),
-            'sync_entities' => array_keys($registry->syncEntities($enabled)),
+            // Données des modules dont dépendent ceux de l'utilisateur (Billetterie → événements) : sinon l'écran n'a pas ses tables
+            'sync_entities' => array_keys($registry->syncEntities(self::withDependencies($registry, $enabled, $companyModules))),
             'server_time' => now()->toIso8601String(),
             // Décalage horaire de la société (minutes) : l'appareil calcule l'heure locale de la société, quel que soit son propre fuseau
             'utc_offset' => now($company->settings['timezone'] ?? config('app.timezone'))->utcOffset(),
@@ -83,5 +84,20 @@ class BootstrapController extends Controller
         sort($mods);
 
         return substr(sha1(json_encode([$mods, $company->plan_id, $company->status, (string) $company->subscription_ends_at, $user->role_id, $user->permissions(), $user->deniedPermissions()])), 0, 16);
+    }
+
+    /** Modules de l'utilisateur et ceux dont ils dépendent (activés pour la société), pour les données à synchroniser. */
+    protected static function withDependencies(\App\Support\ModuleRegistry $registry, array $enabled, array $companyModules): array
+    {
+        $out = $enabled;
+        for ($i = 0; $i < count($out); $i++) {
+            foreach ((array) ($registry->manifest($out[$i])['depends'] ?? []) as $dep) {
+                if (in_array($dep, $companyModules, true) && ! in_array($dep, $out, true)) {
+                    $out[] = $dep;
+                }
+            }
+        }
+
+        return $out;
     }
 }
