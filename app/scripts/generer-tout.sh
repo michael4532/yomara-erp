@@ -12,6 +12,7 @@
 #   ./scripts/generer-tout.sh              → version de pubspec.yaml, confirmée
 #   ./scripts/generer-tout.sh 1.0.10+12    → autre version
 #   SANS="nettoyage ios github" ./scripts/generer-tout.sh   → saute des étapes (android ios mac-pkg dmg github)
+#   SEULEMENT=android ./scripts/generer-tout.sh             → seulement l'APK et l'AAB (numéro suivant pris aussi)
 #
 # Résultat : ../sorties/stores-<version>/ (un dossier par plateforme) + LISTE-DES-FICHIERS.txt.
 # Rien n'est envoyé aux stores : chaque fichier s'envoie ensuite depuis sa console.
@@ -22,6 +23,7 @@ cd "$ROOT"
 [ "$(uname)" = "Darwin" ] || { echo "Cette commande se lance sur le Mac." >&2; exit 1; }
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2; exit 1; }
 SANS=" ${SANS:-} "
+[ "${SEULEMENT:-}" = android ] && SANS="$SANS ios mac-pkg dmg github "
 veut() { [[ "$SANS" != *" $1 "* ]]; }
 
 # ---------------------------------------------------------------- 1. Version
@@ -73,8 +75,8 @@ if veut nettoyage; then
          android/.gradle android/app/.cxx windows/flutter/ephemeral linux/flutter/ephemeral 2>/dev/null || true
   rm -rf "$HOME"/Library/Developer/Xcode/DerivedData/Runner-* 2>/dev/null || true
   flutter pub get >/dev/null && echo "   Dépendances rechargées." || { echo "ÉCHEC de flutter pub get : vérifiez la connexion Internet." >&2; exit 1; }
-  ( cd ios && pod install --repo-update >/dev/null 2>&1 ) && echo "   Pods iPhone réinstallés." || echo "   (pod install iPhone : sera refait pendant la compilation)"
-  ( cd macos && pod install >/dev/null 2>&1 ) && echo "   Pods Mac réinstallés." || echo "   (pod install Mac : sera refait pendant la compilation)"
+  if veut ios; then ( cd ios && pod install --repo-update >/dev/null 2>&1 ) && echo "   Pods iPhone réinstallés." || echo "   (pod install iPhone : sera refait pendant la compilation)"; fi
+  if veut mac-pkg; then ( cd macos && pod install >/dev/null 2>&1 ) && echo "   Pods Mac réinstallés." || echo "   (pod install Mac : sera refait pendant la compilation)"; fi
   echo
 fi
 
@@ -155,6 +157,7 @@ LISTE="$SORTIE/LISTE-DES-FICHIERS.txt"
   echo "Yomara ERP $V — $(date '+%d/%m/%Y %H:%M') — durée $(( ($(date +%s) - DEBUT) / 60 )) min"
   echo
   while IFS='|' read -r ext quoi ou journal; do
+    veut "$journal" || continue   # étape non demandée (ex. SEULEMENT=android) : pas listée
     f="$(trouve "$ext")"
     if [ -n "$f" ]; then
       echo "$f" | while read -r x; do printf '  OK      %-9s %7s  %s\n' "$ext" "$(du -h "$x" | cut -f1)" "${x#"$SORTIE"/}"; done
@@ -181,6 +184,7 @@ L
   echo "  .msix       → partner.microsoft.com › Yomara ERP › Packages"
   echo "  .exe, .dmg, .tar.gz, .deb, .AppImage → Super admin › Versions (page « Télécharger »)"
   echo
+  [ "${SEULEMENT:-}" = android ] && echo "Pour iPhone, Mac, Windows et Linux : 1-GENERER-TOUTES-LES-APPS (il prendra le numéro suivant)."
   echo "Étape suivante : double-cliquez sur 2-ENVOYER-SUR-LES-STORES (ouvre ce dossier et les sites des stores)."
 } | tee "$LISTE"
 
