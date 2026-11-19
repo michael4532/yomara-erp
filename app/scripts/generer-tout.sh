@@ -13,6 +13,7 @@
 #   ./scripts/generer-tout.sh 1.0.10+12    → autre version
 #   SANS="nettoyage ios github" ./scripts/generer-tout.sh   → saute des étapes (android ios mac-pkg dmg github)
 #   SEULEMENT=android ./scripts/generer-tout.sh             → seulement l'APK et l'AAB (numéro suivant pris aussi)
+#   SEULEMENT=ios ./scripts/generer-tout.sh                 → seulement l'IPA iPhone (numéro suivant pris aussi)
 #
 # Résultat : ../sorties/stores-<version>/ (un dossier par plateforme) + LISTE-DES-FICHIERS.txt.
 # Rien n'est envoyé aux stores : chaque fichier s'envoie ensuite depuis sa console.
@@ -24,6 +25,7 @@ cd "$ROOT"
 command -v flutter >/dev/null 2>&1 || { echo "Flutter n'est pas installé." >&2; exit 1; }
 SANS=" ${SANS:-} "
 [ "${SEULEMENT:-}" = android ] && SANS="$SANS ios mac-pkg dmg github "
+[ "${SEULEMENT:-}" = ios ] && SANS="$SANS android mac-pkg dmg github "
 veut() { [[ "$SANS" != *" $1 "* ]]; }
 
 # ---------------------------------------------------------------- 1. Version
@@ -184,7 +186,7 @@ L
   echo "  .msix       → partner.microsoft.com › Yomara ERP › Packages"
   echo "  .exe, .dmg, .tar.gz, .deb, .AppImage → Super admin › Versions (page « Télécharger »)"
   echo
-  [ "${SEULEMENT:-}" = android ] && echo "Pour iPhone, Mac, Windows et Linux : 1-GENERER-TOUTES-LES-APPS (il prendra le numéro suivant)."
+  [ -n "${SEULEMENT:-}" ] && echo "Pour les autres plateformes : 1-GENERER-TOUTES-LES-APPS (il prendra le numéro suivant)."
   echo "Étape suivante : double-cliquez sur 2-ENVOYER-SUR-LES-STORES (ouvre ce dossier et les sites des stores)."
 } | tee "$LISTE"
 
