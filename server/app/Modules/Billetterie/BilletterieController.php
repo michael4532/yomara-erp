@@ -74,17 +74,31 @@ class BilletterieController extends Controller
             return $sh;
         };
         $fr = fn ($d) => \Carbon\Carbon::parse($d)->locale('fr')->isoFormat('ddd D MMM YYYY');
-        $days = array_map(fn ($d) => [$fr($d['date']), $d['registrations'], $d['kiosk'], $d['online'], $d['box_office'], $d['entries'], $d['new_visitors'], $d['returning'], $d['badges'], $d['peak_hour'] !== null ? $d['peak_hour'].' h' : ''], $a['days']);
+        $days = array_map(fn ($d) => [$fr($d['date']), $d['registrations'], $d['kiosk'], $d['online'], $d['box_office'], $d['entries'], $d['new_visitors'], $d['returning'], $d['badges'], $d['peak_hour'] !== null ? $d['peak_hour'].' h' : '', $d['entries_diff'] ?? '', $d['entries_change'] !== null ? $d['entries_change'].' %' : '', $d['registrations_change'] !== null ? $d['registrations_change'].' %' : ''], $a['days']);
         $t = $a['totals'];
-        $days[] = ['TOTAL', $t['registrations'], $t['kiosk_registrations'], array_sum(array_column($a['days'], 'online')), array_sum(array_column($a['days'], 'box_office')), $t['entries'], $t['unique_visitors'], $t['returning_visitors'], array_sum(array_column($a['days'], 'badges')), ''];
-        $sh = $sheet('Par jour', ['Jour', 'Inscrits', 'dont aux bornes', 'dont en ligne', 'dont au guichet', 'Visiteurs entrés', 'Nouveaux visiteurs', 'Revenus d\'un autre jour', 'Badges (exposants, organisation)', 'Heure de pointe'], $days, [22, 12, 14, 14, 14, 16, 18, 20, 22, 14]);
-        $sh->getStyle('A'.(count($days) + 1).':J'.(count($days) + 1))->getFont()->setBold(true);
+        $days[] = ['TOTAL', $t['registrations'], $t['kiosk_registrations'], array_sum(array_column($a['days'], 'online')), array_sum(array_column($a['days'], 'box_office')), $t['entries'], $t['unique_visitors'], $t['returning_visitors'], array_sum(array_column($a['days'], 'badges')), '', '', '', ''];
+        $sh = $sheet('Par jour', ['Jour', 'Inscrits', 'dont aux bornes', 'dont en ligne', 'dont au guichet', 'Visiteurs entrés', 'Nouveaux visiteurs', 'Revenus d\'un autre jour', 'Badges (exposants, organisation)', 'Heure de pointe', 'Écart visiteurs / veille', 'Évolution visiteurs / veille', 'Évolution inscrits / veille'], $days, [22, 12, 14, 14, 14, 16, 18, 20, 22, 14, 16, 18, 18]);
+        $sh->getStyle('A'.(count($days) + 1).':M'.(count($days) + 1))->getFont()->setBold(true);
         $kh = ['Borne'];
         foreach ($a['days'] as $d) {
             array_push($kh, 'Inscrits '.\Carbon\Carbon::parse($d['date'])->format('d/m'), 'Entrées '.\Carbon\Carbon::parse($d['date'])->format('d/m'));
         }
         array_push($kh, 'Total inscrits', 'Total entrées');
         $sheet('Par borne', $kh, array_map(fn ($k) => array_merge([$k['name']], collect($k['days'])->flatMap(fn ($d) => [$d['registrations'], $d['entries']])->all(), [$k['registrations'], $k['entries']]), $a['kiosks']), [24]);
+        // villes et communes : une ligne par ville, puis ses communes en retrait
+        $ph = ['Ville', 'Commune', 'Inscrits', '% des inscrits', 'Visiteurs venus', 'Taux de venue'];
+        foreach ($a['days'] as $d) {
+            $ph[] = 'Visiteurs '.\Carbon\Carbon::parse($d['date'])->format('d/m');
+        }
+        $pr = [];
+        $line = fn ($city, $commune, $r) => array_merge([$city, $commune, $r['registrations'], $t['registrations'] ? round($r['registrations'] * 100 / $t['registrations'], 1) : 0, $r['visitors'], $r['registrations'] ? round($r['visitors'] * 100 / $r['registrations'], 1).' %' : ''], array_column($r['days'], 'entries'));
+        foreach ($a['places'] as $c) {
+            $pr[] = $line($c['name'], $c['communes'] ? 'Toutes communes' : '', $c);
+            foreach ($c['communes'] as $cm) {
+                $pr[] = $line('', $cm['name'], $cm);
+            }
+        }
+        $sheet('Villes et communes', $ph, $pr, [22, 20, 12, 14, 16, 14]);
         $prov = [];
         foreach (['Ville' => $a['cities'], 'Pays' => $a['countries'], 'Canal d\'inscription' => $a['channels'], 'Connu par' => array_map(fn ($s) => ['name' => $s['source'], 'count' => $s['count']], $a['sources']), 'Société' => $a['top_companies']] as $label => $list) {
             foreach ($list as $it) {

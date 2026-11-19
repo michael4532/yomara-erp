@@ -1,5 +1,15 @@
 # Notes de version
 
+## 0.99.74 — villes et communes, évolution jour après jour
+
+- **Fréquentation › Villes et communes** : toutes les villes, avec les communes d'Abidjan regroupées sous Abidjan (touchez pour déplier). Pour chacune : inscrits, part des inscrits, visiteurs venus, taux de venue et visiteurs de chaque jour avec la hausse ou la baisse par rapport à la veille.
+- **Par jour** : deux nouvelles colonnes « Visiteurs / veille » et « Inscrits / veille », en vert quand ça monte, en rouge quand ça baisse (pourcentage et nombre).
+- **Comparer deux jours** : choisissez deux journées. L'écran les met côte à côte (visiteurs, nouveaux, revenants, inscrits, heure de pointe) avec l'évolution, puis heure par heure.
+- **Rapport Excel** : nouvel onglet « Villes et communes » et colonnes d'évolution dans « Par jour ».
+- **Ville / commune** sur les bornes d'accueil : dès les premières lettres, l'écran propose les villes de Côte d'Ivoire et les 13 communes d'Abidjan (affichées « Commune d'Abidjan »), plus les localités déjà saisies par d'autres visiteurs. Le visiteur peut toujours écrire une autre ville (étrangers, villages).
+- **Statistiques de provenance** : « bouake », « BOUAKÉ » ou « Bouake » comptent tous pour « Bouaké ».
+- Application : version 1.0.13.
+
 ## 0.99.73 — accueil des visiteurs sur smartphone, ticket par e-mail
 
 - **Borne sans imprimante (smartphone, tablette)** : l'e-mail devient obligatoire et le ticket (numéro + QR code + informations d'inscription) part par e-mail. L'écran de fin l'annonce au visiteur.

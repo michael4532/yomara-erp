@@ -119,7 +119,7 @@ class KioskAttendanceTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'x').'.xlsx';
         file_put_contents($path, $res->streamedContent());
         $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-        $this->assertSame(['Par jour', 'Par borne', 'Provenance', 'Inscrits'], $book->getSheetNames());
+        $this->assertSame(['Par jour', 'Par borne', 'Villes et communes', 'Provenance', 'Inscrits'], $book->getSheetNames());
         $rows = $book->getSheetByName('Inscrits')->toArray();
         $this->assertContains('Vous êtes', $rows[0]);
         $awa = collect($rows)->first(fn ($r) => $r[4] === 'Awa Koné');

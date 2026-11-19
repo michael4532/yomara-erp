@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../../core/billetterie.dart';
 import '../../core/json.dart';
 import '../../core/local_db.dart';
+import '../../core/localites_ci.dart';
 import '../../core/sync_engine.dart';
 import '../../i18n/i18n.dart';
 import '../../pdf/tickets_pdf.dart';
@@ -320,6 +321,7 @@ class _KioskScreenState extends State<KioskScreen> {
   final _job = TextEditingController();
   final _city = TextEditingController();
   final _country = TextEditingController();
+  final _cityFocus = FocusNode();
   final _answers = <String, dynamic>{};
   final _text = <String, TextEditingController>{};
   bool _consent = false;
@@ -351,6 +353,7 @@ class _KioskScreenState extends State<KioskScreen> {
 
   @override
   void dispose() {
+    _cityFocus.dispose();
     _idle?.cancel();
     _back?.cancel();
     _cam?.dispose();
@@ -887,10 +890,11 @@ class _KioskScreenState extends State<KioskScreen> {
 
   InputDecoration _dec(String label, {IconData? icon}) => InputDecoration(labelText: tr(label), prefixIcon: icon == null ? null : Icon(icon));
 
-  Widget _field(TextEditingController c, String label, {bool required = false, TextInputType? type, IconData? icon, String? Function(String)? check, TextCapitalization cap = TextCapitalization.sentences, String? autofill}) => Padding(
+  Widget _field(TextEditingController c, String label, {bool required = false, TextInputType? type, IconData? icon, String? Function(String)? check, TextCapitalization cap = TextCapitalization.sentences, String? autofill, FocusNode? focus}) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: TextFormField(
           controller: c,
+          focusNode: focus,
           keyboardType: type,
           textCapitalization: cap,
           autofillHints: autofill == null ? null : [autofill],
@@ -902,6 +906,47 @@ class _KioskScreenState extends State<KioskScreen> {
             if (required && s.isEmpty) return tr('À remplir');
             return s.isEmpty ? null : check?.call(s);
           },
+        ),
+      );
+
+  /// Villes et communes proposées : celles de Côte d'Ivoire, plus celles déjà saisies par les visiteurs sur cet appareil.
+  List<String> get _knownPlaces {
+    final c = foldPlace(_country.text);
+    final ci = c.isEmpty || c.contains('ivoire') || c == 'ci';
+    final typed = LocalDb.hasEntity('ev_ticket_orders')
+        ? LocalDb.all('ev_ticket_orders').map((o) => '${o['buyer_city'] ?? ''}'.trim()).where((v) => v.length > 1)
+        : const <String>[];
+    return [if (ci) ...localitesCI, ...typed];
+  }
+
+  Widget _cityField({required bool required}) => RawAutocomplete<String>(
+        textEditingController: _city,
+        focusNode: _cityFocus,
+        optionsBuilder: (v) => suggestPlaces(v.text, _knownPlaces),
+        onSelected: (_) => _touch(),
+        fieldViewBuilder: (context, c, focus, submit) => _field(c, 'Ville / commune', required: required, icon: Icons.place_outlined, cap: TextCapitalization.words, focus: focus),
+        optionsViewBuilder: (context, select, options) => Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300, maxWidth: 420),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                shrinkWrap: true,
+                children: [
+                  for (final o in options)
+                    ListTile(
+                      leading: const Icon(Icons.place_outlined),
+                      title: Text(o, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                      subtitle: placeCity(o) == null ? null : Text(tr('Commune d\'${placeCity(o)}')),
+                      onTap: () => select(o),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       );
 
@@ -956,7 +1001,7 @@ class _KioskScreenState extends State<KioskScreen> {
                   if (f['ask_city'] != 'off' || f['ask_country'] != 'off')
                     _section('D\'où venez-vous ?', [
                       pair(
-                        f['ask_city'] != 'off' ? _field(_city, 'Ville / commune', required: f['ask_city'] == 'required', icon: Icons.place_outlined, cap: TextCapitalization.words) : const SizedBox.shrink(),
+                        f['ask_city'] != 'off' ? _cityField(required: f['ask_city'] == 'required') : const SizedBox.shrink(),
                         f['ask_country'] != 'off' ? _field(_country, 'Pays', required: f['ask_country'] == 'required', icon: Icons.public, cap: TextCapitalization.words) : const SizedBox.shrink(),
                       ),
                     ]),

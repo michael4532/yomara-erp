@@ -2,6 +2,7 @@
 
 namespace App\Modules\Billetterie;
 
+use App\Support\Localites;
 use App\Messaging\Message;
 use App\Messaging\MessagingService;
 use App\Models\Company;
@@ -454,7 +455,7 @@ class RegistrationService
     {
         $v = trim(preg_replace('/\s+/', ' ', (string) $v));
 
-        return $v === '' ? null : mb_convert_case(mb_strtolower($v), MB_CASE_TITLE);
+        return $v === '' ? null : (Localites::canonical($v) ?? mb_convert_case(mb_strtolower($v), MB_CASE_TITLE));
     }
 
     /**
@@ -534,6 +535,17 @@ class RegistrationService
             ];
         }
 
+        // évolution par rapport à la veille (jour précédent de la liste) : écart et pourcentage, null quand la veille est à zéro
+        $pct = fn ($cur, $prev) => $prev > 0 ? round(($cur - $prev) * 100 / $prev, 1) : null;
+        foreach ($byDay as $i => &$row) {
+            $prev = $byDay[$i - 1] ?? null;
+            foreach (['entries', 'registrations'] as $k) {
+                $row[$k.'_diff'] = $prev ? $row[$k] - $prev[$k] : null;
+                $row[$k.'_change'] = $prev ? $pct($row[$k], $prev[$k]) : null;
+            }
+        }
+        unset($row);
+
         // par borne : inscriptions (borne d'inscription) et entrées (point de contrôle) de chaque jour
         $byKiosk = [];
         foreach ($kioskNames as $k) {
@@ -552,6 +564,40 @@ class RegistrationService
         $cities = $count($orders->map(fn ($o) => self::place($o->buyer_city)));
         $countries = $count($orders->map(fn ($o) => self::place($o->buyer_country)));
         $channels = $orders->groupBy('channel')->map(fn ($g, $k) => ['name' => ['kiosk' => 'Bornes', 'online' => 'En ligne', 'box_office' => 'Guichet'][$k] ?? $k, 'count' => $g->count()])->sortByDesc('count')->values();
+        // villes et communes : inscrits, visiteurs venus et entrées de chaque jour, communes d'Abidjan regroupées sous Abidjan
+        $placeOf = $orders->mapWithKeys(fn ($o) => [$o->id => self::place($o->buyer_city)]);
+        $visitorTickets = $tickets->whereIn('kind', $visitorKinds)->pluck('order_id', 'id');
+        $dayKeys = array_keys($days);
+        $blank = fn ($name) => ['name' => $name, 'registrations' => 0, 'visitors' => 0, 'days' => array_fill_keys($dayKeys, 0)];
+        $places = [];
+        $add = function (string $city, string $commune, string $field, ?string $day = null) use (&$places, $blank) {
+            $places[$city] ??= $blank($city) + ['communes' => []];
+            $day ? $places[$city]['days'][$day]++ : $places[$city][$field]++;
+            if ($commune !== $city) {
+                $places[$city]['communes'][$commune] ??= $blank($commune);
+                $day ? $places[$city]['communes'][$commune]['days'][$day]++ : $places[$city]['communes'][$commune][$field]++;
+            }
+        };
+        $nowhere = 'Non renseignée';
+        foreach ($orders as $o) {
+            $p = $placeOf[$o->id] ?? null;
+            $p ? $add(Localites::cityOf($p), $p, 'registrations') : $add($nowhere, $nowhere, 'registrations');
+        }
+        foreach ($firstDay as $ticketId => $d) {
+            $p = $placeOf[$visitorTickets[$ticketId] ?? ''] ?? null;
+            $p ? $add(Localites::cityOf($p), $p, 'visitors') : $add($nowhere, $nowhere, 'visitors');
+        }
+        foreach ($daySets as $d => $set) {
+            foreach (array_keys($set) as $ticketId) {
+                $p = $placeOf[$visitorTickets[$ticketId] ?? ''] ?? null;
+                $p ? $add(Localites::cityOf($p), $p, 'days', $d) : $add($nowhere, $nowhere, 'days', $d);
+            }
+        }
+        $shape = fn ($r) => array_merge($r, ['days' => collect($r['days'])->map(fn ($n, $d) => ['date' => $d, 'entries' => $n])->values()->all()]);
+        $places = collect($places)
+            ->map(fn ($r) => $shape(array_merge($r, ['communes' => collect($r['communes'])->sortByDesc('registrations')->map($shape)->values()->all()])))
+            ->sortBy(fn ($r) => [$r['name'] === $nowhere ? 1 : 0, -$r['registrations'], $r['name']])->values()->all();
+
         $unique = count($firstDay);
         $entries = array_sum(array_column($byDay, 'entries'));
         $eventDays = collect($byDay)->filter(fn ($r) => $r['entries'] > 0)->count();
@@ -577,6 +623,7 @@ class RegistrationService
             'days' => $byDay,
             'kiosks' => $byKiosk,
             'cities' => $cities->take(20)->all(),
+            'places' => $places,
             'countries' => $countries->take(20)->all(),
             'channels' => $channels->all(),
             // lien partagé (?source=facebook…) : seulement les inscriptions qui en indiquent un ; le canal est déjà dans « channels »

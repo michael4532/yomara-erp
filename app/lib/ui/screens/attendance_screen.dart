@@ -49,6 +49,7 @@ class _AttendanceViewState extends State<AttendanceView> {
   Map<String, dynamic>? _a;
   Object? _error;
   String? _hoursDay;
+  String? _cmpA, _cmpB;
   bool _exporting = false;
 
   @override
@@ -68,6 +69,12 @@ class _AttendanceViewState extends State<AttendanceView> {
         _error = null;
         // Heures : le jour en cours s'il fait partie de l'événement, sinon le jour le plus fréquenté
         final today = DateTime.now().toIso8601String().substring(0, 10);
+        final active = [for (final d in days) if (toDouble(d['entries']) > 0 || toDouble(d['registrations']) > 0) '${d['date']}'];
+        final pick = active.length >= 2 ? active : [for (final d in days) '${d['date']}'];
+        if (pick.length >= 2 && !(pick.contains(_cmpA) && pick.contains(_cmpB))) {
+          _cmpA = pick[pick.length - 2];
+          _cmpB = pick.last;
+        }
         _hoursDay ??= days.any((d) => d['date'] == today) ? today : (days.isEmpty ? null : (days.toList()..sort((x, y) => toDouble(y['entries']).compareTo(toDouble(x['entries'])))).first['date'] as String?);
       });
     } catch (e) {
@@ -151,8 +158,8 @@ class _AttendanceViewState extends State<AttendanceView> {
                 columnSpacing: 22,
                 headingTextStyle: const TextStyle(fontWeight: FontWeight.w800),
                 columns: [
-                  for (final c in ['Jour', 'Inscrits', 'Bornes', 'En ligne', 'Guichet', 'Entrés', 'Nouveaux', 'Revenants', 'Badges', 'Pointe'])
-                    DataColumn(label: Text(tr(c)), numeric: c != 'Jour' && c != 'Pointe'),
+                  for (final c in ['Jour', 'Inscrits', 'Bornes', 'En ligne', 'Guichet', 'Entrés', 'Nouveaux', 'Revenants', 'Badges', 'Pointe', 'Visiteurs / veille', 'Inscrits / veille'])
+                    DataColumn(label: Text(tr(c)), numeric: !const {'Jour', 'Pointe', 'Visiteurs / veille', 'Inscrits / veille'}.contains(c)),
                 ],
                 rows: [
                   for (final d in days)
@@ -160,6 +167,8 @@ class _AttendanceViewState extends State<AttendanceView> {
                       DataCell(Text(tr(_day('${d['date']}')))),
                       for (final k in ['registrations', 'kiosk', 'online', 'box_office', 'entries', 'new_visitors', 'returning', 'badges']) DataCell(Text(tr('${toDouble(d[k]).round()}'), style: TextStyle(fontWeight: k == 'entries' || k == 'registrations' ? FontWeight.w800 : null))),
                       DataCell(Text(tr(d['peak_hour'] == null ? '—' : '${d['peak_hour']} h'))),
+                      DataCell(_Change(pct: d['entries_change'], diff: d['entries_diff'])),
+                      DataCell(_Change(pct: d['registrations_change'], diff: d['registrations_diff'])),
                     ]),
                   DataRow(cells: [
                     DataCell(Text(tr('Total'), style: const TextStyle(fontWeight: FontWeight.w900))),
@@ -170,6 +179,8 @@ class _AttendanceViewState extends State<AttendanceView> {
                     DataCell(Text(tr('${days.fold<double>(0, (s, d) => s + toDouble(d['returning'])).round()}'))),
                     DataCell(Text(tr('${days.fold<double>(0, (s, d) => s + toDouble(d['badges'])).round()}'))),
                     const DataCell(Text('')),
+                    const DataCell(Text('')),
+                    const DataCell(Text('')),
                   ]),
                 ],
               ),
@@ -178,7 +189,7 @@ class _AttendanceViewState extends State<AttendanceView> {
               alignment: Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(tr('Entrés : visiteurs différents passés ce jour-là (un visiteur compte une fois par jour). Nouveaux : première venue. Badges : exposants, organisation, presse non comptés dans les visiteurs.'),
+                child: Text(tr('Entrés : visiteurs différents passés ce jour-là (un visiteur compte une fois par jour). Nouveaux : première venue. Badges : exposants, organisation, presse non comptés dans les visiteurs. « / veille » : hausse ou baisse par rapport au jour précédent.'),
                     style: TextStyle(color: hint, fontSize: 12)),
               ),
             ),
@@ -196,6 +207,14 @@ class _AttendanceViewState extends State<AttendanceView> {
               SizedBox(height: 150, child: _HourChart(hours: _list(hoursRow?['by_hour']))),
             ]),
           ),
+        if (days.length >= 2) ...[
+          const SizedBox(height: 12),
+          SectionCard(title: tr('Comparer deux jours'), child: _compare(days)),
+        ],
+        if (_list(a['places']).isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SectionCard(title: tr('Villes et communes'), child: _Places(places: _list(a['places']), days: days, totalRegistrations: toDouble(t['registrations']))),
+        ],
         const SizedBox(height: 12),
         if (kiosks.isNotEmpty)
           SectionCard(
@@ -227,7 +246,7 @@ class _AttendanceViewState extends State<AttendanceView> {
           ),
         const SizedBox(height: 12),
         _grid(narrow, [
-          if (_list(a['cities']).isNotEmpty) SectionCard(title: tr('Villes / communes'), child: _Bars(items: _list(a['cities']), color: YColors.blue, total: toDouble(t['registrations']))),
+          if (_list(a['places']).isEmpty && _list(a['cities']).isNotEmpty) SectionCard(title: tr('Villes / communes'), child: _Bars(items: _list(a['cities']), color: YColors.blue, total: toDouble(t['registrations']))),
           if (_list(a['countries']).isNotEmpty) SectionCard(title: tr('Pays'), child: _Bars(items: _list(a['countries']), color: YColors.success, total: toDouble(t['registrations']))),
           SectionCard(title: tr('Canal d\'inscription'), child: _Bars(items: _list(a['channels']), color: YColors.night, total: toDouble(t['registrations']))),
           if (_list(a['sources']).isNotEmpty)
@@ -239,6 +258,94 @@ class _AttendanceViewState extends State<AttendanceView> {
         const SizedBox(height: 24),
       ]),
     );
+  }
+
+  /// Deux jours côte à côte : chiffres clés avec écart et pourcentage, puis visiteurs heure par heure.
+  Widget _compare(List<Map<String, dynamic>> days) {
+    final a = days.where((d) => d['date'] == _cmpA).firstOrNull;
+    final b = days.where((d) => d['date'] == _cmpB).firstOrNull;
+    Widget pickDay(String label, String? value, ValueChanged<String?> on) => SizedBox(
+          width: 200,
+          child: DropdownButtonFormField<String>(
+            initialValue: value,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: tr(label), isDense: true),
+            items: [for (final d in days) DropdownMenuItem(value: '${d['date']}', child: Text(tr(_day('${d['date']}'))))],
+            onChanged: on,
+          ),
+        );
+    final head = Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
+      pickDay('Jour de référence', _cmpA, (v) => setState(() => _cmpA = v)),
+      const Icon(Icons.compare_arrows),
+      pickDay('Comparé à', _cmpB, (v) => setState(() => _cmpB = v)),
+    ]);
+    if (a == null || b == null) return head;
+    num? pct(num x, num y) => x > 0 ? ((y - x) * 1000 / x).round() / 10 : null;
+    DataRow line(String label, String key, {bool bold = false}) {
+      final x = toDouble(a[key]), y = toDouble(b[key]);
+      return DataRow(cells: [
+        DataCell(Text(tr(label), style: TextStyle(fontWeight: bold ? FontWeight.w800 : null))),
+        DataCell(Text('${x.round()}', style: TextStyle(fontWeight: bold ? FontWeight.w800 : null))),
+        DataCell(Text('${y.round()}', style: TextStyle(fontWeight: bold ? FontWeight.w800 : null))),
+        DataCell(_Change(pct: pct(x, y), diff: (y - x).round())),
+      ]);
+    }
+    final ha = {for (final h in _list(a['by_hour'])) toDouble(h['hour']).round(): toDouble(h['count'])};
+    final hb = {for (final h in _list(b['by_hour'])) toDouble(h['hour']).round(): toDouble(h['count'])};
+    final hours = {...ha.keys, ...hb.keys}.toList()..sort();
+    final top = [...ha.values, ...hb.values].fold<double>(0, math.max);
+    Widget bar(double v, Color c) => ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(value: top == 0 ? 0 : v / top, minHeight: 7, color: c, backgroundColor: c.withValues(alpha: .10)),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      head,
+      const SizedBox(height: 10),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 26,
+          headingTextStyle: const TextStyle(fontWeight: FontWeight.w800),
+          columns: [
+            DataColumn(label: Text(tr(''))),
+            DataColumn(label: Text(tr(_day('${a['date']}'))), numeric: true),
+            DataColumn(label: Text(tr(_day('${b['date']}'))), numeric: true),
+            DataColumn(label: Text(tr('Évolution'))),
+          ],
+          rows: [
+            line('Visiteurs entrés', 'entries', bold: true),
+            line('Nouveaux visiteurs', 'new_visitors'),
+            line('Revenus d\'un autre jour', 'returning'),
+            line('Inscrits', 'registrations', bold: true),
+            line('dont aux bornes', 'kiosk'),
+            line('Badges', 'badges'),
+            DataRow(cells: [
+              DataCell(Text(tr('Heure de pointe'))),
+              DataCell(Text(tr(a['peak_hour'] == null ? '—' : '${a['peak_hour']} h'))),
+              DataCell(Text(tr(b['peak_hour'] == null ? '—' : '${b['peak_hour']} h'))),
+              const DataCell(Text('')),
+            ]),
+          ],
+        ),
+      ),
+      if (hours.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Text(tr('Visiteurs heure par heure'), style: const TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Row(children: [_legend(YColors.blue, _day('${a['date']}')), const SizedBox(width: 16), _legend(YColors.success, _day('${b['date']}'))]),
+        const SizedBox(height: 8),
+        for (final h in hours)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(children: [
+              SizedBox(width: 44, child: Text(tr('$h h'), style: const TextStyle(fontWeight: FontWeight.w700))),
+              Expanded(child: Column(children: [bar(ha[h] ?? 0, YColors.blue), const SizedBox(height: 3), bar(hb[h] ?? 0, YColors.success)])),
+              SizedBox(width: 70, child: Text('${(ha[h] ?? 0).round()} → ${(hb[h] ?? 0).round()}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12.5))),
+              SizedBox(width: 92, child: Align(alignment: Alignment.centerRight, child: _Change(pct: pct(ha[h] ?? 0, hb[h] ?? 0), diff: ((hb[h] ?? 0) - (ha[h] ?? 0)).round(), compact: true))),
+            ]),
+          ),
+      ],
+    ]);
   }
 
   Widget _legend(Color c, String l) => Row(mainAxisSize: MainAxisSize.min, children: [Container(width: 12, height: 12, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(3))), const SizedBox(width: 6), Text(tr(l), style: const TextStyle(fontSize: 12.5))]);
@@ -364,6 +471,137 @@ class _HourChart extends StatelessWidget {
             ]),
           ),
         ),
+    ]);
+  }
+}
+
+/// Hausse (vert), baisse (rouge) ou stabilité par rapport à un autre jour : « ▲ +12 % (+5) ».
+class _Change extends StatelessWidget {
+  const _Change({required this.pct, required this.diff, this.compact = false});
+
+  final dynamic pct;
+  final dynamic diff;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    if (diff == null) return Text('—', style: TextStyle(color: Theme.of(context).hintColor));
+    final d = toDouble(diff).round();
+    final p = pct == null ? null : toDouble(pct);
+    final color = d > 0 ? YColors.success : (d < 0 ? YColors.danger : Theme.of(context).hintColor);
+    final sign = d > 0 ? '+' : '';
+    final pctText = p == null ? (d > 0 ? 'nouveau' : '') : '$sign${p == p.roundToDouble() ? p.round() : p.toStringAsFixed(1)} %';
+    final text = d == 0 ? '= stable' : (compact ? pctText.isEmpty ? '$sign$d' : pctText : '$pctText ($sign$d)'.trim());
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (d != 0) Icon(d > 0 ? Icons.arrow_drop_up : Icons.arrow_drop_down, color: color, size: 22),
+      Text(tr(text), style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+    ]);
+  }
+}
+
+/// Villes (avec leurs communes pour Abidjan) : inscrits, part des inscrits, visiteurs venus, taux de venue et visiteurs de chaque jour.
+class _Places extends StatefulWidget {
+  const _Places({required this.places, required this.days, required this.totalRegistrations});
+
+  final List<Map<String, dynamic>> places;
+  final List<Map<String, dynamic>> days;
+  final double totalRegistrations;
+
+  @override
+  State<_Places> createState() => _PlacesState();
+}
+
+class _PlacesState extends State<_Places> {
+  final _open = <String>{'Abidjan'};
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context).hintColor;
+    final places = _all ? widget.places : widget.places.take(15).toList();
+    String share(num n, num of) => of > 0 ? '${(100 * n / of).toStringAsFixed(1).replaceAll('.0', '')} %' : '—';
+    List<DataCell> cells(Map<String, dynamic> r, {required Widget name, bool bold = false}) {
+      final st = TextStyle(fontWeight: bold ? FontWeight.w800 : null);
+      final dayCounts = _list(r['days']);
+      return [
+        DataCell(name),
+        DataCell(Text('${toDouble(r['registrations']).round()}', style: st)),
+        DataCell(Text(share(toDouble(r['registrations']), widget.totalRegistrations))),
+        DataCell(Text('${toDouble(r['visitors']).round()}', style: st)),
+        DataCell(Text(share(toDouble(r['visitors']), toDouble(r['registrations'])))),
+        for (var i = 0; i < widget.days.length; i++)
+          DataCell(Builder(builder: (_) {
+            final n = toDouble(dayCounts.where((x) => x['date'] == widget.days[i]['date']).firstOrNull?['entries']);
+            if (i == 0) return Text('${n.round()}', style: st);
+            final prev = toDouble(dayCounts.where((x) => x['date'] == widget.days[i - 1]['date']).firstOrNull?['entries']);
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('${n.round()}', style: st),
+              const SizedBox(width: 4),
+              if (n != prev) _Change(pct: prev > 0 ? ((n - prev) * 1000 / prev).round() / 10 : null, diff: (n - prev).round(), compact: true),
+            ]);
+          })),
+      ];
+    }
+
+    final rows = <DataRow>[];
+    for (final c in places) {
+      final communes = _list(c['communes']);
+      final name = '${c['name']}';
+      final open = _open.contains(name);
+      rows.add(DataRow(
+        color: communes.isEmpty ? null : WidgetStatePropertyAll(YColors.blue.withValues(alpha: .06)),
+        cells: cells(c,
+            bold: true,
+            name: InkWell(
+              onTap: communes.isEmpty ? null : () => setState(() => open ? _open.remove(name) : _open.add(name)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (communes.isNotEmpty) Icon(open ? Icons.expand_more : Icons.chevron_right, size: 20),
+                Text(tr(communes.isEmpty ? name : '$name (${communes.length} communes)'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ]),
+            )),
+      ));
+      if (open) {
+        for (final cm in communes) {
+          rows.add(DataRow(cells: cells(cm, name: Padding(padding: const EdgeInsets.only(left: 26), child: Text(tr('${cm['name']}'))))));
+        }
+        final rest = toDouble(c['registrations']) - communes.fold<double>(0, (s, x) => s + toDouble(x['registrations']));
+        if (communes.isNotEmpty && rest > 0) {
+          rows.add(DataRow(cells: [
+            DataCell(Padding(padding: const EdgeInsets.only(left: 26), child: Text(tr('Commune non précisée'), style: TextStyle(color: hint, fontStyle: FontStyle.italic)))),
+            DataCell(Text('${rest.round()}', style: TextStyle(color: hint))),
+            for (var i = 0; i < 3 + widget.days.length; i++) const DataCell(Text('')),
+          ]));
+        }
+      }
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 22,
+          headingTextStyle: const TextStyle(fontWeight: FontWeight.w800),
+          columns: [
+            DataColumn(label: Text(tr('Ville / commune'))),
+            DataColumn(label: Text(tr('Inscrits')), numeric: true),
+            DataColumn(label: Text(tr('% des inscrits')), numeric: true),
+            DataColumn(label: Text(tr('Venus')), numeric: true),
+            DataColumn(label: Text(tr('Taux de venue')), numeric: true),
+            for (final d in widget.days) DataColumn(label: Text(tr('Visiteurs\n${_day('${d['date']}')}'))),
+          ],
+          rows: rows,
+        ),
+      ),
+      if (widget.places.length > 15)
+        TextButton.icon(
+          onPressed: () => setState(() => _all = !_all),
+          icon: Icon(_all ? Icons.expand_less : Icons.expand_more),
+          label: Text(tr(_all ? 'Voir moins' : 'Voir les ${widget.places.length} villes')),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(tr('Venus : inscrits passés au moins un jour. Taux de venue : venus ÷ inscrits. Les flèches comparent chaque jour au précédent. Touchez Abidjan pour voir ou masquer ses communes.'),
+            style: TextStyle(color: hint, fontSize: 12)),
+      ),
     ]);
   }
 }
