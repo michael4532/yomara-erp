@@ -474,7 +474,14 @@ class _KioskScreenState extends State<KioskScreen> {
     if (!mounted) return;
     final who = _firstName(t);
     if (r.ok) {
-      _showDone(t, 'Bon retour${who.isEmpty ? '' : ', $who'} !', widget.print ? 'Votre entrée d\'aujourd\'hui est enregistrée. Récupérez votre ticket. Bonne visite !' : 'Votre entrée d\'aujourd\'hui est enregistrée. Bonne visite !', returning: true);
+      final mail = '${t['holder_email'] ?? ''}'.isNotEmpty && _form['welcome_back_email'] != false;
+      _showDone(
+          t,
+          'Bon retour${who.isEmpty ? '' : ', $who'} !',
+          widget.print
+              ? 'Votre entrée d\'aujourd\'hui est enregistrée. Récupérez votre ticket. Bonne visite !'
+              : 'Votre entrée d\'aujourd\'hui est enregistrée.${mail ? ' Un e-mail de bienvenue avec le programme du jour vous est envoyé.' : ''} Bonne visite !',
+          returning: true);
     } else if (r.result == 'duplicate') {
       _showDone(t, 'Bienvenue${who.isEmpty ? '' : ', $who'} !', 'Votre entrée d\'aujourd\'hui était déjà enregistrée. Bonne visite !', color: YColors.blue, returning: true);
     } else {
@@ -561,7 +568,7 @@ class _KioskScreenState extends State<KioskScreen> {
         'Bienvenue, ${_first.text.trim()} !',
         widget.print
             ? 'Récupérez votre ticket. Les jours suivants, tapez simplement votre numéro sur la borne.'
-            : 'Notez votre numéro (ou prenez ce QR code en photo) : les jours suivants, tapez-le simplement sur la borne.',
+            : 'Votre ticket (numéro et QR code) vous est envoyé par e-mail à ${opt(_email) ?? ''}. Les jours suivants, donnez simplement ce numéro à l\'accueil.',
         city: opt(_city),
       );
     } catch (e) {
@@ -935,7 +942,7 @@ class _KioskScreenState extends State<KioskScreen> {
                   _section('Vos coordonnées', [
                     pair(
                       _field(_phone, 'Téléphone', required: true, type: TextInputType.phone, icon: Icons.phone_outlined, check: (s) => s.replaceAll(RegExp(r'\D'), '').length < 8 ? tr('Numéro incomplet') : null),
-                      _field(_email, 'E-mail', required: f['ask_email'] == 'required', type: TextInputType.emailAddress, icon: Icons.alternate_email, cap: TextCapitalization.none,
+                      _field(_email, widget.print ? 'E-mail' : 'E-mail (votre ticket y est envoyé)', required: f['ask_email'] == 'required' || !widget.print, type: TextInputType.emailAddress, icon: Icons.alternate_email, cap: TextCapitalization.none,
                           check: (s) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s) ? null : tr('Adresse e-mail non valable')),
                     ),
                   ]),

@@ -41,6 +41,10 @@ class RegistrationService
             'kiosk_type_id' => null,
             'kiosk_color' => null, // couleur des bornes (#RRGGBB), sinon bleu nuit
             'kiosk_logo' => true, // logo de la société sur les bornes et les tickets
+            // Visiteur qui revient un autre jour (numéro tapé, QR code présenté) : e-mail de bienvenue du jour
+            'welcome_back_email' => true,
+            // Informations de chaque jour (programme, horaires, plan…) : { 'AAAA-MM-JJ': 'texte' }, reprises dans les e-mails
+            'day_messages' => [],
         ];
     }
 
@@ -73,6 +77,16 @@ class RegistrationService
         $out['kiosk_type_id'] = Str::isUuid((string) $out['kiosk_type_id']) ? $out['kiosk_type_id'] : null;
         $out['kiosk_color'] = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $out['kiosk_color']) ? strtoupper($out['kiosk_color']) : null;
         $out['kiosk_logo'] = (bool) $out['kiosk_logo'];
+        $out['welcome_back_email'] = (bool) $out['welcome_back_email'];
+        $days = [];
+        foreach ((array) $out['day_messages'] as $d => $text) {
+            $text = Str::limit(trim((string) $text), 2000, '');
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $d) && $text !== '' && count($days) < 60) {
+                $days[$d] = $text;
+            }
+        }
+        ksort($days);
+        $out['day_messages'] = $days;
 
         return $out;
     }
@@ -223,6 +237,7 @@ class RegistrationService
             .'<div style="background:#0B1B3A;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><div style="font-size:13px;opacity:.75">'.e($c->name).'</div><div style="font-size:22px;font-weight:bold">'.e($e->name).'</div><div style="opacity:.85">'.e($when).'</div></div>'
             .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
             .'<p>Bonjour '.e($o->buyer_name).',</p><p>'.e($intro).'</p>'.$qr
+            .self::dayBlock($form, self::day($o->registered_at ?? $o->created_at))
             .'<p><b>'.count($tickets).' billet(s)</b> — vos QR codes sont joints en PDF, et l\'événement à ajouter à votre agenda.</p>'
             .($answers ? '<table style="border-collapse:collapse;font-size:13px;margin:10px 0">'.$answers.'</table>' : '')
             .'<p><a href="'.e($o->publicUrl()).'" style="display:inline-block;background:#1F6FEB;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Voir mes billets</a></p>'
@@ -246,6 +261,84 @@ class RegistrationService
         }
 
         return $sent;
+    }
+
+    /** Informations du jour (programme…) mises en forme pour un e-mail, ou rien. */
+    protected static function dayBlock(array $form, ?string $day): string
+    {
+        $text = $day ? ($form['day_messages'][$day] ?? null) : null;
+        if (! $text) {
+            return '';
+        }
+
+        return '<div style="background:#F3F6FB;border-radius:10px;padding:14px 16px;margin:14px 0"><div style="font-weight:bold;margin-bottom:6px">Au programme aujourd\'hui</div>'
+            .nl2br(e($text)).'</div>';
+    }
+
+    /** Numéro du jour dans l'événement (1 pour le premier jour). */
+    protected static function dayNumber(Event $e, string $day): ?int
+    {
+        if (! $e->start_date) {
+            return null;
+        }
+        $n = (int) $e->start_date->copy()->startOfDay()->diffInDays(Carbon::parse($day)->startOfDay(), false) + 1;
+
+        return $n >= 1 ? $n : null;
+    }
+
+    /**
+     * Visiteur revenu un autre jour (numéro tapé sur la borne ou QR code présenté) : e-mail de bienvenue du jour,
+     * avec ses informations d'inscription, son numéro et son QR code (inchangés) et le programme du jour.
+     */
+    public function welcomeBack(Company $c, Ticket $t, string $day): bool
+    {
+        $e = Event::find($t->event_id);
+        $o = $t->order_id ? TicketOrder::find($t->order_id) : null;
+        $email = $t->holder_email ?: $o?->buyer_email;
+        if (! $e || ! $email) {
+            return false;
+        }
+        $form = $this->form($e);
+        if (! $form['welcome_back_email']) {
+            return false;
+        }
+        $name = $t->holder_name ?: ($o?->buyer_name ?: 'cher visiteur');
+        $first = Str::before(trim($name), ' ') ?: $name;
+        $n = self::dayNumber($e, $day);
+        $dayLabel = ucfirst(Carbon::parse($day)->locale('fr')->isoFormat('dddd D MMMM'));
+        $title = $n && $n > 1 ? 'Bienvenue pour le jour '.$n : 'Bienvenue';
+        $where = trim(($e->venue ?? '').($e->city ? ', '.$e->city : ''), ', ');
+        $info = array_filter([
+            'Numéro' => $t->code,
+            'Nom' => $name,
+            'Entreprise' => $t->company_name ?: $o?->buyer_company,
+            'Téléphone' => $t->holder_phone ?: $o?->buyer_phone,
+            'E-mail' => $email,
+            'Inscrit le' => $o?->registered_at ? $o->registered_at->timezone(config('app.timezone'))->locale('fr')->isoFormat('D MMMM YYYY [à] HH:mm') : null,
+        ]);
+        $rows = collect($info)->map(fn ($v, $k) => '<tr><td style="padding:4px 10px;color:#5B6B85">'.e($k).'</td><td style="padding:4px 10px;font-weight:bold">'.e($v).'</td></tr>')->implode('');
+        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;line-height:1.5">'
+            .'<div style="background:#0B1B3A;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><div style="font-size:13px;opacity:.75">'.e($c->name).'</div><div style="font-size:22px;font-weight:bold">'.e($e->name).'</div><div style="opacity:.85">'.e($dayLabel.($where ? ' · '.$where : '')).'</div></div>'
+            .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
+            .'<p style="font-size:18px"><b>'.e($title).', '.e($first).' !</b></p>'
+            .'<p>Votre entrée d\'aujourd\'hui est enregistrée. Gardez votre numéro : il reste le même pendant tout l\'événement.</p>'
+            .'<div style="text-align:center;margin:16px 0"><img alt="QR" width="160" height="160" src="data:image/svg+xml;base64,'.base64_encode(TicketService::qrSvg($t->code, 6)).'"><div style="font-family:monospace;font-size:18px;letter-spacing:2px">'.e($t->code).'</div></div>'
+            .self::dayBlock($form, $day)
+            .'<table style="border-collapse:collapse;font-size:13px;margin:10px 0">'.$rows.'</table>'
+            .($o ? '<p><a href="'.e($o->publicUrl()).'" style="display:inline-block;background:#1F6FEB;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Voir mon billet</a></p>' : '')
+            .'<p>Bonne visite !<br>'.e($c->name).'</p></div></div>';
+        $text = "{$title}, {$first} !\n\n« {$e->name} » — {$dayLabel}\nVotre entrée d'aujourd'hui est enregistrée. Votre numéro : {$t->code}\n"
+            .(($form['day_messages'][$day] ?? null) ? "\nAu programme aujourd'hui :\n".$form['day_messages'][$day]."\n" : '')
+            .($o ? "\nVotre billet : ".$o->publicUrl()."\n" : '')."\nBonne visite !\n{$c->name}";
+        $messaging = app(MessagingService::class);
+        if (! ($messaging->available($c)['email'] ?? null)) {
+            return false;
+        }
+        try {
+            return $messaging->send($c, 'email', new Message(to: $email, subject: $title.' — '.$e->name, html: $html, text: $text, toName: $name, replyTo: $c->email), 'billetterie')->ok;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     // ------------------------------------------------------------------ avis

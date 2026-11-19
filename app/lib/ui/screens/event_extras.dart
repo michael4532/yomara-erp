@@ -47,6 +47,8 @@ Map<String, dynamic> regForm(Map<String, dynamic> event) => {
       'kiosk_type_id': null,
       'kiosk_color': null,
       'kiosk_logo': true,
+      'welcome_back_email': true,
+      'day_messages': <String, dynamic>{},
       ...?(event['registration'] is Map ? asMap(event['registration']) : null),
     };
 
@@ -380,6 +382,22 @@ class _RegFormState extends State<_RegForm> {
   late final _welcome = TextEditingController(text: '${f['kiosk_welcome'] ?? ''}');
   late String? _kioskColor = f['kiosk_color'] as String?;
   late bool _kioskLogo = f['kiosk_logo'] != false;
+  late bool _welcomeBack = f['welcome_back_email'] != false;
+
+  /// Jours de l'événement (du début à la fin, 31 au plus) avec leur texte « au programme ».
+  late final List<(String, TextEditingController)> _dayMsgs = () {
+    final saved = f['day_messages'] is Map ? asMap(f['day_messages']) : <String, dynamic>{};
+    final start = DateTime.tryParse('${widget.event['start_date'] ?? ''}');
+    final end = DateTime.tryParse('${widget.event['end_date'] ?? ''}') ?? start;
+    final out = <(String, TextEditingController)>[];
+    if (start != null && end != null) {
+      for (var d = start; !d.isAfter(end) && out.length < 31; d = d.add(const Duration(days: 1))) {
+        final k = d.toIso8601String().substring(0, 10);
+        out.add((k, TextEditingController(text: '${saved[k] ?? ''}')));
+      }
+    }
+    return out;
+  }();
   late final _consent = TextEditingController(text: '${f['consent_text'] ?? ''}');
   late final _message = TextEditingController(text: '${f['confirmation_message'] ?? ''}');
   late final List<Map<String, dynamic>> _q = [
@@ -402,7 +420,8 @@ class _RegFormState extends State<_RegForm> {
     await context.read<SyncEngine>().save('ev_events', {
       'id': widget.event['id'],
       'registration': {'ask_email': _email, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions,
-        'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id'], 'kiosk_color': _kioskColor, 'kiosk_logo': _kioskLogo},
+        'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id'], 'kiosk_color': _kioskColor, 'kiosk_logo': _kioskLogo,
+        'welcome_back_email': _welcomeBack, 'day_messages': {for (final (d, c) in _dayMsgs) if (c.text.trim().isNotEmpty) d: c.text.trim()}},
       'feedback_enabled': _feedback,
     });
     if (mounted) {
@@ -483,6 +502,23 @@ class _RegFormState extends State<_RegForm> {
         value: _kioskLogo,
         onChanged: (v) => setState(() => _kioskLogo = v),
       ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(tr('E-mail de bienvenue aux visiteurs qui reviennent')),
+        subtitle: Text(tr('Un autre jour, quand le visiteur tape son numéro ou présente son QR code : e-mail avec son numéro (inchangé), ses informations et le programme du jour.')),
+        value: _welcomeBack,
+        onChanged: (v) => setState(() => _welcomeBack = v),
+      ),
+      if (_dayMsgs.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Text(tr('Au programme de chaque jour'), style: Theme.of(context).textTheme.titleSmall),
+        Text(tr('Repris dans l\'e-mail de confirmation (jour de l\'inscription) et dans l\'e-mail de bienvenue des jours suivants.'), style: TextStyle(color: hint, fontSize: 13)),
+        for (var i = 0; i < _dayMsgs.length; i++)
+          Field(
+            label: tr('Jour ${i + 1} — ${dateFr(_dayMsgs[i].$1)}'),
+            child: TextField(controller: _dayMsgs[i].$2, maxLines: 3, minLines: 1, decoration: InputDecoration(hintText: tr('Ex. : ouverture à 9 h, conférence à 11 h salle A, remise des prix à 16 h'))),
+          ),
+      ],
       const Divider(),
       Row(children: [
         Expanded(child: Text(tr('Questions personnalisées'), style: Theme.of(context).textTheme.titleSmall)),

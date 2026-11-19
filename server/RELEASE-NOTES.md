@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.73 — accueil des visiteurs sur smartphone, ticket par e-mail
+
+- **Borne sans imprimante (smartphone, tablette)** : l'e-mail devient obligatoire et le ticket (numéro + QR code + informations d'inscription) part par e-mail. L'écran de fin l'annonce au visiteur.
+- **Visiteur qui revient un autre jour** (numéro tapé ou QR code présenté) : e-mail « Bienvenue pour le jour 2 » avec le même numéro, ses informations d'inscription et le programme du jour. Une seule fois par jour, même si plusieurs appareils l'accueillent.
+- **Au programme de chaque jour** : dans le formulaire d'inscription de l'événement, un texte par jour, repris dans l'e-mail de confirmation et dans l'e-mail de bienvenue. Réglage pour désactiver l'e-mail de bienvenue.
+
 ## 0.99.72 — aperçu des rapports et emplacement des fichiers
 
 - **Rapports d'activité** : nouveau bouton « Aperçu » qui affiche le rapport tel qu'il sera envoyé (PDF), directement dans l'application, avec zoom, impression et enregistrement.

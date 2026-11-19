@@ -61,6 +61,47 @@ class Checkin extends Model
         }
     }
 
+    /** Visiteur revenu un autre jour que celui de son inscription : e-mail de bienvenue du jour (après la réponse). */
+    public function afterEntityWrite(array $data, bool $creating): void
+    {
+        if (! $creating || $this->result !== 'ok' || ! $this->ticket_id) {
+            return;
+        }
+        $ticket = Ticket::find($this->ticket_id);
+        if (! $ticket || ! in_array($ticket->kind, ['visitor', 'vip', 'press'], true)) {
+            return;
+        }
+        $at = \Illuminate\Support\Carbon::parse($this->scanned_at);
+        if ($at->lt(now()->subHours(12))) {
+            return; // borne restée hors ligne longtemps : pas d'e-mail « bienvenue aujourd'hui » à contretemps
+        }
+        $tz = config('app.timezone');
+        $day = $at->copy()->timezone($tz)->toDateString();
+        $order = $ticket->order_id ? TicketOrder::find($ticket->order_id) : null;
+        $registered = $order ? \Illuminate\Support\Carbon::parse($order->registered_at ?? $order->created_at)->timezone($tz)->toDateString() : null;
+        $before = self::where('ticket_id', $ticket->id)->where('result', 'ok')->where('id', '!=', $this->id)->get(['scanned_at'])
+            ->map(fn ($c) => $c->scanned_at->copy()->timezone($tz)->toDateString());
+        if ($before->contains($day)) {
+            return; // déjà accueilli aujourd'hui
+        }
+        if (($registered === null || $registered >= $day) && $before->filter(fn ($d) => $d < $day)->isEmpty()) {
+            return; // jour de l'inscription : l'e-mail de confirmation suffit
+        }
+        $company = app('tenant');
+        $ticketId = $ticket->id;
+        dispatch(function () use ($company, $ticketId, $day) {
+            // une seule fois par visiteur et par jour, même si plusieurs appareils l'accueillent en même temps
+            if (! \Illuminate\Support\Facades\Cache::add('ev-welcome:'.$ticketId.':'.$day, 1, now()->addDays(2))) {
+                return;
+            }
+            app()->instance('tenant', $company);
+            $t = Ticket::withoutGlobalScopes()->find($ticketId);
+            if ($t) {
+                app(\App\Modules\Billetterie\RegistrationService::class)->welcomeBack($company, $t, $day);
+            }
+        })->afterResponse();
+    }
+
     public function beforeEntityDelete(): void
     {
         throw new \DomainException('Un passage enregistré ne se supprime pas.');
