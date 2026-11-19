@@ -235,7 +235,15 @@ class RegistrationService
         $intro = $free ? strtr($form['confirmation_message'], ['{societe}' => $c->name]) : 'Merci pour votre commande '.$o->number.'. '.strtr($form['confirmation_message'], ['{societe}' => $c->name]);
         $text = "Bonjour {$o->buyer_name},\n\n{$intro}\n\n« {$e->name} »\n{$when}\n".count($tickets)." billet(s) : ".$tickets->pluck('code')->implode(', ')."\n\nVos billets avec leur QR code : ".$o->publicUrl()."\n\n{$c->name}";
         $answers = collect($o->answers ?? [])->map(fn ($a) => '<tr><td style="padding:4px 10px;color:#5B6B85">'.e($a['label']).'</td><td style="padding:4px 10px">'.e($a['value']).'</td></tr>')->implode('');
-        $qr = $tickets->take(1)->map(fn ($t) => '<div style="text-align:center;margin:16px 0"><img alt="QR" width="180" height="180" src="data:image/svg+xml;base64,'.base64_encode(TicketService::qrSvg($t->code, 6)).'"><div style="font-family:monospace;font-size:16px;letter-spacing:2px">'.e($t->code).'</div></div>')->implode('');
+        $qrAtt = [];
+        $qr = $tickets->take(1)->map(function ($t) use (&$qrAtt) {
+            [$img, $att] = TicketService::qrMailImage($t->code, 180);
+            if ($att) {
+                $qrAtt[] = $att;
+            }
+
+            return '<div style="text-align:center;margin:16px 0">'.$img.'<div style="font-family:monospace;font-size:16px;letter-spacing:2px">'.e($t->code).'</div></div>';
+        })->implode('');
         $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;line-height:1.5">'
             .'<div style="background:#0B1B3A;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><div style="font-size:13px;opacity:.75">'.e($c->name).'</div><div style="font-size:22px;font-weight:bold">'.e($e->name).'</div><div style="opacity:.85">'.e($when).'</div></div>'
             .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
@@ -250,7 +258,7 @@ class RegistrationService
         $sent = false;
         if ($o->buyer_email && ($avail['email'] ?? null)) {
             $att = [['name' => 'billets-'.Str::slug($e->name).'.pdf', 'data' => $this->ticketsPdf($c, $e, $tickets), 'mime' => 'application/pdf'],
-                ['name' => Str::slug($e->name).'.ics', 'data' => self::ics($c, $e), 'mime' => 'text/calendar']];
+                ['name' => Str::slug($e->name).'.ics', 'data' => self::ics($c, $e), 'mime' => 'text/calendar'], ...$qrAtt];
             try {
                 $sent = $messaging->send($c, 'email', new Message(to: $o->buyer_email, subject: ($free ? 'Inscription confirmée — ' : 'Vos billets — ').$e->name, html: $html, text: $text, toName: $o->buyer_name, attachments: $att, replyTo: $c->email), 'billetterie')->ok;
             } catch (\Throwable) {
@@ -306,6 +314,7 @@ class RegistrationService
             return false;
         }
         $name = $t->holder_name ?: ($o?->buyer_name ?: 'cher visiteur');
+        [$qrImg, $qrAtt] = TicketService::qrMailImage($t->code, 160);
         $first = Str::before(trim($name), ' ') ?: $name;
         $n = self::dayNumber($e, $day);
         $dayLabel = ucfirst(Carbon::parse($day)->locale('fr')->isoFormat('dddd D MMMM'));
@@ -325,7 +334,7 @@ class RegistrationService
             .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
             .'<p style="font-size:18px"><b>'.e($title).', '.e($first).' !</b></p>'
             .'<p>Votre entrée d\'aujourd\'hui est enregistrée. Gardez votre numéro : il reste le même pendant tout l\'événement.</p>'
-            .'<div style="text-align:center;margin:16px 0"><img alt="QR" width="160" height="160" src="data:image/svg+xml;base64,'.base64_encode(TicketService::qrSvg($t->code, 6)).'"><div style="font-family:monospace;font-size:18px;letter-spacing:2px">'.e($t->code).'</div></div>'
+            .'<div style="text-align:center;margin:16px 0">'.$qrImg.'<div style="font-family:monospace;font-size:18px;letter-spacing:2px">'.e($t->code).'</div></div>'
             .self::dayBlock($form, $day)
             .'<table style="border-collapse:collapse;font-size:13px;margin:10px 0">'.$rows.'</table>'
             .($o ? '<p><a href="'.e($o->publicUrl()).'" style="display:inline-block;background:#1F6FEB;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Voir mon billet</a></p>' : '')
@@ -338,7 +347,7 @@ class RegistrationService
             return false;
         }
         try {
-            return $messaging->send($c, 'email', new Message(to: $email, subject: $title.' — '.$e->name, html: $html, text: $text, toName: $name, replyTo: $c->email), 'billetterie')->ok;
+            return $messaging->send($c, 'email', new Message(to: $email, subject: $title.' — '.$e->name, html: $html, text: $text, toName: $name, attachments: $qrAtt ? [$qrAtt] : [], replyTo: $c->email), 'billetterie')->ok;
         } catch (\Throwable) {
             return false;
         }

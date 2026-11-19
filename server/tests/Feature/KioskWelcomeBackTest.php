@@ -70,6 +70,9 @@ class KioskWelcomeBackTest extends TestCase
         $this->assertStringContainsString('Inscription confirmée', $m[0]->getSubject());
         $this->assertStringContainsString('Ouverture officielle à 10 h.', $m[0]->getHtmlBody());
         $this->assertStringContainsString('010001', $m[0]->getHtmlBody());
+        // QR code en image PNG intégrée (les messageries n'affichent pas le SVG)
+        $this->assertStringContainsString('src="cid:', $m[0]->getHtmlBody());
+        $this->assertStringNotContainsString('image/svg', $m[0]->getHtmlBody());
 
         // Jour 2 : elle tape son numéro → e-mail « Bienvenue pour le jour 2 », même numéro, programme du jour 2
         Carbon::setTestNow('2026-12-02 09:05:00');
@@ -81,6 +84,7 @@ class KioskWelcomeBackTest extends TestCase
         $this->assertStringContainsString('010001', $html);
         $this->assertStringContainsString('Concours de bétail à 11 h, hall B.', $html);
         $this->assertStringContainsString('Awa Koné', $html);
+        $this->assertStringContainsString('src="cid:', $html);
 
         // Revenue une seconde fois le même jour : pas de second e-mail
         $push('ev_checkins', ['event_id' => $ev, 'code' => '010001', 'scanned_at' => '2026-12-02T14:00:00+00:00', 'gate' => 'Téléphone 1']);

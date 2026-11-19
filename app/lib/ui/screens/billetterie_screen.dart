@@ -97,7 +97,7 @@ class _TicketingTabState extends State<TicketingTab> {
           final revenue = valid.fold<double>(0, (s, t) => s + toDouble(t['price']));
           final inside = valid.where((t) => t['checked_in_at'] != null).length;
           final base = tickets
-              .where((t) => _q.isEmpty || '${t['code']} ${t['holder_name'] ?? ''} ${t['company_name'] ?? ''}'.toLowerCase().contains(_q))
+              .where((t) => _q.isEmpty || '${t['code']} ${t['holder_name'] ?? ''} ${t['company_name'] ?? ''} ${_orderOf(t)?['buyer_phone'] ?? ''} ${_orderOf(t)?['buyer_email'] ?? ''} ${_orderOf(t)?['buyer_city'] ?? ''}'.toLowerCase().contains(_q))
               .where((t) => _f['kind'] == null || '${t['kind']}' == _f['kind'])
               .where((t) => _f['type'] == null || '${t['type_id'] ?? ''}' == _f['type'])
               .where((t) => _f['entry'] == null || (t['checked_in_at'] != null) == (_f['entry'] == 'yes'))
@@ -209,8 +209,11 @@ class _TicketingTabState extends State<TicketingTab> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(t['kind'] == 'visitor' || t['kind'] == 'vip' ? Icons.confirmation_number_outlined : Icons.badge_outlined, color: t['status'] == 'valid' ? YColors.blue : Colors.grey),
                     title: Text(tr('${t['holder_name'] ?? '—'}${t['company_name'] != null ? ' · ${t['company_name']}' : ''}'), style: TextStyle(decoration: t['status'] == 'valid' ? null : TextDecoration.lineThrough)),
+                    onTap: () => showTicketDetails(context, t),
                     subtitle: Text(tr([
                       '${t['code']}',
+                      if (_orderOf(t)?['buyer_phone'] != null) '${_orderOf(t)!['buyer_phone']}',
+                      if (_orderOf(t)?['buyer_city'] != null) '${_orderOf(t)!['buyer_city']}',
                       LocalDb.get('ev_ticket_types', t['type_id'] as String?)?['name'] ?? tkKinds[t['kind']] ?? '',
                       if (t['checked_in_at'] != null) 'entré ${toDouble(t['checkins_count']).toInt()} fois' else 'pas encore entré',
                     ].join(' · '))),
@@ -234,6 +237,56 @@ class _TicketingTabState extends State<TicketingTab> {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------- fiche d'un inscrit
+
+Map<String, dynamic>? _orderOf(Map<String, dynamic> t) =>
+    t['order_id'] == null || !LocalDb.hasEntity('ev_ticket_orders') ? null : LocalDb.get('ev_ticket_orders', '${t['order_id']}');
+
+/// Informations de l'inscrit : coordonnées, provenance, réponses au formulaire, borne et jours de présence.
+Future<void> showTicketDetails(BuildContext context, Map<String, dynamic> t) {
+  final o = _orderOf(t) ?? const <String, dynamic>{};
+  final days = LocalDb.hasEntity('ev_checkins')
+      ? (LocalDb.all('ev_checkins').where((c) => c['ticket_id'] == t['id'] && c['result'] == 'ok').map((c) => dateFr(c['scanned_at'])).toSet().toList()..sort())
+      : <String>[];
+  final rows = <(String, String?)>[
+    ('Nom', '${t['holder_name'] ?? o['buyer_name'] ?? ''}'),
+    ('Numéro', '${t['code']}'),
+    ('Téléphone', o['buyer_phone'] as String?),
+    ('E-mail', o['buyer_email'] as String?),
+    ('Société', (o['buyer_company'] ?? t['company_name']) as String?),
+    ('Fonction', o['buyer_job'] as String?),
+    ('Ville / commune', o['buyer_city'] as String?),
+    ('Pays', o['buyer_country'] as String?),
+    for (final a in (o['answers'] is List ? o['answers'] as List : const []).map(asMap)) ('${a['label']}', '${a['value'] ?? ''}'),
+    ('Inscrit le', o['registered_at'] != null || o['created_at'] != null ? dateTimeFr(o['registered_at'] ?? o['created_at']) : null),
+    ('Borne', o['kiosk'] as String?),
+    ('Jours de présence', days.isEmpty ? 'pas encore entré' : days.join(', ')),
+    ('Accepte les informations', o.isEmpty ? null : (o['consent'] == true ? 'Oui' : 'Non')),
+  ].where((r) => r.$2 != null && r.$2!.trim().isNotEmpty).toList();
+  return showDialog(
+    context: context,
+    builder: (c) => YAlertDialog(
+      title: Text(tr('${t['holder_name'] ?? o['buyer_name'] ?? 'Inscrit'}')),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            for (final (label, value) in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SizedBox(width: 150, child: Text(tr(label), style: TextStyle(color: Theme.of(c).hintColor))),
+                  Expanded(child: SelectableText(value!, style: const TextStyle(fontWeight: FontWeight.w600))),
+                ]),
+              ),
+          ]),
+        ),
+      ),
+      actions: [FilledButton(onPressed: () => Navigator.pop(c), child: Text(tr('Fermer')))],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------- tarifs

@@ -573,7 +573,7 @@ class _RegFormState extends State<_RegForm> {
           ),
         ),
       const Divider(),
-      Field(label: tr('Texte du consentement Marketing ({societe} = votre société)'), child: TextField(controller: _consent, maxLines: 2)),
+      Field(label: tr('Texte du consentement Marketing ({societe} = votre société) — vide : pas de case à cocher'), child: TextField(controller: _consent, maxLines: 2)),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(tr('Ajouter les inscrits consentants à « Abonnés événements »')),

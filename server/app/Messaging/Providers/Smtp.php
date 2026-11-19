@@ -81,7 +81,8 @@ class Smtp implements Provider
             }
             $email->text($m->text ?? trim(html_entity_decode(strip_tags(preg_replace('/<br\s*\/?>|<\/p>/i', "\n", (string) $m->html)))));
             foreach ($m->attachments as $a) {
-                $email->attach($a['data'], $a['name'], $a['mime'] ?? null);
+                // Image intégrée au corps (QR code…) : référencée dans le HTML par « cid:<nom> », affichée sans « charger les images »
+                ! empty($a['inline']) ? $email->embed($a['data'], $a['name'], $a['mime'] ?? null) : $email->attach($a['data'], $a['name'], $a['mime'] ?? null);
             }
             foreach ($m->headers as $k => $v) {
                 $email->getHeaders()->addTextHeader($k, $v);

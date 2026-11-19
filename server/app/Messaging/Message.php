@@ -5,7 +5,7 @@ namespace App\Messaging;
 /** Message à envoyer (le contenu inutile au canal est ignoré : sujet / HTML pour l'e-mail, texte pour SMS et WhatsApp). */
 class Message
 {
-    /** @param array<int, array{name: string, data: string, mime?: string}> $attachments */
+    /** @param array<int, array{name: string, data: string, mime?: string, inline?: bool}> $attachments inline : image du corps (cid:<name>) */
     public function __construct(
         public string $to,
         public ?string $subject = null,

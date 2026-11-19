@@ -246,6 +246,26 @@ class TicketService
         return $doc ? InvoicePayments::url(app(InvoicePayments::class)->link($doc)) : null;
     }
 
+    /** QR code en PNG pour les e-mails (les messageries n'affichent pas les images SVG). Null si GD est absent. */
+    public static function qrPng(string $data, int $size = 8): ?string
+    {
+        $png = (new \TCPDF2DBarcode($data, 'QRCODE,M'))->getBarcodePngData($size, $size, [11, 27, 58]);
+
+        return is_string($png) && $png !== '' ? $png : null;
+    }
+
+    /** Balise image du QR code d'un e-mail et pièce jointe intégrée correspondante (PNG), ou SVG en secours. */
+    public static function qrMailImage(string $code, int $px): array
+    {
+        $png = self::qrPng($code);
+        if ($png === null) {
+            return ['<img alt="QR" width="'.$px.'" height="'.$px.'" src="data:image/svg+xml;base64,'.base64_encode(self::qrSvg($code, 6)).'">', null];
+        }
+        $name = 'qr-'.preg_replace('/[^A-Za-z0-9]/', '', $code).'.png';
+
+        return ['<img alt="QR code '.e($code).'" width="'.$px.'" height="'.$px.'" style="display:block;margin:0 auto" src="cid:'.$name.'">', ['name' => $name, 'data' => $png, 'mime' => 'image/png', 'inline' => true]];
+    }
+
     public static function qrSvg(string $data, int $size = 6): string
     {
         $svg = (new \TCPDF2DBarcode($data, 'QRCODE,M'))->getBarcodeSVGcode($size, $size, '#0B1B3A');

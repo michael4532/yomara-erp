@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.77 — bornes sur téléphone
+
+- **QR code visible dans les e-mails** (Gmail, iPhone, Outlook) : image intégrée au message, plus besoin d'« afficher les images ».
+- **Borne sur téléphone** : bandeau réduit à une ligne, caché quand le clavier est ouvert ; titre plus petit ; la fenêtre « Mode borne d'accueil » défile et le clavier ne cache plus les champs.
+- **Fiche de l'inscrit** : dans Billetterie › Billets et badges émis, touchez un nom pour voir ses coordonnées, sa ville, ses réponses (« Vous êtes »…), la borne, l'heure d'inscription et ses jours de présence. La recherche trouve aussi un téléphone, un e-mail ou une ville.
+- **Bouton « Borne »** sur la carte de l'événement (Billetterie) : le téléphone passe en mode borne directement.
+- **Case « J'accepte de recevoir les informations »** : laissez le texte du consentement vide dans le formulaire pour ne plus l'afficher.
+
 ## 0.99.76 — comptes limités à la billetterie
 
 - **Compte « borne » ou « contrôle »** limité au module Billetterie : l'écran Billetterie restait gris, faute des événements sur l'appareil. Les données des modules dont dépend la billetterie sont maintenant envoyées sans ouvrir ces modules.

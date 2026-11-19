@@ -108,10 +108,10 @@ class EventRegistrationTest extends TestCase
         $this->assertCount(1, $m);
         $this->assertSame('Inscription confirmée — Forum Digital Abidjan', $m[0]->getSubject());
         $this->assertStringContainsString($t->code, $m[0]->getHtmlBody());
-        $this->assertStringContainsString('data:image/svg+xml;base64', $m[0]->getHtmlBody());
+        $this->assertStringContainsString('src="cid:qr-', $m[0]->getHtmlBody()); // QR code en PNG intégré, visible dans toutes les messageries
         $this->assertStringContainsString('Rencontrer des fintechs', $m[0]->getHtmlBody());
         $att = collect($m[0]->getAttachments())->map(fn ($a) => $a->getContentType())->all();
-        $this->assertSame(['application/pdf', 'text/calendar'], $att);
+        $this->assertSame(['application/pdf', 'text/calendar', 'image/png'], $att);
         $this->assertStringStartsWith('%PDF', $m[0]->getAttachments()[0]->getBody());
 
         // Contacts Marketing : liste « Inscrits — … » + liste générale (consentement), étiquette, entreprise

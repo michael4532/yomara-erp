@@ -119,109 +119,122 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
     builder: (c) => StatefulBuilder(
       builder: (c, set) => YAlertDialog(
         title: Text(tr('Mode borne d\'accueil')),
+        // Téléphone : la fenêtre défile, et le clavier ne cache plus les champs du bas
         content: SizedBox(
           width: 460,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              tr('Les visiteurs s\'inscrivent eux-mêmes sur cet appareil, en plein écran. Chaque inscription vaut entrée du jour ; un visiteur qui revient présente son QR code ou donne son numéro. Fonctionne sans Internet : tout part au serveur dès que la connexion revient.'),
-              style: TextStyle(color: Theme.of(c).hintColor, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: name, decoration: InputDecoration(labelText: tr('Nom de cette borne'), helperText: tr('Ex. : Borne 1, Entrée Nord. Sert aux statistiques par borne.'))),
-            const SizedBox(height: 10),
-            TextField(
-              controller: number,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
-              decoration: InputDecoration(
-                labelText: tr('Numéro de la borne (1 à 99)'),
-                helperText: tr('Début des numéros de ticket : borne 1 → 01-0001, 01-0002… Un numéro différent par borne.'),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: pin,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(labelText: tr('Code de sortie (4 à 6 chiffres)'), helperText: tr('Demandé pour quitter la borne. Restez discret en le tapant.')),
-            ),
-            const Divider(height: 24),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: print,
-              onChanged: (v) => set(() => print = v),
-              title: Text(tr('Imprimer le ticket après chaque inscription')),
-              subtitle: Text(tr(info.directPrint
-                  ? 'Impression directe, sans fenêtre.'
-                  : (kIsWeb
-                      ? 'Le navigateur affiche sa fenêtre d\'impression ; pour imprimer sans fenêtre, ouvrez Chrome en mode borne avec --kiosk --kiosk-printing.'
-                      : 'Cet appareil affiche la fenêtre d\'impression à chaque ticket ; un PC Windows, un Mac ou un iPad imprime directement.'))),
-            ),
-            if (print) ...[
-              DropdownButtonFormField<String>(
-                initialValue: paper,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Format du ticket')),
-                items: [for (final f in kioskPaperFormats.entries) DropdownMenuItem(value: f.key, child: Text(tr(f.value)))],
-                onChanged: (v) => set(() => paper = v ?? paper),
-              ),
-              if (printers.isNotEmpty)
-                DropdownButtonFormField<String>(
-                  initialValue: printer?.url,
-                  isExpanded: true,
-                  decoration: InputDecoration(labelText: tr('Imprimante')),
-                  items: [for (final x in printers) DropdownMenuItem(value: x.url, child: Text(tr('${x.name}${x.isDefault ? ' (par défaut)' : ''}')))],
-                  onChanged: (v) => set(() => printer = printers.firstWhere((x) => x.url == v)),
-                )
-              else if (info.directPrint)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      final p = await Printing.pickPrinter(context: c, title: tr('Imprimante des tickets'));
-                      if (p != null) set(() => printer = p);
-                    },
-                    icon: const Icon(Icons.print_outlined),
-                    label: Text(tr(printer == null ? 'Choisir l\'imprimante' : 'Imprimante : ${printer!.name}')),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'Les visiteurs s\'inscrivent eux-mêmes sur cet appareil, en plein écran. Chaque inscription vaut entrée du jour ; un visiteur qui revient présente son QR code ou donne son numéro. Fonctionne sans Internet : tout part au serveur dès que la connexion revient.',
+                  ),
+                  style: TextStyle(color: Theme.of(c).hintColor, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: name,
+                  decoration: InputDecoration(labelText: tr('Nom de cette borne'), helperText: tr('Ex. : Borne 1, Entrée Nord. Sert aux statistiques par borne.')),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: number,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+                  decoration: InputDecoration(labelText: tr('Numéro de la borne (1 à 99)'), helperText: tr('Début des numéros de ticket : borne 1 → 01-0001, 01-0002… Un numéro différent par borne.')),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: pin,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(labelText: tr('Code de sortie (4 à 6 chiffres)'), helperText: tr('Demandé pour quitter la borne. Restez discret en le tapant.')),
+                ),
+                const Divider(height: 24),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: print,
+                  onChanged: (v) => set(() => print = v),
+                  title: Text(tr('Imprimer le ticket après chaque inscription')),
+                  subtitle: Text(
+                    tr(
+                      info.directPrint
+                          ? 'Impression directe, sans fenêtre.'
+                          : (kIsWeb
+                                ? 'Le navigateur affiche sa fenêtre d\'impression ; pour imprimer sans fenêtre, ouvrez Chrome en mode borne avec --kiosk --kiosk-printing.'
+                                : 'Cet appareil affiche la fenêtre d\'impression à chaque ticket ; un PC Windows, un Mac ou un iPad imprime directement.'),
+                    ),
                   ),
                 ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => printKioskTicket(
-                    event: event,
-                    ticket: {'code': '${(int.tryParse(number.text) ?? 1).toString().padLeft(2, '0')}0000', 'holder_name': 'Ticket d\'essai'},
-                    company: '${session.company['name'] ?? ''}',
-                    kiosk: name.text.trim(),
-                    paper: paper,
-                    printer: printer,
-                    direct: info.directPrint,
+                if (print) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: paper,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: tr('Format du ticket')),
+                    items: [for (final f in kioskPaperFormats.entries) DropdownMenuItem(value: f.key, child: Text(tr(f.value)))],
+                    onChanged: (v) => set(() => paper = v ?? paper),
                   ),
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  label: Text(tr('Imprimer un ticket d\'essai')),
-                ),
-              ),
-            ],
-            if (types.isEmpty)
-              Card(
-                color: YColors.blue.withValues(alpha: .07),
-                child: ListTile(
-                  leading: const Icon(Icons.info_outline, color: YColors.blue),
-                  title: Text(tr('Un tarif « Visiteur » gratuit sera créé')),
-                  subtitle: Text(tr('Valable pendant toute la durée de l\'événement, une entrée par jour.')),
-                ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: typeId,
-                isExpanded: true,
-                decoration: InputDecoration(labelText: tr('Billet remis aux inscrits')),
-                items: [for (final t in types) DropdownMenuItem(value: '${t['id']}', child: Text(tr('${t['name']}')))],
-                onChanged: (v) => set(() => typeId = v),
-              ),
-          ]),
+                  if (printers.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      initialValue: printer?.url,
+                      isExpanded: true,
+                      decoration: InputDecoration(labelText: tr('Imprimante')),
+                      items: [for (final x in printers) DropdownMenuItem(value: x.url, child: Text(tr('${x.name}${x.isDefault ? ' (par défaut)' : ''}')))],
+                      onChanged: (v) => set(() => printer = printers.firstWhere((x) => x.url == v)),
+                    )
+                  else if (info.directPrint)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final p = await Printing.pickPrinter(context: c, title: tr('Imprimante des tickets'));
+                          if (p != null) set(() => printer = p);
+                        },
+                        icon: const Icon(Icons.print_outlined),
+                        label: Text(tr(printer == null ? 'Choisir l\'imprimante' : 'Imprimante : ${printer!.name}')),
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => printKioskTicket(
+                        event: event,
+                        ticket: {'code': '${(int.tryParse(number.text) ?? 1).toString().padLeft(2, '0')}0000', 'holder_name': 'Ticket d\'essai'},
+                        company: '${session.company['name'] ?? ''}',
+                        kiosk: name.text.trim(),
+                        paper: paper,
+                        printer: printer,
+                        direct: info.directPrint,
+                      ),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: Text(tr('Imprimer un ticket d\'essai')),
+                    ),
+                  ),
+                ],
+                if (types.isEmpty)
+                  Card(
+                    color: YColors.blue.withValues(alpha: .07),
+                    child: ListTile(
+                      leading: const Icon(Icons.info_outline, color: YColors.blue),
+                      title: Text(tr('Un tarif « Visiteur » gratuit sera créé')),
+                      subtitle: Text(tr('Valable pendant toute la durée de l\'événement, une entrée par jour.')),
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    initialValue: typeId,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: tr('Billet remis aux inscrits')),
+                    items: [for (final t in types) DropdownMenuItem(value: '${t['id']}', child: Text(tr('${t['name']}')))],
+                    onChanged: (v) => set(() => typeId = v),
+                  ),
+              ],
+            ),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
@@ -246,7 +259,9 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   if (types.isEmpty) {
     final id = newId();
     await sync.save('ev_ticket_types', {'id': id, 'event_id': event['id'], 'name': 'Visiteur', 'kind': 'visitor', 'price': 0, 'online': true, 'reentry': false, 'active': true});
-    types = [LocalDb.get('ev_ticket_types', id) ?? {'id': id, 'kind': 'visitor', 'price': 0, 'reentry': false}];
+    types = [
+      LocalDb.get('ev_ticket_types', id) ?? {'id': id, 'kind': 'visitor', 'price': 0, 'reentry': false},
+    ];
     typeId = id;
   }
   await LocalDb.meta.put('kiosk_name', name.text.trim());
@@ -258,10 +273,22 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   await LocalDb.meta.put('kiosk_printer_name', printer?.name);
   final logo = form['kiosk_logo'] == false ? null : await kioskLogo(session);
   if (!context.mounted) return;
-  await Navigator.of(context).push(MaterialPageRoute(
-    fullscreenDialog: true,
-    builder: (_) => KioskScreen(eventId: '${event['id']}', kioskName: name.text.trim(), typeId: typeId!, number: int.parse(number.text), print: print, paper: paper, printer: printer, directPrint: info.directPrint, logo: logo),
-  ));
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => KioskScreen(
+        eventId: '${event['id']}',
+        kioskName: name.text.trim(),
+        typeId: typeId!,
+        number: int.parse(number.text),
+        print: print,
+        paper: paper,
+        printer: printer,
+        directPrint: info.directPrint,
+        logo: logo,
+      ),
+    ),
+  );
 }
 
 /// Impression d'un ticket de borne : directe (Windows, Mac, iPad, Linux) ou par la fenêtre d'impression (Android, navigateur).
@@ -289,7 +316,18 @@ Future<void> printKioskTicket({
 enum _Step { form, returning, done }
 
 class KioskScreen extends StatefulWidget {
-  const KioskScreen({super.key, required this.eventId, required this.kioskName, required this.typeId, this.number = 1, this.print = false, this.paper = 'roll80', this.printer, this.directPrint = false, this.logo});
+  const KioskScreen({
+    super.key,
+    required this.eventId,
+    required this.kioskName,
+    required this.typeId,
+    this.number = 1,
+    this.print = false,
+    this.paper = 'roll80',
+    this.printer,
+    this.directPrint = false,
+    this.logo,
+  });
 
   final String eventId;
   final String kioskName;
@@ -431,7 +469,12 @@ class _KioskScreenState extends State<KioskScreen> {
       'reason': r.reason,
     });
     if (r.ok) {
-      await LocalDb.put('ev_tickets', {...t, 'checked_in_at': t['checked_in_at'] ?? now.toUtc().toIso8601String(), 'last_checkin_at': now.toUtc().toIso8601String(), 'checkins_count': toDouble(t['checkins_count']).toInt() + 1});
+      await LocalDb.put('ev_tickets', {
+        ...t,
+        'checked_in_at': t['checked_in_at'] ?? now.toUtc().toIso8601String(),
+        'last_checkin_at': now.toUtc().toIso8601String(),
+        'checkins_count': toDouble(t['checkins_count']).toInt() + 1,
+      });
     }
     return r;
   }
@@ -482,12 +525,13 @@ class _KioskScreenState extends State<KioskScreen> {
     if (r.ok) {
       final mail = '${t['holder_email'] ?? ''}'.isNotEmpty && _form['welcome_back_email'] != false;
       _showDone(
-          t,
-          'Bon retour${who.isEmpty ? '' : ', $who'} !',
-          widget.print
-              ? 'Votre entrée d\'aujourd\'hui est enregistrée. Récupérez votre ticket. Bonne visite !'
-              : 'Votre entrée d\'aujourd\'hui est enregistrée.${mail ? ' Un e-mail de bienvenue avec le programme du jour vous est envoyé.' : ''} Bonne visite !',
-          returning: true);
+        t,
+        'Bon retour${who.isEmpty ? '' : ', $who'} !',
+        widget.print
+            ? 'Votre entrée d\'aujourd\'hui est enregistrée. Récupérez votre ticket. Bonne visite !'
+            : 'Votre entrée d\'aujourd\'hui est enregistrée.${mail ? ' Un e-mail de bienvenue avec le programme du jour vous est envoyé.' : ''} Bonne visite !',
+        returning: true,
+      );
     } else if (r.result == 'duplicate') {
       _showDone(t, 'Bienvenue${who.isEmpty ? '' : ', $who'} !', 'Votre entrée d\'aujourd\'hui était déjà enregistrée. Bonne visite !', color: YColors.blue, returning: true);
     } else {
@@ -611,7 +655,11 @@ class _KioskScreenState extends State<KioskScreen> {
         ? LocalDb.all('ev_ticket_orders').where((o) => o['event_id'] == widget.eventId && o['kiosk'] == widget.kioskName && today(o['registered_at'] ?? o['created_at'])).length
         : 0;
     final entries = LocalDb.hasEntity('ev_checkins')
-        ? LocalDb.all('ev_checkins').where((c) => c['event_id'] == widget.eventId && c['gate'] == widget.kioskName && c['result'] == 'ok' && today(c['scanned_at'])).map((c) => c['ticket_id']).toSet().length
+        ? LocalDb.all('ev_checkins')
+              .where((c) => c['event_id'] == widget.eventId && c['gate'] == widget.kioskName && c['result'] == 'ok' && today(c['scanned_at']))
+              .map((c) => c['ticket_id'])
+              .toSet()
+              .length
         : 0;
     return (regs, entries);
   }
@@ -650,20 +698,31 @@ class _KioskScreenState extends State<KioskScreen> {
       context: context,
       builder: (c) => YAlertDialog(
         title: Text(tr('Borne « ${widget.kioskName} »')),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Builder(builder: (_) {
-            final (regs, entries) = _todayCounts();
-            final pending = context.read<SyncEngine>().pendingCount;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(tr('Aujourd\'hui sur cette borne : $regs inscription(s), $entries entrée(s).${pending > 0 ? ' $pending enregistrement(s) en attente d\'envoi.' : ' Tout est envoyé au serveur.'}'),
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-            );
-          }),
-          ListTile(leading: const Icon(Icons.insights_outlined), title: Text(tr('Voir la fréquentation')), onTap: () => Navigator.pop(c, 'stats')),
-          ListTile(leading: const Icon(Icons.sync), title: Text(tr('Synchroniser maintenant')), onTap: () => Navigator.pop(c, 'sync')),
-          ListTile(leading: const Icon(Icons.logout, color: YColors.danger), title: Text(tr('Quitter le mode borne')), onTap: () => Navigator.pop(c, 'exit')),
-        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Builder(
+              builder: (_) {
+                final (regs, entries) = _todayCounts();
+                final pending = context.read<SyncEngine>().pendingCount;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    tr('Aujourd\'hui sur cette borne : $regs inscription(s), $entries entrée(s).${pending > 0 ? ' $pending enregistrement(s) en attente d\'envoi.' : ' Tout est envoyé au serveur.'}'),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                );
+              },
+            ),
+            ListTile(leading: const Icon(Icons.insights_outlined), title: Text(tr('Voir la fréquentation')), onTap: () => Navigator.pop(c, 'stats')),
+            ListTile(leading: const Icon(Icons.sync), title: Text(tr('Synchroniser maintenant')), onTap: () => Navigator.pop(c, 'sync')),
+            ListTile(
+              leading: const Icon(Icons.logout, color: YColors.danger),
+              title: Text(tr('Quitter le mode borne')),
+              onTap: () => Navigator.pop(c, 'exit'),
+            ),
+          ],
+        ),
         actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Revenir à la borne')))],
       ),
     );
@@ -696,7 +755,10 @@ class _KioskScreenState extends State<KioskScreen> {
 
   ThemeData _kioskTheme(BuildContext context) {
     final base = Theme.of(context);
-    OutlineInputBorder border(Color c, [double w = 1.2]) => OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: w));
+    OutlineInputBorder border(Color c, [double w = 1.2]) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: c, width: w),
+    );
     return base.copyWith(
       colorScheme: base.colorScheme.copyWith(primary: _accent, onPrimary: _onAccent),
       scaffoldBackgroundColor: _bg,
@@ -728,22 +790,31 @@ class _KioskScreenState extends State<KioskScreen> {
           data: _kioskTheme(context),
           child: Scaffold(
             backgroundColor: _bg,
-            body: LayoutBuilder(builder: (context, box) {
-              final wide = box.maxWidth >= 1000;
-              final Widget content = switch (_step) {
-                _Step.form => _formView(wide),
-                _Step.returning => _returningView(wide),
-                _Step.done => _doneView(wide),
-              };
-              if (_step == _Step.done) return content;
-              if (wide) {
-                return Row(children: [
-                  SizedBox(width: math.min(520, box.maxWidth * .38), child: _brandPanel(full: true)),
-                  Expanded(child: content),
-                ]);
-              }
-              return Column(children: [_brandPanel(full: false), Expanded(child: content)]);
-            }),
+            body: LayoutBuilder(
+              builder: (context, box) {
+                final wide = box.maxWidth >= 1000;
+                final Widget content = switch (_step) {
+                  _Step.form => _formView(wide),
+                  _Step.returning => _returningView(wide),
+                  _Step.done => _doneView(wide),
+                };
+                if (_step == _Step.done) return content;
+                if (wide) {
+                  return Row(
+                    children: [
+                      SizedBox(width: math.min(520, box.maxWidth * .38), child: _brandPanel(full: true)),
+                      Expanded(child: content),
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    _brandPanel(full: false),
+                    Expanded(child: content),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -768,21 +839,24 @@ class _KioskScreenState extends State<KioskScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(color: fg.withValues(alpha: .08), borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 15, color: pending == 0 ? fg.withValues(alpha: .7) : YColors.warning),
-          const SizedBox(width: 6),
-          Text(tr(widget.kioskName), style: TextStyle(color: fg.withValues(alpha: .7), fontSize: 12.5, fontWeight: FontWeight.w600)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(pending == 0 ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined, size: 15, color: pending == 0 ? fg.withValues(alpha: .7) : YColors.warning),
+            const SizedBox(width: 6),
+            Text(
+              tr(widget.kioskName),
+              style: TextStyle(color: fg.withValues(alpha: .7), fontSize: 12.5, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   String get _dates {
     final e = _event;
-    return [
-      if (e['start_date'] != null) dateFr(e['start_date']),
-      if (e['end_date'] != null && e['end_date'] != e['start_date']) dateFr(e['end_date']),
-    ].join(' au ');
+    return [if (e['start_date'] != null) dateFr(e['start_date']), if (e['end_date'] != null && e['end_date'] != e['start_date']) dateFr(e['end_date'])].join(' au ');
   }
 
   /// Panneau aux couleurs de l'événement : à gauche sur grand écran, en bandeau sur une tablette en hauteur.
@@ -793,13 +867,25 @@ class _KioskScreenState extends State<KioskScreen> {
     final place = [if (e['venue'] != null) '${e['venue']}', if (e['city'] != null) '${e['city']}'].join(', ');
     final action = _step == _Step.form
         ? FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: _highlight, foregroundColor: _highlight == Colors.white ? _accent : YColors.night, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            style: FilledButton.styleFrom(
+              backgroundColor: _highlight,
+              foregroundColor: _highlight == Colors.white ? _accent : YColors.night,
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+              textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
             onPressed: () => _go(_Step.returning),
             icon: const Icon(Icons.confirmation_number_outlined, size: 22),
             label: Text(tr('Déjà inscrit ? Mon numéro')),
           )
         : OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: on, side: BorderSide(color: on.withValues(alpha: .5), width: 1.5), padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: on,
+              side: BorderSide(color: on.withValues(alpha: .5), width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+              textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
             onPressed: _reset,
             icon: const Icon(Icons.edit_note, size: 24),
             label: Text(tr('Nouvelle inscription')),
@@ -807,257 +893,397 @@ class _KioskScreenState extends State<KioskScreen> {
     final Widget body;
     if (full) {
       Widget step(int n, String label) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(children: [
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _highlight, width: 2)),
-                child: Text('$n', style: TextStyle(color: _highlight, fontWeight: FontWeight.w800)),
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _highlight, width: 2),
               ),
-              const SizedBox(width: 14),
-              Expanded(child: Text(tr(label), style: TextStyle(color: on, fontSize: 17))),
-            ]),
-          );
+              child: Text(
+                '$n',
+                style: TextStyle(color: _highlight, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(tr(label), style: TextStyle(color: on, fontSize: 17)),
+            ),
+          ],
+        ),
+      );
       body = Padding(
         padding: const EdgeInsets.fromLTRB(40, 36, 40, 24),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            _logoTile(64),
-            if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
-            Expanded(child: Text(tr(company), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 15, fontWeight: FontWeight.w600))),
-          ]),
-          const Spacer(),
-          Text(tr('${e['name'] ?? ''}'), style: _display(46, color: on)),
-          const SizedBox(height: 18),
-          if (_dates.isNotEmpty) _infoLine(Icons.event_outlined, _dates, on),
-          if (place.isNotEmpty) _infoLine(Icons.place_outlined, place, on),
-          const SizedBox(height: 22),
-          Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: TextStyle(color: on, fontSize: 19, height: 1.45)),
-          const SizedBox(height: 28),
-          if (_step == _Step.form) ...[
-            step(1, 'Remplissez le formulaire'),
-            step(2, widget.print ? 'Récupérez votre ticket' : 'Notez votre numéro de ticket'),
-            step(3, 'Entrez, bonne visite !'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _logoTile(64),
+                if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    tr(company),
+                    style: TextStyle(color: on.withValues(alpha: .8), fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(tr('${e['name'] ?? ''}'), style: _display(46, color: on)),
+            const SizedBox(height: 18),
+            if (_dates.isNotEmpty) _infoLine(Icons.event_outlined, _dates, on),
+            if (place.isNotEmpty) _infoLine(Icons.place_outlined, place, on),
+            const SizedBox(height: 22),
+            Text(tr('${_form['kiosk_welcome'] ?? ''}'), style: TextStyle(color: on, fontSize: 19, height: 1.45)),
+            const SizedBox(height: 28),
+            if (_step == _Step.form) ...[step(1, 'Remplissez le formulaire'), step(2, widget.print ? 'Récupérez votre ticket' : 'Notez votre numéro de ticket'), step(3, 'Entrez, bonne visite !')],
+            const Spacer(),
+            SizedBox(width: double.infinity, child: action),
+            const SizedBox(height: 18),
+            _kioskChip(on),
           ],
-          const Spacer(),
-          SizedBox(width: double.infinity, child: action),
-          const SizedBox(height: 18),
-          _kioskChip(on),
-        ]),
+        ),
+      );
+    } else if (MediaQuery.sizeOf(context).width < 600) {
+      // Téléphone : bandeau réduit à une ligne (le formulaire garde la place) ; clavier ouvert : le bouton se cache
+      final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+      body = Padding(
+        padding: EdgeInsets.fromLTRB(14, 10, 14, keyboard ? 10 : 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _logoTile(34),
+                if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 10),
+                Expanded(
+                  child: Text(tr('${e['name'] ?? ''}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: _display(17, color: on)),
+                ),
+                const SizedBox(width: 8),
+                _kioskChip(on),
+              ],
+            ),
+            if (!keyboard) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: _step == _Step.form
+                    ? FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _highlight,
+                          foregroundColor: _highlight == Colors.white ? _accent : YColors.night,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => _go(_Step.returning),
+                        icon: const Icon(Icons.confirmation_number_outlined, size: 19),
+                        label: Text(tr('Déjà inscrit ? Mon numéro')),
+                      )
+                    : action,
+              ),
+            ],
+          ],
+        ),
       );
     } else {
       body = Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(tr(company), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 13, fontWeight: FontWeight.w600))),
-            _kioskChip(on),
-          ]),
-          const SizedBox(height: 10),
-          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            _logoTile(54),
-            if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('${e['name'] ?? ''}'), style: _display(26, color: on)),
-                const SizedBox(height: 4),
-                Text(tr([_dates, place].where((x) => x.isNotEmpty).join(' · ')), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 14)),
-              ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tr(company),
+                    style: TextStyle(color: on.withValues(alpha: .8), fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                _kioskChip(on),
+              ],
             ),
-          ]),
-          const SizedBox(height: 14),
-          SizedBox(width: double.infinity, child: action),
-        ]),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _logoTile(54),
+                if (widget.logo != null && _form['kiosk_logo'] != false) const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr('${e['name'] ?? ''}'), style: _display(26, color: on)),
+                      const SizedBox(height: 4),
+                      Text(tr([_dates, place].where((x) => x.isNotEmpty).join(' · ')), style: TextStyle(color: on.withValues(alpha: .8), fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: action),
+          ],
+        ),
       );
     }
     return Container(
       color: _accent,
-      child: Stack(children: [
-        // Formes discrètes en arrière-plan
-        Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
-        SafeArea(right: !full, child: body),
-      ]),
+      child: Stack(
+        children: [
+          // Formes discrètes en arrière-plan
+          Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
+          SafeArea(right: !full, child: body),
+        ],
+      ),
     );
   }
 
   Widget _infoLine(IconData icon, String text, Color on) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(children: [
-          Icon(icon, color: on.withValues(alpha: .75), size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: Text(tr(text), style: TextStyle(color: on.withValues(alpha: .9), fontSize: 16))),
-        ]),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        Icon(icon, color: on.withValues(alpha: .75), size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(tr(text), style: TextStyle(color: on.withValues(alpha: .9), fontSize: 16)),
+        ),
+      ],
+    ),
+  );
 
   InputDecoration _dec(String label, {IconData? icon}) => InputDecoration(labelText: tr(label), prefixIcon: icon == null ? null : Icon(icon));
 
-  Widget _field(TextEditingController c, String label, {bool required = false, TextInputType? type, IconData? icon, String? Function(String)? check, TextCapitalization cap = TextCapitalization.sentences, String? autofill, FocusNode? focus}) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: TextFormField(
-          controller: c,
-          focusNode: focus,
-          keyboardType: type,
-          textCapitalization: cap,
-          autofillHints: autofill == null ? null : [autofill],
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w500),
-          decoration: _dec(required ? label : '$label (facultatif)', icon: icon),
-          onChanged: (_) => _touch(),
-          validator: (v) {
-            final s = (v ?? '').trim();
-            if (required && s.isEmpty) return tr('À remplir');
-            return s.isEmpty ? null : check?.call(s);
-          },
-        ),
-      );
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    bool required = false,
+    TextInputType? type,
+    IconData? icon,
+    String? Function(String)? check,
+    TextCapitalization cap = TextCapitalization.sentences,
+    String? autofill,
+    FocusNode? focus,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: TextFormField(
+      controller: c,
+      focusNode: focus,
+      keyboardType: type,
+      textCapitalization: cap,
+      autofillHints: autofill == null ? null : [autofill],
+      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w500),
+      decoration: _dec(required ? label : '$label (facultatif)', icon: icon),
+      onChanged: (_) => _touch(),
+      validator: (v) {
+        final s = (v ?? '').trim();
+        if (required && s.isEmpty) return tr('À remplir');
+        return s.isEmpty ? null : check?.call(s);
+      },
+    ),
+  );
 
   /// Villes et communes proposées : celles de Côte d'Ivoire, plus celles déjà saisies par les visiteurs sur cet appareil.
   List<String> get _knownPlaces {
     final c = foldPlace(_country.text);
     final ci = c.isEmpty || c.contains('ivoire') || c == 'ci';
-    final typed = LocalDb.hasEntity('ev_ticket_orders')
-        ? LocalDb.all('ev_ticket_orders').map((o) => '${o['buyer_city'] ?? ''}'.trim()).where((v) => v.length > 1)
-        : const <String>[];
+    final typed = LocalDb.hasEntity('ev_ticket_orders') ? LocalDb.all('ev_ticket_orders').map((o) => '${o['buyer_city'] ?? ''}'.trim()).where((v) => v.length > 1) : const <String>[];
     return [if (ci) ...localitesCI, ...typed];
   }
 
   Widget _cityField({required bool required}) => RawAutocomplete<String>(
-        textEditingController: _city,
-        focusNode: _cityFocus,
-        optionsBuilder: (v) => suggestPlaces(v.text, _knownPlaces),
-        onSelected: (_) => _touch(),
-        fieldViewBuilder: (context, c, focus, submit) => _field(c, 'Ville / commune', required: required, icon: Icons.place_outlined, cap: TextCapitalization.words, focus: focus),
-        optionsViewBuilder: (context, select, options) => Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 6,
-            borderRadius: BorderRadius.circular(12),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300, maxWidth: 420),
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shrinkWrap: true,
-                children: [
-                  for (final o in options)
-                    ListTile(
-                      leading: const Icon(Icons.place_outlined),
-                      title: Text(o, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                      subtitle: placeCity(o) == null ? null : Text(tr('Commune d\'${placeCity(o)}')),
-                      onTap: () => select(o),
-                    ),
-                ],
-              ),
-            ),
+    textEditingController: _city,
+    focusNode: _cityFocus,
+    optionsBuilder: (v) => suggestPlaces(v.text, _knownPlaces),
+    onSelected: (_) => _touch(),
+    fieldViewBuilder: (context, c, focus, submit) => _field(c, 'Ville / commune', required: required, icon: Icons.place_outlined, cap: TextCapitalization.words, focus: focus),
+    optionsViewBuilder: (context, select, options) => Align(
+      alignment: Alignment.topLeft,
+      child: Material(
+        elevation: 6,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 300, maxWidth: 420),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            shrinkWrap: true,
+            children: [
+              for (final o in options)
+                ListTile(
+                  leading: const Icon(Icons.place_outlined),
+                  title: Text(o, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                  subtitle: placeCity(o) == null ? null : Text(tr('Commune d\'${placeCity(o)}')),
+                  onTap: () => select(o),
+                ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _section(String title, List<Widget> children) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(padding: const EdgeInsets.only(bottom: 12, top: 6), child: Text(tr(title), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: YColors.inkSoft))),
-          ...children,
-        ]),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12, top: 6),
+          child: Text(
+            tr(title),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: YColors.inkSoft),
+          ),
+        ),
+        ...children,
+      ],
+    ),
+  );
 
   Widget _formView(bool wide) {
     final f = _form;
     final questions = (f['questions'] as List? ?? const []).map(asMap).toList();
-    Widget pair(Widget a, Widget b) => wide ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: a), const SizedBox(width: 14), Expanded(child: b)]) : Column(children: [a, b]);
+    Widget pair(Widget a, Widget b) => wide
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: a),
+              const SizedBox(width: 14),
+              Expanded(child: b),
+            ],
+          )
+        : Column(children: [a, b]);
     final pad = wide ? 48.0 : 20.0;
     return Form(
       key: _formKey,
-      child: Column(children: [
-        Expanded(
-          child: SingleChildScrollView(
-            key: const ValueKey('form'),
-            padding: EdgeInsets.fromLTRB(pad, wide ? 44 : 22, pad, 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(tr('Inscription visiteur'), style: _display(wide ? 36 : 28)),
-                  const SizedBox(height: 6),
-                  Text(tr('Moins d\'une minute, puis vous entrez.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
-                  const SizedBox(height: 26),
-                  _section('Vous', [
-                    if (_singleName)
-                      _field(_first, 'Nom et prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.name,
-                          check: (s) => s.length < 3 ? tr('Nom trop court') : null)
-                    else
-                      pair(
-                        _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
-                        _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
-                      ),
-                  ]),
-                  _section('Vos coordonnées', [
-                    pair(
-                      _field(_phone, 'Téléphone', required: true, type: TextInputType.phone, icon: Icons.phone_outlined, check: (s) => s.replaceAll(RegExp(r'\D'), '').length < 8 ? tr('Numéro incomplet') : null),
-                      _field(_email, widget.print ? 'E-mail' : 'E-mail (votre ticket y est envoyé)', required: f['ask_email'] == 'required' || !widget.print, type: TextInputType.emailAddress, icon: Icons.alternate_email, cap: TextCapitalization.none,
-                          check: (s) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s) ? null : tr('Adresse e-mail non valable')),
-                    ),
-                  ]),
-                  if (f['ask_company'] == true || f['ask_job'] == true)
-                    _section('Votre activité', [
-                      pair(
-                        f['ask_company'] == true ? _field(_company, 'Entreprise / organisation', icon: Icons.business_outlined) : const SizedBox.shrink(),
-                        f['ask_job'] == true ? _field(_job, 'Fonction', icon: Icons.badge_outlined) : const SizedBox.shrink(),
-                      ),
-                    ]),
-                  if (f['ask_city'] != 'off' || f['ask_country'] != 'off')
-                    _section('D\'où venez-vous ?', [
-                      pair(
-                        f['ask_city'] != 'off' ? _cityField(required: f['ask_city'] == 'required') : const SizedBox.shrink(),
-                        f['ask_country'] != 'off' ? _field(_country, 'Pays', required: f['ask_country'] == 'required', icon: Icons.public, cap: TextCapitalization.words) : const SizedBox.shrink(),
-                      ),
-                    ]),
-                  for (final q in questions) _question(q, wide),
-                  const SizedBox(height: 8),
-                  _consentCard(),
-                ]),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              key: const ValueKey('form'),
+              padding: EdgeInsets.fromLTRB(pad, wide ? 44 : 22, pad, 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr('Inscription visiteur'), style: _display(wide ? 36 : (MediaQuery.sizeOf(context).width < 600 ? 22 : 28))),
+                      const SizedBox(height: 6),
+                      Text(tr('Moins d\'une minute, puis vous entrez.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
+                      const SizedBox(height: 26),
+                      _section('Vous', [
+                        if (_singleName)
+                          _field(
+                            _first,
+                            'Nom et prénom',
+                            required: true,
+                            icon: Icons.person_outline,
+                            cap: TextCapitalization.words,
+                            autofill: AutofillHints.name,
+                            check: (s) => s.length < 3 ? tr('Nom trop court') : null,
+                          )
+                        else
+                          pair(
+                            _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
+                            _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
+                          ),
+                      ]),
+                      _section('Vos coordonnées', [
+                        pair(
+                          _field(
+                            _phone,
+                            'Téléphone',
+                            required: true,
+                            type: TextInputType.phone,
+                            icon: Icons.phone_outlined,
+                            check: (s) => s.replaceAll(RegExp(r'\D'), '').length < 8 ? tr('Numéro incomplet') : null,
+                          ),
+                          _field(
+                            _email,
+                            widget.print ? 'E-mail' : 'E-mail (votre ticket y est envoyé)',
+                            required: f['ask_email'] == 'required' || !widget.print,
+                            type: TextInputType.emailAddress,
+                            icon: Icons.alternate_email,
+                            cap: TextCapitalization.none,
+                            check: (s) => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s) ? null : tr('Adresse e-mail non valable'),
+                          ),
+                        ),
+                      ]),
+                      if (f['ask_company'] == true || f['ask_job'] == true)
+                        _section('Votre activité', [
+                          pair(
+                            f['ask_company'] == true ? _field(_company, 'Entreprise / organisation', icon: Icons.business_outlined) : const SizedBox.shrink(),
+                            f['ask_job'] == true ? _field(_job, 'Fonction', icon: Icons.badge_outlined) : const SizedBox.shrink(),
+                          ),
+                        ]),
+                      if (f['ask_city'] != 'off' || f['ask_country'] != 'off')
+                        _section('D\'où venez-vous ?', [
+                          pair(
+                            f['ask_city'] != 'off' ? _cityField(required: f['ask_city'] == 'required') : const SizedBox.shrink(),
+                            f['ask_country'] != 'off' ? _field(_country, 'Pays', required: f['ask_country'] == 'required', icon: Icons.public, cap: TextCapitalization.words) : const SizedBox.shrink(),
+                          ),
+                        ]),
+                      for (final q in questions) _question(q, wide),
+                      const SizedBox(height: 8),
+                      if ('${f['consent_text'] ?? ''}'.trim().isNotEmpty) _consentCard(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-        // Barre d'action toujours visible
-        Container(
-          decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: YColors.line))),
-          padding: EdgeInsets.fromLTRB(pad, 14, pad, 14),
-          child: SafeArea(
-            top: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Row(children: [
-                  TextButton.icon(
-                    style: TextButton.styleFrom(foregroundColor: YColors.muted, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18)),
-                    onPressed: _reset,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(tr('Effacer'), style: const TextStyle(fontSize: 16)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        foregroundColor: _onAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 22),
-                        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          // Barre d'action toujours visible
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: YColors.line)),
+            ),
+            padding: EdgeInsets.fromLTRB(pad, 14, pad, 14),
+            child: SafeArea(
+              top: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Row(
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(foregroundColor: YColors.muted, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18)),
+                        onPressed: _reset,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(tr('Effacer'), style: const TextStyle(fontSize: 16)),
                       ),
-                      onPressed: _saving ? null : _submit,
-                      child: _saving
-                          ? SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3, color: _onAccent))
-                          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(tr('Valider mon inscription')), const SizedBox(width: 12), const Icon(Icons.arrow_forward_rounded, size: 26)]),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _accent,
+                            foregroundColor: _onAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 22),
+                            textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: _saving ? null : _submit,
+                          child: _saving
+                              ? SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3, color: _onAccent))
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [Text(tr('Valider mon inscription')), const SizedBox(width: 12), const Icon(Icons.arrow_forward_rounded, size: 26)],
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                ]),
+                ),
               ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -1066,18 +1292,23 @@ class _KioskScreenState extends State<KioskScreen> {
     if (text.trim().isEmpty) return const SizedBox.shrink();
     return Material(
       color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: _consent ? _accent : YColors.line, width: _consent ? 2 : 1.2)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: _consent ? _accent : YColors.line, width: _consent ? 2 : 1.2),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => setState(() => _consent = !_consent),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          child: Row(children: [
-            Icon(Icons.mark_email_read_outlined, color: _consent ? _accent : YColors.muted),
-            const SizedBox(width: 14),
-            Expanded(child: Text(tr(text), style: const TextStyle(fontSize: 16, height: 1.35))),
-            Switch(value: _consent, onChanged: (v) => setState(() => _consent = v)),
-          ]),
+          child: Row(
+            children: [
+              Icon(Icons.mark_email_read_outlined, color: _consent ? _accent : YColors.muted),
+              const SizedBox(width: 14),
+              Expanded(child: Text(tr(text), style: const TextStyle(fontSize: 16, height: 1.35))),
+              Switch(value: _consent, onChanged: (v) => setState(() => _consent = v)),
+            ],
+          ),
         ),
       ),
     );
@@ -1085,27 +1316,38 @@ class _KioskScreenState extends State<KioskScreen> {
 
   /// Réponse choisie dans une liste : grandes tuiles faciles à toucher.
   Widget _tile(String label, bool selected, VoidCallback onTap, {double? width}) => SizedBox(
-        width: width,
-        child: Material(
-          color: selected ? _accent : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: selected ? _accent : YColors.line, width: 1.2)),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () {
-              _touch();
-              onTap();
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-              child: Row(mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max, children: [
-                Icon(selected ? Icons.check_circle : Icons.circle_outlined, size: 22, color: selected ? _onAccent : YColors.muted),
-                const SizedBox(width: 10),
-                Flexible(child: Text(tr(label), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: selected ? _onAccent : YColors.ink))),
-              ]),
-            ),
+    width: width,
+    child: Material(
+      color: selected ? _accent : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: selected ? _accent : YColors.line, width: 1.2),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          _touch();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+          child: Row(
+            mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
+            children: [
+              Icon(selected ? Icons.check_circle : Icons.circle_outlined, size: 22, color: selected ? _onAccent : YColors.muted),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  tr(label),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: selected ? _onAccent : YColors.ink),
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _question(Map<String, dynamic> q, bool wide) {
     final id = '${q['id']}';
@@ -1114,13 +1356,13 @@ class _KioskScreenState extends State<KioskScreen> {
       case 'select':
         final options = [for (final o in (q['options'] as List? ?? const [])) '$o'];
         return _section(label, [
-          LayoutBuilder(builder: (context, box) {
-            final cols = wide ? (options.length <= 4 ? 2 : 3) : 2;
-            final w = (box.maxWidth - 12 * (cols - 1)) / cols;
-            return Wrap(spacing: 12, runSpacing: 12, children: [
-              for (final o in options) _tile(o, _answers[id] == o, () => setState(() => _answers[id] = _answers[id] == o ? null : o), width: w),
-            ]);
-          }),
+          LayoutBuilder(
+            builder: (context, box) {
+              final cols = wide ? (options.length <= 4 ? 2 : 3) : 2;
+              final w = (box.maxWidth - 12 * (cols - 1)) / cols;
+              return Wrap(spacing: 12, runSpacing: 12, children: [for (final o in options) _tile(o, _answers[id] == o, () => setState(() => _answers[id] = _answers[id] == o ? null : o), width: w)]);
+            },
+          ),
           const SizedBox(height: 8),
         ]);
       case 'checkbox':
@@ -1188,39 +1430,58 @@ class _KioskScreenState extends State<KioskScreen> {
 
   Widget _returningView(bool wide) {
     Widget key(String k, {Widget? child, Color? color, Color? fg, VoidCallback? onTap}) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: SizedBox(
-              height: wide ? 78 : 68,
-              child: Material(
-                color: color ?? Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: color == null ? YColors.line : Colors.transparent)),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: onTap ?? () => _key(k),
-                  child: Center(child: child ?? Text(k, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: fg ?? YColors.ink))),
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: SizedBox(
+          height: wide ? 78 : 68,
+          child: Material(
+            color: color ?? Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: color == null ? YColors.line : Colors.transparent),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTap ?? () => _key(k),
+              child: Center(
+                child:
+                    child ??
+                    Text(
+                      k,
+                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: fg ?? YColors.ink),
+                    ),
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
     final display = _lookupDisplay;
-    final pad = Column(children: [
-      for (final row in const [
-        ['1', '2', '3'],
-        ['4', '5', '6'],
-        ['7', '8', '9'],
-      ])
-        Row(children: [for (final k in row) key(k)]),
-      Row(children: [
-        key('del', child: const Icon(Icons.backspace_outlined, size: 28, color: YColors.inkSoft)),
-        key('0'),
-        key('ok',
-            color: _lookup.text.isEmpty ? YColors.line : _accent,
-            onTap: _lookup.text.isEmpty ? () {} : () => _find(_lookup.text),
-            child: Text(tr('Valider'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _lookup.text.isEmpty ? YColors.muted : _onAccent))),
-      ]),
-    ]);
+    final pad = Column(
+      children: [
+        for (final row in const [
+          ['1', '2', '3'],
+          ['4', '5', '6'],
+          ['7', '8', '9'],
+        ])
+          Row(children: [for (final k in row) key(k)]),
+        Row(
+          children: [
+            key('del', child: const Icon(Icons.backspace_outlined, size: 28, color: YColors.inkSoft)),
+            key('0'),
+            key(
+              'ok',
+              color: _lookup.text.isEmpty ? YColors.line : _accent,
+              onTap: _lookup.text.isEmpty ? () {} : () => _find(_lookup.text),
+              child: Text(
+                tr('Valider'),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _lookup.text.isEmpty ? YColors.muted : _onAccent),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
     final camera = _cam == null
         ? null
         : ClipRRect(
@@ -1234,14 +1495,38 @@ class _KioskScreenState extends State<KioskScreen> {
                   color: YColors.night,
                   alignment: Alignment.center,
                   padding: const EdgeInsets.all(20),
-                  child: Text(tr('Caméra indisponible : utilisez le pavé.'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                  child: Text(
+                    tr('Caméra indisponible : utilisez le pavé.'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
                 ),
                 // Cadre de visée : seulement quand la caméra fonctionne
                 overlayBuilder: (context, _) => IgnorePointer(
-                  child: Stack(children: [
-                    Center(child: Container(width: 170, height: 170, decoration: BoxDecoration(border: Border.all(color: Colors.white, width: 3), borderRadius: BorderRadius.circular(18)))),
-                    Positioned(left: 0, right: 0, bottom: 10, child: Text(tr('ou présentez le QR code de votre ticket'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, shadows: [Shadow(blurRadius: 6)]))),
-                  ]),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 170,
+                          height: 170,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white, width: 3),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 10,
+                        child: Text(
+                          tr('ou présentez le QR code de votre ticket'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, shadows: [Shadow(blurRadius: 6)]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1255,40 +1540,63 @@ class _KioskScreenState extends State<KioskScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: camera != null && wide ? 900 : 520),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr('Bon retour !'), style: _display(wide ? 36 : 28)),
-              const SizedBox(height: 6),
-              Text(tr('Tapez le numéro de votre ticket, ou votre numéro de téléphone.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
-              const SizedBox(height: 24),
-              Builder(builder: (_) {
-                final left = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Container(
-                    height: 92,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: _notFound != null ? YColors.danger : _accent, width: 2)),
-                    child: Text(
-                      display.isEmpty ? '01-0042' : display,
-                      style: TextStyle(fontFamily: 'Poppins', fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: 3, color: display.isEmpty ? YColors.line : YColors.ink),
-                    ),
-                  ),
-                  if (_notFound != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Row(children: [
-                        const Icon(Icons.error_outline, color: YColors.danger),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(tr(_notFound!), style: const TextStyle(color: YColors.danger, fontSize: 15.5))),
-                      ]),
-                    ),
-                  const SizedBox(height: 14),
-                  pad,
-                ]);
-                if (camera == null) return left;
-                return wide
-                    ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: left), const SizedBox(width: 28), Expanded(child: camera)])
-                    : Column(children: [left, const SizedBox(height: 16), camera]);
-              }),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('Bon retour !'), style: _display(wide ? 36 : 28)),
+                const SizedBox(height: 6),
+                Text(tr('Tapez le numéro de votre ticket, ou votre numéro de téléphone.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
+                const SizedBox(height: 24),
+                Builder(
+                  builder: (_) {
+                    final left = Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          height: 92,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: _notFound != null ? YColors.danger : _accent, width: 2),
+                          ),
+                          child: Text(
+                            display.isEmpty ? '01-0042' : display,
+                            style: TextStyle(fontFamily: 'Poppins', fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: 3, color: display.isEmpty ? YColors.line : YColors.ink),
+                          ),
+                        ),
+                        if (_notFound != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: YColors.danger),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(tr(_notFound!), style: const TextStyle(color: YColors.danger, fontSize: 15.5)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        pad,
+                      ],
+                    );
+                    if (camera == null) return left;
+                    return wide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: left),
+                              const SizedBox(width: 28),
+                              Expanded(child: camera),
+                            ],
+                          )
+                        : Column(children: [left, const SizedBox(height: 16), camera]);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1305,83 +1613,119 @@ class _KioskScreenState extends State<KioskScreen> {
     return Container(
       key: const ValueKey('done'),
       color: _accent,
-      child: Stack(children: [
-        Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
-        Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: .92, end: 1),
-                duration: const Duration(milliseconds: 380),
-                curve: Curves.easeOutBack,
-                builder: (context, s, child) => Transform.scale(scale: s, child: child),
-                child: Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(26), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .25), blurRadius: 40, offset: const Offset(0, 18))]),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(30, 34, 30, 22),
-                      child: Column(children: [
-                        Container(
-                          width: 76,
-                          height: 76,
-                          decoration: BoxDecoration(color: (ok ? _color : YColors.warning).withValues(alpha: .12), shape: BoxShape.circle),
-                          child: Icon(ok ? Icons.check_rounded : Icons.info_outline, color: ok ? _color : YColors.warning, size: 46),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(tr(_title), textAlign: TextAlign.center, style: _display(32)),
-                        const SizedBox(height: 10),
-                        Text(tr(_message), textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, height: 1.45, color: YColors.inkSoft)),
-                      ]),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _RingsPainter(on))),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: .92, end: 1),
+                  duration: const Duration(milliseconds: 380),
+                  curve: Curves.easeOutBack,
+                  builder: (context, s, child) => Transform.scale(scale: s, child: child),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .25), blurRadius: 40, offset: const Offset(0, 18))],
                     ),
-                    if (t != null && ok) ...[
-                      const _TicketDivider(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(30, 20, 30, 6),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          QrView(data: '${t['code']}', size: 118),
-                          const SizedBox(width: 22),
-                          Flexible(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(tr('Votre numéro'), style: const TextStyle(color: YColors.muted, fontSize: 15)),
-                              FittedBox(child: Text(tr(kioskRef('${t['code']}')), style: _display(44, color: YColors.night))),
-                              if (widget.print)
-                                Row(children: [
-                                  Icon(Icons.print_outlined, size: 18, color: _accent),
-                                  const SizedBox(width: 6),
-                                  Text(tr('Impression du ticket…'), style: TextStyle(color: _accent, fontWeight: FontWeight.w600)),
-                                ]),
-                            ]),
-                          ),
-                        ]),
-                      ),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(30, 18, 30, 26),
-                      child: Column(children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(value: (total - _backIn) / total, minHeight: 5, color: _accent, backgroundColor: _accent.withValues(alpha: .12)),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: on, padding: const EdgeInsets.symmetric(vertical: 18), textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                            onPressed: _reset,
-                            child: Text(tr('Visiteur suivant')),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(30, 34, 30, 22),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 76,
+                                height: 76,
+                                decoration: BoxDecoration(color: (ok ? _color : YColors.warning).withValues(alpha: .12), shape: BoxShape.circle),
+                                child: Icon(ok ? Icons.check_rounded : Icons.info_outline, color: ok ? _color : YColors.warning, size: 46),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(tr(_title), textAlign: TextAlign.center, style: _display(32)),
+                              const SizedBox(height: 10),
+                              Text(
+                                tr(_message),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 17, height: 1.45, color: YColors.inkSoft),
+                              ),
+                            ],
                           ),
                         ),
-                      ]),
+                        if (t != null && ok) ...[
+                          const _TicketDivider(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(30, 20, 30, 6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                QrView(data: '${t['code']}', size: 118),
+                                const SizedBox(width: 22),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(tr('Votre numéro'), style: const TextStyle(color: YColors.muted, fontSize: 15)),
+                                      FittedBox(
+                                        child: Text(tr(kioskRef('${t['code']}')), style: _display(44, color: YColors.night)),
+                                      ),
+                                      if (widget.print)
+                                        Row(
+                                          children: [
+                                            Icon(Icons.print_outlined, size: 18, color: _accent),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              tr('Impression du ticket…'),
+                                              style: TextStyle(color: _accent, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(30, 18, 30, 26),
+                          child: Column(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(value: (total - _backIn) / total, minHeight: 5, color: _accent, backgroundColor: _accent.withValues(alpha: .12)),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _accent,
+                                    foregroundColor: on,
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                  onPressed: _reset,
+                                  child: Text(tr('Visiteur suivant')),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -1395,17 +1739,39 @@ class _TicketDivider extends StatelessWidget {
     final bg = Theme.of(context).colorScheme.primary;
     return SizedBox(
       height: 28,
-      child: Stack(alignment: Alignment.center, children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: LayoutBuilder(builder: (context, box) {
-            final n = (box.maxWidth / 12).floor();
-            return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [for (var i = 0; i < n; i++) Container(width: 6, height: 2, color: YColors.line)]);
-          }),
-        ),
-        Positioned(left: -14, child: Container(width: 28, height: 28, decoration: BoxDecoration(color: bg, shape: BoxShape.circle))),
-        Positioned(right: -14, child: Container(width: 28, height: 28, decoration: BoxDecoration(color: bg, shape: BoxShape.circle))),
-      ]),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final n = (box.maxWidth / 12).floor();
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [for (var i = 0; i < n; i++) Container(width: 6, height: 2, color: YColors.line)],
+                );
+              },
+            ),
+          ),
+          Positioned(
+            left: -14,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+            ),
+          ),
+          Positioned(
+            right: -14,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
