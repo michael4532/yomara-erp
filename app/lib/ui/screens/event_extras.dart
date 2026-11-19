@@ -34,6 +34,7 @@ String regSourceLabel(String s) => const {'facebook': 'Facebook', 'whatsapp': 'W
 
 Map<String, dynamic> regForm(Map<String, dynamic> event) => {
       'ask_email': 'required',
+      'name_field': 'split',
       'ask_company': true,
       'ask_job': false,
       'questions': <dynamic>[],
@@ -375,6 +376,7 @@ class _RegForm extends StatefulWidget {
 class _RegFormState extends State<_RegForm> {
   late final Map<String, dynamic> f = regForm(widget.event);
   late String _email = '${f['ask_email']}';
+  late String _name = f['name_field'] == 'single' ? 'single' : 'split';
   late bool _company = f['ask_company'] == true, _job = f['ask_job'] == true, _global = f['global_list'] != false;
   late bool _feedback = widget.event['feedback_enabled'] != false;
   late String _city = '${f['ask_city'] ?? 'optional'}', _country = '${f['ask_country'] ?? 'off'}';
@@ -419,7 +421,7 @@ class _RegFormState extends State<_RegForm> {
     if (questions.any((q) => q['type'] == 'select' && (q['options'] as List).isEmpty)) return toast(context, tr('Ajoutez les choix proposés pour chaque liste.'), error: true);
     await context.read<SyncEngine>().save('ev_events', {
       'id': widget.event['id'],
-      'registration': {'ask_email': _email, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions,
+      'registration': {'ask_email': _email, 'name_field': _name, 'ask_company': _company, 'ask_job': _job, 'global_list': _global, 'consent_text': _consent.text.trim(), 'confirmation_message': _message.text.trim(), 'questions': questions,
         'ask_city': _city, 'ask_country': _country, 'default_country': _defaultCountry.text.trim(), 'kiosk_welcome': _welcome.text.trim(), 'kiosk_type_id': f['kiosk_type_id'], 'kiosk_color': _kioskColor, 'kiosk_logo': _kioskLogo,
         'welcome_back_email': _welcomeBack, 'day_messages': {for (final (d, c) in _dayMsgs) if (c.text.trim().isNotEmpty) d: c.text.trim()}},
       'feedback_enabled': _feedback,
@@ -442,6 +444,14 @@ class _RegFormState extends State<_RegForm> {
           segments: [ButtonSegment(value: 'required', label: Text(tr('Obligatoire'))), ButtonSegment(value: 'optional', label: Text(tr('Facultatif')))],
           selected: {_email},
           onSelectionChanged: (s) => setState(() => _email = s.first),
+        ),
+      ),
+      Field(
+        label: tr('Nom du visiteur'),
+        child: SegmentedButton<String>(
+          segments: [ButtonSegment(value: 'split', label: Text(tr('Prénom + Nom'))), ButtonSegment(value: 'single', label: Text(tr('Un champ « Nom et prénom »')))],
+          selected: {_name},
+          onSelectionChanged: (s) => setState(() => _name = s.first),
         ),
       ),
       SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Demander l\'entreprise')), value: _company, onChanged: (v) => setState(() => _company = v)),

@@ -27,6 +27,7 @@ class RegistrationService
     {
         return [
             'ask_email' => 'required', // required, optional
+            'name_field' => 'split', // split : Prénom + Nom ; single : un seul champ « Nom et prénom » (bornes)
             'ask_company' => true,
             'ask_job' => false,
             'questions' => [],
@@ -73,6 +74,7 @@ class RegistrationService
         foreach (['ask_city', 'ask_country'] as $k) {
             $out[$k] = in_array($out[$k], ['off', 'optional', 'required'], true) ? $out[$k] : 'off';
         }
+        $out['name_field'] = $out['name_field'] === 'single' ? 'single' : 'split';
         $out['default_country'] = Str::limit(trim((string) $out['default_country']), 80, '');
         $out['kiosk_welcome'] = Str::limit(trim((string) $out['kiosk_welcome']), 300, '');
         $out['kiosk_type_id'] = Str::isUuid((string) $out['kiosk_type_id']) ? $out['kiosk_type_id'] : null;

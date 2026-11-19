@@ -1,5 +1,9 @@
 # Notes de version
 
+## 0.99.75 — un seul champ « Nom et prénom » sur les bornes
+
+- **Formulaire d'inscription › Nom du visiteur** : « Prénom + Nom » (deux champs) ou « Un champ « Nom et prénom » ». Le second est plus rapide à remplir sur un téléphone.
+
 ## 0.99.74 — villes et communes, évolution jour après jour
 
 - **Fréquentation › Villes et communes** : toutes les villes, avec les communes d'Abidjan regroupées sous Abidjan (touchez pour déplier). Pour chacune : inscrits, part des inscrits, visiteurs venus, taux de venue et visiteurs de chaque jour avec la hausse ou la baisse par rapport à la veille.

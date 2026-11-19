@@ -339,6 +339,9 @@ class _KioskScreenState extends State<KioskScreen> {
   String? _notFound;
   DateTime _lastScan = DateTime(2000);
 
+  /// Un seul champ « Nom et prénom » (réglage du formulaire) au lieu de Prénom + Nom.
+  bool get _singleName => _form['name_field'] == 'single';
+
   Map<String, dynamic> get _event => LocalDb.get('ev_events', widget.eventId) ?? const {};
   Map<String, dynamic> get _form => regForm(_event);
 
@@ -568,7 +571,7 @@ class _KioskScreenState extends State<KioskScreen> {
       if (!mounted) return;
       _showDone(
         local,
-        'Bienvenue, ${_first.text.trim()} !',
+        'Bienvenue, ${_first.text.trim().replaceAll(RegExp(r'\s+'), ' ')} !',
         widget.print
             ? 'Récupérez votre ticket. Les jours suivants, tapez simplement votre numéro sur la borne.'
             : 'Votre ticket (numéro et QR code) vous est envoyé par e-mail à ${opt(_email) ?? ''}. Les jours suivants, donnez simplement ce numéro à l\'accueil.',
@@ -979,10 +982,14 @@ class _KioskScreenState extends State<KioskScreen> {
                   Text(tr('Moins d\'une minute, puis vous entrez.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
                   const SizedBox(height: 26),
                   _section('Vous', [
-                    pair(
-                      _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
-                      _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
-                    ),
+                    if (_singleName)
+                      _field(_first, 'Nom et prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.name,
+                          check: (s) => s.length < 3 ? tr('Nom trop court') : null)
+                    else
+                      pair(
+                        _field(_first, 'Prénom', required: true, icon: Icons.person_outline, cap: TextCapitalization.words, autofill: AutofillHints.givenName),
+                        _field(_last, 'Nom', required: true, cap: TextCapitalization.words, autofill: AutofillHints.familyName),
+                      ),
                   ]),
                   _section('Vos coordonnées', [
                     pair(
