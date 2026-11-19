@@ -1,5 +1,12 @@
 # Notes de version
 
+## 0.99.78 — borne plus simple pour les agents
+
+- **Visiteur qui revient (téléphone)** : petite fenêtre caméra en haut, à côté du titre ; il tape son numéro ou montre simplement son QR code.
+- **Bouton « Quitter »** visible sur la borne (à côté de son nom), protégé par le code de sortie.
+- **Comptes « Borne 1 », « Borne 2 »…** : le nom et le numéro de la borne sont imposés par le compte et ne se modifient plus au démarrage. Sur téléphone, l'impression est désactivée par défaut.
+- **Formulaire d'inscription** : interrupteur « Demander l'accord pour les informations » ; désactivé, la case « J'accepte… » disparaît des bornes et de la page d'inscription.
+
 ## 0.99.77 — bornes sur téléphone
 
 - **QR code visible dans les e-mails** (Gmail, iPhone, Outlook) : image intégrée au message, plus besoin d'« afficher les images ».

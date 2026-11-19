@@ -52,7 +52,9 @@
           @endif
         @endif
       @endforeach
+      @if(($form['ask_consent'] ?? true) && trim($form['consent_text'] ?? '') !== '')
       <label style="display:flex;gap:8px;align-items:flex-start;font-weight:500;margin-top:14px"><input type="checkbox" name="consent" value="1" style="width:auto;margin-top:3px" @checked(old('consent'))> {{ strtr($form['consent_text'], ['{societe}' => $company->name]) }}</label>
+      @endif
       <input type="hidden" name="source" value="{{ old('source', $source) }}">
       <p class="muted" style="margin:14px 0">Entrée gratuite : votre billet avec QR code s'affiche aussitôt et vous est envoyé par e-mail. Entrée payante : après le paiement (Mobile Money ou carte). Prix TTC.</p>
       <button class="btn" type="submit" @disabled($types->isEmpty() || $event->status !== 'open')>{{ $types->every(fn ($r) => $r['t']->price <= 0) ? 'Je m\'inscris' : 'Commander mes billets' }}</button>

@@ -105,7 +105,15 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
   final pin = TextEditingController();
   final digits = RegExp(r'\d+').firstMatch(name.text)?.group(0);
   final number = TextEditingController(text: '${LocalDb.meta.get('kiosk_number') ?? int.tryParse(digits ?? '') ?? 1}');
-  var print = LocalDb.meta.get('kiosk_print') != false;
+  // Compte dédié « Borne 3 » / borne3@… : nom et numéro imposés par le compte, l'agent ne peut pas les changer
+  final fixed = RegExp(r'borne\s*(\d{1,2})', caseSensitive: false).firstMatch('${session.user['name'] ?? ''} ${'${session.user['email'] ?? ''}'.split('@').first}');
+  if (fixed != null) {
+    name.text = 'Borne ${int.parse(fixed.group(1)!)}';
+    number.text = '${int.parse(fixed.group(1)!)}';
+  }
+  // Téléphone : en général sans imprimante ; ticket par e-mail par défaut
+  final phone = MediaQuery.sizeOf(context).shortestSide < 600;
+  var print = LocalDb.meta.get('kiosk_print') == null ? !phone : LocalDb.meta.get('kiosk_print') != false;
   var paper = '${LocalDb.meta.get('kiosk_paper') ?? 'roll80'}';
   Printer? printer = LocalDb.meta.get('kiosk_printer_url') == null ? null : Printer(url: '${LocalDb.meta.get('kiosk_printer_url')}', name: '${LocalDb.meta.get('kiosk_printer_name') ?? ''}');
   final info = await Printing.info();
@@ -134,17 +142,32 @@ Future<void> startKiosk(BuildContext context, Map<String, dynamic> event) async 
                   style: TextStyle(color: Theme.of(c).hintColor, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: name,
-                  decoration: InputDecoration(labelText: tr('Nom de cette borne'), helperText: tr('Ex. : Borne 1, Entrée Nord. Sert aux statistiques par borne.')),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: number,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
-                  decoration: InputDecoration(labelText: tr('Numéro de la borne (1 à 99)'), helperText: tr('Début des numéros de ticket : borne 1 → 01-0001, 01-0002… Un numéro différent par borne.')),
-                ),
+                if (fixed != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(color: YColors.blue.withValues(alpha: .07), borderRadius: BorderRadius.circular(12)),
+                    child: Row(children: [
+                      const Icon(Icons.tablet_android, size: 20, color: YColors.blue),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(tr('${name.text} · tickets ${number.text.padLeft(2, '0')}-0001, ${number.text.padLeft(2, '0')}-0002…'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ]),
+                  )
+                else ...[
+                  TextField(
+                    controller: name,
+                    decoration: InputDecoration(labelText: tr('Nom de cette borne'), helperText: tr('Ex. : Borne 1, Entrée Nord. Sert aux statistiques par borne.')),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: number,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+                    decoration: InputDecoration(labelText: tr('Numéro de la borne (1 à 99)'), helperText: tr('Début des numéros de ticket : borne 1 → 01-0001, 01-0002… Un numéro différent par borne.')),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextField(
                   controller: pin,
@@ -834,7 +857,9 @@ class _KioskScreenState extends State<KioskScreen> {
   /// Nom de la borne (appui long : menu protégé) et état de l'envoi au serveur. Aucun compteur public.
   Widget _kioskChip(Color fg) {
     final pending = context.watch<SyncEngine>().pendingCount;
+    // Touché : code de sortie puis menu (quitter la borne, fréquentation…)
     return GestureDetector(
+      onTap: _admin,
       onLongPress: _admin,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -848,6 +873,10 @@ class _KioskScreenState extends State<KioskScreen> {
               tr(widget.kioskName),
               style: TextStyle(color: fg.withValues(alpha: .7), fontSize: 12.5, fontWeight: FontWeight.w600),
             ),
+            const SizedBox(width: 8),
+            Icon(Icons.power_settings_new, size: 16, color: fg.withValues(alpha: .7)),
+            const SizedBox(width: 3),
+            Text(tr('Quitter'), style: TextStyle(color: fg.withValues(alpha: .7), fontSize: 12.5, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -1230,7 +1259,7 @@ class _KioskScreenState extends State<KioskScreen> {
                         ]),
                       for (final q in questions) _question(q, wide),
                       const SizedBox(height: 8),
-                      if ('${f['consent_text'] ?? ''}'.trim().isNotEmpty) _consentCard(),
+                      if (f['ask_consent'] != false && '${f['consent_text'] ?? ''}'.trim().isNotEmpty) _consentCard(),
                     ],
                   ),
                 ),
@@ -1482,12 +1511,15 @@ class _KioskScreenState extends State<KioskScreen> {
         ),
       ],
     );
+    // Téléphone : petite fenêtre caméra en haut, à côté du titre (le visiteur tape son numéro ou montre son QR code)
+    final smallCam = !wide && _cam != null;
     final camera = _cam == null
         ? null
         : ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(smallCam ? 16 : 20),
             child: SizedBox(
-              height: wide ? 300 : 200,
+              height: wide ? 300 : 120,
+              width: smallCam ? 120 : null,
               child: MobileScanner(
                 controller: _cam,
                 onDetect: _onDetect,
@@ -1507,14 +1539,15 @@ class _KioskScreenState extends State<KioskScreen> {
                     children: [
                       Center(
                         child: Container(
-                          width: 170,
-                          height: 170,
+                          width: smallCam ? 84 : 170,
+                          height: smallCam ? 84 : 170,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.white, width: 3),
                             borderRadius: BorderRadius.circular(18),
                           ),
                         ),
                       ),
+                      if (!smallCam)
                       Positioned(
                         left: 0,
                         right: 0,
@@ -1543,10 +1576,28 @@ class _KioskScreenState extends State<KioskScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tr('Bon retour !'), style: _display(wide ? 36 : 28)),
-                const SizedBox(height: 6),
-                Text(tr('Tapez le numéro de votre ticket, ou votre numéro de téléphone.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
-                const SizedBox(height: 24),
+                if (smallCam)
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(tr('Bon retour !'), style: _display(24)),
+                        const SizedBox(height: 6),
+                        Text(tr('Tapez votre numéro de ticket ou de téléphone, ou montrez votre QR code à la caméra.'), style: const TextStyle(fontSize: 15, color: YColors.muted)),
+                      ]),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(children: [
+                      camera!,
+                      const SizedBox(height: 4),
+                      Text(tr('QR code ici'), style: const TextStyle(fontSize: 12, color: YColors.muted, fontWeight: FontWeight.w600)),
+                    ]),
+                  ])
+                else ...[
+                  Text(tr('Bon retour !'), style: _display(wide ? 36 : 28)),
+                  const SizedBox(height: 6),
+                  Text(tr('Tapez le numéro de votre ticket, ou votre numéro de téléphone.'), style: const TextStyle(fontSize: 17, color: YColors.muted)),
+                ],
+                SizedBox(height: smallCam ? 16 : 24),
                 Builder(
                   builder: (_) {
                     final left = Column(
@@ -1582,7 +1633,7 @@ class _KioskScreenState extends State<KioskScreen> {
                         pad,
                       ],
                     );
-                    if (camera == null) return left;
+                    if (camera == null || smallCam) return left;
                     return wide
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.start,

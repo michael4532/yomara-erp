@@ -32,6 +32,7 @@ class RegistrationService
             'ask_job' => false,
             'questions' => [],
             'consent_text' => 'J\'accepte de recevoir les informations de {societe} (prochains événements, offres).',
+            'ask_consent' => true, // case « J'accepte de recevoir les informations » (bornes et page d'inscription)
             'confirmation_message' => 'Votre inscription est confirmée. Présentez le QR code de votre billet à l\'entrée.',
             'global_list' => true,
             // Provenance : off, optional, required
@@ -75,6 +76,7 @@ class RegistrationService
             $out[$k] = in_array($out[$k], ['off', 'optional', 'required'], true) ? $out[$k] : 'off';
         }
         $out['name_field'] = $out['name_field'] === 'single' ? 'single' : 'split';
+        $out['ask_consent'] = (bool) $out['ask_consent'];
         $out['default_country'] = Str::limit(trim((string) $out['default_country']), 80, '');
         $out['kiosk_welcome'] = Str::limit(trim((string) $out['kiosk_welcome']), 300, '');
         $out['kiosk_type_id'] = Str::isUuid((string) $out['kiosk_type_id']) ? $out['kiosk_type_id'] : null;
