@@ -151,9 +151,20 @@ class SyncController extends Controller
                 continue;
             }
 
-            $r = $m['op'] === 'delete'
-                ? $writer->delete($class, $m['record_id'], $m['base_version'] ?? null)
-                : $writer->upsert($class, $m['record_id'], $m['data'] ?? [], $m['base_version'] ?? null);
+            // Une erreur inattendue sur une fiche ne bloque plus toute la file d'envoi : la fiche est refusée,
+            // l'erreur est journalisée, et le super admin voit la cause exacte.
+            try {
+                $r = $m['op'] === 'delete'
+                    ? $writer->delete($class, $m['record_id'], $m['base_version'] ?? null)
+                    : $writer->upsert($class, $m['record_id'], $m['data'] ?? [], $m['base_version'] ?? null);
+            } catch (\Throwable $e) {
+                report($e);
+                $detail = ($user->is_super_admin || config('app.debug'))
+                    ? ' — '.class_basename($e).' : '.\Illuminate\Support\Str::limit($e->getMessage(), 400)
+                    : ' Contactez le support si le problème persiste.';
+                $results[] = $this->store($m, $company->id, $user->id, EntityWriter::REJECTED, $class, 'Erreur serveur lors de l\'enregistrement.'.$detail);
+                continue;
+            }
 
             $results[] = $this->store($m, $company->id, $user->id, $r['status'], $r['status'] === EntityWriter::APPLIED ? $r['record'] : $class, $r['message'], $r['errors']);
         }

@@ -438,6 +438,7 @@ Route::middleware('installed')->group(function () {
             });
             Route::get('system', [SystemController::class, 'info']);
             Route::get('system/checks', [SystemController::class, 'checks']);
+            Route::get('system/errors', [SystemController::class, 'errors']);
             Route::get('system/env', [SystemController::class, 'env']);
             Route::put('system/env', [SystemController::class, 'saveEnv']);
             Route::post('system/env/test-mail', [SystemController::class, 'testMail']);

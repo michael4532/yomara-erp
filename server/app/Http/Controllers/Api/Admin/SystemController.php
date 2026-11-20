@@ -29,6 +29,24 @@ class SystemController extends Controller
         ];
     }
 
+    /** Dernières erreurs du journal (première ligne de chaque entrée ERROR/CRITICAL), pour le super admin. */
+    public function errors(\Illuminate\Http\Request $r)
+    {
+        $file = collect(glob(storage_path('logs/*.log')) ?: [])->sortByDesc(fn ($f) => filemtime($f))->first();
+        if (! $file) {
+            return ['data' => []];
+        }
+        $size = filesize($file);
+        $h = fopen($file, 'r');
+        fseek($h, max(0, $size - 2_000_000));
+        $chunk = stream_get_contents($h);
+        fclose($h);
+        preg_match_all('/^\[(\d{4}-\d\d-\d\d[ T][\d:]+)[^\]]*\] \w+\.(ERROR|CRITICAL|ALERT|EMERGENCY): (.*)$/m', $chunk, $m, PREG_SET_ORDER);
+        $rows = array_map(fn ($x) => ['at' => $x[1], 'level' => $x[2], 'message' => \Illuminate\Support\Str::limit($x[3], 1500)], array_slice($m, -max(1, min(100, (int) $r->query('limit', 20)))));
+
+        return ['data' => array_reverse($rows)];
+    }
+
     /** Contrôle de production affiché au super admin. */
     public function checks(\App\Services\ProductionCheck $check)
     {
