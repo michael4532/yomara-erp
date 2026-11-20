@@ -267,8 +267,23 @@ class TicketService
     public static function qrPng(string $data, int $size = 8): ?string
     {
         $png = (new \TCPDF2DBarcode($data, 'QRCODE,M'))->getBarcodePngData($size, $size, [11, 27, 58]);
+        if (! is_string($png) || $png === '') {
+            return null;
+        }
+        // Fond blanc opaque et marge autour (le PNG d'origine est transparent : en mode sombre, il disparaissait)
+        if (function_exists('imagecreatefromstring') && ($src = @imagecreatefromstring($png))) {
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $m = 4 * $size;
+            $out = imagecreatetruecolor($w + 2 * $m, $h + 2 * $m);
+            imagefill($out, 0, 0, imagecolorallocate($out, 255, 255, 255));
+            imagecopy($out, $src, $m, $m, 0, 0, $w, $h);
+            ob_start();
+            imagepng($out);
+            $png = (string) ob_get_clean();
+        }
 
-        return is_string($png) && $png !== '' ? $png : null;
+        return $png;
     }
 
     /** Balise image du QR code d'un e-mail et pièce jointe intégrée correspondante (PNG), ou SVG en secours. */

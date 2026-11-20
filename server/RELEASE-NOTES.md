@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.82 — e-mails lisibles en mode sombre
+
+- **Tous les e-mails** : fond blanc imposé, même quand le téléphone ou la messagerie est en mode sombre (iPhone, Outlook…).
+- **QR code des billets** : image sur fond blanc opaque avec une marge, toujours visible et lisible par les bornes.
+
 ## 0.99.81 — numéros des bornes toujours en chiffres
 
 - **Borne** : un numéro de ticket n'est jamais redonné par la même borne (même après une remise à zéro ou une suppression).

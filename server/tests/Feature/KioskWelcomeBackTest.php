@@ -109,6 +109,8 @@ class KioskWelcomeBackTest extends TestCase
         // QR code en image PNG intégrée (les messageries n'affichent pas le SVG)
         $this->assertStringContainsString('src="cid:', $m[0]->getHtmlBody());
         $this->assertStringNotContainsString('image/svg', $m[0]->getHtmlBody());
+        // fond blanc imposé même en mode sombre
+        $this->assertStringContainsString('color-scheme" content="light only"', $m[0]->getHtmlBody());
 
         // Jour 2 : elle tape son numéro → e-mail « Bienvenue pour le jour 2 », même numéro, programme du jour 2
         Carbon::setTestNow('2026-12-02 09:05:00');

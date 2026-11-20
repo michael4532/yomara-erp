@@ -244,9 +244,9 @@ class RegistrationService
                 $qrAtt[] = $att;
             }
 
-            return '<div style="text-align:center;margin:16px 0">'.$img.'<div style="font-family:monospace;font-size:16px;letter-spacing:2px">'.e($t->code).'</div></div>';
+            return '<div style="text-align:center;margin:16px 0;background:#ffffff;color:#1b2333">'.$img.'<div style="font-family:monospace;font-size:16px;letter-spacing:2px">'.e($t->code).'</div></div>';
         })->implode('');
-        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;line-height:1.5">'
+        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;background:#ffffff;line-height:1.5">'
             .'<div style="background:#0B1B3A;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><div style="font-size:13px;opacity:.75">'.e($c->name).'</div><div style="font-size:22px;font-weight:bold">'.e($e->name).'</div><div style="opacity:.85">'.e($when).'</div></div>'
             .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
             .'<p>Bonjour '.e($o->buyer_name).',</p><p>'.e($intro).'</p>'.$qr
@@ -331,12 +331,12 @@ class RegistrationService
             'Inscrit le' => $o?->registered_at ? $o->registered_at->timezone(config('app.timezone'))->locale('fr')->isoFormat('D MMMM YYYY [à] HH:mm') : null,
         ]);
         $rows = collect($info)->map(fn ($v, $k) => '<tr><td style="padding:4px 10px;color:#5B6B85">'.e($k).'</td><td style="padding:4px 10px;font-weight:bold">'.e($v).'</td></tr>')->implode('');
-        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;line-height:1.5">'
+        $html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#1b2333;background:#ffffff;line-height:1.5">'
             .'<div style="background:#0B1B3A;color:#fff;padding:22px 24px;border-radius:14px 14px 0 0"><div style="font-size:13px;opacity:.75">'.e($c->name).'</div><div style="font-size:22px;font-weight:bold">'.e($e->name).'</div><div style="opacity:.85">'.e($dayLabel.($where ? ' · '.$where : '')).'</div></div>'
             .'<div style="border:1px solid #E3E8F1;border-top:0;padding:22px 24px;border-radius:0 0 14px 14px">'
             .'<p style="font-size:18px"><b>'.e($title).', '.e($first).' !</b></p>'
             .'<p>Votre entrée d\'aujourd\'hui est enregistrée. Gardez votre numéro : il reste le même pendant tout l\'événement.</p>'
-            .'<div style="text-align:center;margin:16px 0">'.$qrImg.'<div style="font-family:monospace;font-size:18px;letter-spacing:2px">'.e($t->code).'</div></div>'
+            .'<div style="text-align:center;margin:16px 0;background:#ffffff;color:#1b2333">'.$qrImg.'<div style="font-family:monospace;font-size:18px;letter-spacing:2px">'.e($t->code).'</div></div>'
             .self::dayBlock($form, $day)
             .'<table style="border-collapse:collapse;font-size:13px;margin:10px 0">'.$rows.'</table>'
             .($o ? '<p><a href="'.e($o->publicUrl()).'" style="display:inline-block;background:#1F6FEB;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Voir mon billet</a></p>' : '')

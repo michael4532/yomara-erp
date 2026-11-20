@@ -77,7 +77,7 @@ class Smtp implements Provider
                 $email->replyTo($reply);
             }
             if ($m->html) {
-                $email->html($m->html);
+                $email->html(\App\Support\MailTemplates::lightOnly($m->html));
             }
             $email->text($m->text ?? trim(html_entity_decode(strip_tags(preg_replace('/<br\s*\/?>|<\/p>/i', "\n", (string) $m->html)))));
             foreach ($m->attachments as $a) {

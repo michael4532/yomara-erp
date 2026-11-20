@@ -98,6 +98,27 @@ class MailTemplates
     }
 
     /**
+     * Fond blanc imposé, même quand le téléphone est en mode sombre : sans cela, certaines messageries (iPhone, Outlook)
+     * assombrissent le fond et le QR code ou les textes foncés deviennent illisibles.
+     */
+    public static function lightOnly(string $html): string
+    {
+        $meta = '<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light">'
+            .'<style>:root{color-scheme:light only;supported-color-schemes:light}body{background:#ffffff!important;color:#1b2333!important}</style>';
+        if (stripos($html, 'color-scheme') !== false) {
+            return $html;
+        }
+        if (preg_match('/<head[^>]*>/i', $html)) {
+            return preg_replace('/<head([^>]*)>/i', '<head$1>'.$meta, $html, 1);
+        }
+
+        return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'.$meta.'</head>'
+            .'<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff;color:#1b2333">'
+            .'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="background:#ffffff"><tr><td bgcolor="#ffffff" style="background:#ffffff;padding:16px 12px;color:#1b2333">'
+            .$html.'</td></tr></table></body></html>';
+    }
+
+    /**
      * Mise en page commune : logo, message (texte simple ou HTML), fiche du document, bouton, pied de page avec © Yomara Technologies.
      * $opts : card => [libellé => valeur], button => [texte, lien], html => message déjà en HTML, signature => HTML.
      */
