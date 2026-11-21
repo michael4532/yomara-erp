@@ -572,6 +572,16 @@ class RegistrationService
             }
             $byKiosk[] = $row;
         }
+        // classement des bornes : inscriptions d'abord, puis visiteurs accueillis ; part des inscriptions aux bornes et meilleur jour
+        $kioskRegs = max(1, array_sum(array_column($byKiosk, 'registrations')));
+        usort($byKiosk, fn ($a, $b) => [$b['registrations'], $b['entries'], $a['name']] <=> [$a['registrations'], $a['entries'], $b['name']]);
+        foreach ($byKiosk as $i => &$row) {
+            $row['rank'] = $i + 1;
+            $row['share'] = (float) round($row['registrations'] * 100 / $kioskRegs, 1);
+            $top = collect($row['days'])->sortByDesc('registrations')->first();
+            $row['best_day'] = $top && $top['registrations'] > 0 ? $top['date'] : null;
+        }
+        unset($row);
 
         $count = fn ($col) => $col->filter()->countBy()->sortDesc()->map(fn ($n, $k) => ['name' => (string) $k, 'count' => $n])->values();
         $cities = $count($orders->map(fn ($o) => self::place($o->buyer_city)));

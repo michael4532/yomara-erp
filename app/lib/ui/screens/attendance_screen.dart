@@ -16,6 +16,8 @@ import '../widgets/common.dart';
 
 const _weekdays = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
 
+String _day0(String iso) => _day(iso);
+
 String _day(String iso) {
   final d = DateTime.tryParse(iso);
   return d == null ? iso : '${_weekdays[d.weekday - 1]} ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
@@ -216,6 +218,10 @@ class _AttendanceViewState extends State<AttendanceView> {
           SectionCard(title: tr('Villes et communes'), child: _Places(places: _list(a['places']), days: days, totalRegistrations: toDouble(t['registrations']))),
         ],
         const SizedBox(height: 12),
+        if (kiosks.isNotEmpty) ...[
+          SectionCard(title: tr('Classement des bornes'), child: _KioskRanking(kiosks: kiosks, days: days)),
+          const SizedBox(height: 12),
+        ],
         if (kiosks.isNotEmpty)
           SectionCard(
             title: tr('Par borne'),
@@ -602,6 +608,90 @@ class _PlacesState extends State<_Places> {
         child: Text(tr('Venus : inscrits passés au moins un jour. Taux de venue : venus ÷ inscrits. Les flèches comparent chaque jour au précédent. Touchez Abidjan pour voir ou masquer ses communes.'),
             style: TextStyle(color: hint, fontSize: 12)),
       ),
+    ]);
+  }
+}
+
+/// Classement des bornes : inscriptions puis visiteurs accueillis, sur tout l'événement ou sur un jour.
+class _KioskRanking extends StatefulWidget {
+  const _KioskRanking({required this.kiosks, required this.days});
+
+  final List<Map<String, dynamic>> kiosks;
+  final List<Map<String, dynamic>> days;
+
+  @override
+  State<_KioskRanking> createState() => _KioskRankingState();
+}
+
+class _KioskRankingState extends State<_KioskRanking> {
+  String? _day; // null = tout l'événement
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context).hintColor;
+    final rows = [
+      for (final k in widget.kiosks)
+        () {
+          if (_day == null) return {'name': '${k['name']}', 'reg': toDouble(k['registrations']).round(), 'ent': toDouble(k['entries']).round()};
+          final d = _list(k['days']).where((r) => r['date'] == _day).firstOrNull ?? const {};
+          return {'name': '${k['name']}', 'reg': toDouble(d['registrations']).round(), 'ent': toDouble(d['entries']).round()};
+        }(),
+    ]..sort((a, b) {
+        final c = (b['reg'] as int).compareTo(a['reg'] as int);
+        if (c != 0) return c;
+        final e = (b['ent'] as int).compareTo(a['ent'] as int);
+        return e != 0 ? e : '${a['name']}'.compareTo('${b['name']}');
+      });
+    final total = rows.fold<int>(0, (s, r) => s + (r['reg'] as int));
+    final max = rows.isEmpty ? 0 : rows.first['reg'] as int;
+    const medals = [Color(0xFFD4A017), Color(0xFF9AA4AE), Color(0xFFB0703C)];
+    // rang partagé en cas d'égalité parfaite
+    final ranks = <int>[];
+    for (var i = 0; i < rows.length; i++) {
+      final same = i > 0 && rows[i]['reg'] == rows[i - 1]['reg'] && rows[i]['ent'] == rows[i - 1]['ent'];
+      ranks.add(same ? ranks[i - 1] : i + 1);
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (widget.days.length > 1)
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          ChoiceChip(label: Text(tr('Tout l\'événement')), selected: _day == null, onSelected: (_) => setState(() => _day = null)),
+          for (final d in widget.days) ChoiceChip(label: Text(tr(_day0('${d['date']}'))), selected: _day == d['date'], onSelected: (_) => setState(() => _day = '${d['date']}')),
+        ]),
+      const SizedBox(height: 10),
+      if (total == 0)
+        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(tr('Aucune inscription aux bornes sur cette période.'), style: TextStyle(color: hint)))
+      else
+        for (var i = 0; i < rows.length; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: ranks[i] <= 3 && (rows[i]['reg'] as int) > 0 ? medals[ranks[i] - 1] : hint.withValues(alpha: .15),
+                child: Text('${ranks[i]}', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: ranks[i] <= 3 && (rows[i]['reg'] as int) > 0 ? Colors.white : null)),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(width: 110, child: Text(tr('${rows[i]['name']}'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(value: max == 0 ? 0 : (rows[i]['reg'] as int) / max, minHeight: 10, color: YColors.blue, backgroundColor: YColors.blue.withValues(alpha: .12)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 150,
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: tr('${rows[i]['reg']} inscr.'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                    TextSpan(text: tr(' · ${(100 * (rows[i]['reg'] as int) / total).round()} %\n${rows[i]['ent']} accueillis'), style: TextStyle(color: hint, fontSize: 12)),
+                  ]),
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ]),
+          ),
     ]);
   }
 }

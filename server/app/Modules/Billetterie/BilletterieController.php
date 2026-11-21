@@ -84,6 +84,8 @@ class BilletterieController extends Controller
             array_push($kh, 'Inscrits '.\Carbon\Carbon::parse($d['date'])->format('d/m'), 'Entrées '.\Carbon\Carbon::parse($d['date'])->format('d/m'));
         }
         array_push($kh, 'Total inscrits', 'Total entrées');
+        $sheet('Classement des bornes', ['Rang', 'Borne', 'Inscriptions', '% des inscriptions aux bornes', 'Visiteurs accueillis (entrées)', 'Meilleur jour'],
+            array_map(fn ($k) => [$k['rank'], $k['name'], $k['registrations'], str_replace('.', ',', (string) $k['share']).' %', $k['entries'], $k['best_day'] ? \Illuminate\Support\Carbon::parse($k['best_day'])->format('d/m/Y') : ''], $a['kiosks']), [8, 24, 14, 24, 26, 16]);
         $sheet('Par borne', $kh, array_map(fn ($k) => array_merge([$k['name']], collect($k['days'])->flatMap(fn ($d) => [$d['registrations'], $d['entries']])->all(), [$k['registrations'], $k['entries']]), $a['kiosks']), [24]);
         // villes et communes : une ligne par ville, puis ses communes en retrait
         $ph = ['Ville', 'Commune', 'Inscrits', '% des inscrits', 'Visiteurs venus', 'Taux de venue'];

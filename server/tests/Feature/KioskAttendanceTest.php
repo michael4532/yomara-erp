@@ -106,6 +106,10 @@ class KioskAttendanceTest extends TestCase
         $this->assertSame(2, $k['Borne 1']['registrations']);
         $this->assertSame(2, $k['Borne 2']['registrations']);
         $this->assertSame(3, $k['Borne 1']['entries']); // Awa jour 1 et jour 2, Jean jour 2
+        // Classement : à inscriptions égales, la borne qui a accueilli le plus de visiteurs passe devant
+        $this->assertEquals(['Borne 1', 1, 50], [$a['kiosks'][0]['name'], $a['kiosks'][0]['rank'], $a['kiosks'][0]['share']]);
+        $this->assertSame(2, $k['Borne 2']['rank']);
+        $this->assertNotNull($k['Borne 1']['best_day']);
         // Provenance : « abidjan », « ABIDJAN » regroupés
         $this->assertSame(['name' => 'Abidjan', 'count' => 2], $a['cities'][0]);
         $this->assertSame(4, $a['countries'][0]['count']);
@@ -119,7 +123,7 @@ class KioskAttendanceTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'x').'.xlsx';
         file_put_contents($path, $res->streamedContent());
         $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-        $this->assertSame(['Par jour', 'Par borne', 'Villes et communes', 'Provenance', 'Inscrits'], $book->getSheetNames());
+        $this->assertSame(['Par jour', 'Classement des bornes', 'Par borne', 'Villes et communes', 'Provenance', 'Inscrits'], $book->getSheetNames());
         $rows = $book->getSheetByName('Inscrits')->toArray();
         $this->assertContains('Vous êtes', $rows[0]);
         $awa = collect($rows)->first(fn ($r) => $r[4] === 'Awa Koné');
