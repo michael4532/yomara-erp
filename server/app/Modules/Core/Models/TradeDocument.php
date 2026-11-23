@@ -77,7 +77,32 @@ abstract class TradeDocument extends Model
             $d->direction = static::DIRECTION;
             $d->user_id ??= auth()->id();
             $d->currency ??= app()->bound('tenant') ? app('tenant')->currency : 'XOF';
+            // Référence automatique (initiales de la société + code), si l'appareil n'en a pas donné
+            if (blank($d->reference) && $d->type !== 'receipt' && app()->bound('tenant')) {
+                $d->reference = static::autoReference((string) app('tenant')->name);
+            }
         });
+    }
+
+    /** Référence générée automatiquement (et non saisie par quelqu'un) : peut être remplacée par une référence parlante. */
+    public static function isAutoReference(?string $ref): bool
+    {
+        return $ref === null || $ref === '' || (bool) preg_match('/^[A-Z0-9]{1,4}-[A-HJ-NP-Z2-9]{6}$/', $ref);
+    }
+
+    /** « Yomara Technologies » → « YT-7K3Q9M » (même règle que l'application). */
+    public static function autoReference(string $companyName): string
+    {
+        $skip = ['sarl', 'sa', 'sas', 'sasu', 'suarl', 'ets', 'et', 'de', 'des', 'du', 'la', 'le', 'les', 'and', 'the', 'ci'];
+        $words = array_values(array_filter(preg_split('/[^a-z0-9]+/', strtolower(\Illuminate\Support\Str::ascii($companyName))), fn ($w) => $w !== '' && ! in_array($w, $skip, true)));
+        $initials = ! $words ? 'DOC' : (count($words) === 1 ? substr($words[0], 0, 3) : implode('', array_map(fn ($w) => $w[0], array_slice($words, 0, 4))));
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $code = '';
+        for ($i = 0; $i < 6; $i++) {
+            $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+
+        return strtoupper($initials).'-'.$code;
     }
 
     /** Agence déduite de l'entrepôt, de la caisse ou du document d'origine (toujours dans la société en cours). */

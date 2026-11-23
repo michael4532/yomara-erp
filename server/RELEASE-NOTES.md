@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.87 — Mobile Money Paystack, référence automatique
+
+- **Encaissement Mobile Money / carte par Paystack** : la demande ne passe plus en « Paiement refusé ou expiré » au bout de quelques secondes. Paystack indique « abandonné » tant que le client n'a pas encore payé : l'ERP attend maintenant le vrai résultat (payé, refusé ou annulé).
+- **Référence automatique** sur chaque nouveau devis, commande ou facture : initiales de l'entreprise + code aléatoire (ex. YT-7K3Q9M), créée sur l'appareil, même hors ligne, et modifiable. Tant que le numéro officiel n'est pas encore attribué, le PDF affiche « N° YT-7K3Q9M » au lieu de « En attente de numéro ».
+
 ## 0.99.86 — corriger une facture payée, historique d'activité
 
 - **Factures validées ou payées** : nouvelles actions « Modifier (repasser en brouillon) » et « Supprimer définitivement ». En brouillon, la facture garde son numéro, ses lignes et ses paiements ; le stock et les écritures sont annulés, puis repassés à la nouvelle validation, toujours avec le même numéro. La suppression retire aussi ses paiements. Un motif est demandé à chaque fois. Les factures certifiées FNE restent protégées (avoir obligatoire).

@@ -399,7 +399,7 @@ class SignatureService
             }
             $who = $r->signers->first(fn ($s) => ! $s->user_id)?->name ?? $r->signers->first()?->name;
             $order = $q->convertTo('order');
-            $order->reference = $order->reference ?: 'Bon pour accord signé électroniquement — '.$who.' ('.$r->number.')';
+            $order->reference = ! \App\Modules\Core\Models\TradeDocument::isAutoReference($order->reference) ? $order->reference : 'Bon pour accord signé électroniquement — '.$who.' ('.$r->number.')';
             $order->save();
             $order->validateDocument();
             $this->log($r, 'completed', null, ['order' => $order->number]);

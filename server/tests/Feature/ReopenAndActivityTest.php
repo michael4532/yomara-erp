@@ -19,6 +19,7 @@ class ReopenAndActivityTest extends TestCase
 
         $doc = $api()->postJson('/api/ventes/documents', ['type' => 'invoice', 'partner_id' => $client, 'date' => now()->toDateString(),
             'lines' => [['product_id' => $product, 'description' => 'Ciment', 'quantity' => 4, 'unit_price' => 5000, 'tax_rate' => 0]]])->assertCreated()->json('data');
+        $this->assertMatchesRegularExpression('/^BR-[A-HJ-NP-Z2-9]{6}$/', $doc['reference']); // référence automatique : initiales + code
         $inv = $api()->postJson("/api/ventes/documents/{$doc['id']}/validate")->assertOk()->json('data');
         $number = $inv['number'];
         $api()->postJson('/api/ventes/payments', ['document_id' => $inv['id'], 'date' => now()->toDateString(), 'amount' => 20000, 'method' => 'mobile_money'])->assertCreated();
@@ -93,5 +94,22 @@ class ReopenAndActivityTest extends TestCase
         $this->assertEqualsCanonicalizing(['name', 'phone'], $upd['fields']);
         $this->assertSame(['Kouassi', 'Kouassi & Fils'], $upd['changes']['name']);
         $this->assertSame('Modification', $upd['label']);
+    }
+
+    public function test_reference_initials_and_paystack_open_transaction_stays_pending(): void
+    {
+        $this->assertStringStartsWith('YT-', \App\Modules\Core\Models\TradeDocument::autoReference('Yomara Technologies'));
+        $this->assertStringStartsWith('NNSI-', \App\Modules\Core\Models\TradeDocument::autoReference('NSI - Next Sustainable Initiatives SARL'));
+        $this->assertStringStartsWith('KOU-', \App\Modules\Core\Models\TradeDocument::autoReference('Kouassi'));
+
+        $gw = new \App\Models\PaymentGateway(['driver' => 'paystack', 'credentials' => ['secret_key' => 'sk_live_x']]);
+        $tx = new \App\Models\PaymentTransaction(['reference' => 'abc', 'amount' => 1000]);
+        $remote = null;
+        \Illuminate\Support\Facades\Http::fake(['api.paystack.co/*' => function () use (&$remote) {
+            return \Illuminate\Support\Facades\Http::response(['status' => true, 'data' => ['status' => $remote]]);
+        }]);
+        foreach (['abandoned' => 'pending', 'ongoing' => 'pending', 'success' => 'paid', 'failed' => 'failed'] as $remote => $expected) {
+            $this->assertSame($expected, (new \App\Payments\Gateways\Paystack($gw))->verify($tx), $remote);
+        }
     }
 }

@@ -40,6 +40,7 @@ import 'appro_screen.dart';
 import 'activity_log_screen.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
+import '../../core/doc_ref.dart';
 
 import 'package:yomara_erp/core/safe_launch.dart';
 const paymentMethods = {
@@ -148,6 +149,10 @@ class _DocumentEditorState extends State<DocumentEditor> {
     if (_doc['currency'] != context.read<Session>().currency) _rate.text = '${_doc['exchange_rate']}';
     _lines = List<Map<String, dynamic>>.from((_doc['lines'] as List? ?? []).map((l) => Map<String, dynamic>.from(l)));
     _notes.text = '${_doc['notes'] ?? ''}';
+    // Référence automatique (initiales de l'entreprise + code) : imprimée tout de suite, même hors ligne
+    if (widget.document == null && (_doc['reference'] ?? '').toString().isEmpty) {
+      _doc['reference'] = autoReference('${context.read<Session>().company['name'] ?? ''}');
+    }
     _reference.text = '${_doc['reference'] ?? ''}';
   }
 

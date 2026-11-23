@@ -145,7 +145,7 @@ HTML;
             $order = null;
             if ($company->setting('portal_quote_to_order', true)) {
                 $order = $q->convertTo('order');
-                $order->reference = $order->reference ?: 'Bon pour accord en ligne — '.$signer;
+                $order->reference = ! \App\Modules\Core\Models\TradeDocument::isAutoReference($order->reference) ? $order->reference : 'Bon pour accord en ligne — '.$signer;
                 $order->save();
                 $order->validateDocument();
             }

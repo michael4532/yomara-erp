@@ -31,9 +31,11 @@ class Paystack extends Gateway
     {
         $res = Http::acceptJson()->timeout(30)->withToken($this->key('secret_key'))->get('https://api.paystack.co/transaction/verify/'.rawurlencode($tx->reference))->json();
 
+        // « abandoned » = le client n'a pas encore payé (statut de toute transaction ouverte) : on attend.
+        // Seuls « failed » et « reversed » sont définitifs.
         return match ($res['data']['status'] ?? null) {
             'success' => 'paid',
-            'failed', 'abandoned', 'reversed' => 'failed',
+            'failed', 'reversed' => 'failed',
             default => 'pending',
         };
     }

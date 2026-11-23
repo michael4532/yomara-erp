@@ -206,7 +206,7 @@ class OrderNotifier
         $cur = $doc->currency === 'XOF' || ! $doc->currency ? 'F CFA' : $doc->currency;
 
         return [
-            '{numero}' => (string) ($doc->reference ?: $doc->number),
+            '{numero}' => (string) (\App\Modules\Core\Models\TradeDocument::isAutoReference($doc->reference) ? $doc->number : $doc->reference),
             '{client}' => $name,
             '{entreprise}' => $c->name,
             '{total}' => number_format((float) $doc->total, 0, ',', ' ').' '.$cur,
@@ -230,8 +230,8 @@ class OrderNotifier
         \App\Modules\Helpdesk\HelpdeskService::$silentAck = true;
         try {
             $res = app(\App\Services\EntityWriter::class)->upsert($T, $id, array_filter([
-                'subject' => 'Commande '.($doc->reference ?: $doc->number),
-                'description' => 'Commande '.($doc->reference ?: $doc->number).' ('.$doc->number.') du '.optional($doc->date)->format('d/m/Y').', '.number_format((float) $doc->total, 0, ',', ' ').' '.($doc->currency ?: 'XOF')
+                'subject' => 'Commande '.(\App\Modules\Core\Models\TradeDocument::isAutoReference($doc->reference) ? $doc->number : $doc->reference),
+                'description' => 'Commande '.(\App\Modules\Core\Models\TradeDocument::isAutoReference($doc->reference) ? $doc->number : $doc->reference).' ('.$doc->number.') du '.optional($doc->date)->format('d/m/Y').', '.number_format((float) $doc->total, 0, ',', ' ').' '.($doc->currency ?: 'XOF')
                     ."\n\n".mb_substr((string) $doc->notes, 0, 1500),
                 'contact_name' => $name ?: null, 'contact_email' => $email, 'contact_phone' => $phone, 'partner_id' => $doc->partner_id,
                 'channel' => 'web', 'priority' => 'normal',

@@ -26,7 +26,7 @@ Future<void> printDocument({
   List<Map<String, dynamic>> payments = const [],
 }) async {
   final bytes = await buildDocumentPdf(session: session, config: config, doc: doc, payments: payments);
-  final number = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
+  final number = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : (doc['reference'] != null && '${doc['reference']}'.isNotEmpty ? 'N° ${doc['reference']}' : 'EN ATTENTE DE NUMÉRO'));
   await previewPdf(name: '${config.types[doc['type']]} $number.pdf', onLayout: (_) async => bytes);
 }
 
@@ -311,7 +311,7 @@ Future<Uint8List> buildDocumentPdf({
       pw.TextStyle(font: titleFont, fontBold: titleFont, fontWeight: pw.FontWeight.bold, color: color, fontSize: size, letterSpacing: spacing);
 
   final typeLabel = '${titles[doc['type']] ?? (config.types[doc['type']] ?? 'Document').toUpperCase()}';
-  final docNumber = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : 'EN ATTENTE DE NUMÉRO');
+  final docNumber = doc['number'] ?? ((doc['status'] ?? 'draft') == 'draft' ? 'BROUILLON' : (doc['reference'] != null && '${doc['reference']}'.isNotEmpty ? 'N° ${doc['reference']}' : 'EN ATTENTE DE NUMÉRO'));
   final partner = LocalDb.get('partners', doc['partner_id'] as String?);
   final lines = List<Map<String, dynamic>>.from((doc['lines'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
 
