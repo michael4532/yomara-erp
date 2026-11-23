@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.85 — déverrouiller un PDF sans qpdf
+
+- **Outils PDF › Déverrouiller** : fonctionne maintenant sur tous les hébergements, même sans l'outil qpdf (hébergement mutualisé). Le déchiffrement se fait directement dans le logiciel : protections RC4 40 et 128 bits, AES-128 et AES-256, avec le mot de passe d'ouverture ou le mot de passe propriétaire. qpdf reste utilisé s'il est installé.
+- Message clair si le mot de passe est faux ou si le PDF n'est pas protégé.
+
 ## 0.99.82 — e-mails lisibles en mode sombre
 
 - **Tous les e-mails** : fond blanc imposé, même quand le téléphone ou la messagerie est en mode sombre (iPhone, Outlook…).

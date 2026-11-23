@@ -228,10 +228,46 @@ class LiensPdfTest extends TestCase
         $this->assertStringContainsString('/Encrypt', $enc);
         $this->assertStringContainsString('/AESV3', $enc); // AES-256
         $this->api($this->t)->post('/api/pdf/watermark', ['files' => [UploadedFile::fake()->createWithContent('p.pdf', $enc)], 'options' => json_encode(['text' => 'x'])])->assertUnprocessable();
+        // Déverrouillage sans qpdf (hébergement mutualisé) : déchiffrement en PHP
+        config(['erp.qpdf' => false]);
+        $this->api($this->t)->post('/api/pdf/unlock', ['files' => [UploadedFile::fake()->createWithContent('p.pdf', $enc)], 'options' => json_encode(['password' => 'mauvais'])])
+            ->assertUnprocessable()->assertJsonPath('message', 'Mot de passe incorrect.');
+        $clear = $this->api($this->t)->post('/api/pdf/unlock', ['files' => [UploadedFile::fake()->createWithContent('p.pdf', $enc)], 'options' => json_encode(['password' => 'Abidjan2026'])])->assertOk()->getContent();
+        $this->assertStringNotContainsString('/Encrypt', $clear);
+        $this->assertSame(1, $this->pageCount($clear));
+        $this->api($this->t)->post('/api/pdf/unlock', ['files' => [$this->pdf(1)], 'options' => json_encode(['password' => 'x'])])->assertUnprocessable();
         $this->api($this->t)->post('/api/pdf/merge', ['files' => [UploadedFile::fake()->createWithContent('faux.pdf', '<html>pas un pdf</html>')]])->assertUnprocessable();
 
         $img = $this->api($this->t)->post('/api/pdf/images', ['images' => [UploadedFile::fake()->image('a.jpg', 800, 600), UploadedFile::fake()->image('b.png', 600, 900)]])->assertOk()->getContent();
         $this->assertSame(2, $this->pageCount($img));
         $this->assertSame(3, $this->api($this->t)->post('/api/pdf/info', ['files' => [$this->pdf(3)]])->assertOk()->json('pages'));
+    }
+
+    /** Toutes les protections courantes (RC4 40 et 128 bits, AES-128, AES-256), par mot de passe d'ouverture ou propriétaire. */
+    public function test_pdf_unlock_in_pure_php(): void
+    {
+        foreach ([0, 1, 2, 3] as $mode) {
+            $p = new \TCPDF();
+            $p->setPrintHeader(false);
+            $p->setPrintFooter(false);
+            for ($i = 1; $i <= 2; $i++) {
+                $p->AddPage();
+                $p->SetFont('helvetica', '', 14);
+                $p->Cell(0, 10, 'Facture '.$i.' — Abidjan', 0, 1);
+            }
+            $p->SetProtection(['copy'], 'ouvrir', 'proprio', $mode);
+            $enc = $p->Output('', 'S');
+            foreach (['ouvrir', 'proprio'] as $pw) {
+                $out = \App\Modules\Pdf\PdfDecryptor::decrypt($enc, $pw);
+                $this->assertStringNotContainsString('/Encrypt', $out, "mode $mode");
+                $this->assertSame(2, $this->pageCount($out), "mode $mode");
+            }
+            try {
+                \App\Modules\Pdf\PdfDecryptor::decrypt($enc, 'faux');
+                $this->fail('mot de passe faux accepté');
+            } catch (\DomainException $e) {
+                $this->assertSame('Mot de passe incorrect.', $e->getMessage());
+            }
+        }
     }
 }

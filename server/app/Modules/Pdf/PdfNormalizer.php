@@ -10,6 +10,9 @@ class PdfNormalizer
 {
     public static function qpdf(): ?string
     {
+        if (! config('erp.qpdf', true)) {
+            return null;
+        }
         $bin = (string) config('erp.qpdf_path', '');
         if ($bin !== '' && is_executable($bin)) {
             return $bin;

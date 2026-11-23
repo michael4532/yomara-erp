@@ -619,21 +619,36 @@ class PdfService
         return $this->output($pdf);
     }
 
-    /** Retire le mot de passe (nécessite qpdf sur le serveur et le mot de passe du document). */
+    /**
+     * Retire le mot de passe (il faut connaître le mot de passe d'ouverture ou propriétaire du document).
+     * qpdf est utilisé s'il est installé sur le serveur ; sinon le déchiffrement se fait en PHP (hébergement mutualisé).
+     */
     public function unlock(string $path, string $password): string
     {
-        $bin = PdfNormalizer::qpdf() ?: $this->fail('Le déverrouillage n\'est pas disponible sur ce serveur (outil qpdf absent). Demandez à votre hébergeur de l\'installer.');
-        $out = $this->tmp();
-        // mot de passe dans un fichier temporaire : jamais visible dans la liste des processus
-        $pw = $this->tmp('txt');
-        file_put_contents($pw, $password);
-        @chmod($pw, 0600);
-        @exec(escapeshellarg($bin).' --password-file='.escapeshellarg($pw).' --decrypt '.escapeshellarg($path).' '.escapeshellarg($out).' 2>&1', $o, $code);
-        if (! in_array($code, [0, 3], true) || ! is_file($out) || filesize($out) === 0) {
-            $this->fail(str_contains(implode(' ', $o), 'password') ? 'Mot de passe incorrect.' : 'Ce PDF n\'a pas pu être déverrouillé.');
+        $raw = (string) file_get_contents($path);
+        str_contains($raw, '/Encrypt') || $this->fail('Ce PDF n\'est pas protégé par un mot de passe.');
+        if ($bin = PdfNormalizer::qpdf()) {
+            $out = $this->tmp();
+            // mot de passe dans un fichier temporaire : jamais visible dans la liste des processus
+            $pw = $this->tmp('txt');
+            file_put_contents($pw, $password);
+            @chmod($pw, 0600);
+            @exec(escapeshellarg($bin).' --password-file='.escapeshellarg($pw).' --decrypt '.escapeshellarg($path).' '.escapeshellarg($out).' 2>&1', $o, $code);
+            if (in_array($code, [0, 3], true) && is_file($out) && filesize($out) > 0) {
+                return (string) file_get_contents($out);
+            }
+            if (str_contains(implode(' ', $o), 'password')) {
+                $this->fail('Mot de passe incorrect.');
+            }
         }
-
-        return (string) file_get_contents($out);
+        try {
+            return PdfDecryptor::decrypt($raw, $password);
+        } catch (\DomainException $e) {
+            $this->fail($e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+            $this->fail('Ce PDF n\'a pas pu être déverrouillé.');
+        }
     }
 
     /** Images (JPG, PNG) → un PDF, une image par page, ajustée à la page (A4 ou taille de l'image). */
