@@ -17,6 +17,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Historique d'activité : comptes et rôles (les fiches métier sont suivies par Syncable)
+        foreach ([\App\Models\User::class, \App\Models\Role::class] as $cls) {
+            $cls::saved(fn ($m) => \App\Support\ActivityJournal::model($m, 'saved'));
+            $cls::deleted(fn ($m) => \App\Support\ActivityJournal::model($m, 'deleted'));
+        }
+
         // Réglages du serveur saisis dans l'application (Super admin › Configuration du serveur) : prioritaires sur le .env
         \App\Support\EnvSettings::apply();
 

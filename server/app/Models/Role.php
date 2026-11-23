@@ -42,7 +42,7 @@ class Role extends Model
      * Droits sensibles accordés uniquement nommément (ou par « * », l'administrateur) :
      * un joker de module comme « rh.* » ne les donne pas.
      */
-    public const EXPLICIT = ['rh.contracts'];
+    public const EXPLICIT = ['rh.contracts', 'ventes.reopen', 'achats.reopen', 'core.activity.view'];
 
     public static function wildcardGrants(string $granted, string $permission): bool
     {

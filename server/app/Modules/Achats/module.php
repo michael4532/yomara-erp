@@ -17,6 +17,7 @@ return [
         'achats.request' => 'Faire des demandes d\'achat',
         'achats.approve' => 'Approuver les demandes d\'achat et les bons de commande au-delà du seuil',
         'achats.receive' => 'Réceptionner les marchandises',
+        'achats.reopen' => 'Rouvrir, modifier ou supprimer une facture fournisseur validée ou payée (droit sensible)',
     ],
     'sync' => [
         'purchase_documents' => \App\Modules\Achats\Models\PurchaseDocument::class,

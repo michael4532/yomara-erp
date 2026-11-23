@@ -1,5 +1,13 @@
 # Notes de version
 
+## 0.99.86 — corriger une facture payée, historique d'activité
+
+- **Factures validées ou payées** : nouvelles actions « Modifier (repasser en brouillon) » et « Supprimer définitivement ». En brouillon, la facture garde son numéro, ses lignes et ses paiements ; le stock et les écritures sont annulés, puis repassés à la nouvelle validation, toujours avec le même numéro. La suppression retire aussi ses paiements. Un motif est demandé à chaque fois. Les factures certifiées FNE restent protégées (avoir obligatoire).
+- **Droit sensible** « Rouvrir, modifier ou supprimer une facture validée ou payée » (ventes et achats) : l'administrateur l'a ; il peut le donner nommément à d'autres personnes (un joker « ventes.* » ne le donne pas).
+- **Historique d'activité** (Administration) : tout ce qui est créé, modifié, validé, rouvert ou supprimé dans l'ERP, avec l'auteur, l'heure, les champs modifiés (avant → après) et les connexions. Filtres par personne, module, type d'action, dates et recherche. Pour une facture rouverte ou supprimée, la version d'avant (lignes, totaux, paiements) reste consultable. Menu « Historique du document » sur chaque facture. Droit sensible « Voir l'historique d'activité ».
+- **Stock** : une facture rouverte puis validée de nouveau ne sort le stock qu'une fois.
+- Rappel 0.99.84 et 0.99.85 inclus : colonnes manquantes des documents de vente (erreur « Unknown column 'bank_account' »), déverrouillage des PDF sans qpdf.
+
 ## 0.99.85 — déverrouiller un PDF sans qpdf
 
 - **Outils PDF › Déverrouiller** : fonctionne maintenant sur tous les hébergements, même sans l'outil qpdf (hébergement mutualisé). Le déchiffrement se fait directement dans le logiciel : protections RC4 40 et 128 bits, AES-128 et AES-256, avec le mot de passe d'ouverture ou le mot de passe propriétaire. qpdf reste utilisé s'il est installé.

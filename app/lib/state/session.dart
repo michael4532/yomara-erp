@@ -149,7 +149,7 @@ class Session extends ChangeNotifier {
 
   /// Même logique que le serveur : "*", "ventes.*", "*.view".
   /// Même liste que Role::EXPLICIT côté serveur.
-  static const explicitPermissions = {'rh.contracts'};
+  static const explicitPermissions = {'rh.contracts', 'ventes.reopen', 'achats.reopen', 'core.activity.view'};
 
   bool can(String permission) {
     // Droits retirés à cet utilisateur (ou modules masqués) : priment sur le rôle

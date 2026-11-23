@@ -21,6 +21,7 @@ return [
         'core.products.delete' => 'Supprimer des produits',
         'core.users.manage' => 'Gérer les utilisateurs et rôles',
         'core.settings.manage' => 'Modifier les paramètres de la société',
+        'core.activity.view' => 'Voir l\'historique d\'activité de toute la société (droit sensible)',
     ],
     'sync' => [
         'partners' => \App\Modules\Core\Models\Partner::class,

@@ -322,6 +322,12 @@ Route::middleware('installed')->group(function () {
                 Route::post('payments/links/{id}/cancel', [\App\Http\Controllers\Api\Store\PaymentLinkController::class, 'cancel'])->whereNumber('id');
             });
 
+            // Historique d'activité de toute la société (droit sensible)
+            Route::middleware('perm:core.activity.view')->group(function () {
+                Route::get('activity', [\App\Http\Controllers\Api\ActivityController::class, 'index']);
+                Route::get('activity/meta', [\App\Http\Controllers\Api\ActivityController::class, 'meta']);
+            });
+
             Route::middleware('perm:core.users.manage')->group(function () {
                 Route::get('users', [UserController::class, 'index']);
                 Route::get('users/form-meta', [UserController::class, 'formMeta']);

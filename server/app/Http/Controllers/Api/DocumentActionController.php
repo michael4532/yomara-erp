@@ -21,6 +21,9 @@ class DocumentActionController extends Controller
             Route::post("$uri/{id}/validate", [static::class, 'validate'])->middleware("perm:$manage"),
             Route::post("$uri/{id}/cancel", [static::class, 'cancel'])->middleware("perm:$manage"),
             Route::post("$uri/{id}/convert", [static::class, 'convert'])->middleware("perm:$manage"),
+            // Droit sensible : rouvrir (repasser en brouillon) ou supprimer un document validé, même payé
+            Route::post("$uri/{id}/reopen", [static::class, 'reopen'])->middleware('perm:'.$class::reopenPermission()),
+            Route::post("$uri/{id}/purge", [static::class, 'purge'])->middleware('perm:'.$class::reopenPermission()),
         ] as $route) {
             $route->setAction(array_merge($route->getAction(), ['entity_class' => $class]));
         }
@@ -72,5 +75,31 @@ class DocumentActionController extends Controller
         $type = $request->validate(['type' => 'required|string'])['type'];
 
         return $this->run(fn () => response()->json(['data' => $doc->convertTo($type)->toSyncArray()], 201));
+    }
+
+    public function reopen(Request $request, string $id)
+    {
+        $doc = $this->find($request, $id);
+        $reason = (string) ($request->validate(['reason' => 'nullable|string|max:500'])['reason'] ?? '');
+
+        return $this->run(function () use ($doc, $reason) {
+            $before = $doc->reopenDocument();
+            ActivityLog::record('document.reopened', $doc, ['label' => $doc->number, 'reason' => $reason ?: null, 'before' => $before]);
+
+            return ['data' => $doc->fresh()->load('lines')->toSyncArray()];
+        });
+    }
+
+    public function purge(Request $request, string $id)
+    {
+        $doc = $this->find($request, $id);
+        $reason = (string) ($request->validate(['reason' => 'nullable|string|max:500'])['reason'] ?? '');
+
+        return $this->run(function () use ($doc, $reason) {
+            $before = $doc->purgeDocument();
+            ActivityLog::record('document.purged', $doc, ['label' => $before['number'] ?: $doc->partner_name, 'reason' => $reason ?: null, 'before' => $before]);
+
+            return ['deleted' => true, 'id' => $doc->id];
+        });
     }
 }

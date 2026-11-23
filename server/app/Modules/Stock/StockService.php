@@ -42,8 +42,9 @@ class StockService
 
         DB::transaction(function () use ($doc, $type, $sign, $warehouseId, $reverse) {
             if ($reverse) {
-                // Annulation : mouvements inverses de ceux du document (par article, entrepôt et lot)
-                foreach (StockMove::withoutGlobalScopes()->where('company_id', $doc->company_id)->where('document_id', $doc->id)->where('type', $type)->whereNull('deleted_at')->get()->groupBy(fn ($m) => $m->product_id.'|'.$m->warehouse_id.'|'.$m->lot_id) as $g) {
+                // Annulation : mouvements inverses du solde du document (par article, entrepôt et lot), en tenant compte
+                // d'une annulation précédente (document rouvert puis validé de nouveau)
+                foreach (StockMove::withoutGlobalScopes()->where('company_id', $doc->company_id)->where('document_id', $doc->id)->whereIn('type', [$type, 'adjustment'])->whereNull('deleted_at')->get()->groupBy(fn ($m) => $m->product_id.'|'.$m->warehouse_id.'|'.$m->lot_id) as $g) {
                     $qty = round($g->sum('quantity'), 4);
                     if (abs($qty) < 0.00001) {
                         continue;

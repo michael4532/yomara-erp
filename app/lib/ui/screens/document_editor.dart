@@ -37,6 +37,7 @@ import '../../core/lots.dart';
 import '../../core/pricing.dart';
 import '../widgets/lots_dialog.dart';
 import 'appro_screen.dart';
+import 'activity_log_screen.dart';
 import '../../i18n/i18n.dart';
 import '../../core/json.dart';
 
@@ -452,6 +453,83 @@ class _DocumentEditorState extends State<DocumentEditor> {
     final saved = await context.read<SyncEngine>().save(cfg.entity, {'id': _doc['id'], 'status': 'cancelled'});
     if (mounted) setState(() => _doc = saved);
   }
+
+  String get _reopenPerm => cfg.entity == 'purchase_documents' ? 'achats.reopen' : 'ventes.reopen';
+  String get _apiBase => cfg.entity == 'purchase_documents' ? 'achats/documents' : 'ventes/documents';
+
+  /// Motif demandé avant une réouverture ou une suppression (conservé dans l'historique d'activité).
+  Future<String?> _askReason(String title, String message, String ok) async {
+    final ctl = TextEditingController();
+    final res = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 460,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(message),
+            const SizedBox(height: 14),
+            TextField(controller: ctl, autofocus: true, maxLength: 500, decoration: InputDecoration(labelText: tr('Motif (gardé dans l\'historique)'))),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: YColors.danger), onPressed: () => Navigator.pop(c, ctl.text.trim()), child: Text(ok)),
+        ],
+      ),
+    );
+    ctl.dispose();
+    return res;
+  }
+
+  /// Document validé (même payé) repassé en brouillon : numéro, lignes et paiements conservés ; stock et écritures annulés
+  /// puis repassés à la nouvelle validation. Droit sensible, en ligne seulement.
+  Future<void> _reopen() async {
+    final paid = toDouble(_doc['amount_paid']) > 0;
+    final reason = await _askReason(
+      tr('Modifier ce document ?'),
+      tr('Il repasse en brouillon avec son numéro ${_doc['number'] ?? ''}${paid ? ' et ses paiements' : ''}. Le stock et les écritures sont annulés, puis repassés quand vous le validerez de nouveau. L\'opération est inscrite dans l\'historique.'),
+      tr('Repasser en brouillon'),
+    );
+    if (reason == null || !mounted) return;
+    try {
+      final r = asMap(await context.read<Session>().api.post('$_apiBase/${_doc['id']}/reopen', {'reason': reason}));
+      final d = asMap(r['data']);
+      await LocalDb.put(cfg.entity, d);
+      if (!mounted) return;
+      setState(() {
+        _doc = d;
+        _lines = List<Map<String, dynamic>>.from((d['lines'] as List? ?? []).map((l) => Map<String, dynamic>.from(l)));
+      });
+      toast(context, tr('Document repassé en brouillon : corrigez-le puis validez-le.'));
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
+  /// Suppression définitive d'un document validé ou payé, avec ses paiements (droit sensible, en ligne).
+  Future<void> _purge() async {
+    final paid = toDouble(_doc['amount_paid']) > 0;
+    final reason = await _askReason(
+      tr('Supprimer définitivement ${_doc['number'] ?? 'ce document'} ?'),
+      tr('Le document${paid ? ' et ses paiements' : ''} seront supprimés, le stock et les écritures annulés. Une copie reste consultable dans l\'historique d\'activité.'),
+      tr('Supprimer'),
+    );
+    if (reason == null || !mounted) return;
+    try {
+      await context.read<Session>().api.post('$_apiBase/${_doc['id']}/purge', {'reason': reason});
+      await LocalDb.remove(cfg.entity, '${_doc['id']}');
+      final pays = LocalDb.all(cfg.paymentEntity).where((p) => p['document_id'] == _doc['id']).map((p) => '${p['id']}').toList();
+      if (pays.isNotEmpty) await LocalDb.removeMany(cfg.paymentEntity, pays);
+      if (!mounted) return;
+      toast(context, tr('Document supprimé.'));
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
+  void _history() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ActivityLogScreen(subjectId: '${_doc['id']}', title: tr('Historique · ${_doc['number'] ?? cfg.types[_doc['type']] ?? ''}'))));
 
   Future<void> _deleteDraft() async {
     if (!await confirm(context, tr('Supprimer ce brouillon ?'), tr('Cette action est définitive.'), ok: tr('Supprimer'), danger: true)) return;
@@ -1147,6 +1225,9 @@ class _DocumentEditorState extends State<DocumentEditor> {
         onSelected: (v) {
           if (v == 'delete') _deleteDraft();
           if (v == 'cancel') _cancelDoc();
+          if (v == 'reopen') _reopen();
+          if (v == 'purge') _purge();
+          if (v == 'history') _history();
           if (v == 'paylink') _payLink();
           if (v == 'recurring') _makeRecurring();
           if (v == 'sign') _sign(session, payments);
@@ -1167,6 +1248,11 @@ class _DocumentEditorState extends State<DocumentEditor> {
           if (_doc['status'] == 'draft' && session.can(cfg.deletePerm ?? cfg.managePerm)) PopupMenuItem(value: 'delete', child: Text(tr('Supprimer le brouillon'))),
           if (_doc['status'] == 'validated' && toDouble(_doc['amount_paid']) == 0 && session.can(cfg.managePerm) && fneCertFor(_doc['id'] as String?)?['status'] != 'certified')
             PopupMenuItem(value: 'cancel', child: Text(tr('Annuler le document'))),
+          if (!_isNew && _doc['status'] != 'draft' && _doc['_local'] != true && session.can(_reopenPerm) && fneCertFor(_doc['id'] as String?)?['status'] != 'certified') ...[
+            PopupMenuItem(value: 'reopen', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.lock_open_outlined), title: Text(tr('Modifier (repasser en brouillon)')))),
+            PopupMenuItem(value: 'purge', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.delete_forever_outlined, color: YColors.danger), title: Text(tr('Supprimer définitivement'), style: const TextStyle(color: YColors.danger)))),
+          ],
+          if (!_isNew && session.can('core.activity.view')) PopupMenuItem(value: 'history', child: Text(tr('Historique du document'))),
         ],
       ),
     ];

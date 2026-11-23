@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../core/sync_engine.dart';
 import '../files/web_link.dart';
 import '../state/session.dart';
+import 'screens/activity_log_screen.dart';
 import 'screens/admin/admin_companies_screen.dart';
 import 'screens/event_extras.dart' show AdminEventsScreen;
 import 'screens/admin/admin_modules_screen.dart';
@@ -471,6 +472,8 @@ class _AppShellState extends State<AppShell> {
       NavItem('champs', tr('Champs personnalisés'), Icons.dashboard_customize_outlined, (_) => const ChampsScreen(), section: 'Société'),
     if (s.can('core.settings.manage'))
       NavItem('integrations', tr('Intégrations & API'), Icons.hub_outlined, (_) => const IntegrationsScreen(), section: 'Société'),
+    if (s.can('core.activity.view'))
+      NavItem('activity_log', tr('Historique d\'activité'), Icons.history_rounded, (_) => const ActivityLogScreen(), section: 'Société'),
     if (s.can('core.users.manage')) NavItem('team', tr('Équipe & accès'), Icons.groups_2_outlined, (_) => const TeamScreen(), section: 'Société'),
     NavItem('settings', tr('Paramètres'), Icons.settings_outlined, (_) => const SettingsScreen(), section: 'Société'),
     if (s.can('core.settings.manage'))

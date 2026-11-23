@@ -35,7 +35,7 @@ final navGroups = <NavGroup>[
   NavGroup('juridique', tr('Juridique'), Icons.gavel_outlined, ['juridique'], hint: tr('contrats, contentieux, échéances')),
   NavGroup('metiers', tr('Métiers'), Icons.domain_outlined, ['immobilier', 'btp', 'location', 'marches_publics', 'evenements', 'billetterie', 'hebergement'], hint: tr('immobilier, BTP, location, appels d\'offres, événements')),
   NavGroup('collab', tr('Collaboration'), Icons.groups_2_outlined, ['activite', 'mailbox', 'whatsapp', 'whatsapp_web', 'agenda', 'visio', 'tickets', 'ged', 'archives', 'signature', 'pdf'], hint: tr('e-mails, WhatsApp, agenda, réunions vidéo, documents, signatures, outils PDF')),
-  NavGroup('admin', tr('Administration'), Icons.settings_outlined, ['team', 'settings', 'payments', 'backups', 'integrations', 'store', 'referral', 'licenses', 'license', 'import_export', 'migration', 'champs'], hint: tr('équipe et accès, paramètres, modules, imports, migration')),
+  NavGroup('admin', tr('Administration'), Icons.settings_outlined, ['team', 'activity_log', 'settings', 'payments', 'backups', 'integrations', 'store', 'referral', 'licenses', 'license', 'import_export', 'migration', 'champs'], hint: tr('équipe et accès, paramètres, modules, imports, migration')),
   NavGroup('superadmin', tr('Plateforme'), Icons.admin_panel_settings_outlined,
       ['admin_console', 'admin_setup', 'admin_site', 'admin_livechat', 'admin_comms', 'admin_promo', 'admin_licenses', 'admin_support', 'admin', 'admin_online', 'admin_adoption', 'admin_companies', 'admin_plans', 'admin_modules', 'admin_storage', 'admin_store', 'admin_updates', 'admin_env', 'admin_backups', 'admin_sites', 'admin_events']),
 ];
@@ -82,6 +82,7 @@ const navKeywords = <String, String>{
   'integrations': 'integration api webhook zapier make n8n cle token google sheets power bi excel flux donnees connecteur automatisation',
   'migration': 'migrer reprise donnees dolibarr odoo erpnext sage quickbooks zoho xero ebp ancien logiciel',
   'mailbox': 'mail email e-mail courriel outlook office 365 microsoft gmail google imap pop3 smtp boite reception message signature envoyer repondre',
+  'activity_log': 'historique activite journal audit trace qui a fait quoi modification suppression connexion',
   'backups': 'sauvegarde backup restauration restaurer google drive dropbox archive chiffrement securite donnees',
   'admin_backups': 'sauvegarde backup restauration google drive dropbox plateforme',
   'pay_links': 'lien de paiement payer en ligne mobile money wave orange money cinetpay acompte qr code encaisser don cotisation',

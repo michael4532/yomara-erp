@@ -466,7 +466,8 @@ abstract class TradeDocument extends Model
         $company = $this->company()->first();
         $prefix = $company->setting($settingKey) ?: $defaultPrefix;
 
-        $this->number = Sequence::next($this->company_id, static::DIRECTION.'.'.$this->type, $prefix, (int) $this->date->format('Y'));
+        // Un document rouvert garde son numéro d'origine (pas de trou dans la numérotation)
+        $this->number = $this->number ?: Sequence::next($this->company_id, static::DIRECTION.'.'.$this->type, $prefix, (int) $this->date->format('Y'));
         $this->status = 'validated';
         $this->validated_at = now();
         $term = $this->payment_term_id ? PaymentTerm::withTrashed()->find($this->payment_term_id) : null;
@@ -521,6 +522,82 @@ abstract class TradeDocument extends Model
         $this->save();
 
         event(new DocumentCancelled($this));
+    }
+
+    /** Droit (sensible) de rouvrir ou de supprimer un document validé, même payé. */
+    public static function reopenPermission(): string
+    {
+        return static::DIRECTION === 'purchase' ? 'achats.reopen' : 'ventes.reopen';
+    }
+
+    /** Photo du document avant modification ou suppression, conservée dans l'historique d'activité. */
+    public function snapshot(): array
+    {
+        $this->loadMissing('lines');
+
+        return [
+            'number' => $this->number, 'type' => $this->type, 'status' => $this->status, 'payment_status' => $this->payment_status,
+            'partner' => $this->partner_name, 'date' => $this->date?->toDateString(), 'due_date' => $this->due_date?->toDateString(),
+            'currency' => $this->currency, 'subtotal' => (float) $this->subtotal, 'tax_total' => (float) $this->tax_total,
+            'total' => (float) $this->total, 'amount_paid' => (float) $this->amount_paid, 'notes' => $this->notes,
+            'lines' => $this->lines->map(fn ($l) => ['description' => $l->description, 'quantity' => (float) $l->quantity,
+                'unit_price' => (float) $l->unit_price, 'total' => (float) $l->total])->values()->all(),
+        ];
+    }
+
+    protected function assertNotCertified(string $what): void
+    {
+        if (static::DIRECTION === 'sale' && class_exists(\App\Modules\Fne\Models\FneCertification::class)
+            && \App\Modules\Fne\Models\FneCertification::where('document_id', $this->id)->where('status', 'certified')->exists()) {
+            throw new \DomainException('Cette facture est certifiée FNE auprès de la DGI : elle ne peut pas être '.$what.'. Émettez un avoir.');
+        }
+    }
+
+    /** Retire les effets de la validation (stock, comptabilité, fidélité, analytique…) comme une annulation. */
+    protected function undoValidation(): void
+    {
+        if ($this->status === 'validated') {
+            event(new DocumentCancelled($this));
+        }
+        if (class_exists(\App\Modules\Fne\Models\FneCertification::class)) {
+            \App\Modules\Fne\Models\FneCertification::where('document_id', $this->id)->where('status', '!=', 'certified')->delete();
+        }
+    }
+
+    /**
+     * Rouvre un document validé (même payé) : il repasse en brouillon avec son numéro, ses lignes et ses paiements,
+     * pour être corrigé puis validé de nouveau. Stock et écritures sont annulés, puis repassés à la nouvelle validation.
+     */
+    public function reopenDocument(): array
+    {
+        if ($this->status === 'draft') {
+            throw new \DomainException('Ce document est déjà en brouillon.');
+        }
+        $this->assertNotCertified('rouverte');
+        $before = $this->snapshot();
+        $this->undoValidation();
+        $this->status = 'draft';
+        $this->validated_at = null;
+        $this->save();
+
+        return $before;
+    }
+
+    /** Supprime définitivement un document validé ou payé, avec ses paiements (stock et écritures annulés). */
+    public function purgeDocument(): array
+    {
+        $this->assertNotCertified('supprimée');
+        $before = $this->snapshot();
+        $this->undoValidation();
+        $payClass = static::DIRECTION === 'purchase' ? \App\Modules\Achats\Models\PurchasePayment::class : \App\Modules\Ventes\Models\SalesPayment::class;
+        foreach ($payClass::where('document_id', $this->id)->get() as $p) {
+            $before['payments'][] = ['date' => $p->date?->toDateString(), 'amount' => (float) $p->amount, 'method' => $p->method, 'reference' => $p->reference];
+            $p->delete();
+        }
+        $this->lines()->delete();
+        $this->delete();
+
+        return $before;
     }
 
     public function refreshPaymentStatus(bool $save = true): void

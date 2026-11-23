@@ -33,10 +33,12 @@ trait Syncable
             $op = $model->wasRecentlyCreated && ! $model->getChanges() ? 'created' : 'updated';
             \App\Integrations\Webhooks::model($model, $op);
             \App\Integrations\Events::fire($model, $op);
+            \App\Support\ActivityJournal::model($model, 'saved');
         });
         static::deleted(function ($model) {
             $model->logSyncChange('delete');
             \App\Integrations\Webhooks::model($model, 'deleted');
+            \App\Support\ActivityJournal::model($model, 'deleted');
         });
         static::restored(fn ($model) => $model->logSyncChange('upsert'));
     }

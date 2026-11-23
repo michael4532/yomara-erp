@@ -15,6 +15,7 @@ return [
         'ventes.validate' => 'Valider les devis, commandes et factures',
         'ventes.delete' => 'Supprimer ou annuler des documents de vente',
         'ventes.payments.manage' => 'Enregistrer des encaissements',
+        'ventes.reopen' => 'Rouvrir, modifier ou supprimer une facture validée ou payée (droit sensible)',
     ],
     'sync' => [
         'sales_documents' => \App\Modules\Ventes\Models\SalesDocument::class,
