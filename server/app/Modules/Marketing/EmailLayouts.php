@@ -149,6 +149,26 @@ class EmailLayouts
                 ],
             ],
             [
+                'key' => 'service_offer', 'name' => 'Offre de services', 'category' => 'Prospection', 'description' => 'Proposition chaleureuse : vos offres en trois colonnes, vos engagements, ouverture à la discussion et devis',
+                'subject' => 'Une offre pensée pour vous, {{prenom}}', 'preheader' => 'Nos services, nos engagements et un devis sur mesure',
+                'style' => ['primary' => '#0F4C5C', 'background' => '#F6F1E9', 'card' => '#FFFFFF', 'text' => '#1D2B36'],
+                'blocks' => [
+                    ['type' => 'hero', 'title' => 'Donnons plus d\'élan à votre activité', 'text' => 'Bonjour {{prenom}}, chez **{{entreprise}}**, nous accompagnons les entreprises qui veulent aller plus loin.', 'button_label' => 'Discutons-en', 'url' => 'https://wa.me/2250700000000', 'bg_color' => '#0F4C5C', 'button_color' => '#F2B33D'],
+                    ['type' => 'text', 'text' => "Nous avons pensé à vous pour une offre simple, claire et adaptée à vos objectifs. Voici ce que nous vous proposons :"],
+                    ['type' => 'columns3', 'cols' => [
+                        ['title' => 'Offre 1', 'text' => "**Ce que vous obtenez**\nUne ligne pour dire le bénéfice."],
+                        ['title' => 'Offre 2', 'text' => "**Ce que vous obtenez**\nUne ligne pour dire le bénéfice."],
+                        ['title' => 'Sur mesure', 'text' => "Un autre besoin ?\nNous composons l'offre avec vous."],
+                    ]],
+                    ['type' => 'columns', 'left' => "**Nos engagements**\nUn interlocuteur dédié\nUn suivi régulier de vos résultats", 'right' => "**Des tarifs accessibles**\nUn devis clair, adapté à votre budget, sans engagement"],
+                    ['type' => 'quote', 'text' => 'Nous restons ouverts à toute proposition : dites-nous votre objectif, nous construisons l\'offre ensemble.', 'author' => 'L\'équipe {{entreprise}}'],
+                    ['type' => 'button', 'label' => 'Recevoir mon devis', 'url' => 'mailto:', 'align' => 'center', 'color' => '#0F4C5C'],
+                    ['type' => 'text', 'text' => "Au plaisir d'échanger avec vous,\n\n**Votre nom**\nVotre fonction – {{entreprise}}"],
+                    ['type' => 'divider'],
+                    $social,
+                ],
+            ],
+            [
                 'key' => 'quote_followup', 'name' => 'Relance après devis', 'category' => 'Prospection', 'description' => 'Rappel courtois de votre offre, avec les avantages et un bouton pour accepter',
                 'subject' => 'Votre devis est prêt, {{prenom}}', 'preheader' => 'Une question ? Répondez simplement à cet e-mail',
                 'style' => ['primary' => '#0E6B4F', 'background' => '#F2F7F4'],
