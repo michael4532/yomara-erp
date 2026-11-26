@@ -54,6 +54,23 @@ class MailTemplatesTest extends TestCase
         $this->assertStringContainsString('Yomara Technologies', $html);
     }
 
+    public function test_company_email_keeps_cc_and_several_attachments(): void
+    {
+        $mails = new \Illuminate\Mail\Transport\ArrayTransport;
+        \App\Messaging\Providers\Smtp::$transportFactory = fn () => $mails;
+        [$c, , $t] = $this->makeCompany('Copie SARL');
+        $this->api($t)->putJson('/api/messaging/channels/email', ['provider' => 'smtp', 'settings' => [
+            'host' => 'mail.cp.ci', 'port' => '465', 'encryption' => 'ssl', 'username' => 'f@cp.ci', 'password' => 'S3cret!pass', 'from_email' => 'f@cp.ci', 'from_name' => 'CP',
+        ]])->assertOk();
+        $this->api($t)->post('/api/messaging/send', ['channel' => 'email', 'to' => 'a@exemple.ci', 'subject' => 'AMI', 'message' => 'Bonjour',
+            'cc' => 'b@exemple.ci, c@exemple.ci',
+            'attachments' => [\Illuminate\Http\UploadedFile::fake()->create('lettre.pdf', 20, 'application/pdf'), \Illuminate\Http\UploadedFile::fake()->create('rccm.pdf', 20, 'application/pdf')],
+        ])->assertOk();
+        $m = $mails->messages()->last()->getOriginalMessage();
+        $this->assertSame(['b@exemple.ci', 'c@exemple.ci'], array_map(fn ($a) => $a->getAddress(), $m->getCc()));
+        $this->assertCount(2, $m->getAttachments());
+    }
+
     public function test_new_employee_gets_welcome_mail_and_can_choose_password(): void
     {
         config(['mail.default' => 'array']);

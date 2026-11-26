@@ -122,6 +122,8 @@ class MessagingController extends Controller
             'attachment' => 'nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
             'from_account_id' => 'nullable|integer',
             'cc' => 'nullable|string|max:500',
+            'attachments' => 'nullable|array|max:6',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png',
             // Fiche du document dans l'e-mail (facultatif)
             'doc_label' => 'nullable|string|max:60', 'doc_number' => 'nullable|string|max:60', 'doc_total' => 'nullable|string|max:60',
             'doc_date' => 'nullable|string|max:30', 'doc_due' => 'nullable|string|max:30', 'pay_url' => 'nullable|url|max:500',
@@ -133,6 +135,12 @@ class MessagingController extends Controller
         }
         $attachments = [];
         $mediaUrl = null;
+        // E-mail : plusieurs pièces jointes possibles (attachments[]), en plus de « attachment »
+        if ($data['channel'] === 'email') {
+            foreach ((array) $r->file('attachments', []) as $g) {
+                $attachments[] = ['name' => $g->getClientOriginalName(), 'data' => file_get_contents($g->getRealPath()), 'mime' => $g->getMimeType()];
+            }
+        }
         if ($f = $r->file('attachment')) {
             if ($data['channel'] === 'email') {
                 $attachments[] = ['name' => $f->getClientOriginalName(), 'data' => file_get_contents($f->getRealPath()), 'mime' => $f->getMimeType()];
@@ -158,6 +166,7 @@ class MessagingController extends Controller
                 html: $data['channel'] === 'email' ? \App\Support\MailTemplates::layout($company, $text, self::docOptions($data)) : null, text: $text,
                 attachments: $attachments, mediaUrl: $data['channel'] === 'whatsapp' ? $mediaUrl : null,
                 replyTo: $company->email,
+                cc: $data['channel'] === 'email' ? array_values(array_filter(array_map('trim', explode(',', (string) ($data['cc'] ?? ''))))) : [],
             ), $data['context'] ?? null, $r->user()->id);
         } catch (\DomainException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

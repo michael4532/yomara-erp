@@ -1,5 +1,10 @@
 # Notes de version
 
+## 0.99.89 — e-mails de l'entreprise : copie et plusieurs pièces jointes
+
+- **Envoi d'e-mail avec l'adresse de l'entreprise** (Messagerie, même compte que le Marketing) : les destinataires en copie (Cc) sont maintenant bien ajoutés ; ils étaient ignorés quand l'e-mail ne partait pas d'une boîte YoMail.
+- **Plusieurs pièces jointes** dans un même e-mail (jusqu'à 6 fichiers PDF, JPG ou PNG de 10 Mo chacun), utile pour les dossiers de réponse aux appels d'offres.
+
 ## 0.99.88 — mentions légales du site
 
 - **Nouvelle page « Mentions légales »** (/mentions-legales, lien dans le pied de page) : dénomination, forme juridique, capital, siège, RCCM, NCC, directeur de la publication et contact de l'éditeur.
