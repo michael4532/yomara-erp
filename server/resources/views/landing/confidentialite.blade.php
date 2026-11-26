@@ -30,7 +30,7 @@
     <p class="meta">Dernière mise à jour : 9 novembre 2026</p>
 
     <h2>Qui sommes-nous</h2>
-    <p>{{ $appName }} est un logiciel de gestion d'entreprise édité par {{ $who }}, Abidjan, Côte d'Ivoire{{ $contact['address'] ? ' ('.$contact['address'].')' : '' }}. Pour toute question sur vos données :
+    <p>{{ $appName }} est un logiciel de gestion d'entreprise édité par {{ $who }}{{ ($legal['form'] ?? null) ? ' '.$legal['form'] : '' }}{{ ($legal['rccm'] ?? null) ? ' (RCCM '.$legal['rccm'].')' : '' }}, Abidjan, Côte d'Ivoire{{ $contact['address'] ? ' ('.$contact['address'].')' : '' }} — voir les <a href="/mentions-legales">mentions légales</a>. Pour toute question sur vos données :
     @if($contact['email'])<a href="mailto:{{ $contact['email'] }}">{{ $contact['email'] }}</a>.@else<a href="/contact">notre formulaire de contact</a>.@endif</p>
 
     <h2>Deux rôles différents</h2>

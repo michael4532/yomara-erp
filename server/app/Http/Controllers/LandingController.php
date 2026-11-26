@@ -199,6 +199,7 @@ class LandingController extends Controller
             'cur' => $currency === 'XOF' ? 'FCFA' : $currency,
             'appName' => config('erp.name', 'Yomara ERP'),
             'contact' => ModuleStore::contact(),
+            'legal' => \App\Services\SiteTraffic::editorLegal(),
             'downloads' => self::downloads(),
             'dlFiles' => self::files(),
             'dlStores' => self::stores(),

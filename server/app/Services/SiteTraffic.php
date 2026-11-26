@@ -79,6 +79,36 @@ class SiteTraffic
         return $id ? Company::find($id) : null;
     }
 
+    /**
+     * Identité légale de l'éditeur pour les mentions légales et le pied de page du site :
+     * lue sur la fiche de sa société dans l'ERP (Paramètres › Société), rien n'est écrit en dur.
+     */
+    public static function editorLegal(): array
+    {
+        $c = rescue(fn () => self::editorCompany(), null, false);
+        $contact = \App\Store\ModuleStore::contact();
+        if (! $c) {
+            return ['name' => $contact['name'] ?: config('erp.name'), 'form' => null, 'capital' => null, 'address' => $contact['address'], 'rccm' => null,
+                'ncc' => null, 'director' => null, 'email' => $contact['email'], 'phone' => $contact['phone'], 'currency' => 'F CFA'];
+        }
+        $capital = (float) $c->setting('capital', 0);
+        $cur = ($c->currency ?: 'XOF') === 'XOF' ? 'F CFA' : $c->currency;
+        $country = $c->country === 'CI' ? 'Côte d\'Ivoire' : $c->country;
+
+        return [
+            'name' => $c->name,
+            'form' => $c->setting('legal_form') ?: null,
+            'capital' => $capital > 0 ? number_format($capital, 0, ',', ' ').' '.$cur : null,
+            'address' => trim(implode(', ', array_filter([$c->address, $c->city, $country]))) ?: $contact['address'],
+            'rccm' => $c->trade_register ?: null,
+            'ncc' => $c->tax_id ?: null,
+            'director' => $c->setting('legal_director') ?: null,
+            'email' => $contact['email'] ?: $c->email,
+            'phone' => $contact['phone'] ?: $c->phone,
+            'currency' => $cur,
+        ];
+    }
+
     /** Ajoute (ou met à jour) la personne dans le Marketing et, pour une demande, crée une opportunité CRM. */
     public static function capture(string $kind, array $p): void
     {

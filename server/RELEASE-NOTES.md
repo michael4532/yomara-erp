@@ -1,5 +1,11 @@
 # Notes de version
 
+## 0.99.88 — mentions légales du site
+
+- **Nouvelle page « Mentions légales »** (/mentions-legales, lien dans le pied de page) : dénomination, forme juridique, capital, siège, RCCM, NCC, directeur de la publication et contact de l'éditeur.
+- Ces informations viennent de la fiche de la société de l'éditeur dans l'ERP (Paramètres › Société : RCCM, NCC, forme juridique, capital, adresse) : rien à modifier dans le code quand elles changent.
+- Le pied de page du site et les pages Conditions et Confidentialité affichent la forme juridique, le capital et le RCCM de l'éditeur.
+
 ## 0.99.87 — Mobile Money Paystack, référence automatique
 
 - **Encaissement Mobile Money / carte par Paystack** : la demande ne passe plus en « Paiement refusé ou expiré » au bout de quelques secondes. Paystack indique « abandonné » tant que le client n'a pas encore payé : l'ERP attend maintenant le vrai résultat (payé, refusé ou annulé).

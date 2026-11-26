@@ -32,6 +32,7 @@ class AccountDeletionController extends Controller
             'contact' => ModuleStore::contact(),
             'chatEnabled' => false,
             'chatWelcome' => '',
+            'legal' => \App\Services\SiteTraffic::editorLegal(),
         ];
     }
 
@@ -43,6 +44,12 @@ class AccountDeletionController extends Controller
     public function terms()
     {
         return view('landing.conditions', $this->common());
+    }
+
+    /** Mentions légales : identité de l'éditeur lue sur la fiche de sa société (RCCM, NCC, forme, capital, siège). */
+    public function legal()
+    {
+        return view('landing.mentions', $this->common());
     }
 
     public function form()

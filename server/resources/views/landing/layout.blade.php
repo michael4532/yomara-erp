@@ -189,6 +189,7 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);margin-top:44px;padding-
         <a href="/contact#faq">Questions fréquentes</a>
         <a href="/confidentialite">Confidentialité</a>
         <a href="/conditions">Conditions d'utilisation</a>
+        <a href="/mentions-legales">Mentions légales</a>
         <a href="/suppression-compte">Supprimer mon compte</a>
       </div>
       <div>
@@ -201,7 +202,8 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);margin-top:44px;padding-
         @if(! $contact['phone'] && ! $contact['whatsapp'] && ! $contact['email'] && ! $contact['address'])<a href="/contact">Écrire à notre équipe</a>@endif
       </div>
     </div>
-    <div class="legal"><span>© {{ date('Y') }} {{ $contact['name'] ?: 'Yomara Technologies' }}. Tous droits réservés.</span><span>{{ $appName }} — version {{ config('erp.version') }} · <a href="?lang=fr" style="display:inline;margin:0">Français</a> · <a href="?lang=en" style="display:inline;margin:0">English</a></span></div>
+    @php $lg = $legal ?? \App\Services\SiteTraffic::editorLegal(); @endphp
+    <div class="legal"><span>© {{ date('Y') }} {{ $lg['name'] ?: ($contact['name'] ?: 'Yomara Technologies') }}{{ $lg['form'] ? ' '.$lg['form'] : '' }}{{ $lg['capital'] ? ' au capital de '.$lg['capital'] : '' }}{{ $lg['rccm'] ? ' · RCCM '.$lg['rccm'] : '' }}. Tous droits réservés.</span><span>{{ $appName }} — version {{ config('erp.version') }} · <a href="?lang=fr" style="display:inline;margin:0">Français</a> · <a href="?lang=en" style="display:inline;margin:0">English</a></span></div>
   </div>
 </footer>
 @php $wa = $contact['whatsapp'] ? preg_replace('/\D+/', '', $contact['whatsapp']) : null; @endphp
